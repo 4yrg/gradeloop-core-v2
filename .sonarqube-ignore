@@ -1,0 +1,12 @@
+# SonarQube Ignore Rules
+# Exclude test files from security analysis
+
+# All test files - ignore hardcoded credentials and secrets
+**/test_*.py
+**/*_test.py
+**/tests/**/*.py
+
+# Development and configuration files
+**/dev-requirements.txt
+**/setup-dev.sh
+**/.bandit
