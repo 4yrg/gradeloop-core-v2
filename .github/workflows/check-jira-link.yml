@@ -1,0 +1,87 @@
+name: "jira-link-check"
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  check-jira-link:
+    name: Check PR for GRADLOOP Jira key
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.check.outputs.result }}
+    steps:
+      - name: Validate PR contains GRADELOOP-<number> reference
+        id: check
+        uses: actions/github-script@00f12e3e20659f42342b1c0226afda7f7c042325
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // This script validates that either the PR title or body contains a Jira key matching GRADLOOP-<number>.
+            // If missing, it posts a comment and fails the step, which can be used as a required status check.
+            const pr = context.payload.pull_request;
+            if (!pr) {
+              core.setFailed("This workflow must be triggered by a pull_request event with an attached PR payload.");
+              return;
+            }
+
+            const title = pr.title || "";
+            const body = pr.body || "";
+            const jiraPattern = /GRADELOOP-\d+/;
+            const foundInTitle = jiraPattern.test(title);
+            const foundInBody = jiraPattern.test(body);
+            const found = foundInTitle || foundInBody;
+
+            // Build a helpful comment for authors if missing
+            if (!found) {
+              const comment = [
+                "⚠️ **Jira issue missing**",
+                "",
+                "This repository requires that pull requests referencing work include a `GRADLOOP-<number>` Jira key in the PR title or body. This check enforces traceability from Jira → PR → merge.",
+                "",
+                "Please update the PR title or body to include a reference such as `GRADLOOP-123` or a full Jira link (for example: https://gradeloop.atlassian.net/browse/GRADLOOP-123).",
+                "",
+                "This workflow will fail until a valid Jira key is added. If this PR is an emergency hotfix and cannot include a Jira link immediately, add a Jira ticket as soon as possible and include it in the PR body. See the repository's docs for the emergency merge policy."
+              ].join("\n");
+
+              // Post a comment to the PR to notify the author (idempotent-ish: we post each time; GH will dedupe visually).
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                body: comment
+              });
+
+              core.setOutput("result", "missing");
+              core.setFailed("PR does not contain a GRADELOOP-<number> Jira key in title or body.");
+              return;
+            }
+
+            // All good
+            core.setOutput("result", "found");
+            console.log("Jira key found in PR (title or body).");
+      - name: Optionally add label when missing
+        if: steps.check.outputs.result == 'missing'
+        uses: actions/github-script@00f12e3e20659f42342b1c0226afda7f7c042325
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            const label = "needs-jira-link";
+            // Try to add a label to the PR to surface status visually
+            try {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                labels: [label]
+              });
+            } catch (err) {
+              // Non-fatal: labeling can fail if permissions are restricted; log and continue.
+              console.log("Failed to add label:", err.message);
+            }
