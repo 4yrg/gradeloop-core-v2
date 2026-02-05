@@ -18,7 +18,7 @@ jobs:
     steps:
       - name: Validate PR contains GRADLOOP-<number> reference
         id: check
-        uses: actions/github-script@v6
+        uses: actions/github-script@00f12e3e20659f42342b1c0226afda7f7c042325
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -67,7 +67,7 @@ jobs:
             console.log("Jira key found in PR (title or body).");
       - name: Optionally add label when missing
         if: steps.check.outputs.result == 'missing'
-        uses: actions/github-script@v6
+        uses: actions/github-script@00f12e3e20659f42342b1c0226afda7f7c042325
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
