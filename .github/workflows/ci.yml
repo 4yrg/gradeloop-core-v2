@@ -216,6 +216,12 @@ jobs:
             ruff check "$d" || { echo "ruff failed for $d" >> ci_summary.txt; exit 1; }
             black --check "$d" || { echo "black --check failed for $d" >> ci_summary.txt; exit 1; }
 
+            # Skip test coverage for docs/examples directories (no tests expected)
+            if [[ "$d" =~ ^docs/ ]] || [[ "$d" =~ /examples/ ]]; then
+              echo "Skipping tests for $d (documentation/examples directory)" >> ci_summary.txt
+              continue
+            fi
+
             pushd "$d" >/dev/null || true
             pytest --maxfail=1 --disable-warnings --cov=. --cov-report=xml || { echo "pytest failed for $d" >> ci_summary.txt; exit 1; }
             if [ -f coverage.xml ]; then
