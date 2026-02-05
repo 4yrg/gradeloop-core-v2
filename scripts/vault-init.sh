@@ -127,7 +127,7 @@ seed_jwt_secrets() {
     local jwt_mount="secret/auth"
 
     # Generate a random JWT secret if not provided
-    JWT_SECRET="${JWT_SECRET:-$(openssl rand -base64 32)}"
+    JWT_SECRET="${JWT_SECRET:-$(head -c 32 /dev/urandom | base64)}"
 
     write_secret "$jwt_mount/jwt" \
         secret "$JWT_SECRET" \
@@ -248,7 +248,7 @@ EOF
         role_type="jwt" \
         bound_audiences="https://github.com/gradeloop" \
         user_claim="actor" \
-        bound_claims='{"repository":"gradeloop/gradeloop-core-v2"}' \
+        bound_subject="repo:gradeloop/gradeloop-core-v2:ref:refs/heads/main" \
         policies="github-actions" \
         ttl="1h"
 
@@ -379,7 +379,7 @@ interactive_mode() {
     printf "Enter JWT secret (leave empty to auto-generate): "
     read -r jwt_secret
     if [ -z "$jwt_secret" ]; then
-        jwt_secret=$(openssl rand -base64 32)
+        jwt_secret=$(head -c 32 /dev/urandom | base64)
         log_info "Generated JWT secret: ${jwt_secret:0:20}..."
     fi
 

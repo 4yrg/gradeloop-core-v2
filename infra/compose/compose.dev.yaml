@@ -14,7 +14,6 @@ services:
     cap_add:
       - IPC_LOCK
     volumes:
-      - ./vault/config:/vault/config:ro
       - vault-audit-logs:/vault/logs
     command: server -dev -dev-root-token-id="dev-root-token"
     healthcheck:
