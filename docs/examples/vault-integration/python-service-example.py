@@ -7,9 +7,8 @@ import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
 from redis import Redis
+from sqlalchemy import create_engine, text
 
 # Add shared libs to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../shared/libs/py"))
@@ -20,6 +19,7 @@ from secrets import VaultClient
 # Application state
 class AppState:
     """Global application state."""
+
     vault_client: VaultClient = None
     db_engine = None
     redis_client: Redis = None
@@ -32,39 +32,39 @@ state = AppState()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager - runs on startup and shutdown."""
-    
+
     # Startup
     print("🚀 Starting application...")
-    
+
     # Initialize Vault client
     print("🔐 Initializing Vault client...")
     state.vault_client = VaultClient()
-    
+
     # Get database configuration
     print("📊 Retrieving database configuration...")
     db_config = state.vault_client.get_database_config()
     state.db_engine = create_engine(db_config.url())
-    
+
     # Test database connection
     with state.db_engine.connect() as conn:
         result = conn.execute(text("SELECT 1"))
         print(f"✅ Database connection established: {result.scalar()}")
-    
+
     # Get Redis configuration
     print("📦 Retrieving Redis configuration...")
     redis_config = state.vault_client.get_redis_config()
     state.redis_client = Redis.from_url(redis_config.url())
-    
+
     # Test Redis connection
     state.redis_client.ping()
     print("✅ Redis connection established")
-    
+
     # Get JWT configuration
     print("🔑 Retrieving JWT configuration...")
     jwt_config = state.vault_client.get_jwt_config()
     state.jwt_secret = jwt_config.secret
     print(f"✅ JWT configuration loaded (algorithm: {jwt_config.algorithm})")
-    
+
     # Get service-specific configuration
     service_name = os.getenv("SERVICE_NAME", "cipas")
     print(f"⚙️  Retrieving configuration for service: {service_name}")
@@ -73,11 +73,11 @@ async def lifespan(app: FastAPI):
         print(f"✅ Service configuration loaded: {service_config}")
     except Exception as e:
         print(f"⚠️  Warning: Failed to get service config: {e}")
-    
+
     print("✅ Application started successfully!")
-    
+
     yield
-    
+
     # Shutdown
     print("🛑 Shutting down application...")
     if state.vault_client:
@@ -105,10 +105,10 @@ async def health_check():
         # Check database
         with state.db_engine.connect() as conn:
             conn.execute(text("SELECT 1"))
-        
+
         # Check Redis
         state.redis_client.ping()
-        
+
         return {
             "status": "healthy",
             "database": "connected",
@@ -126,7 +126,7 @@ async def get_assignments():
         with state.db_engine.connect() as conn:
             result = conn.execute(text("SELECT id, title FROM assignments LIMIT 10"))
             assignments = [{"id": row[0], "title": row[1]} for row in result]
-        
+
         return {"assignments": assignments}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -144,7 +144,7 @@ async def get_config():
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     port = int(os.getenv("PORT", "8000"))
     uvicorn.run(
         "main:app",
