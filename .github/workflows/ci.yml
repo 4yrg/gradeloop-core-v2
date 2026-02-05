@@ -125,6 +125,12 @@ jobs:
           for d in "${!dirs[@]}"; do
             echo "Processing Go target: $d" >> ci_summary.txt
 
+            # Check if directory has any .go files
+            if ! find "$d" -maxdepth 1 -name "*.go" -print -quit | grep -q .; then
+              echo "Skipping $d (no .go files found)" >> ci_summary.txt
+              continue
+            fi
+
             # gofmt check
             gf=$(gofmt -l "$d" || true)
             if [ -n "$gf" ]; then
@@ -145,6 +151,14 @@ jobs:
 
             # run tests with coverage
             pushd "$d" >/dev/null || true
+
+            # Check if go.mod exists (skip if directory has no Go module)
+            if [ ! -f "go.mod" ]; then
+              echo "Skipping tests for $d (no go.mod found)" >> ci_summary.txt
+              popd >/dev/null || true
+              continue
+            fi
+
             COVER="coverage.out"
             # run package-level tests
             if ! go test ./... -coverprofile="$COVER" ; then
