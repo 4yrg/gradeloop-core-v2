@@ -13,6 +13,39 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
+      
+      - name: Set up Python
+        uses: actions/setup-python@7f4fc3e22c37d6ff65e88745f38bd3157c663f7c
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies and run tests with coverage
+        run: |
+          # Install test dependencies
+          python -m pip install --upgrade pip
+          python -m pip install pytest pytest-cov coverage
+          
+          # Find and test all Python packages
+          for pkg_dir in $(find shared/libs/py -name "setup.py" -o -name "requirements.txt" | xargs -n1 dirname | sort -u); do
+            echo "Testing package: $pkg_dir"
+            pushd "$pkg_dir" > /dev/null
+            
+            # Install package dependencies
+            if [ -f "requirements.txt" ]; then
+              pip install -r requirements.txt
+            fi
+            if [ -f "setup.py" ]; then
+              pip install -e .
+            fi
+            
+            # Run tests with coverage if test files exist
+            if ls test_*.py 1> /dev/null 2>&1; then
+              pytest --cov=. --cov-report=xml --cov-report=term -v || true
+            fi
+            
+            popd > /dev/null
+          done
+      
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602
         env:

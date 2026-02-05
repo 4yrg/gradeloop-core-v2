@@ -7,6 +7,8 @@ They are not real secrets and are used solely for unit testing purposes.
 
 # pylint: disable=line-too-long
 # nosec - This entire file contains only test fixtures, not real credentials
+# pragma: allowlist secret
+
 
 import os
 import pytest
