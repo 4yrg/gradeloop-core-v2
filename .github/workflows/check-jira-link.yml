@@ -16,7 +16,7 @@ jobs:
     outputs:
       result: ${{ steps.check.outputs.result }}
     steps:
-      - name: Validate PR contains GRADLOOP-<number> reference
+      - name: Validate PR contains GRADELOOP-<number> reference
         id: check
         uses: actions/github-script@00f12e3e20659f42342b1c0226afda7f7c042325
         with:
@@ -32,7 +32,7 @@ jobs:
 
             const title = pr.title || "";
             const body = pr.body || "";
-            const jiraPattern = /GRADLOOP-\d+/;
+            const jiraPattern = /GRADELOOP-\d+/;
             const foundInTitle = jiraPattern.test(title);
             const foundInBody = jiraPattern.test(body);
             const found = foundInTitle || foundInBody;
@@ -58,7 +58,7 @@ jobs:
               });
 
               core.setOutput("result", "missing");
-              core.setFailed("PR does not contain a GRADLOOP-<number> Jira key in title or body.");
+              core.setFailed("PR does not contain a GRADELOOP-<number> Jira key in title or body.");
               return;
             }
 
