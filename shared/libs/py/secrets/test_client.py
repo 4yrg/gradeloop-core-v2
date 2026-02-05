@@ -4,6 +4,7 @@ Unit tests for Vault secrets client.
 SECURITY NOTE: All credentials in this file are DUMMY TEST FIXTURES ONLY.
 They are not real secrets and are used solely for unit testing purposes.
 """
+
 # pylint: disable=line-too-long
 # nosec - This entire file contains only test fixtures, not real credentials
 
@@ -73,7 +74,7 @@ def test_database_config_connection_string():
     """Test database connection string generation."""
     db_config = DatabaseConfig(
         username="app_user",
-        password="secure_password_from_vault",
+        password="secure_password_from_vault",  # nosec
         host="db.example.com",
         port="5432",
         database="app_db",
@@ -92,7 +93,7 @@ def test_database_config_url():
     """Test database URL generation."""
     db_config = DatabaseConfig(
         username="app_user",
-        password="secure_password",
+        password="secure_password",  # nosec
         host="db.example.com",
         port="5432",
         database="app_db",
@@ -106,7 +107,7 @@ def test_database_config_url_with_special_chars():
     """Test database URL generation with special characters in password."""
     db_config = DatabaseConfig(
         username="user",
-        password="p@ss:w/rd",
+        password="p@ss:w/rd",  # nosec
         host="localhost",
         port="5432",
         database="testdb",
@@ -122,7 +123,7 @@ def test_redis_config_url():
     redis_config = RedisConfig(
         host="redis.example.com",
         port="6379",
-        password="redis_secure_password",
+        password="redis_secure_password",  # nosec
         db="0",
     )
 
@@ -146,7 +147,7 @@ def test_redis_config_url_no_password():
 def test_jwt_config():
     """Test JWT configuration."""
     jwt_config = JWTConfig(
-        secret="jwt_secret_key_from_vault",
+        secret="jwt_secret_key_from_vault",  # nosec
         algorithm="HS256",
         expiry="24h",
         refresh_expiry="168h",
@@ -177,14 +178,14 @@ def test_vault_client_init_without_token():
 @pytest.fixture
 def mock_hvac_client():
     """Create a mock HVAC client."""
-    with patch("shared.libs.py.secrets.client.hvac.Client") as mock_client_class:
+    with patch("secrets.client.hvac.Client") as mock_client_class:
         instance = MagicMock()
         instance.is_authenticated.return_value = True
         instance.secrets.kv.v2.read_secret_version.return_value = {
             "data": {
                 "data": {
                     "username": "vault_user",
-                    "password": "vault_password",
+                    "password": "vault_password",  # nosec
                     "host": "db.example.com",
                     "port": "5432",
                     "database": "app_db",
@@ -239,7 +240,7 @@ def test_get_database_config(mock_hvac_client):
 
 def test_get_redis_config():
     """Test retrieving Redis configuration."""
-    with patch("shared.libs.py.secrets.client.hvac.Client") as mock_client_class:
+    with patch("secrets.client.hvac.Client") as mock_client_class:
         instance = MagicMock()
         instance.is_authenticated.return_value = True
         instance.secrets.kv.v2.read_secret_version.return_value = {
@@ -247,7 +248,7 @@ def test_get_redis_config():
                 "data": {
                     "host": "redis.example.com",
                     "port": "6379",
-                    "password": "redis_password",
+                    "password": "redis_password",  # nosec
                     "db": "0",
                 }
             }
@@ -266,13 +267,13 @@ def test_get_redis_config():
 
 def test_get_jwt_config():
     """Test retrieving JWT configuration."""
-    with patch("shared.libs.py.secrets.client.hvac.Client") as mock_client_class:
+    with patch("secrets.client.hvac.Client") as mock_client_class:
         instance = MagicMock()
         instance.is_authenticated.return_value = True
         instance.secrets.kv.v2.read_secret_version.return_value = {
             "data": {
                 "data": {
-                    "secret": "jwt_secret_key",
+                    "secret": "jwt_secret_key",  # nosec
                     "algorithm": "HS256",
                     "expiry": "24h",
                     "refresh_expiry": "168h",
@@ -292,7 +293,7 @@ def test_get_jwt_config():
 
 def test_context_manager():
     """Test client as context manager."""
-    with patch("shared.libs.py.secrets.client.hvac.Client") as mock_client_class:
+    with patch("secrets.client.hvac.Client") as mock_client_class:
         instance = MagicMock()
         instance.is_authenticated.return_value = True
         mock_client_class.return_value = instance
@@ -306,7 +307,7 @@ def test_context_manager():
 
 def test_close():
     """Test client close method."""
-    with patch("shared.libs.py.secrets.client.hvac.Client") as mock_client_class:
+    with patch("secrets.client.hvac.Client") as mock_client_class:
         instance = MagicMock()
         instance.is_authenticated.return_value = True
         mock_client_class.return_value = instance
@@ -321,7 +322,7 @@ def test_close():
 
 def test_vault_error_handling():
     """Test Vault error handling."""
-    with patch("shared.libs.py.secrets.client.hvac.Client") as mock_client_class:
+    with patch("secrets.client.hvac.Client") as mock_client_class:
         instance = MagicMock()
         instance.is_authenticated.return_value = True
         instance.secrets.kv.v2.read_secret_version.side_effect = Exception(
@@ -364,7 +365,7 @@ def test_database_config_default_sslmode():
     """Test database config has secure default sslmode."""
     db_config = DatabaseConfig(
         username="user",
-        password="pass",
+        password="pass",  # nosec
         host="db.example.com",
         port="5432",
         database="app",

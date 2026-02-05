@@ -5,6 +5,7 @@ HashiCorp Vault client for Python services.
 import os
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
+from urllib.parse import quote_plus
 
 import hvac
 from hvac.exceptions import VaultError
@@ -54,9 +55,11 @@ class DatabaseConfig:
         )
 
     def url(self) -> str:
-        """Build PostgreSQL URL."""
+        """Build PostgreSQL URL with properly encoded credentials."""
+        encoded_username = quote_plus(self.username)
+        encoded_password = quote_plus(self.password)
         return (
-            f"postgresql://{self.username}:{self.password}"
+            f"postgresql://{encoded_username}:{encoded_password}"
             f"@{self.host}:{self.port}/{self.database}"
         )
 
@@ -112,6 +115,9 @@ class VaultClient:
 
         if not self.config.address:
             raise ValueError("Vault address is required")
+
+        if not self.config.token:
+            raise ValueError("Vault token is required")
 
         # Create HVAC client
         self._client = hvac.Client(
@@ -238,6 +244,16 @@ class VaultClient:
             password=secrets.get("password", ""),
             db=secrets.get("db", "0"),
         )
+
+    @property
+    def client(self) -> hvac.Client:
+        """
+        Access to the underlying HVAC client.
+
+        Returns:
+            The HVAC client instance
+        """
+        return self._client
 
     def close(self):
         """Close the client and clean up resources."""
