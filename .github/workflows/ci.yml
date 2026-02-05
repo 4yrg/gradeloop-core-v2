@@ -203,8 +203,9 @@ jobs:
           for f in "${pyfiles[@]}"; do
             if [[ "$f" =~ ^apps/services/[^/]+ ]]; then
               d=$(printf "%s" "$f" | awk -F'/' '{print $1"/"$2"/"$3}')
-            elif [[ "$f" =~ ^shared/libs/py ]]; then
-              d="shared/libs/py"
+            elif [[ "$f" =~ ^shared/libs/py/([^/]+) ]]; then
+              # Extract the package name (e.g., shared/libs/py/secrets)
+              d=$(printf "%s" "$f" | awk -F'/' '{print $1"/"$2"/"$3"/"$4}')
             else
               d=$(dirname "$f")
             fi
