@@ -5,7 +5,6 @@ HashiCorp Vault client for Python services.
 import os
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
-from urllib.parse import urljoin
 
 import hvac
 from hvac.exceptions import VaultError

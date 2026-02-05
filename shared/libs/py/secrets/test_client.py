@@ -9,7 +9,6 @@ from .client import (
     VaultClient,
     Config,
     DatabaseConfig,
-    JWTConfig,
     RedisConfig,
 )
 
