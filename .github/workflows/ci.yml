@@ -223,6 +223,16 @@ jobs:
             fi
 
             pushd "$d" >/dev/null || true
+
+            # Install dependencies if requirements.txt or setup.py exists
+            if [ -f "requirements.txt" ]; then
+              echo "Installing dependencies from requirements.txt for $d" >> ci_summary.txt
+              python -m pip install -r requirements.txt >/dev/null || { echo "Failed to install requirements for $d" >> ci_summary.txt; exit 1; }
+            elif [ -f "setup.py" ]; then
+              echo "Installing package dependencies from setup.py for $d" >> ci_summary.txt
+              python -m pip install -e . >/dev/null || { echo "Failed to install package for $d" >> ci_summary.txt; exit 1; }
+            fi
+
             pytest --maxfail=1 --disable-warnings --cov=. --cov-report=xml || { echo "pytest failed for $d" >> ci_summary.txt; exit 1; }
             if [ -f coverage.xml ]; then
               # Extract coverage using grep/sed/awk to avoid inline Python and YAML parsing issues.
