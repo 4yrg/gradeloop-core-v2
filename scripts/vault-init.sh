@@ -103,6 +103,23 @@ seed_database_secrets() {
         sslmode "disable"
 
     log_success "Database secrets seeded"
+
+    # Seed GradeLoop Core Secrets (US02 Requirements)
+    log_info "Seeding GradeLoop Core secrets..."
+    
+    # secret/gradeloop/postgres -> password
+    write_secret "secret/gradeloop/postgres" \
+        password "postgres_dev_password_123"
+
+    # secret/gradeloop/iam -> initial_admin_password
+    write_secret "secret/gradeloop/iam" \
+        initial_admin_password "admin_dev_password_123"
+        
+    # secret/gradeloop/vault -> token (Local dev access)
+    write_secret "secret/gradeloop/vault" \
+        token "$VAULT_TOKEN"
+        
+    log_success "GradeLoop Core secrets seeded"
 }
 
 # Seed Redis secrets
@@ -449,6 +466,33 @@ main() {
     log_success "Vault initialization complete!"
     log_info "Vault UI: http://localhost:8200"
     log_info "Root Token: $VAULT_TOKEN"
+
+    # Write root token to shared volume for sidecars (e.g. postgres-sidecar)
+    # The directory /vault/secrets is mounted from ./infra/compose/vault/secrets in host
+    # and /vault/secrets in vault-init container.
+    # We need to make sure this dir exists or is writable.
+    # The existing script writes audit logs to /vault/logs/audit.log
+    # Let's see how vault-init container is mounted in compose.dev.yaml
+    # - ./vault/secrets:/vault/secrets:ro <-- READ ONLY!
+    # Wait, the vault-init container has /vault/secrets mapped as RO from host ./vault/secrets.
+    # It cannot write there.
+    # BUT, in my new plan, I need a place where vault-init writes the token so postgres-sidecar can read it.
+    # The postgres-sidecar mounts ./vault/secrets:/vault/token:ro.
+    # This implies the token should be in ./vault/secrets on host.
+    # But vault-init cannot write to it if it defaults to RO.
+    # I need to change the mount in compose.dev.yaml to be RW for vault-init.
+    # Or I write the token to a different shared volume.
+    # Let's write to a new shared volume 'vault-token' if I hadn't removed it?
+    # In my modified compose, only 'postgres-data' and 'postgres-secrets' were added.
+    # The 'vault-init' uses ./vault/secrets:/vault/secrets:ro.
+    # I should change that mount to RW in the compose file or use a docker volume.
+    # Let's assume for now I will fix the mount in next step.
+    
+    # Actually, I should check if I can write to /vault/secrets.
+    # If the script fails to write, init fails.
+    # I'll add the write command hoping I fix the mount.
+    echo "$VAULT_TOKEN" > /vault/secrets/root-token || log_warn "Could not write root-token to /vault/secrets/root-token"
+
     log_warn "Remember: This is a DEV configuration. Never use dev mode in production!"
 }
 

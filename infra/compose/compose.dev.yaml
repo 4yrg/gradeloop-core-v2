@@ -17,7 +17,7 @@ services:
       - vault-audit-logs:/vault/logs
     command: server -dev -dev-root-token-id="dev-root-token"
     healthcheck:
-      test: ["CMD", "vault", "status"]
+      test: [ "CMD", "vault", "status" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -36,7 +36,7 @@ services:
       VAULT_TOKEN: "dev-root-token"
     volumes:
       - ../../scripts/vault-init.sh:/vault-init.sh:ro
-      - ./vault/secrets:/vault/secrets:ro
+      - ./vault/secrets:/vault/secrets
     command: /bin/sh /vault-init.sh
     networks:
       - gradeloop-network
@@ -50,3 +50,5 @@ networks:
 volumes:
   vault-audit-logs:
     name: gradeloop-vault-audit-logs
+  postgres-data:
+  postgres-secrets:
