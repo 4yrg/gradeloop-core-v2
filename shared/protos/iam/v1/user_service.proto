@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package iam.v1;
-option go_package = "github.com/4yrg/gradeloop-core-v2/shared/protos/gen/go/iam/v1";
+option go_package = "github.com/4yrg/gradeloop-core-v2/shared/gen/go/iam/v1;iamv1";
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
