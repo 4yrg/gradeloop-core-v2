@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package iam;
+option go_package = "./pb";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+enum UserType {
+  USER_TYPE_UNSPECIFIED = 0;
+  STUDENT = 1;
+  EMPLOYEE = 2;
+}
+
+message StudentData {
+  string student_reg_no = 1;
+  google.protobuf.Timestamp enrollment_date = 2;
+}
+
+message EmployeeData {
+  string employee_id = 1;
+  string designation = 2;
+}
+
+message User {
+  string id = 1;
+  string email = 2;
+  string full_name = 3;
+  bool is_active = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+  google.protobuf.Timestamp deleted_at = 7;
+  bool is_password_reset_required = 8;
+  UserType user_type = 9;
+  oneof subtype_data {
+    StudentData student = 10;
+    EmployeeData employee = 11;
+  }
+}
+
+service UserService {
+  rpc CreateUser(CreateUserRequest) returns (User);
+  rpc GetUser(GetUserRequest) returns (User);
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  rpc UpdateUser(UpdateUserRequest) returns (User);
+  rpc SoftDeleteUser(SoftDeleteUserRequest) returns (google.protobuf.Empty);
+}
+
+// Request/Response messages omitted for brevity but follow standard patterns
