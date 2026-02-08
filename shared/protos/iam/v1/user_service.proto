@@ -1,10 +1,11 @@
 syntax = "proto3";
 
-package iam;
-option go_package = "./pb";
+package iam.v1;
+option go_package = "github.com/4yrg/gradeloop-core-v2/shared/protos/gen/go/iam/v1";
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
 
 enum UserType {
   USER_TYPE_UNSPECIFIED = 0;
@@ -46,4 +47,36 @@ service UserService {
   rpc SoftDeleteUser(SoftDeleteUserRequest) returns (google.protobuf.Empty);
 }
 
-// Request/Response messages omitted for brevity but follow standard patterns
+message CreateUserRequest {
+  string email = 1;
+  string full_name = 2;
+  UserType user_type = 3;
+  oneof subtype_data {
+    StudentData student = 4;
+    EmployeeData employee = 5;
+  }
+  string password = 6;
+}
+
+message GetUserRequest {
+  string id = 1;
+}
+
+message ListUsersRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+}
+
+message ListUsersResponse {
+  repeated User users = 1;
+  string next_page_token = 2;
+}
+
+message UpdateUserRequest {
+  User user = 1;
+  google.protobuf.FieldMask update_mask = 2;
+}
+
+message SoftDeleteUserRequest {
+  string id = 1;
+}
