@@ -1,6 +1,7 @@
 package router
 
 import (
+	"os"
 	"time"
 
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/handlers"
@@ -14,18 +15,32 @@ func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handl
 	api := app.Group("/api")
 	v1 := api.Group("/v1")
 
+	// Rate Limit: 1 req/min for activation
+	var activationLimiter fiber.Handler = func(c fiber.Ctx) error { return c.Next() }
+	if os.Getenv("GO_ENV") != "test" {
+		activationLimiter = limiter.New(limiter.Config{
+			Max:        1,
+			Expiration: 1 * time.Minute,
+		})
+	}
+
 	// Auth Routes
 	v1.Post("/login", authHandler.Login)
 	v1.Post("/refresh", authHandler.Refresh)
 	v1.Delete("/refresh-tokens/:token_id", authHandler.RevokeToken)
+	v1.Post("/activate", activationLimiter, authHandler.Activate)
+	v1.Post("/request-activation", activationLimiter, authHandler.RequestActivation)
 
 	users := v1.Group("/users")
 
 	// Rate Limit: 10 req/min for /users (POST)
-	postLimiter := limiter.New(limiter.Config{
-		Max:        10,
-		Expiration: 1 * time.Minute,
-	})
+	var postLimiter fiber.Handler = func(c fiber.Ctx) error { return c.Next() }
+	if os.Getenv("GO_ENV") != "test" {
+		postLimiter = limiter.New(limiter.Config{
+			Max:        10,
+			Expiration: 1 * time.Minute,
+		})
+	}
 
 	users.Post("/", postLimiter, userHandler.CreateUser)
 	users.Get("/", userHandler.ListUsers)

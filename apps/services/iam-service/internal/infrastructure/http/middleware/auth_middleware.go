@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -20,5 +21,36 @@ func AdminOnly() fiber.Handler {
 		}
 
 		return ctx.Next()
+	}
+}
+
+// ForcePasswordReset middleware checks if a user has completed their first mandatory password change.
+// Requirement GRADELOOP-27: If password_changed_at is not greater than password_set_at,
+// the session must be blocked, and the user must be redirected to /force-password-reset.
+func ForcePasswordReset() fiber.Handler {
+	return func(c fiber.Ctx) error {
+		user, ok := c.Locals("user").(*models.User)
+		if !ok || user == nil {
+			// This middleware should follow an authentication middleware that populates the user context.
+			return c.Next()
+		}
+
+		mustReset := false
+		if user.PasswordSetAt != nil {
+			if user.PasswordChangedAt == nil {
+				mustReset = true
+			} else if !user.PasswordChangedAt.After(*user.PasswordSetAt) {
+				mustReset = true
+			}
+		}
+
+		if mustReset {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error":    "Mandatory password reset required",
+				"redirect": "/force-password-reset",
+			})
+		}
+
+		return c.Next()
 	}
 }

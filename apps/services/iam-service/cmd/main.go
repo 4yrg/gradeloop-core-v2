@@ -9,6 +9,7 @@ import (
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http"
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/handlers"
+	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/notifications"
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/repositories"
 	"github.com/4YRG/gradeloop-core-v2/shared/libs/go/secrets"
 	"gorm.io/driver/postgres"
@@ -47,6 +48,12 @@ func main() {
 
 	if err != nil {
 		log.Fatalf("failed to retrieve database configuration from vault after retries: %v", err)
+	}
+
+	log.Println("Retrieving JWT configuration from Vault...")
+	jwtConfig, err := secretsClient.GetJWTConfig(ctx)
+	if err != nil {
+		log.Fatalf("failed to retrieve JWT configuration: %v", err)
 	}
 
 	log.Println("Database configuration retrieved successfully")
@@ -111,8 +118,9 @@ func main() {
 	permissionUsecase := usecases.NewPermissionUsecase(permissionRepo)
 	permissionHandler := handlers.NewPermissionHandler(permissionUsecase)
 
+	notificationStub := notifications.NewNotificationStub()
 	refreshTokenRepo := repositories.NewRefreshTokenRepository(db)
-	authUsecase := usecases.NewAuthUsecase(userRepo, refreshTokenRepo)
+	authUsecase := usecases.NewAuthUsecase(userRepo, refreshTokenRepo, notificationStub, jwtConfig.Secret)
 	authHandler := handlers.NewAuthHandler(authUsecase)
 
 	// Start Server

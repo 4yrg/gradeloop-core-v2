@@ -23,6 +23,15 @@ type refreshRequest struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
+type activateRequest struct {
+	Token    string `json:"token"`
+	Password string `json:"password"`
+}
+
+type requestActivationRequest struct {
+	Email string `json:"email"`
+}
+
 // Login handles POST /login
 func (h *AuthHandler) Login(c fiber.Ctx) error {
 	var req loginRequest
@@ -90,4 +99,36 @@ func (h *AuthHandler) RevokeAllTokens(c fiber.Ctx) error {
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// Activate handles POST /activate
+func (h *AuthHandler) Activate(c fiber.Ctx) error {
+	var req activateRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	if err := h.usecase.ActivateAccount(req.Token, req.Password); err != nil {
+		// Return 403 Forbidden and trigger alert log if a token is reused (handled in usecase)
+		if err.Error() == "forbidden: token has already been used or is invalid" {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+		}
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "account activated successfully"})
+}
+
+// RequestActivation handles POST /request-activation
+func (h *AuthHandler) RequestActivation(c fiber.Ctx) error {
+	var req requestActivationRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	if err := h.usecase.RequestActivation(c.Context(), req.Email); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to request activation"})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "if the email exists, an activation link has been sent"})
 }
