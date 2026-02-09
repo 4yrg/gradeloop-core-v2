@@ -12,6 +12,7 @@ import (
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/application/ports"
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/application/utils"
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
+	gl_logger "github.com/4YRG/gradeloop-core-v2/shared/libs/go/logger"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -22,6 +23,7 @@ type AuthUsecase struct {
 	auditRepo        ports.AuditRepository
 	notificationPort ports.NotificationPort
 	jwtSecret        string
+	logger           *slog.Logger
 }
 
 func NewAuthUsecase(userRepo ports.UserRepository, refreshTokenRepo ports.RefreshTokenRepository, auditRepo ports.AuditRepository, notificationPort ports.NotificationPort, jwtSecret string) *AuthUsecase {
@@ -31,6 +33,7 @@ func NewAuthUsecase(userRepo ports.UserRepository, refreshTokenRepo ports.Refres
 		auditRepo:        auditRepo,
 		notificationPort: notificationPort,
 		jwtSecret:        jwtSecret,
+		logger:           gl_logger.New("iam-service"),
 	}
 }
 
@@ -41,7 +44,7 @@ func (uc *AuthUsecase) hashToken(token string) string {
 }
 
 // Login authenticates a user and returns a raw access token, raw refresh token and user details
-func (uc *AuthUsecase) Login(email, password string) (string, string, *models.User, error) {
+func (uc *AuthUsecase) Login(ctx context.Context, email, password string) (string, string, *models.User, error) {
 	user, err := uc.userRepo.GetUserByEmail(email, false)
 	if err != nil {
 		return "", "", nil, errors.New("unauthorized: invalid credentials")
@@ -88,24 +91,24 @@ func (uc *AuthUsecase) Login(email, password string) (string, string, *models.Us
 		return "", "", nil, err
 	}
 
-	uc.logAudit(context.Background(), "login", "user", user.ID.String(), nil, user)
+	uc.logAudit(ctx, "login", "user", user.ID.String(), nil, user)
 
 	return accessToken, rawToken, user, nil
 }
 
 // Refresh validates the old token and issues a new rotated token
-func (uc *AuthUsecase) Refresh(oldTokenStr string) (string, string, *models.User, error) {
+func (uc *AuthUsecase) Refresh(ctx context.Context, oldTokenStr string) (string, string, *models.User, error) {
 	tokenHash := uc.hashToken(oldTokenStr)
 	token, err := uc.refreshTokenRepo.GetByHash(tokenHash)
 	if err != nil {
 		// Log attempt with unknown token hash
-		slog.Warn("Security event: attempt to refresh with non-matching hash or missing token", "token_hash", tokenHash)
+		gl_logger.WithContext(ctx, uc.logger).Warn("Security event: attempt to refresh with non-matching hash or missing token", "token_hash", tokenHash)
 		return "", "", nil, errors.New("unauthorized: invalid token")
 	}
 
 	// Security Event Logging for revoked or expired tokens
 	if token.IsRevoked || token.ExpiresAt.Before(time.Now()) {
-		slog.Warn("Security event: attempt to reuse revoked or expired token",
+		gl_logger.WithContext(ctx, uc.logger).Warn("Security event: attempt to reuse revoked or expired token",
 			"token_id", token.TokenID,
 			"user_id", token.UserID,
 			"is_revoked", token.IsRevoked,
@@ -161,20 +164,20 @@ func (uc *AuthUsecase) Refresh(oldTokenStr string) (string, string, *models.User
 }
 
 // RevokeToken performs individual revocation
-func (uc *AuthUsecase) RevokeToken(tokenID uuid.UUID) error {
+func (uc *AuthUsecase) RevokeToken(ctx context.Context, tokenID uuid.UUID) error {
 	if err := uc.refreshTokenRepo.Revoke(tokenID); err != nil {
 		return err
 	}
-	uc.logAudit(context.Background(), "revoke", "refresh_token", tokenID.String(), nil, nil)
+	uc.logAudit(ctx, "revoke", "refresh_token", tokenID.String(), nil, nil)
 	return nil
 }
 
 // RevokeAllUserTokens performs bulk revocation for a specific user
-func (uc *AuthUsecase) RevokeAllUserTokens(userID uuid.UUID) error {
+func (uc *AuthUsecase) RevokeAllUserTokens(ctx context.Context, userID uuid.UUID) error {
 	if err := uc.refreshTokenRepo.RevokeAllForUser(userID); err != nil {
 		return err
 	}
-	uc.logAudit(context.Background(), "revoke_all", "user", userID.String(), nil, nil)
+	uc.logAudit(ctx, "revoke_all", "user", userID.String(), nil, nil)
 	return nil
 }
 
@@ -208,7 +211,7 @@ func (uc *AuthUsecase) RequestActivation(ctx context.Context, email string) erro
 }
 
 // ActivateAccount verifies the token and sets the user's initial password.
-func (uc *AuthUsecase) ActivateAccount(tokenStr string, newPassword string) error {
+func (uc *AuthUsecase) ActivateAccount(ctx context.Context, tokenStr string, newPassword string) error {
 	claims, err := utils.ValidateActivationToken(tokenStr, uc.jwtSecret)
 	if err != nil {
 		return fmt.Errorf("invalid or expired activation token: %w", err)
@@ -231,7 +234,7 @@ func (uc *AuthUsecase) ActivateAccount(tokenStr string, newPassword string) erro
 
 	// Single-Use Enforcement: Verify that the token ID matches the one in the database.
 	if user.ActivationTokenID == nil || *user.ActivationTokenID != tokenID {
-		slog.Warn("Security event: attempt to reuse or use invalid activation token", "user_id", user.ID, "token_id", tokenID)
+		gl_logger.WithContext(ctx, uc.logger).Warn("Security event: attempt to reuse or use invalid activation token", "user_id", user.ID, "token_id", tokenID)
 		return errors.New("forbidden: token has already been used or is invalid")
 	}
 
@@ -256,7 +259,7 @@ func (uc *AuthUsecase) ActivateAccount(tokenStr string, newPassword string) erro
 		return err
 	}
 
-	uc.logAudit(context.Background(), "activate", "user", user.ID.String(), nil, user)
+	uc.logAudit(ctx, "activate", "user", user.ID.String(), nil, user)
 
 	return nil
 }
