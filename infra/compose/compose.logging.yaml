@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # Elasticsearch - Log Storage and Indexing
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.2
+    container_name: gradeloop-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q 'status.*\\(green\\|yellow\\)'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Logstash - Log Ingestion and Transformation
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.12.2
+    container_name: gradeloop-logstash
+    volumes:
+      - ./elk/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+    environment:
+      - LS_JAVA_OPTS=-Xms256m -Xmx256m
+    ports:
+      - "5044:5044" # Filebeat beats input
+      - "5000:5000/tcp" # TCP input
+      - "5000:5000/udp" # UDP input
+    networks:
+      - gradeloop-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  # Kibana - Log Visualization Dashboard
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.12.2
+    container_name: gradeloop-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    networks:
+      - gradeloop-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  # Filebeat - Log Collector (collects container logs and ships to Logstash)
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.12.2
+    container_name: gradeloop-filebeat
+    user: root
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./elk/filebeat.yaml:/usr/share/filebeat/filebeat.yml:ro
+    networks:
+      - gradeloop-network
+    depends_on:
+      logstash:
+        condition: service_started
+
+networks:
+  gradeloop-network:
+    external: true
+
+volumes:
+  es-data:
+    name: gradeloop-es-data
