@@ -10,13 +10,13 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/recover"
 )
 
-func Start(userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler, permissionHandler *handlers.PermissionHandler) {
+func Start(userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler, permissionHandler *handlers.PermissionHandler, authHandler *handlers.AuthHandler) {
 	app := fiber.New()
 
 	app.Use(logger.New())
 	app.Use(recover.New())
 
-	router.Setup(app, userHandler, roleHandler, permissionHandler)
+	router.Setup(app, userHandler, roleHandler, permissionHandler, authHandler)
 
 	log.Println("Server starting on :3000")
 	if err := app.Listen(":3000"); err != nil {
