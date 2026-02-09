@@ -1,4 +1,4 @@
-module github.com/gradeloop/gradeloop-core-v2/shared/libs/go/secrets
+module github.com/4YRG/gradeloop-core-v2/shared/libs/go/secrets
 
 go 1.23
 

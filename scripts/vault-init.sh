@@ -81,10 +81,19 @@ enable_audit_logging() {
 # Write a secret to Vault
 write_secret() {
     local path=$1
-    local key=$2
-    local value=$3
-
-    vault kv put "$path" "$key"="$value" > /dev/null
+    shift
+    local args=""
+    while [ "$#" -gt 0 ]; do
+        # Build the command arguments key=value
+        args="$args $1=$2"
+        shift 2
+    done
+    log_info "Writing secret to $path..."
+    # shellcheck disable=SC2086
+    if ! vault kv put "$path" $args > /dev/null; then
+        log_error "Failed to write secret to $path"
+        return 1
+    fi
 }
 
 # Seed database secrets
@@ -93,32 +102,32 @@ seed_database_secrets() {
 
     local db_mount="secret/database"
 
-    # PostgreSQL secrets
+    # PostgreSQL secrets (Aligned with compose.dev.yaml)
     write_secret "$db_mount/postgres" \
-        username "gradeloop" \
-        password "gradeloop_dev_pass" \
+        username "postgres" \
+        password "postgres" \
         host "postgres" \
         port "5432" \
-        database "gradeloop_dev" \
+        database "gradeloop" \
         sslmode "disable"
 
     log_success "Database secrets seeded"
 
     # Seed GradeLoop Core Secrets (US02 Requirements)
     log_info "Seeding GradeLoop Core secrets..."
-    
+
     # secret/gradeloop/postgres -> password
     write_secret "secret/gradeloop/postgres" \
-        password "postgres_dev_password_123"
+        password "postgres"
 
     # secret/gradeloop/iam -> initial_admin_password
     write_secret "secret/gradeloop/iam" \
         initial_admin_password "admin_dev_password_123"
-        
+
     # secret/gradeloop/vault -> token (Local dev access)
     write_secret "secret/gradeloop/vault" \
         token "$VAULT_TOKEN"
-        
+
     log_success "GradeLoop Core secrets seeded"
 }
 
@@ -227,6 +236,13 @@ seed_service_secrets() {
         service_name "ivas-service" \
         log_level "debug" \
         port "8086"
+
+    # IAM Service
+    write_secret "secret/services/iam" \
+        service_name "iam-service" \
+        log_level "debug" \
+        port "3000" \
+        database_url "host=postgres user=postgres password=postgres dbname=gradeloop port=5432 sslmode=disable"
 
     log_success "Service secrets seeded"
 }
@@ -344,6 +360,16 @@ path "secret/data/services/ivas" {
 }
 EOF
 
+    # IAM Service Policy
+    vault policy write iam-service - <<EOF
+path "secret/data/database/*" {
+  capabilities = ["read"]
+}
+path "secret/data/services/iam" {
+  capabilities = ["read"]
+}
+EOF
+
     log_success "Service policies created"
 }
 
@@ -359,7 +385,7 @@ enable_approle_auth() {
     fi
 
     # Create AppRoles for each service
-    services="academics-service assignment-service email-service cipas-service ivas-service"
+    services="academics-service assignment-service email-service cipas-service ivas-service iam-service"
 
     for service in $services; do
         vault write auth/approle/role/$service \
@@ -383,9 +409,9 @@ interactive_mode() {
     echo ""
 
     # Database password
-    printf "Enter PostgreSQL password (default: gradeloop_dev_pass): "
+    printf "Enter PostgreSQL password (default: postgres): "
     read -r db_pass
-    db_pass="${db_pass:-gradeloop_dev_pass}"
+    db_pass="${db_pass:-postgres}"
 
     # Redis password
     printf "Enter Redis password (default: gradeloop_redis_dev): "
@@ -467,31 +493,13 @@ main() {
     log_info "Vault UI: http://localhost:8200"
     log_info "Root Token: $VAULT_TOKEN"
 
-    # Write root token to shared volume for sidecars (e.g. postgres-sidecar)
-    # The directory /vault/secrets is mounted from ./infra/compose/vault/secrets in host
-    # and /vault/secrets in vault-init container.
-    # We need to make sure this dir exists or is writable.
-    # The existing script writes audit logs to /vault/logs/audit.log
-    # Let's see how vault-init container is mounted in compose.dev.yaml
-    # - ./vault/secrets:/vault/secrets:ro <-- READ ONLY!
-    # Wait, the vault-init container has /vault/secrets mapped as RO from host ./vault/secrets.
-    # It cannot write there.
-    # BUT, in my new plan, I need a place where vault-init writes the token so postgres-sidecar can read it.
-    # The postgres-sidecar mounts ./vault/secrets:/vault/token:ro.
-    # This implies the token should be in ./vault/secrets on host.
-    # But vault-init cannot write to it if it defaults to RO.
-    # I need to change the mount in compose.dev.yaml to be RW for vault-init.
-    # Or I write the token to a different shared volume.
-    # Let's write to a new shared volume 'vault-token' if I hadn't removed it?
-    # In my modified compose, only 'postgres-data' and 'postgres-secrets' were added.
-    # The 'vault-init' uses ./vault/secrets:/vault/secrets:ro.
-    # I should change that mount to RW in the compose file or use a docker volume.
-    # Let's assume for now I will fix the mount in next step.
-    
-    # Actually, I should check if I can write to /vault/secrets.
-    # If the script fails to write, init fails.
-    # I'll add the write command hoping I fix the mount.
-    echo "$VAULT_TOKEN" > /vault/secrets/root-token || log_warn "Could not write root-token to /vault/secrets/root-token"
+    # Write root token to shared volume for sidecars
+    log_info "Saving root token to /vault/secrets/root-token..."
+    if ! echo "$VAULT_TOKEN" > /vault/secrets/root-token; then
+        log_error "CRITICAL: Could not write root-token to /vault/secrets/root-token. Check volume permissions."
+        exit 1
+    fi
+    log_success "Root token saved successfully."
 
     log_warn "Remember: This is a DEV configuration. Never use dev mode in production!"
 }

@@ -240,7 +240,7 @@ Desktop.ini
 .node_repl_history
 
 # Docker
-.dockerignore
+# .dockerignore
 
 # Terraform
 **/.terraform/*
