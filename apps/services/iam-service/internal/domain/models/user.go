@@ -15,7 +15,7 @@ const (
 )
 
 type User struct {
-	ID                      uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	ID                      uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
 	Email                   string         `gorm:"uniqueIndex;not null" json:"email"`
 	FullName                string         `gorm:"not null" json:"full_name"`
 	IsActive                bool           `gorm:"default:true" json:"is_active"`
@@ -29,6 +29,13 @@ type User struct {
 	// Polymorphic Relations
 	Student  *Student  `gorm:"foreignKey:ID" json:"student,omitempty"`
 	Employee *Employee `gorm:"foreignKey:ID" json:"employee,omitempty"`
+}
+
+func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
+	if u.ID == uuid.Nil {
+		u.ID = uuid.New()
+	}
+	return
 }
 
 // Student Subtype

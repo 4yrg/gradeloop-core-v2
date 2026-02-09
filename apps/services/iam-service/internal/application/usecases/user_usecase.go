@@ -4,17 +4,17 @@ import (
 	"errors"
 	"time"
 
+	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/application/ports"
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
-	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/repositories"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type UserUsecase struct {
-	repo *repositories.UserRepository
+	repo ports.UserRepository
 }
 
-func NewUserUsecase(repo *repositories.UserRepository) *UserUsecase {
+func NewUserUsecase(repo ports.UserRepository) *UserUsecase {
 	return &UserUsecase{repo: repo}
 }
 
