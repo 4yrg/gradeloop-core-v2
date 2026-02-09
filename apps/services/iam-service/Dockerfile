@@ -37,10 +37,9 @@ WORKDIR /home/gradeloop
 # Install CA certificates for secure communication
 RUN apk --no-cache add ca-certificates
 
-# Copy the binary and environment example from the builder
+# Copy the binary from the builder
 # Use --chown to ensure the non-root user owns the files
 COPY --from=builder --chown=gradeloop:gradeloop /app/apps/services/iam-service/iam-service .
-COPY --from=builder --chown=gradeloop:gradeloop /app/apps/services/iam-service/.env.example ./.env
 
 # Switch to the non-root user
 USER gradeloop
