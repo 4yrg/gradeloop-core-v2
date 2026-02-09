@@ -1,0 +1,93 @@
+package handlers
+
+import (
+	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/application/usecases"
+	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
+)
+
+type AuthHandler struct {
+	usecase *usecases.AuthUsecase
+}
+
+func NewAuthHandler(usecase *usecases.AuthUsecase) *AuthHandler {
+	return &AuthHandler{usecase: usecase}
+}
+
+type loginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type refreshRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
+// Login handles POST /login
+func (h *AuthHandler) Login(c fiber.Ctx) error {
+	var req loginRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	token, user, err := h.usecase.Login(req.Email, req.Password)
+	if err != nil {
+		// Specification: Return 401 Unauthorized for invalid credentials
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"refresh_token": token,
+		"user":          user,
+	})
+}
+
+// Refresh handles POST /refresh
+func (h *AuthHandler) Refresh(c fiber.Ctx) error {
+	var req refreshRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	token, user, err := h.usecase.Refresh(req.RefreshToken)
+	if err != nil {
+		// Specification: Return 401 Unauthorized for tokens that are expired, revoked, or non-matching
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"refresh_token": token,
+		"user":          user,
+	})
+}
+
+// RevokeToken handles DELETE /refresh-tokens/{token_id}
+func (h *AuthHandler) RevokeToken(c fiber.Ctx) error {
+	idStr := c.Params("token_id")
+	tokenID, err := uuid.Parse(idStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid token id"})
+	}
+
+	if err := h.usecase.RevokeToken(tokenID); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to revoke token"})
+	}
+
+	// Specification: Revocation is idempotent
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// RevokeAllTokens handles POST /users/{id}/revoke-all-tokens
+func (h *AuthHandler) RevokeAllTokens(c fiber.Ctx) error {
+	idStr := c.Params("id")
+	userID, err := uuid.Parse(idStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	}
+
+	if err := h.usecase.RevokeAllUserTokens(userID); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to revoke all tokens"})
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}

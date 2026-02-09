@@ -1,0 +1,30 @@
+meta {
+  name: Revoke All Tokens
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{base_url}}/users/:id/revoke-all-tokens
+  body: none
+  auth: none
+}
+
+params:path {
+  id:
+}
+
+docs {
+  # Revoke All Tokens
+  Performs a bulk update to revoke all active refresh tokens/sessions for a specific user.
+
+  ## Functional Logic
+  - Identifies all records in the `refresh_tokens` table associated with the provided `user_id`.
+  - Sets `is_revoked = true` for all active sessions.
+  - Useful for security events (e.g., password change, suspected account compromise).
+
+  ## Response
+  - `204 No Content`: Successfully revoked all user sessions.
+  - `400 Bad Request`: If the `id` is not a valid user UUID.
+  - `500 Internal Server Error`: If the bulk update fails in the database.
+}

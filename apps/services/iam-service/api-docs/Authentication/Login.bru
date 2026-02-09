@@ -1,0 +1,30 @@
+meta {
+  name: Login
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "employee@gradeloop.com",
+    "password": "password123"
+  }
+}
+
+docs {
+  # Login
+  Authenticates a user and returns a raw refresh token and user details.
+
+  ## Requirements
+  - Email and Password must match an active user record.
+
+  ## Response
+  - `200 OK`: Returns `refresh_token` and `user` object.
+  - `401 Unauthorized`: Returned if credentials are invalid.
+}

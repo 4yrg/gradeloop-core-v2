@@ -9,10 +9,15 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/limiter"
 )
 
-func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler, permissionHandler *handlers.PermissionHandler) {
+func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler, permissionHandler *handlers.PermissionHandler, authHandler *handlers.AuthHandler) {
 	// API Group
 	api := app.Group("/api")
 	v1 := api.Group("/v1")
+
+	// Auth Routes
+	v1.Post("/login", authHandler.Login)
+	v1.Post("/refresh", authHandler.Refresh)
+	v1.Delete("/refresh-tokens/:token_id", authHandler.RevokeToken)
 
 	users := v1.Group("/users")
 
@@ -27,6 +32,7 @@ func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handl
 	users.Get("/:id", userHandler.GetUser)
 	users.Put("/:id", userHandler.UpdateUser)
 	users.Delete("/:id", userHandler.DeleteUser)
+	users.Post("/:id/revoke-all-tokens", authHandler.RevokeAllTokens)
 
 	// Role Management Routes (Protected by AdminOnly)
 	roles := v1.Group("/roles", middleware.AdminOnly())

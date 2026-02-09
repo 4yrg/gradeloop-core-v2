@@ -60,8 +60,14 @@ func main() {
 	}
 
 	log.Println("Connected to database. Running auto-migrations...")
+
+	// Pre-migration cleanup for dev environments (handles corrupted unique index data)
+	// This removes rows with empty or null names that block unique index creation during development
+	db.Exec("DELETE FROM permissions WHERE name = '' OR name IS NULL")
+	db.Exec("DELETE FROM roles WHERE role_name = '' OR role_name IS NULL")
+
 	// Auto Migration
-	if err := db.AutoMigrate(&models.User{}, &models.Student{}, &models.Employee{}, &models.Role{}, &models.Permission{}, &models.AuditLog{}); err != nil {
+	if err := db.AutoMigrate(&models.User{}, &models.Student{}, &models.Employee{}, &models.Role{}, &models.Permission{}, &models.AuditLog{}, &models.RefreshToken{}); err != nil {
 		log.Fatalf("failed to migrate database: %v", err)
 	}
 
@@ -105,6 +111,10 @@ func main() {
 	permissionUsecase := usecases.NewPermissionUsecase(permissionRepo)
 	permissionHandler := handlers.NewPermissionHandler(permissionUsecase)
 
+	refreshTokenRepo := repositories.NewRefreshTokenRepository(db)
+	authUsecase := usecases.NewAuthUsecase(userRepo, refreshTokenRepo)
+	authHandler := handlers.NewAuthHandler(authUsecase)
+
 	// Start Server
-	http.Start(userHandler, roleHandler, permissionHandler)
+	http.Start(userHandler, roleHandler, permissionHandler, authHandler)
 }
