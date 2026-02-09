@@ -1,0 +1,28 @@
+meta {
+  name: Update Role Permissions
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{base_url}}/roles/:id/permissions
+  body: json
+  auth: none
+}
+
+params:path {
+  id:
+}
+
+headers {
+  X-Is-Admin: true
+}
+
+body:json {
+  {
+    "permission_ids": [
+      "uuid-of-permission-1",
+      "uuid-of-permission-2"
+    ]
+  }
+}
