@@ -1,6 +1,7 @@
 package models
 
 import (
+	"regexp"
 	"time"
 
 	"errors"
@@ -23,8 +24,10 @@ var ReservedRoles = map[string]bool{
 
 type Permission struct {
 	ID          uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
-	Code        string         `gorm:"uniqueIndex;not null" json:"code"`
+	Name        string         `gorm:"uniqueIndex;not null" json:"name"`
 	Description string         `json:"description"`
+	Category    string         `json:"category"`
+	IsCustom    bool           `gorm:"default:false" json:"is_custom"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
@@ -45,7 +48,23 @@ func (p *Permission) BeforeCreate(tx *gorm.DB) (err error) {
 	if p.ID == uuid.Nil {
 		p.ID = uuid.New()
 	}
+
+	// Validate name pattern: service:resource:action
+	pattern := `^[a-z]+:[a-z]+:[a-z]+$`
+	matched, _ := regexp.MatchString(pattern, p.Name)
+	if !matched {
+		return errors.New("permission name must follow the pattern service:resource:action")
+	}
+
 	return
+}
+
+func (p *Permission) BeforeUpdate(tx *gorm.DB) (err error) {
+	return errors.New("permissions are immutable at runtime")
+}
+
+func (p *Permission) BeforeDelete(tx *gorm.DB) (err error) {
+	return errors.New("permissions are immutable at runtime")
 }
 
 func (r *Role) BeforeCreate(tx *gorm.DB) (err error) {

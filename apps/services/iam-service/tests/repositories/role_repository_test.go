@@ -67,7 +67,7 @@ func TestRoleRepository_GetRole(t *testing.T) {
 	db := setupRoleTestDB(t)
 	repo := repositories.NewRoleRepository(db)
 
-	p1 := models.Permission{Code: "p1", Description: "perm 1"}
+	p1 := models.Permission{Name: "iam:test:read", Description: "perm 1"}
 	db.Create(&p1)
 
 	role := &models.Role{
@@ -81,7 +81,7 @@ func TestRoleRepository_GetRole(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, role.RoleName, fetched.RoleName)
 		assert.Len(t, fetched.Permissions, 1)
-		assert.Equal(t, "p1", fetched.Permissions[0].Code)
+		assert.Equal(t, "iam:test:read", fetched.Permissions[0].Name)
 	})
 
 	t.Run("Get Non-existent Role", func(t *testing.T) {
@@ -95,8 +95,8 @@ func TestRoleRepository_UpdateRolePermissions(t *testing.T) {
 	db := setupRoleTestDB(t)
 	repo := repositories.NewRoleRepository(db)
 
-	p1 := models.Permission{Code: "perm.one"}
-	p2 := models.Permission{Code: "perm.two"}
+	p1 := models.Permission{Name: "iam:test:one"}
+	p2 := models.Permission{Name: "iam:test:two"}
 	db.Create(&p1)
 	db.Create(&p2)
 
@@ -117,7 +117,7 @@ func TestRoleRepository_UpdateRolePermissions(t *testing.T) {
 
 		fetched, _ := repo.GetRole(role.ID)
 		assert.Len(t, fetched.Permissions, 1)
-		assert.Equal(t, "perm.two", fetched.Permissions[0].Code)
+		assert.Equal(t, "iam:test:two", fetched.Permissions[0].Name)
 	})
 
 	t.Run("Clear Permissions", func(t *testing.T) {
@@ -149,8 +149,8 @@ func TestRoleRepository_GetPermissionsByIDs(t *testing.T) {
 	db := setupRoleTestDB(t)
 	repo := repositories.NewRoleRepository(db)
 
-	p1 := models.Permission{Code: "a"}
-	p2 := models.Permission{Code: "b"}
+	p1 := models.Permission{Name: "iam:test:alpha"}
+	p2 := models.Permission{Name: "iam:test:beta"}
 	db.Create(&p1)
 	db.Create(&p2)
 
@@ -158,7 +158,7 @@ func TestRoleRepository_GetPermissionsByIDs(t *testing.T) {
 		perms, err := repo.GetPermissionsByIDs([]uuid.UUID{p1.ID})
 		assert.NoError(t, err)
 		assert.Len(t, perms, 1)
-		assert.Equal(t, "a", perms[0].Code)
+		assert.Equal(t, "iam:test:alpha", perms[0].Name)
 	})
 
 	t.Run("Empty input", func(t *testing.T) {

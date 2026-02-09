@@ -146,7 +146,7 @@ func TestRoleUsecase_UpdateRolePermissions(t *testing.T) {
 	t.Run("successful update", func(t *testing.T) {
 		pID := uuid.New()
 		role := &models.Role{ID: roleID, RoleName: "Editor"}
-		perms := []models.Permission{{ID: pID, Code: "edit"}}
+		perms := []models.Permission{{ID: pID, Name: "iam:test:edit"}}
 
 		mockRoleRepo.On("GetRole", roleID).Return(role, nil).Once()
 		mockRoleRepo.On("GetPermissionsByIDs", []uuid.UUID{pID}).Return(perms, nil).Once()
