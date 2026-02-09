@@ -21,6 +21,9 @@ type User struct {
 	IsActive                bool           `gorm:"default:true" json:"is_active"`
 	PasswordHash            string         `gorm:"not null" json:"-"`
 	IsPasswordResetRequired bool           `gorm:"default:false" json:"is_password_reset_required"`
+	PasswordSetAt           *time.Time     `json:"password_set_at"`
+	PasswordChangedAt       *time.Time     `json:"password_changed_at"`
+	ActivationTokenID       *uuid.UUID     `gorm:"type:uuid" json:"activation_token_id"`
 	UserType                UserType       `gorm:"type:varchar(20);not null" json:"user_type"`
 	CreatedAt               time.Time      `json:"created_at"`
 	UpdatedAt               time.Time      `json:"updated_at"`
