@@ -1,21 +1,26 @@
 # Build stage
 FROM golang:1.25-alpine AS builder
 
-# Set the working directory
+# Set the working directory to the root of the project to access shared libraries
 WORKDIR /app
 
 # Install build dependencies
 RUN apk add --no-cache git
 
-# Copy dependency files and download modules (cached layer)
-COPY go.mod go.sum ./
+# Copy dependency files for the service and the shared library
+COPY apps/services/iam-service/go.mod apps/services/iam-service/go.sum ./apps/services/iam-service/
+COPY shared/libs/go/secrets/go.mod shared/libs/go/secrets/go.sum ./shared/libs/go/secrets/
+
+# Download dependencies for the IAM service
+WORKDIR /app/apps/services/iam-service
 RUN go mod download
 
-# Copy the rest of the source code
-# Note: Ensure a .dockerignore file exists to prevent copying sensitive files
+# Copy the entire source code from the root context
+WORKDIR /app
 COPY . .
 
-# Build the application binary
+# Build the application binary from the service directory
+WORKDIR /app/apps/services/iam-service
 RUN CGO_ENABLED=0 GOOS=linux go build -o iam-service ./cmd/main.go
 
 # Final stage
@@ -32,8 +37,8 @@ RUN apk --no-cache add ca-certificates
 
 # Copy the binary and environment example from the builder
 # Use --chown to ensure the non-root user owns the files
-COPY --from=builder --chown=gradeloop:gradeloop /app/iam-service .
-COPY --from=builder --chown=gradeloop:gradeloop /app/.env.example ./.env
+COPY --from=builder --chown=gradeloop:gradeloop /app/apps/services/iam-service/iam-service .
+COPY --from=builder --chown=gradeloop:gradeloop /app/apps/services/iam-service/.env.example ./.env
 
 # Switch to the non-root user
 USER gradeloop
