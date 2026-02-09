@@ -55,11 +55,11 @@ func (r *RoleRepository) UpdateRolePermissions(roleID uuid.UUID, permissions []m
 }
 
 func (r *RoleRepository) DeleteRole(id uuid.UUID) error {
-	// Constraints check is handled in usecase, but we use hard delete here if custom
-	// or soft delete if that's the project pattern. The requirement says
-	// "Soft or hard delete allowed only if is_custom is true".
-	// GORM's Delete will soft delete if DeletedAt is present.
-	return r.db.Delete(&models.Role{}, "id = ?", id).Error
+	var role models.Role
+	if err := r.db.First(&role, "id = ?", id).Error; err != nil {
+		return err
+	}
+	return r.db.Delete(&role).Error
 }
 
 func (r *RoleRepository) GetPermissionsByIDs(ids []uuid.UUID) ([]models.Permission, error) {
