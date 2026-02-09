@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"strings"
+
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
 	"github.com/gofiber/fiber/v3"
 )
@@ -10,9 +12,24 @@ import (
 // For this implementation, it looks for a "is_admin" claim or header, consistent with IAM service requirements.
 func AdminOnly() fiber.Handler {
 	return func(ctx fiber.Ctx) error {
-		// This is a placeholder for actual JWT/Session extraction logic.
-		// Usually, an upstream Auth middleware would have populated the locals.
-		isAdmin := ctx.Get("X-Is-Admin") == "true" || ctx.Locals("is_admin") == true
+		// Extract roles from X-User-Roles header forwarded by the gateway
+		rolesHeader := ctx.Get("X-User-Roles")
+		isAdmin := false
+
+		// The jwt-validator plugin sends array claims as comma-separated values
+		if rolesHeader != "" {
+			for _, role := range strings.Split(rolesHeader, ",") {
+				if strings.TrimSpace(role) == "admin" {
+					isAdmin = true
+					break
+				}
+			}
+		}
+
+		// Fallback for internal context if populated by other middleware
+		if !isAdmin && ctx.Locals("is_admin") == true {
+			isAdmin = true
+		}
 
 		if !isAdmin {
 			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{

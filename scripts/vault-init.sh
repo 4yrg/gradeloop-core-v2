@@ -152,8 +152,8 @@ seed_jwt_secrets() {
 
     local jwt_mount="secret/auth"
 
-    # Generate a random JWT secret if not provided
-    JWT_SECRET="${JWT_SECRET:-$(head -c 32 /dev/urandom | base64)}"
+    # Use a fixed JWT secret for development consistency
+    JWT_SECRET="${JWT_SECRET:-gradeloop_dev_secret_32_chars_long_!!}"
 
     write_secret "$jwt_mount/jwt" \
         secret "$JWT_SECRET" \

@@ -53,7 +53,7 @@ func (r *UserRepository) GetUser(id uuid.UUID, includeDeleted bool) (*models.Use
 		query = query.Unscoped()
 	}
 
-	err := query.Preload("Student").Preload("Employee").First(&user, "id = ?", id).Error
+	err := query.Preload("Student").Preload("Employee").Preload("Roles").First(&user, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func (r *UserRepository) ListUsers(page, limit int, includeDeleted bool) ([]mode
 	}
 
 	offset := (page - 1) * limit
-	err := query.Preload("Student").Preload("Employee").Offset(offset).Limit(limit).Find(&users).Error
+	err := query.Preload("Student").Preload("Employee").Preload("Roles").Offset(offset).Limit(limit).Find(&users).Error
 	return users, total, err
 }
 
@@ -118,7 +118,7 @@ func (r *UserRepository) GetUserByEmail(email string, includeDeleted bool) (*mod
 	if includeDeleted {
 		query = query.Unscoped()
 	}
-	err := query.First(&user, "email = ?", email).Error
+	err := query.Preload("Roles").First(&user, "email = ?", email).Error
 	if err != nil {
 		return nil, err
 	}
@@ -150,6 +150,21 @@ func (r *UserRepository) GetPermissionsByUserID(userID uuid.UUID) ([]string, err
 	}
 
 	return permissions, nil
+}
+
+func (r *UserRepository) GetRolesByUserID(userID uuid.UUID) ([]string, error) {
+	var roles []string
+
+	err := r.db.Table("roles").
+		Joins("JOIN users_roles ON users_roles.role_id = roles.id").
+		Where("users_roles.user_id = ?", userID).
+		Pluck("roles.role_name", &roles).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return roles, nil
 }
 
 func (r *UserRepository) RestoreUser(id uuid.UUID) error {

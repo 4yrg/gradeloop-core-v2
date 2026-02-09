@@ -56,7 +56,7 @@ func (uc *UserUsecase) RegisterUser(user *models.User, student *models.Student, 
 		return nil, err
 	}
 
-	uc.logAudit(context.Background(), "create", "user", user.ID.String(), user)
+	uc.logAudit(context.Background(), "create", "user", user.ID.String(), nil, user)
 
 	return uc.repo.GetUser(user.ID, false)
 }
@@ -76,10 +76,11 @@ func (uc *UserUsecase) ListUsers(page, limit int, includeDeleted bool) ([]models
 }
 
 func (uc *UserUsecase) UpdateUser(user *models.User, student *models.Student, employee *models.Employee) (*models.User, error) {
+	oldUser, _ := uc.repo.GetUser(user.ID, false)
 	if err := uc.repo.UpdateUser(user, student, employee); err != nil {
 		return nil, err
 	}
-	uc.logAudit(context.Background(), "update", "user", user.ID.String(), user)
+	uc.logAudit(context.Background(), "update", "user", user.ID.String(), oldUser, user)
 	return uc.repo.GetUser(user.ID, false)
 }
 
@@ -87,7 +88,7 @@ func (uc *UserUsecase) DeleteUser(id uuid.UUID) error {
 	if err := uc.repo.DeleteUser(id); err != nil {
 		return err
 	}
-	uc.logAudit(context.Background(), "delete", "user", id.String(), nil)
+	uc.logAudit(context.Background(), "delete", "user", id.String(), nil, nil)
 	return nil
 }
 
@@ -95,11 +96,11 @@ func (uc *UserUsecase) RestoreUser(id uuid.UUID) error {
 	if err := uc.repo.RestoreUser(id); err != nil {
 		return err
 	}
-	uc.logAudit(context.Background(), "restore", "user", id.String(), nil)
+	uc.logAudit(context.Background(), "restore", "user", id.String(), nil, nil)
 	return nil
 }
 
-func (uc *UserUsecase) logAudit(ctx context.Context, action, entity, entityID string, data interface{}) {
-	auditLog := utils.PrepareAuditLog(ctx, action, entity, entityID, data)
+func (uc *UserUsecase) logAudit(ctx context.Context, action, entity, entityID string, oldValue, newValue interface{}) {
+	auditLog := utils.PrepareAuditLog(ctx, action, entity, entityID, oldValue, newValue)
 	_ = uc.auditRepo.CreateAuditLog(ctx, auditLog)
 }

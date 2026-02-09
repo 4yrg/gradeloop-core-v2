@@ -14,5 +14,6 @@ type UserRepository interface {
 	UpdateActivationFields(user *models.User) error
 	DeleteUser(id uuid.UUID) error
 	GetPermissionsByUserID(userID uuid.UUID) ([]string, error)
+	GetRolesByUserID(userID uuid.UUID) ([]string, error)
 	RestoreUser(id uuid.UUID) error
 }
