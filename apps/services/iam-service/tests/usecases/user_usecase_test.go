@@ -11,68 +11,6 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// MockUserRepository is a mock implementation of ports.UserRepository
-type MockUserRepository struct {
-	mock.Mock
-}
-
-func (m *MockUserRepository) CreateUser(user *models.User, student *models.Student, employee *models.Employee) error {
-	args := m.Called(user, student, employee)
-	return args.Error(0)
-}
-
-func (m *MockUserRepository) GetUser(id uuid.UUID, includeDeleted bool) (*models.User, error) {
-	args := m.Called(id, includeDeleted)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.User), args.Error(1)
-}
-
-func (m *MockUserRepository) GetUserByEmail(email string, includeDeleted bool) (*models.User, error) {
-	args := m.Called(email, includeDeleted)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.User), args.Error(1)
-}
-
-func (m *MockUserRepository) ListUsers(page, limit int, includeDeleted bool) ([]models.User, int64, error) {
-	args := m.Called(page, limit, includeDeleted)
-	if args.Get(0) == nil {
-		return nil, 0, args.Error(2)
-	}
-	return args.Get(0).([]models.User), int64(args.Int(1)), args.Error(2)
-}
-
-func (m *MockUserRepository) UpdateUser(user *models.User, student *models.Student, employee *models.Employee) error {
-	args := m.Called(user, student, employee)
-	return args.Error(0)
-}
-
-func (m *MockUserRepository) UpdateActivationFields(user *models.User) error {
-	args := m.Called(user)
-	return args.Error(0)
-}
-
-func (m *MockUserRepository) DeleteUser(id uuid.UUID) error {
-	args := m.Called(id)
-	return args.Error(0)
-}
-
-func (m *MockUserRepository) GetPermissionsByUserID(userID uuid.UUID) ([]string, error) {
-	args := m.Called(userID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]string), args.Error(1)
-}
-
-func (m *MockUserRepository) RestoreUser(id uuid.UUID) error {
-	args := m.Called(id)
-	return args.Error(0)
-}
-
 func TestRegisterUser(t *testing.T) {
 	mockRepo := new(MockUserRepository)
 	mockAudit := new(MockAuditRepository)

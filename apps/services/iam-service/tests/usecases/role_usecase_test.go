@@ -12,68 +12,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// MockRoleRepository is a mock implementation of ports.RoleRepository
-type MockRoleRepository struct {
-	mock.Mock
-}
-
-func (m *MockRoleRepository) CreateRole(role *models.Role) error {
-	args := m.Called(role)
-	return args.Error(0)
-}
-
-func (m *MockRoleRepository) GetRole(id uuid.UUID) (*models.Role, error) {
-	args := m.Called(id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.Role), args.Error(1)
-}
-
-func (m *MockRoleRepository) GetRoleByName(name string) (*models.Role, error) {
-	args := m.Called(name)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.Role), args.Error(1)
-}
-
-func (m *MockRoleRepository) ListRoles() ([]models.Role, error) {
-	args := m.Called()
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]models.Role), args.Error(1)
-}
-
-func (m *MockRoleRepository) UpdateRolePermissions(roleID uuid.UUID, permissions []models.Permission) error {
-	args := m.Called(roleID, permissions)
-	return args.Error(0)
-}
-
-func (m *MockRoleRepository) DeleteRole(id uuid.UUID) error {
-	args := m.Called(id)
-	return args.Error(0)
-}
-
-func (m *MockRoleRepository) GetPermissionsByIDs(ids []uuid.UUID) ([]models.Permission, error) {
-	args := m.Called(ids)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]models.Permission), args.Error(1)
-}
-
-// MockAuditRepository is a mock implementation of ports.AuditRepository
-type MockAuditRepository struct {
-	mock.Mock
-}
-
-func (m *MockAuditRepository) CreateAuditLog(ctx context.Context, log *models.AuditLog) error {
-	args := m.Called(ctx, log)
-	return args.Error(0)
-}
-
 func TestRoleUsecase_CreateRole(t *testing.T) {
 	mockRoleRepo := new(MockRoleRepository)
 	mockAuditRepo := new(MockAuditRepository)
