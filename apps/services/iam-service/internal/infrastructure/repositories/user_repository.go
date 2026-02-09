@@ -125,6 +125,10 @@ func (r *UserRepository) GetUserByEmail(email string, includeDeleted bool) (*mod
 	return &user, nil
 }
 
+func (r *UserRepository) UpdateActivationFields(user *models.User) error {
+	return r.db.Model(user).Select("PasswordHash", "PasswordSetAt", "PasswordChangedAt", "ActivationTokenID", "IsPasswordResetRequired").Updates(user).Error
+}
+
 func (r *UserRepository) DeleteUser(id uuid.UUID) error {
 	// Soft delete is default with GORM DeletedAt
 	return r.db.Delete(&models.User{}, id).Error

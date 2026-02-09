@@ -11,5 +11,6 @@ type UserRepository interface {
 	GetUserByEmail(email string, includeDeleted bool) (*models.User, error)
 	ListUsers(page, limit int, includeDeleted bool) ([]models.User, int64, error)
 	UpdateUser(user *models.User, student *models.Student, employee *models.Employee) error
+	UpdateActivationFields(user *models.User) error
 	DeleteUser(id uuid.UUID) error
 }
