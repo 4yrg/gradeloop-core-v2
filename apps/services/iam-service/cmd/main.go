@@ -61,16 +61,45 @@ func main() {
 
 	log.Println("Connected to database. Running auto-migrations...")
 	// Auto Migration
-	if err := db.AutoMigrate(&models.User{}, &models.Student{}, &models.Employee{}); err != nil {
+	if err := db.AutoMigrate(&models.User{}, &models.Student{}, &models.Employee{}, &models.Role{}, &models.Permission{}, &models.AuditLog{}); err != nil {
 		log.Fatalf("failed to migrate database: %v", err)
 	}
 
-	log.Println("Auto-migrations completed. Initializing dependencies...")
+	log.Println("Auto-migrations completed. Seeding initial data...")
+	// Seed Permissions
+	initialPermissions := []models.Permission{
+		{Code: "users.create", Description: "Create users"},
+		{Code: "users.read", Description: "Read users"},
+		{Code: "users.update", Description: "Update users"},
+		{Code: "users.delete", Description: "Delete users"},
+		{Code: "roles.manage", Description: "Manage roles and permissions"},
+	}
+
+	for _, p := range initialPermissions {
+		if err := db.Where(models.Permission{Code: p.Code}).FirstOrCreate(&p).Error; err != nil {
+			log.Printf("failed to seed permission %s: %v", p.Code, err)
+		}
+	}
+
+	// Seed Reserved Roles
+	for roleName := range models.ReservedRoles {
+		role := models.Role{RoleName: roleName, IsCustom: false}
+		if err := db.Where(models.Role{RoleName: roleName}).FirstOrCreate(&role).Error; err != nil {
+			log.Printf("failed to seed reserved role %s: %v", roleName, err)
+		}
+	}
+
+	log.Println("Seeding completed. Initializing dependencies...")
 	// Dependency Injection
 	userRepo := repositories.NewUserRepository(db)
 	userUsecase := usecases.NewUserUsecase(userRepo)
 	userHandler := handlers.NewUserHandler(userUsecase)
 
+	auditRepo := repositories.NewAuditRepository(db)
+	roleRepo := repositories.NewRoleRepository(db)
+	roleUsecase := usecases.NewRoleUsecase(roleRepo, auditRepo)
+	roleHandler := handlers.NewRoleHandler(roleUsecase)
+
 	// Start Server
-	http.Start(userHandler)
+	http.Start(userHandler, roleHandler)
 }
