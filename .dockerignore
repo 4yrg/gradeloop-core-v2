@@ -11,7 +11,6 @@
 **/*.out
 
 # Go specific build artifacts
-**/iam-service
 shared/libs/go/secrets/secrets.test
 
 # Dependencies
