@@ -68,16 +68,17 @@ func main() {
 	log.Println("Auto-migrations completed. Seeding initial data...")
 	// Seed Permissions
 	initialPermissions := []models.Permission{
-		{Code: "users.create", Description: "Create users"},
-		{Code: "users.read", Description: "Read users"},
-		{Code: "users.update", Description: "Update users"},
-		{Code: "users.delete", Description: "Delete users"},
-		{Code: "roles.manage", Description: "Manage roles and permissions"},
+		{Name: "iam:users:create", Description: "Create users", Category: "IAM", IsCustom: false},
+		{Name: "iam:users:read", Description: "Read users", Category: "IAM", IsCustom: false},
+		{Name: "iam:users:update", Description: "Update users", Category: "IAM", IsCustom: false},
+		{Name: "iam:users:delete", Description: "Delete users", Category: "IAM", IsCustom: false},
+		{Name: "iam:roles:manage", Description: "Manage roles and permissions", Category: "IAM", IsCustom: false},
+		{Name: "academics:courses:read", Description: "Read courses", Category: "Academics", IsCustom: false},
 	}
 
 	for _, p := range initialPermissions {
-		if err := db.Where(models.Permission{Code: p.Code}).FirstOrCreate(&p).Error; err != nil {
-			log.Printf("failed to seed permission %s: %v", p.Code, err)
+		if err := db.Where(models.Permission{Name: p.Name}).FirstOrCreate(&p).Error; err != nil {
+			log.Printf("failed to seed permission %s: %v", p.Name, err)
 		}
 	}
 
@@ -100,6 +101,10 @@ func main() {
 	roleUsecase := usecases.NewRoleUsecase(roleRepo, auditRepo)
 	roleHandler := handlers.NewRoleHandler(roleUsecase)
 
+	permissionRepo := repositories.NewPermissionRepository(db)
+	permissionUsecase := usecases.NewPermissionUsecase(permissionRepo)
+	permissionHandler := handlers.NewPermissionHandler(permissionUsecase)
+
 	// Start Server
-	http.Start(userHandler, roleHandler)
+	http.Start(userHandler, roleHandler, permissionHandler)
 }

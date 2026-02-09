@@ -9,7 +9,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/limiter"
 )
 
-func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler) {
+func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler, permissionHandler *handlers.PermissionHandler) {
 	// API Group
 	api := app.Group("/api")
 	v1 := api.Group("/v1")
@@ -34,4 +34,15 @@ func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handl
 	roles.Get("/", roleHandler.ListRoles)
 	roles.Patch("/:id/permissions", roleHandler.UpdatePermissions)
 	roles.Delete("/:id", roleHandler.DeleteRole)
+
+	// Permission Catalog Routes (Read-Only)
+	permissions := v1.Group("/permissions")
+	permissions.Get("/", permissionHandler.ListPermissions)
+	permissions.Get("/:name", permissionHandler.GetPermissionByName)
+
+	// Explicitly block modification attempts on the permission catalog (Requirement: 405 Method Not Allowed)
+	permissions.Post("/", func(c fiber.Ctx) error { return c.SendStatus(fiber.StatusMethodNotAllowed) })
+	permissions.Put("/:name", func(c fiber.Ctx) error { return c.SendStatus(fiber.StatusMethodNotAllowed) })
+	permissions.Patch("/:name", func(c fiber.Ctx) error { return c.SendStatus(fiber.StatusMethodNotAllowed) })
+	permissions.Delete("/:name", func(c fiber.Ctx) error { return c.SendStatus(fiber.StatusMethodNotAllowed) })
 }
