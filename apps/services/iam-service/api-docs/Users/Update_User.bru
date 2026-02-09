@@ -1,7 +1,7 @@
 meta {
   name: Update User
   type: http
-  seq: 4
+  seq: 5
 }
 
 put {
@@ -27,4 +27,5 @@ body:json {
 /*
 Note: The user_type cannot be changed.
 Fields like id, user_type, and created_at are protected from updates in the repository.
+To update an employee, use the "employee" key instead of "student" in the body.
 */
