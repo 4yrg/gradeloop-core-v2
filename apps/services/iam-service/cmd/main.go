@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/application/usecases"
@@ -12,6 +15,7 @@ import (
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/notifications"
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/repositories"
 	"github.com/4YRG/gradeloop-core-v2/shared/libs/go/secrets"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -102,8 +106,13 @@ func main() {
 			log.Printf("failed to seed reserved role %s: %v", roleName, err)
 		}
 	}
+	
+	log.Println("Seeding completed. Bootstrapping Super Admin...")
+	if err := bootstrapSuperAdmin(db); err != nil {
+		log.Fatalf("failed to bootstrap super admin: %v", err)
+	}
 
-	log.Println("Seeding completed. Initializing dependencies...")
+	log.Println("Bootstrapping completed. Initializing dependencies...")
 	// Dependency Injection
 	userRepo := repositories.NewUserRepository(db)
 	userUsecase := usecases.NewUserUsecase(userRepo)
@@ -125,4 +134,55 @@ func main() {
 
 	// Start Server
 	http.Start(userHandler, roleHandler, permissionHandler, authHandler)
+}
+
+func bootstrapSuperAdmin(db *gorm.DB) error {
+	var count int64
+	if err := db.Model(&models.User{}).Count(&count).Error; err != nil {
+		return err
+	}
+
+	if count > 0 {
+		log.Println("User table not empty, skipping bootstrapping")
+		return nil
+	}
+
+	username := os.Getenv("INITIAL_ADMIN_USERNAME")
+	password := os.Getenv("INITIAL_ADMIN_PASSWORD")
+
+	if username == "" || password == "" {
+		return errors.New("INITIAL_ADMIN_USERNAME and INITIAL_ADMIN_PASSWORD must be set")
+	}
+
+	if len(password) < 12 {
+		return errors.New("initial admin password must be at least 12 characters long")
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
+	if err != nil {
+		return err
+	}
+
+	// Find the Admin role
+	var adminRole models.Role
+	if err := db.Where("role_name = ?", models.RoleAdmin).First(&adminRole).Error; err != nil {
+		return fmt.Errorf("failed to find admin role: %w", err)
+	}
+
+	adminUser := &models.User{
+		Email:         username,
+		FullName:      "Super Admin",
+		PasswordHash:  string(hash),
+		UserType:      models.UserTypeEmployee,
+		Roles:         []models.Role{adminRole},
+		IsActive:      true,
+		PasswordSetAt: func() *time.Time { t := time.Now(); return &t }(),
+	}
+
+	if err := db.Create(adminUser).Error; err != nil {
+		return err
+	}
+
+	log.Printf("Super Admin account created: %s", username)
+	return nil
 }
