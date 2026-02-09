@@ -11,6 +11,7 @@ import (
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/handlers"
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/router"
+	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/notifications"
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/repositories"
 	"github.com/gofiber/fiber/v3"
 	"gorm.io/driver/sqlite"
@@ -31,6 +32,7 @@ func setupTestApp(t *testing.T) (*fiber.App, *gorm.DB) {
 		&models.Role{},
 		&models.Permission{},
 		&models.AuditLog{},
+		&models.RefreshToken{},
 	)
 	if err != nil {
 		t.Fatalf("failed to migrate database: %v", err)
@@ -50,8 +52,13 @@ func setupTestApp(t *testing.T) (*fiber.App, *gorm.DB) {
 	roleUsecase := usecases.NewRoleUsecase(roleRepo, auditRepo)
 	roleHandler := handlers.NewRoleHandler(roleUsecase)
 
+	notificationStub := notifications.NewNotificationStub()
+	refreshTokenRepo := repositories.NewRefreshTokenRepository(db)
+	authUsecase := usecases.NewAuthUsecase(userRepo, refreshTokenRepo, notificationStub, "test-secret")
+	authHandler := handlers.NewAuthHandler(authUsecase)
+
 	app := fiber.New()
-	router.Setup(app, userHandler, roleHandler, permissionHandler)
+	router.Setup(app, userHandler, roleHandler, permissionHandler, authHandler)
 
 	return app, db
 }

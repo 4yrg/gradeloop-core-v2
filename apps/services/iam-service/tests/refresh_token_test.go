@@ -7,11 +7,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/application/usecases"
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/handlers"
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/router"
+	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/notifications"
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/repositories"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -51,7 +53,8 @@ func setupAuthTestApp(t *testing.T) (*fiber.App, *gorm.DB) {
 	userUsecase := usecases.NewUserUsecase(userRepo)
 	roleUsecase := usecases.NewRoleUsecase(roleRepo, auditRepo)
 	permissionUsecase := usecases.NewPermissionUsecase(permissionRepo)
-	authUsecase := usecases.NewAuthUsecase(userRepo, refreshTokenRepo)
+	notificationStub := notifications.NewNotificationStub()
+	authUsecase := usecases.NewAuthUsecase(userRepo, refreshTokenRepo, notificationStub, "test-secret")
 
 	// Initialize handlers
 	userHandler := handlers.NewUserHandler(userUsecase)
@@ -71,13 +74,15 @@ func TestRefreshTokenLifecycle(t *testing.T) {
 	// Seed a test user
 	password := "password123"
 	hash, _ := bcrypt.GenerateFromPassword([]byte(password), 12)
+	now := time.Now()
 	user := models.User{
-		ID:           uuid.New(),
-		Email:        "test@example.com",
-		FullName:     "Test User",
-		PasswordHash: string(hash),
-		UserType:     models.UserTypeEmployee,
-		IsActive:     true,
+		ID:            uuid.New(),
+		Email:         "test@example.com",
+		FullName:      "Test User",
+		PasswordHash:  string(hash),
+		UserType:      models.UserTypeEmployee,
+		IsActive:      true,
+		PasswordSetAt: &now,
 	}
 	db.Create(&user)
 
