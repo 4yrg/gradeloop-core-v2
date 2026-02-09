@@ -13,8 +13,9 @@ type ActivationClaims struct {
 	jwt.RegisteredClaims
 }
 
-// AccessTokenClaims defines the custom claims for access tokens, including permissions
+// AccessTokenClaims defines the custom claims for access tokens, including roles and permissions
 type AccessTokenClaims struct {
+	Roles       []string `json:"roles"`
 	Permissions []string `json:"permissions"`
 	jwt.RegisteredClaims
 }
@@ -36,9 +37,10 @@ func GenerateActivationToken(userID uuid.UUID, tokenID uuid.UUID, secret string,
 }
 
 // GenerateAccessToken creates a short-lived JWT for user authentication.
-// Claims: sub=user_id, exp=duration, permissions=[]string
-func GenerateAccessToken(userID uuid.UUID, permissions []string, secret string, duration time.Duration) (string, error) {
+// Claims: sub=user_id, exp=duration, roles=[]string, permissions=[]string
+func GenerateAccessToken(userID uuid.UUID, roles []string, permissions []string, secret string, duration time.Duration) (string, error) {
 	claims := AccessTokenClaims{
+		Roles:       roles,
 		Permissions: permissions,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   userID.String(),

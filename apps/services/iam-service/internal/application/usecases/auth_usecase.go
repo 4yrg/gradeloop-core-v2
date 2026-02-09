@@ -55,14 +55,19 @@ func (uc *AuthUsecase) Login(email, password string) (string, string, *models.Us
 		return "", "", nil, errors.New("unauthorized: account not activated")
 	}
 
-	// Fetch permissions for the user
+	// Fetch roles and permissions for the user
+	roles, err := uc.userRepo.GetRolesByUserID(user.ID)
+	if err != nil {
+		return "", "", nil, fmt.Errorf("failed to fetch user roles: %w", err)
+	}
+
 	permissions, err := uc.userRepo.GetPermissionsByUserID(user.ID)
 	if err != nil {
 		return "", "", nil, fmt.Errorf("failed to fetch user permissions: %w", err)
 	}
 
 	// Issue Access Token (15m)
-	accessToken, err := utils.GenerateAccessToken(user.ID, permissions, uc.jwtSecret, 15*time.Minute)
+	accessToken, err := utils.GenerateAccessToken(user.ID, roles, permissions, uc.jwtSecret, 15*time.Minute)
 	if err != nil {
 		return "", "", nil, fmt.Errorf("failed to generate access token: %w", err)
 	}
@@ -83,7 +88,7 @@ func (uc *AuthUsecase) Login(email, password string) (string, string, *models.Us
 		return "", "", nil, err
 	}
 
-	uc.logAudit(context.Background(), "login", "user", user.ID.String(), nil)
+	uc.logAudit(context.Background(), "login", "user", user.ID.String(), nil, user)
 
 	return accessToken, rawToken, user, nil
 }
@@ -118,14 +123,19 @@ func (uc *AuthUsecase) Refresh(oldTokenStr string) (string, string, *models.User
 		return "", "", nil, err
 	}
 
-	// Fetch permissions for the user
+	// Fetch roles and permissions for the user
+	roles, err := uc.userRepo.GetRolesByUserID(user.ID)
+	if err != nil {
+		return "", "", nil, fmt.Errorf("failed to fetch user roles: %w", err)
+	}
+
 	permissions, err := uc.userRepo.GetPermissionsByUserID(user.ID)
 	if err != nil {
 		return "", "", nil, fmt.Errorf("failed to fetch user permissions: %w", err)
 	}
 
 	// Issue new access token
-	accessToken, err := utils.GenerateAccessToken(user.ID, permissions, uc.jwtSecret, 15*time.Minute)
+	accessToken, err := utils.GenerateAccessToken(user.ID, roles, permissions, uc.jwtSecret, 15*time.Minute)
 	if err != nil {
 		return "", "", nil, fmt.Errorf("failed to generate access token: %w", err)
 	}
@@ -155,7 +165,7 @@ func (uc *AuthUsecase) RevokeToken(tokenID uuid.UUID) error {
 	if err := uc.refreshTokenRepo.Revoke(tokenID); err != nil {
 		return err
 	}
-	uc.logAudit(context.Background(), "revoke", "refresh_token", tokenID.String(), nil)
+	uc.logAudit(context.Background(), "revoke", "refresh_token", tokenID.String(), nil, nil)
 	return nil
 }
 
@@ -164,7 +174,7 @@ func (uc *AuthUsecase) RevokeAllUserTokens(userID uuid.UUID) error {
 	if err := uc.refreshTokenRepo.RevokeAllForUser(userID); err != nil {
 		return err
 	}
-	uc.logAudit(context.Background(), "revoke_all", "user", userID.String(), nil)
+	uc.logAudit(context.Background(), "revoke_all", "user", userID.String(), nil, nil)
 	return nil
 }
 
@@ -246,12 +256,12 @@ func (uc *AuthUsecase) ActivateAccount(tokenStr string, newPassword string) erro
 		return err
 	}
 
-	uc.logAudit(context.Background(), "activate", "user", user.ID.String(), nil)
+	uc.logAudit(context.Background(), "activate", "user", user.ID.String(), nil, user)
 
 	return nil
 }
 
-func (uc *AuthUsecase) logAudit(ctx context.Context, action, entity, entityID string, data interface{}) {
-	auditLog := utils.PrepareAuditLog(ctx, action, entity, entityID, data)
+func (uc *AuthUsecase) logAudit(ctx context.Context, action, entity, entityID string, oldValue, newValue interface{}) {
+	auditLog := utils.PrepareAuditLog(ctx, action, entity, entityID, oldValue, newValue)
 	_ = uc.auditRepo.CreateAuditLog(ctx, auditLog)
 }
