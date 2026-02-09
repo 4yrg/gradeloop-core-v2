@@ -37,6 +37,7 @@ func setupActivationTestApp(t *testing.T) (*fiber.App, *gorm.DB) {
 		&models.Employee{},
 		&models.Role{},
 		&models.Permission{},
+		&models.AuditLog{},
 		&models.RefreshToken{},
 	)
 	if err != nil {
@@ -93,7 +94,7 @@ func TestAccountActivationFlow(t *testing.T) {
 			"password": "StrongPassword123!",
 		}
 		body, _ := json.Marshal(reqBody)
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/activate", bytes.NewReader(body))
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/activate", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req)
@@ -125,7 +126,7 @@ func TestAccountActivationFlow(t *testing.T) {
 				"password": pw,
 			}
 			body, _ := json.Marshal(reqBody)
-			req := httptest.NewRequest(http.MethodPost, "/api/v1/activate", bytes.NewReader(body))
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/activate", bytes.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
 
 			resp, err := app.Test(req)
@@ -145,7 +146,7 @@ func TestAccountActivationFlow(t *testing.T) {
 			"password": "VeryStrongPassword@2024",
 		}
 		body, _ := json.Marshal(reqBody)
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/activate", bytes.NewReader(body))
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/activate", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req)
@@ -170,7 +171,7 @@ func TestAccountActivationFlow(t *testing.T) {
 			"password": "AnotherStrongPassword!123",
 		}
 		body, _ := json.Marshal(reqBody)
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/activate", bytes.NewReader(body))
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/activate", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req)

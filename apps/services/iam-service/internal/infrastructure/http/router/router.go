@@ -25,11 +25,12 @@ func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handl
 	}
 
 	// Auth Routes
-	v1.Post("/login", authHandler.Login)
-	v1.Post("/refresh", authHandler.Refresh)
-	v1.Delete("/refresh-tokens/:token_id", authHandler.RevokeToken)
-	v1.Post("/activate", activationLimiter, authHandler.Activate)
-	v1.Post("/request-activation", activationLimiter, authHandler.RequestActivation)
+	auth := v1.Group("/auth")
+	auth.Post("/login", authHandler.Login)
+	auth.Post("/refresh", authHandler.Refresh)
+	auth.Delete("/refresh-tokens/:token_id", authHandler.RevokeToken)
+	auth.Post("/activate", activationLimiter, authHandler.Activate)
+	auth.Post("/request-activation", activationLimiter, authHandler.RequestActivation)
 
 	users := v1.Group("/users")
 

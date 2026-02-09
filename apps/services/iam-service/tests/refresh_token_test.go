@@ -94,7 +94,7 @@ func TestRefreshTokenLifecycle(t *testing.T) {
 			"password": "password123",
 		}
 		body, _ := json.Marshal(loginReq)
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewReader(body))
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := app.Test(req)
@@ -126,7 +126,7 @@ func TestRefreshTokenLifecycle(t *testing.T) {
 			"refresh_token": currentRefreshToken,
 		}
 		body, _ := json.Marshal(refreshReq)
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/refresh", bytes.NewReader(body))
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, _ := app.Test(req)
@@ -164,7 +164,7 @@ func TestRefreshTokenLifecycle(t *testing.T) {
 		var token models.RefreshToken
 		db.Where("user_id = ? AND is_revoked = ?", user.ID, false).First(&token)
 
-		req := httptest.NewRequest(http.MethodDelete, "/api/v1/refresh-tokens/"+token.TokenID.String(), nil)
+		req := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/refresh-tokens/"+token.TokenID.String(), nil)
 		resp, _ := app.Test(req)
 
 		if resp.StatusCode != http.StatusNoContent {
@@ -182,7 +182,7 @@ func TestRefreshTokenLifecycle(t *testing.T) {
 			"refresh_token": currentRefreshToken,
 		}
 		body, _ := json.Marshal(refreshReq)
-		reqRef := httptest.NewRequest(http.MethodPost, "/api/v1/refresh", bytes.NewReader(body))
+		reqRef := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh", bytes.NewReader(body))
 		reqRef.Header.Set("Content-Type", "application/json")
 
 		respRef, _ := app.Test(reqRef)
@@ -198,7 +198,7 @@ func TestRefreshTokenLifecycle(t *testing.T) {
 			"password": "password123",
 		}
 		bodyL, _ := json.Marshal(loginReq)
-		reqL := httptest.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewReader(bodyL))
+		reqL := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewReader(bodyL))
 		reqL.Header.Set("Content-Type", "application/json")
 		respL, _ := app.Test(reqL)
 
@@ -219,7 +219,7 @@ func TestRefreshTokenLifecycle(t *testing.T) {
 			"refresh_token": tokenToRevoke,
 		}
 		bodyR, _ := json.Marshal(refreshReq)
-		reqR := httptest.NewRequest(http.MethodPost, "/api/v1/refresh", bytes.NewReader(bodyR))
+		reqR := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh", bytes.NewReader(bodyR))
 		reqR.Header.Set("Content-Type", "application/json")
 
 		respR, _ := app.Test(reqR)
