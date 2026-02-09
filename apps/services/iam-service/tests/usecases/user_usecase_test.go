@@ -50,6 +50,11 @@ func (m *MockUserRepository) UpdateUser(user *models.User, student *models.Stude
 	return args.Error(0)
 }
 
+func (m *MockUserRepository) UpdateActivationFields(user *models.User) error {
+	args := m.Called(user)
+	return args.Error(0)
+}
+
 func (m *MockUserRepository) DeleteUser(id uuid.UUID) error {
 	args := m.Called(id)
 	return args.Error(0)
