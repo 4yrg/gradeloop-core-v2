@@ -46,7 +46,7 @@ func (uc *RoleUsecase) CreateRole(ctx context.Context, role *models.Role) (*mode
 	}
 
 	// Integrate with the existing Audit Log system (E02/US02)
-	uc.logAudit(ctx, "CREATE_ROLE", "Role", role.ID.String(), role)
+	uc.logAudit(ctx, "CREATE_ROLE", "Role", role.ID.String(), nil, role)
 
 	return role, nil
 }
@@ -83,10 +83,7 @@ func (uc *RoleUsecase) UpdateRolePermissions(ctx context.Context, roleID uuid.UU
 	}
 
 	// Integrate with the existing Audit Log system (E02/US02)
-	uc.logAudit(ctx, "UPDATE_ROLE_PERMISSIONS", "Role", roleID.String(), map[string]interface{}{
-		"role_name":      role.RoleName,
-		"permission_ids": permissionIDs,
-	})
+	uc.logAudit(ctx, "UPDATE_ROLE_PERMISSIONS", "Role", roleID.String(), role.Permissions, permissions)
 
 	return nil
 }
@@ -108,14 +105,14 @@ func (uc *RoleUsecase) DeleteRole(ctx context.Context, id uuid.UUID) error {
 	}
 
 	// Integrate with the existing Audit Log system (E02/US02)
-	uc.logAudit(ctx, "DELETE_ROLE", "Role", id.String(), role.RoleName)
+	uc.logAudit(ctx, "DELETE_ROLE", "Role", id.String(), role, nil)
 
 	return nil
 }
 
 // logAudit integrates with the existing Audit Log system (E02/US02) to record all mutations.
-func (uc *RoleUsecase) logAudit(ctx context.Context, action, entity, entityID string, data interface{}) {
-	auditLog := utils.PrepareAuditLog(ctx, action, entity, entityID, data)
+func (uc *RoleUsecase) logAudit(ctx context.Context, action, entity, entityID string, oldValue, newValue interface{}) {
+	auditLog := utils.PrepareAuditLog(ctx, action, entity, entityID, oldValue, newValue)
 	// Best effort audit logging
 	_ = uc.auditRepo.CreateAuditLog(ctx, auditLog)
 }
