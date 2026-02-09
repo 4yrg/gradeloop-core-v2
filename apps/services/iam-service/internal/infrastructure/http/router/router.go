@@ -4,11 +4,12 @@ import (
 	"time"
 
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/handlers"
+	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/middleware"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/limiter"
 )
 
-func Setup(app *fiber.App, userHandler *handlers.UserHandler) {
+func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler) {
 	// API Group
 	api := app.Group("/api")
 	v1 := api.Group("/v1")
@@ -26,4 +27,11 @@ func Setup(app *fiber.App, userHandler *handlers.UserHandler) {
 	users.Get("/:id", userHandler.GetUser)
 	users.Put("/:id", userHandler.UpdateUser)
 	users.Delete("/:id", userHandler.DeleteUser)
+
+	// Role Management Routes (Protected by AdminOnly)
+	roles := v1.Group("/roles", middleware.AdminOnly())
+	roles.Post("/", roleHandler.CreateRole)
+	roles.Get("/", roleHandler.ListRoles)
+	roles.Patch("/:id/permissions", roleHandler.UpdatePermissions)
+	roles.Delete("/:id", roleHandler.DeleteRole)
 }
