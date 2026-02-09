@@ -30,11 +30,12 @@ func (h *UserHandler) CreateUser(ctx fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body: " + err.Error()})
 	}
 
-	if err := h.usecase.RegisterUser(&req.User, req.Student, req.Employee, req.Password); err != nil {
+	user, err := h.usecase.RegisterUser(&req.User, req.Student, req.Employee, req.Password)
+	if err != nil {
 		return ctx.Status(fiber.StatusConflict).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	return ctx.Status(fiber.StatusCreated).JSON(req.User)
+	return ctx.Status(fiber.StatusCreated).JSON(user)
 }
 
 func (h *UserHandler) GetUser(ctx fiber.Ctx) error {
@@ -89,11 +90,12 @@ func (h *UserHandler) UpdateUser(ctx fiber.Ctx) error {
 
 	user.ID = id
 
-	if err := h.usecase.UpdateUser(&user, user.Student, user.Employee); err != nil {
+	updatedUser, err := h.usecase.UpdateUser(&user, user.Student, user.Employee)
+	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	return ctx.Status(fiber.StatusOK).JSON(user)
+	return ctx.Status(fiber.StatusOK).JSON(updatedUser)
 }
 
 func (h *UserHandler) DeleteUser(ctx fiber.Ctx) error {

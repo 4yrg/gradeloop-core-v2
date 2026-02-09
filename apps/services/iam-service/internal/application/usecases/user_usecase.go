@@ -18,22 +18,42 @@ func NewUserUsecase(repo ports.UserRepository) *UserUsecase {
 	return &UserUsecase{repo: repo}
 }
 
-func (uc *UserUsecase) RegisterUser(user *models.User, student *models.Student, employee *models.Employee, password string) error {
+func (uc *UserUsecase) RegisterUser(user *models.User, student *models.Student, employee *models.Employee, password string) (*models.User, error) {
+	if user.Email == "" || user.FullName == "" || user.UserType == "" {
+		return nil, errors.New("missing required base user fields")
+	}
+
+	if len(password) < 8 {
+		return nil, errors.New("password must be at least 8 characters long")
+	}
+
+	if user.UserType == models.UserTypeStudent && (student == nil || student.StudentRegNo == "") {
+		return nil, errors.New("student registration number is required for students")
+	}
+
+	if user.UserType == models.UserTypeEmployee && (employee == nil || employee.EmployeeID == "") {
+		return nil, errors.New("employee ID is required for employees")
+	}
+
 	// Validation: EnrollmentDate <= today
 	if user.UserType == models.UserTypeStudent && student != nil {
 		if student.EnrollmentDate.After(time.Now()) {
-			return errors.New("enrollment date cannot be in the future")
+			return nil, errors.New("enrollment date cannot be in the future")
 		}
 	}
 
 	// Password Hashing
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	user.PasswordHash = string(hash)
 
-	return uc.repo.CreateUser(user, student, employee)
+	if err := uc.repo.CreateUser(user, student, employee); err != nil {
+		return nil, err
+	}
+
+	return uc.repo.GetUser(user.ID, false)
 }
 
 func (uc *UserUsecase) GetUser(id uuid.UUID, includeDeleted bool) (*models.User, error) {
@@ -50,8 +70,11 @@ func (uc *UserUsecase) ListUsers(page, limit int, includeDeleted bool) ([]models
 	return uc.repo.ListUsers(page, limit, includeDeleted)
 }
 
-func (uc *UserUsecase) UpdateUser(user *models.User, student *models.Student, employee *models.Employee) error {
-	return uc.repo.UpdateUser(user, student, employee)
+func (uc *UserUsecase) UpdateUser(user *models.User, student *models.Student, employee *models.Employee) (*models.User, error) {
+	if err := uc.repo.UpdateUser(user, student, employee); err != nil {
+		return nil, err
+	}
+	return uc.repo.GetUser(user.ID, false)
 }
 
 func (uc *UserUsecase) DeleteUser(id uuid.UUID) error {

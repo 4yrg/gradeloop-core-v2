@@ -61,29 +61,68 @@ func TestRegisterUser(t *testing.T) {
 	t.Run("successful student registration", func(t *testing.T) {
 		user := &models.User{
 			Email:    "test@student.com",
+			FullName: "Test Student",
 			UserType: models.UserTypeStudent,
 		}
 		student := &models.Student{
+			StudentRegNo:   "STU001",
 			EnrollmentDate: time.Now().AddDate(0, 0, -1),
 		}
 
 		mockRepo.On("CreateUser", mock.Anything, student, (*models.Employee)(nil)).Return(nil).Once()
+		mockRepo.On("GetUser", mock.Anything, false).Return(user, nil).Once()
 
-		err := uc.RegisterUser(user, student, nil, "password123")
+		result, err := uc.RegisterUser(user, student, nil, "password123")
 		assert.NoError(t, err)
+		assert.NotNil(t, result)
 		assert.NotEmpty(t, user.PasswordHash)
 		mockRepo.AssertExpectations(t)
 	})
 
+	t.Run("fail registration with short password", func(t *testing.T) {
+		user := &models.User{
+			Email:    "test@student.com",
+			FullName: "Test Student",
+			UserType: models.UserTypeStudent,
+		}
+		_, err := uc.RegisterUser(user, nil, nil, "short")
+		assert.Error(t, err)
+		assert.Equal(t, "password must be at least 8 characters long", err.Error())
+	})
+
+	t.Run("fail registration with missing fields", func(t *testing.T) {
+		user := &models.User{
+			Email: "",
+		}
+		_, err := uc.RegisterUser(user, nil, nil, "password123")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "missing required base user fields")
+	})
+
+	t.Run("fail student registration without reg no", func(t *testing.T) {
+		user := &models.User{
+			Email:    "test@student.com",
+			FullName: "Test Student",
+			UserType: models.UserTypeStudent,
+		}
+		student := &models.Student{}
+		_, err := uc.RegisterUser(user, student, nil, "password123")
+		assert.Error(t, err)
+		assert.Equal(t, "student registration number is required for students", err.Error())
+	})
+
 	t.Run("fail registration with future enrollment date", func(t *testing.T) {
 		user := &models.User{
+			Email:    "test@student.com",
+			FullName: "Test Student",
 			UserType: models.UserTypeStudent,
 		}
 		student := &models.Student{
+			StudentRegNo:   "STU001",
 			EnrollmentDate: time.Now().AddDate(0, 0, 1),
 		}
 
-		err := uc.RegisterUser(user, student, nil, "password123")
+		_, err := uc.RegisterUser(user, student, nil, "password123")
 		assert.Error(t, err)
 		assert.Equal(t, "enrollment date cannot be in the future", err.Error())
 	})
@@ -124,12 +163,16 @@ func TestListUsers(t *testing.T) {
 func TestUpdateUser(t *testing.T) {
 	mockRepo := new(MockUserRepository)
 	uc := NewUserUsecase(mockRepo)
-	user := &models.User{ID: uuid.New()}
+	id := uuid.New()
+	user := &models.User{ID: id}
 
 	t.Run("successful update", func(t *testing.T) {
 		mockRepo.On("UpdateUser", user, (*models.Student)(nil), (*models.Employee)(nil)).Return(nil).Once()
-		err := uc.UpdateUser(user, nil, nil)
+		mockRepo.On("GetUser", id, false).Return(user, nil).Once()
+
+		result, err := uc.UpdateUser(user, nil, nil)
 		assert.NoError(t, err)
+		assert.NotNil(t, result)
 		mockRepo.AssertExpectations(t)
 	})
 }
