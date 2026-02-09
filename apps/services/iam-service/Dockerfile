@@ -7,21 +7,21 @@ WORKDIR /app
 # Install build dependencies
 RUN apk add --no-cache git
 
-# Copy dependency files for the service and shared library
-# We use wildcard patterns for go.sum to prevent build failure if it's missing or ignored
-# This ensures Docker layers are cached based on dependency changes
+# 1. Copy dependency files first to leverage Docker layer caching
 COPY apps/services/iam-service/go.mod apps/services/iam-service/go.su[m] ./apps/services/iam-service/
 COPY shared/libs/go/secrets/go.mod shared/libs/go/secrets/go.su[m] ./shared/libs/go/secrets/
 
-# Change to the service directory and download dependencies
+# Download dependencies
 WORKDIR /app/apps/services/iam-service
 RUN go mod download
 
-# Copy the entire project source code from the root context
+# 2. Explicitly copy required source code instead of 'COPY . .'
+# This avoids leaking sensitive files (like .git, local envs) into the image
 WORKDIR /app
-COPY . .
+COPY shared/libs/go/secrets ./shared/libs/go/secrets
+COPY apps/services/iam-service ./apps/services/iam-service
 
-# Build the application binary from the service directory
+# Build the application binary
 WORKDIR /app/apps/services/iam-service
 RUN CGO_ENABLED=0 GOOS=linux go build -o iam-service ./cmd/main.go
 
@@ -37,11 +37,12 @@ WORKDIR /home/gradeloop
 # Install CA certificates for secure communication
 RUN apk --no-cache add ca-certificates
 
-# Copy the binary from the builder
-# Use --chown to ensure the non-root user owns the files
-COPY --from=builder --chown=gradeloop:gradeloop /app/apps/services/iam-service/iam-service .
+# 3. Securely copy the binary:
+# - Use --chown=root:root to ensure the non-root user cannot modify the binary
+# - Use --chmod=755 to make it executable but not writable
+COPY --from=builder --chown=root:root --chmod=755 /app/apps/services/iam-service/iam-service .
 
-# Switch to the non-root user
+# Switch to the non-root user for runtime
 USER gradeloop
 
 # Expose the application port
