@@ -1,21 +1,23 @@
 # Build stage
 FROM golang:1.25-alpine AS builder
 
-# Set the working directory to the root of the project to access shared libraries
+# Set the working directory to the project root
 WORKDIR /app
 
 # Install build dependencies
 RUN apk add --no-cache git
 
-# Copy dependency files for the service and the shared library
-COPY apps/services/iam-service/go.mod apps/services/iam-service/go.sum ./apps/services/iam-service/
-COPY shared/libs/go/secrets/go.mod shared/libs/go/secrets/go.sum ./shared/libs/go/secrets/
+# Copy dependency files for the service and shared library
+# We use wildcard patterns for go.sum to prevent build failure if it's missing or ignored
+# This ensures Docker layers are cached based on dependency changes
+COPY apps/services/iam-service/go.mod apps/services/iam-service/go.su[m] ./apps/services/iam-service/
+COPY shared/libs/go/secrets/go.mod shared/libs/go/secrets/go.su[m] ./shared/libs/go/secrets/
 
-# Download dependencies for the IAM service
+# Change to the service directory and download dependencies
 WORKDIR /app/apps/services/iam-service
 RUN go mod download
 
-# Copy the entire source code from the root context
+# Copy the entire project source code from the root context
 WORKDIR /app
 COPY . .
 

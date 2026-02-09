@@ -1,0 +1,61 @@
+# Version control
+.git
+.gitignore
+.github
+
+# Build artifacts and binaries
+**/bin/
+**/obj/
+**/*.exe
+**/*.test
+**/*.out
+
+# Go specific build artifacts
+**/iam-service
+shared/libs/go/secrets/secrets.test
+
+# Dependencies
+**/vendor/
+**/node_modules/
+
+# Local configuration and secrets
+**/.env
+**/.env.*
+**/*.log
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# Documentation and API docs
+**/api-docs/
+docs/
+
+# Testing and Coverage
+**/*_test.go
+**/coverage.out
+**/htmlcov/
+**/.coverage
+**/.pytest_cache/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Docker files
+**/Dockerfile
+**/docker-compose*.yml
+**/.dockerignore
+
+# Terraform
+**/.terraform/
+**/*.tfstate*
+
+# CI/CD
+ci_summary.txt
+final_status.txt
