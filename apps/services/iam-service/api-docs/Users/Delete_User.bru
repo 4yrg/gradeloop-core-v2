@@ -11,10 +11,5 @@ delete {
 }
 
 params:path {
-  id:
+  id: 
 }
-
-/*
-Note: This performs a soft delete. The user will remain in the database with a deleted_at timestamp.
-Standard GET requests will exclude this user unless include_deleted=true is specified.
-*/
