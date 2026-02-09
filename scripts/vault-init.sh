@@ -95,11 +95,11 @@ seed_database_secrets() {
 
     # PostgreSQL secrets
     write_secret "$db_mount/postgres" \
-        username "gradeloop" \
-        password "gradeloop_dev_pass" \
+        username "postgres" \
+        password "postgres" \
         host "postgres" \
         port "5432" \
-        database "gradeloop_dev" \
+        database "gradeloop" \
         sslmode "disable"
 
     log_success "Database secrets seeded"
@@ -109,7 +109,7 @@ seed_database_secrets() {
 
     # secret/gradeloop/postgres -> password
     write_secret "secret/gradeloop/postgres" \
-        password "postgres_dev_password_123"
+        password "postgres"
 
     # secret/gradeloop/iam -> initial_admin_password
     write_secret "secret/gradeloop/iam" \
@@ -400,9 +400,9 @@ interactive_mode() {
     echo ""
 
     # Database password
-    printf "Enter PostgreSQL password (default: gradeloop_dev_pass): "
+    printf "Enter PostgreSQL password (default: postgres): "
     read -r db_pass
-    db_pass="${db_pass:-gradeloop_dev_pass}"
+    db_pass="${db_pass:-postgres}"
 
     # Redis password
     printf "Enter Redis password (default: gradeloop_redis_dev): "
