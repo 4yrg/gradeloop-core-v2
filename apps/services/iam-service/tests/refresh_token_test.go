@@ -50,11 +50,11 @@ func setupAuthTestApp(t *testing.T) (*fiber.App, *gorm.DB) {
 	refreshTokenRepo := repositories.NewRefreshTokenRepository(db)
 
 	// Initialize usecases
-	userUsecase := usecases.NewUserUsecase(userRepo)
+	userUsecase := usecases.NewUserUsecase(userRepo, auditRepo)
 	roleUsecase := usecases.NewRoleUsecase(roleRepo, auditRepo)
 	permissionUsecase := usecases.NewPermissionUsecase(permissionRepo)
 	notificationStub := notifications.NewNotificationStub()
-	authUsecase := usecases.NewAuthUsecase(userRepo, refreshTokenRepo, notificationStub, "test-secret")
+	authUsecase := usecases.NewAuthUsecase(userRepo, refreshTokenRepo, auditRepo, notificationStub, "test-secret")
 
 	// Initialize handlers
 	userHandler := handlers.NewUserHandler(userUsecase)

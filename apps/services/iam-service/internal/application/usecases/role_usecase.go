@@ -2,11 +2,11 @@ package usecases
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/application/ports"
+	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/application/utils"
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -115,25 +115,7 @@ func (uc *RoleUsecase) DeleteRole(ctx context.Context, id uuid.UUID) error {
 
 // logAudit integrates with the existing Audit Log system (E02/US02) to record all mutations.
 func (uc *RoleUsecase) logAudit(ctx context.Context, action, entity, entityID string, data interface{}) {
-	changes, _ := json.Marshal(data)
-
-	var userID uuid.UUID
-	// Try to extract user ID from context if provided by auth middleware
-	if val, ok := ctx.Value("user_id").(string); ok {
-		parsed, err := uuid.Parse(val)
-		if err == nil {
-			userID = parsed
-		}
-	}
-
-	auditLog := &models.AuditLog{
-		Action:   action,
-		Entity:   entity,
-		EntityID: entityID,
-		UserID:   userID,
-		Changes:  string(changes),
-	}
-
+	auditLog := utils.PrepareAuditLog(ctx, action, entity, entityID, data)
 	// Best effort audit logging
 	_ = uc.auditRepo.CreateAuditLog(ctx, auditLog)
 }

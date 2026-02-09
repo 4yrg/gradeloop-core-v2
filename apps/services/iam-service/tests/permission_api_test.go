@@ -43,18 +43,18 @@ func setupTestApp(t *testing.T) (*fiber.App, *gorm.DB) {
 	permissionUsecase := usecases.NewPermissionUsecase(permissionRepo)
 	permissionHandler := handlers.NewPermissionHandler(permissionUsecase)
 
+	auditRepo := repositories.NewAuditRepository(db)
 	userRepo := repositories.NewUserRepository(db)
-	userUsecase := usecases.NewUserUsecase(userRepo)
+	userUsecase := usecases.NewUserUsecase(userRepo, auditRepo)
 	userHandler := handlers.NewUserHandler(userUsecase)
 
-	auditRepo := repositories.NewAuditRepository(db)
 	roleRepo := repositories.NewRoleRepository(db)
 	roleUsecase := usecases.NewRoleUsecase(roleRepo, auditRepo)
 	roleHandler := handlers.NewRoleHandler(roleUsecase)
 
 	notificationStub := notifications.NewNotificationStub()
 	refreshTokenRepo := repositories.NewRefreshTokenRepository(db)
-	authUsecase := usecases.NewAuthUsecase(userRepo, refreshTokenRepo, notificationStub, "test-secret")
+	authUsecase := usecases.NewAuthUsecase(userRepo, refreshTokenRepo, auditRepo, notificationStub, "test-secret")
 	authHandler := handlers.NewAuthHandler(authUsecase)
 
 	app := fiber.New()

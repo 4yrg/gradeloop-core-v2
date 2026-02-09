@@ -106,7 +106,7 @@ func main() {
 			log.Printf("failed to seed reserved role %s: %v", roleName, err)
 		}
 	}
-	
+
 	log.Println("Seeding completed. Bootstrapping Super Admin...")
 	if err := bootstrapSuperAdmin(db); err != nil {
 		log.Fatalf("failed to bootstrap super admin: %v", err)
@@ -114,22 +114,21 @@ func main() {
 
 	log.Println("Bootstrapping completed. Initializing dependencies...")
 	// Dependency Injection
-	userRepo := repositories.NewUserRepository(db)
-	userUsecase := usecases.NewUserUsecase(userRepo)
-	userHandler := handlers.NewUserHandler(userUsecase)
-
 	auditRepo := repositories.NewAuditRepository(db)
+	userRepo := repositories.NewUserRepository(db)
 	roleRepo := repositories.NewRoleRepository(db)
-	roleUsecase := usecases.NewRoleUsecase(roleRepo, auditRepo)
-	roleHandler := handlers.NewRoleHandler(roleUsecase)
-
 	permissionRepo := repositories.NewPermissionRepository(db)
-	permissionUsecase := usecases.NewPermissionUsecase(permissionRepo)
-	permissionHandler := handlers.NewPermissionHandler(permissionUsecase)
-
-	notificationStub := notifications.NewNotificationStub()
 	refreshTokenRepo := repositories.NewRefreshTokenRepository(db)
-	authUsecase := usecases.NewAuthUsecase(userRepo, refreshTokenRepo, notificationStub, jwtConfig.Secret)
+	notificationStub := notifications.NewNotificationStub()
+
+	userUsecase := usecases.NewUserUsecase(userRepo, auditRepo)
+	roleUsecase := usecases.NewRoleUsecase(roleRepo, auditRepo)
+	permissionUsecase := usecases.NewPermissionUsecase(permissionRepo)
+	authUsecase := usecases.NewAuthUsecase(userRepo, refreshTokenRepo, auditRepo, notificationStub, jwtConfig.Secret)
+
+	userHandler := handlers.NewUserHandler(userUsecase)
+	roleHandler := handlers.NewRoleHandler(roleUsecase)
+	permissionHandler := handlers.NewPermissionHandler(permissionUsecase)
 	authHandler := handlers.NewAuthHandler(authUsecase)
 
 	// Start Server

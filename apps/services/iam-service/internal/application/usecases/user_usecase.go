@@ -1,21 +1,24 @@
 package usecases
 
 import (
+	"context"
 	"errors"
 	"time"
 
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/application/ports"
+	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/application/utils"
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type UserUsecase struct {
-	repo ports.UserRepository
+	repo      ports.UserRepository
+	auditRepo ports.AuditRepository
 }
 
-func NewUserUsecase(repo ports.UserRepository) *UserUsecase {
-	return &UserUsecase{repo: repo}
+func NewUserUsecase(repo ports.UserRepository, auditRepo ports.AuditRepository) *UserUsecase {
+	return &UserUsecase{repo: repo, auditRepo: auditRepo}
 }
 
 func (uc *UserUsecase) RegisterUser(user *models.User, student *models.Student, employee *models.Employee, password string) (*models.User, error) {
@@ -53,6 +56,8 @@ func (uc *UserUsecase) RegisterUser(user *models.User, student *models.Student, 
 		return nil, err
 	}
 
+	uc.logAudit(context.Background(), "create", "user", user.ID.String(), user)
+
 	return uc.repo.GetUser(user.ID, false)
 }
 
@@ -74,13 +79,27 @@ func (uc *UserUsecase) UpdateUser(user *models.User, student *models.Student, em
 	if err := uc.repo.UpdateUser(user, student, employee); err != nil {
 		return nil, err
 	}
+	uc.logAudit(context.Background(), "update", "user", user.ID.String(), user)
 	return uc.repo.GetUser(user.ID, false)
 }
 
 func (uc *UserUsecase) DeleteUser(id uuid.UUID) error {
-	return uc.repo.DeleteUser(id)
+	if err := uc.repo.DeleteUser(id); err != nil {
+		return err
+	}
+	uc.logAudit(context.Background(), "delete", "user", id.String(), nil)
+	return nil
 }
 
 func (uc *UserUsecase) RestoreUser(id uuid.UUID) error {
-	return uc.repo.RestoreUser(id)
+	if err := uc.repo.RestoreUser(id); err != nil {
+		return err
+	}
+	uc.logAudit(context.Background(), "restore", "user", id.String(), nil)
+	return nil
+}
+
+func (uc *UserUsecase) logAudit(ctx context.Context, action, entity, entityID string, data interface{}) {
+	auditLog := utils.PrepareAuditLog(ctx, action, entity, entityID, data)
+	_ = uc.auditRepo.CreateAuditLog(ctx, auditLog)
 }

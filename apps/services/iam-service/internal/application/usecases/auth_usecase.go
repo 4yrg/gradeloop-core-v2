@@ -19,14 +19,16 @@ import (
 type AuthUsecase struct {
 	userRepo         ports.UserRepository
 	refreshTokenRepo ports.RefreshTokenRepository
+	auditRepo        ports.AuditRepository
 	notificationPort ports.NotificationPort
 	jwtSecret        string
 }
 
-func NewAuthUsecase(userRepo ports.UserRepository, refreshTokenRepo ports.RefreshTokenRepository, notificationPort ports.NotificationPort, jwtSecret string) *AuthUsecase {
+func NewAuthUsecase(userRepo ports.UserRepository, refreshTokenRepo ports.RefreshTokenRepository, auditRepo ports.AuditRepository, notificationPort ports.NotificationPort, jwtSecret string) *AuthUsecase {
 	return &AuthUsecase{
 		userRepo:         userRepo,
 		refreshTokenRepo: refreshTokenRepo,
+		auditRepo:        auditRepo,
 		notificationPort: notificationPort,
 		jwtSecret:        jwtSecret,
 	}
@@ -80,6 +82,8 @@ func (uc *AuthUsecase) Login(email, password string) (string, string, *models.Us
 	if err := uc.refreshTokenRepo.Create(refreshToken); err != nil {
 		return "", "", nil, err
 	}
+
+	uc.logAudit(context.Background(), "login", "user", user.ID.String(), nil)
 
 	return accessToken, rawToken, user, nil
 }
@@ -148,12 +152,20 @@ func (uc *AuthUsecase) Refresh(oldTokenStr string) (string, string, *models.User
 
 // RevokeToken performs individual revocation
 func (uc *AuthUsecase) RevokeToken(tokenID uuid.UUID) error {
-	return uc.refreshTokenRepo.Revoke(tokenID)
+	if err := uc.refreshTokenRepo.Revoke(tokenID); err != nil {
+		return err
+	}
+	uc.logAudit(context.Background(), "revoke", "refresh_token", tokenID.String(), nil)
+	return nil
 }
 
 // RevokeAllUserTokens performs bulk revocation for a specific user
 func (uc *AuthUsecase) RevokeAllUserTokens(userID uuid.UUID) error {
-	return uc.refreshTokenRepo.RevokeAllForUser(userID)
+	if err := uc.refreshTokenRepo.RevokeAllForUser(userID); err != nil {
+		return err
+	}
+	uc.logAudit(context.Background(), "revoke_all", "user", userID.String(), nil)
+	return nil
 }
 
 // RequestActivation generates a new activation token, invalidates old ones, and sends an email.
@@ -234,5 +246,12 @@ func (uc *AuthUsecase) ActivateAccount(tokenStr string, newPassword string) erro
 		return err
 	}
 
+	uc.logAudit(context.Background(), "activate", "user", user.ID.String(), nil)
+
 	return nil
+}
+
+func (uc *AuthUsecase) logAudit(ctx context.Context, action, entity, entityID string, data interface{}) {
+	auditLog := utils.PrepareAuditLog(ctx, action, entity, entityID, data)
+	_ = uc.auditRepo.CreateAuditLog(ctx, auditLog)
 }

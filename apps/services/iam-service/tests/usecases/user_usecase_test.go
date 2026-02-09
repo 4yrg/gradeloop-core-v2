@@ -75,10 +75,12 @@ func (m *MockUserRepository) RestoreUser(id uuid.UUID) error {
 
 func TestRegisterUser(t *testing.T) {
 	mockRepo := new(MockUserRepository)
-	uc := usecases.NewUserUsecase(mockRepo)
+	mockAudit := new(MockAuditRepository)
+	uc := usecases.NewUserUsecase(mockRepo, mockAudit)
 
 	t.Run("successful student registration", func(t *testing.T) {
 		user := &models.User{
+			ID:       uuid.New(),
 			Email:    "test@student.com",
 			FullName: "Test Student",
 			UserType: models.UserTypeStudent,
@@ -89,6 +91,7 @@ func TestRegisterUser(t *testing.T) {
 		}
 
 		mockRepo.On("CreateUser", mock.Anything, student, (*models.Employee)(nil)).Return(nil).Once()
+		mockAudit.On("CreateAuditLog", mock.Anything, mock.Anything).Return(nil).Once()
 		mockRepo.On("GetUser", mock.Anything, false).Return(user, nil).Once()
 
 		result, err := uc.RegisterUser(user, student, nil, "password123")
@@ -96,6 +99,7 @@ func TestRegisterUser(t *testing.T) {
 		assert.NotNil(t, result)
 		assert.NotEmpty(t, user.PasswordHash)
 		mockRepo.AssertExpectations(t)
+		mockAudit.AssertExpectations(t)
 	})
 
 	t.Run("fail registration with short password", func(t *testing.T) {
@@ -149,7 +153,8 @@ func TestRegisterUser(t *testing.T) {
 
 func TestGetUser(t *testing.T) {
 	mockRepo := new(MockUserRepository)
-	uc := usecases.NewUserUsecase(mockRepo)
+	mockAudit := new(MockAuditRepository)
+	uc := usecases.NewUserUsecase(mockRepo, mockAudit)
 	id := uuid.New()
 
 	t.Run("successful fetch", func(t *testing.T) {
@@ -165,7 +170,8 @@ func TestGetUser(t *testing.T) {
 
 func TestListUsers(t *testing.T) {
 	mockRepo := new(MockUserRepository)
-	uc := usecases.NewUserUsecase(mockRepo)
+	mockAudit := new(MockAuditRepository)
+	uc := usecases.NewUserUsecase(mockRepo, mockAudit)
 
 	t.Run("pagination defaults", func(t *testing.T) {
 		users := []models.User{{Email: "1@test.com"}, {Email: "2@test.com"}}
@@ -181,30 +187,36 @@ func TestListUsers(t *testing.T) {
 
 func TestUpdateUser(t *testing.T) {
 	mockRepo := new(MockUserRepository)
-	uc := usecases.NewUserUsecase(mockRepo)
+	mockAudit := new(MockAuditRepository)
+	uc := usecases.NewUserUsecase(mockRepo, mockAudit)
 	id := uuid.New()
 	user := &models.User{ID: id}
 
 	t.Run("successful update", func(t *testing.T) {
 		mockRepo.On("UpdateUser", user, (*models.Student)(nil), (*models.Employee)(nil)).Return(nil).Once()
+		mockAudit.On("CreateAuditLog", mock.Anything, mock.Anything).Return(nil).Once()
 		mockRepo.On("GetUser", id, false).Return(user, nil).Once()
 
 		result, err := uc.UpdateUser(user, nil, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		mockRepo.AssertExpectations(t)
+		mockAudit.AssertExpectations(t)
 	})
 }
 
 func TestDeleteUser(t *testing.T) {
 	mockRepo := new(MockUserRepository)
-	uc := usecases.NewUserUsecase(mockRepo)
+	mockAudit := new(MockAuditRepository)
+	uc := usecases.NewUserUsecase(mockRepo, mockAudit)
 	id := uuid.New()
 
 	t.Run("successful delete", func(t *testing.T) {
 		mockRepo.On("DeleteUser", id).Return(nil).Once()
+		mockAudit.On("CreateAuditLog", mock.Anything, mock.Anything).Return(nil).Once()
 		err := uc.DeleteUser(id)
 		assert.NoError(t, err)
 		mockRepo.AssertExpectations(t)
+		mockAudit.AssertExpectations(t)
 	})
 }

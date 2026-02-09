@@ -46,11 +46,11 @@ func setupActivationTestApp(t *testing.T) (*fiber.App, *gorm.DB) {
 	userRepo := repositories.NewUserRepository(db)
 	refreshTokenRepo := repositories.NewRefreshTokenRepository(db)
 	notificationStub := notifications.NewNotificationStub()
-	authUsecase := usecases.NewAuthUsecase(userRepo, refreshTokenRepo, notificationStub, activationTestSecret)
-
-	userUsecase := usecases.NewUserUsecase(userRepo)
-	roleRepo := repositories.NewRoleRepository(db)
 	auditRepo := repositories.NewAuditRepository(db)
+	authUsecase := usecases.NewAuthUsecase(userRepo, refreshTokenRepo, auditRepo, notificationStub, activationTestSecret)
+
+	userUsecase := usecases.NewUserUsecase(userRepo, auditRepo)
+	roleRepo := repositories.NewRoleRepository(db)
 	roleUsecase := usecases.NewRoleUsecase(roleRepo, auditRepo)
 	permissionRepo := repositories.NewPermissionRepository(db)
 	permissionUsecase := usecases.NewPermissionUsecase(permissionRepo)
