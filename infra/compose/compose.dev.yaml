@@ -17,7 +17,7 @@ services:
       - vault-audit-logs:/vault/logs
     command: server -dev -dev-root-token-id="dev-root-token"
     healthcheck:
-      test: [ "CMD", "vault", "status" ]
+      test: ["CMD", "vault", "status"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -41,6 +41,46 @@ services:
     networks:
       - gradeloop-network
     restart: "no"
+
+  # PostgreSQL - Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: gradeloop-postgres-dev
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: gradeloop
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gradeloop-network
+
+  # IAM Service - Identity and Access Management
+  iam-service:
+    build:
+      context: ../../apps/services/iam-service
+      dockerfile: Dockerfile
+    container_name: gradeloop-iam-service-dev
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "host=postgres user=postgres password=postgres dbname=gradeloop port=5432 sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    develop:
+      watch:
+        - action: rebuild
+          path: ../../apps/services/iam-service
+    networks:
+      - gradeloop-network
 
 networks:
   gradeloop-network:
