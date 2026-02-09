@@ -24,7 +24,7 @@ var ReservedRoles = map[string]bool{
 
 type Permission struct {
 	ID          uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
-	Name        string         `gorm:"uniqueIndex;default:''" json:"name"`
+	Name        string         `gorm:"uniqueIndex;not null" json:"name"`
 	Description string         `json:"description"`
 	Category    string         `json:"category"`
 	IsCustom    bool           `gorm:"default:false" json:"is_custom"`
@@ -35,7 +35,7 @@ type Permission struct {
 
 type Role struct {
 	ID          uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
-	RoleName    string         `gorm:"uniqueIndex;default:''" json:"role_name"`
+	RoleName    string         `gorm:"uniqueIndex;not null" json:"role_name"`
 	Description string         `json:"description"`
 	IsCustom    bool           `gorm:"default:true" json:"is_custom"`
 	Permissions []Permission   `gorm:"many2many:roles_permissions;" json:"permissions"`
