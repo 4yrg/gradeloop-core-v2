@@ -1,0 +1,19 @@
+```meta {
+  name: Get User
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/users/:id?include_deleted=false
+  body: none
+  auth: none
+}
+
+params:query {
+  include_deleted: false
+}
+
+params:path {
+  id:
+}

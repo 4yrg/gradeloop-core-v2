@@ -1,0 +1,20 @@
+```meta {
+  name: Delete User
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{base_url}}/users/:id
+  body: none
+  auth: none
+}
+
+params:path {
+  id:
+}
+
+/*
+Note: This performs a soft delete. The user will remain in the database with a deleted_at timestamp.
+Standard GET requests will exclude this user unless include_deleted=true is specified.
+*/

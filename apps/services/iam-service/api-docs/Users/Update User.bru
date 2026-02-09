@@ -1,0 +1,30 @@
+```meta {
+  name: Update User
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{base_url}}/users/:id
+  body: json
+  auth: none
+}
+
+params:path {
+  id:
+}
+
+body:json {
+  {
+    "full_name": "John Doe Updated",
+    "is_active": true,
+    "student": {
+      "student_reg_no": "STU12345-UPDATED"
+    }
+  }
+}
+
+/*
+Note: The user_type cannot be changed.
+Fields like id, user_type, and created_at are protected from updates in the repository.
+*/
