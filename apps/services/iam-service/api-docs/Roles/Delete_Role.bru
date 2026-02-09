@@ -1,0 +1,19 @@
+meta {
+  name: Delete Role
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{base_url}}/roles/:id
+  body: none
+  auth: none
+}
+
+params:path {
+  id:
+}
+
+headers {
+  X-Is-Admin: true
+}

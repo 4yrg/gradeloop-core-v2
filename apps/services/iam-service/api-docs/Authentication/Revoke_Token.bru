@@ -1,0 +1,28 @@
+meta {
+  name: Revoke Token
+  type: http
+  seq: 3
+}
+
+delete {
+  url: {{base_url}}/refresh-tokens/:token_id
+  body: none
+  auth: none
+}
+
+params:path {
+  token_id:
+}
+
+docs {
+  # Revoke Token
+  Manually revokes a specific refresh token by its UUID.
+
+  ## Functional Logic
+  - Sets `is_revoked = true` for the record matching the provided `token_id`.
+  - This operation is **idempotent**; revoking an already revoked token will still return a success status.
+
+  ## Response
+  - `204 No Content`: Successfully revoked the token.
+  - `400 Bad Request`: If the `token_id` is not a valid UUID.
+}

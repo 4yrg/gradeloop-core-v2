@@ -84,7 +84,7 @@ jobs:
         if: ${{ steps.changes.outputs.go == 'true' }}
         uses: actions/setup-go@7b8cf10d4e4a01d4992d18a89f4d7dc5a3e6d6f4
         with:
-          go-version: "1.20"
+          go-version: "1.25"
 
       - name: Go - Lint and Unit Tests
         if: ${{ steps.changes.outputs.go == 'true' }}
@@ -125,6 +125,12 @@ jobs:
           for d in "${!dirs[@]}"; do
             echo "Processing Go target: $d" >> ci_summary.txt
 
+            # Check if directory has any .go files
+            if ! find "$d" -maxdepth 1 -name "*.go" -print -quit | grep -q .; then
+              echo "Skipping $d (no .go files found)" >> ci_summary.txt
+              continue
+            fi
+
             # gofmt check
             gf=$(gofmt -l "$d" || true)
             if [ -n "$gf" ]; then
@@ -145,6 +151,14 @@ jobs:
 
             # run tests with coverage
             pushd "$d" >/dev/null || true
+
+            # Check if go.mod exists (skip if directory has no Go module)
+            if [ ! -f "go.mod" ]; then
+              echo "Skipping tests for $d (no go.mod found)" >> ci_summary.txt
+              popd >/dev/null || true
+              continue
+            fi
+
             COVER="coverage.out"
             # run package-level tests
             if ! go test ./... -coverprofile="$COVER" ; then
@@ -189,8 +203,9 @@ jobs:
           for f in "${pyfiles[@]}"; do
             if [[ "$f" =~ ^apps/services/[^/]+ ]]; then
               d=$(printf "%s" "$f" | awk -F'/' '{print $1"/"$2"/"$3}')
-            elif [[ "$f" =~ ^shared/libs/py ]]; then
-              d="shared/libs/py"
+            elif [[ "$f" =~ ^shared/libs/py/([^/]+) ]]; then
+              # Extract the package name (e.g., shared/libs/py/secrets)
+              d=$(printf "%s" "$f" | awk -F'/' '{print $1"/"$2"/"$3"/"$4}')
             else
               d=$(dirname "$f")
             fi
@@ -202,7 +217,23 @@ jobs:
             ruff check "$d" || { echo "ruff failed for $d" >> ci_summary.txt; exit 1; }
             black --check "$d" || { echo "black --check failed for $d" >> ci_summary.txt; exit 1; }
 
+            # Skip test coverage for docs/examples directories (no tests expected)
+            if [[ "$d" =~ ^docs/ ]] || [[ "$d" =~ /examples/ ]]; then
+              echo "Skipping tests for $d (documentation/examples directory)" >> ci_summary.txt
+              continue
+            fi
+
             pushd "$d" >/dev/null || true
+
+            # Install dependencies if requirements.txt or setup.py exists
+            if [ -f "requirements.txt" ]; then
+              echo "Installing dependencies from requirements.txt for $d" >> ci_summary.txt
+              python -m pip install -r requirements.txt >/dev/null || { echo "Failed to install requirements for $d" >> ci_summary.txt; exit 1; }
+            elif [ -f "setup.py" ]; then
+              echo "Installing package dependencies from setup.py for $d" >> ci_summary.txt
+              python -m pip install -e . >/dev/null || { echo "Failed to install package for $d" >> ci_summary.txt; exit 1; }
+            fi
+
             pytest --maxfail=1 --disable-warnings --cov=. --cov-report=xml || { echo "pytest failed for $d" >> ci_summary.txt; exit 1; }
             if [ -f coverage.xml ]; then
               # Extract coverage using grep/sed/awk to avoid inline Python and YAML parsing issues.
@@ -241,16 +272,21 @@ jobs:
             # detect per service
             for svc in apps/services/*; do
               [ -e "$svc" ] || continue
-              if [ -f "$svc/Dockerfile" ] || [ -f "$svc/docker/Dockerfile" ]; then
+              if [ -f "$svc/Dockerfile" ]; then
                 echo "Building $svc" >> ci_summary.txt
-                docker build -t gradeloop/${svc//\//-}:pr-${PR_NUM} "$svc"
+                docker build -t gradeloop/${svc//\//-}:pr-${PR_NUM} -f "$svc/Dockerfile" .
+              elif [ -f "$svc/docker/Dockerfile" ]; then
+                echo "Building $svc" >> ci_summary.txt
+                docker build -t gradeloop/${svc//\//-}:pr-${PR_NUM} -f "$svc/docker/Dockerfile" .
               fi
             done
           else
             for df in "${dockerfiles[@]}"; do
               svc_dir=$(dirname "$df")
+              # If Dockerfile is in a 'docker' subdirectory, use the parent for the tag name
+              tag_dir="${svc_dir%/docker}"
               echo "Building $svc_dir" >> ci_summary.txt
-              docker build -t gradeloop/${svc_dir//\//-}:pr-${PR_NUM} "$svc_dir"
+              docker build -t gradeloop/${tag_dir//\//-}:pr-${PR_NUM} -f "$df" .
             done
           fi
 
