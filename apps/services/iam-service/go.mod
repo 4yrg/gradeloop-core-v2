@@ -5,6 +5,7 @@ go 1.25.6
 require (
 	github.com/4YRG/gradeloop-core-v2/shared/libs/go/secrets v0.0.0
 	github.com/gofiber/fiber/v3 v3.0.0
+	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/crypto v0.47.0
