@@ -133,3 +133,40 @@ func (r *UserRepository) DeleteUser(id uuid.UUID) error {
 	// Soft delete is default with GORM DeletedAt
 	return r.db.Delete(&models.User{}, id).Error
 }
+
+func (r *UserRepository) GetPermissionsByUserID(userID uuid.UUID) ([]string, error) {
+	var permissions []string
+
+	// Join users -> users_roles -> roles -> roles_permissions -> permissions
+	err := r.db.Table("permissions").
+		Joins("JOIN roles_permissions ON roles_permissions.permission_id = permissions.id").
+		Joins("JOIN roles ON roles.id = roles_permissions.role_id").
+		Joins("JOIN users_roles ON users_roles.role_id = roles.id").
+		Where("users_roles.user_id = ?", userID).
+		Pluck("permissions.name", &permissions).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return permissions, nil
+}
+
+func (r *UserRepository) RestoreUser(id uuid.UUID) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		var user models.User
+		if err := tx.Unscoped().First(&user, "id = ?", id).Error; err != nil {
+			return err
+		}
+
+		// Check for email conflict with any active user
+		var existingUser models.User
+		if err := tx.Where("email = ?", user.Email).First(&existingUser).Error; err == nil {
+			return errors.New("cannot restore: another active user with the same email already exists")
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+
+		return tx.Unscoped().Model(&user).Update("deleted_at", nil).Error
+	})
+}

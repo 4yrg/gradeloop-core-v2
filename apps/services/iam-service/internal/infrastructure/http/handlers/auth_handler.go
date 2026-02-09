@@ -39,14 +39,15 @@ func (h *AuthHandler) Login(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
 
-	token, user, err := h.usecase.Login(req.Email, req.Password)
+	accessToken, refreshToken, user, err := h.usecase.Login(req.Email, req.Password)
 	if err != nil {
 		// Specification: Return 401 Unauthorized for invalid credentials
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"refresh_token": token,
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
 		"user":          user,
 	})
 }
@@ -58,14 +59,15 @@ func (h *AuthHandler) Refresh(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
 
-	token, user, err := h.usecase.Refresh(req.RefreshToken)
+	accessToken, refreshToken, user, err := h.usecase.Refresh(req.RefreshToken)
 	if err != nil {
 		// Specification: Return 401 Unauthorized for tokens that are expired, revoked, or non-matching
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"refresh_token": token,
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
 		"user":          user,
 	})
 }

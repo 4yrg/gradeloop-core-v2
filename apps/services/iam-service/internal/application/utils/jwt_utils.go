@@ -13,6 +13,12 @@ type ActivationClaims struct {
 	jwt.RegisteredClaims
 }
 
+// AccessTokenClaims defines the custom claims for access tokens, including permissions
+type AccessTokenClaims struct {
+	Permissions []string `json:"permissions"`
+	jwt.RegisteredClaims
+}
+
 // GenerateActivationToken creates a cryptographically signed JWT for new users.
 // Claims: sub=user_id, exp=duration, jti=token_id
 func GenerateActivationToken(userID uuid.UUID, tokenID uuid.UUID, secret string, duration time.Duration) (string, error) {
@@ -22,6 +28,22 @@ func GenerateActivationToken(userID uuid.UUID, tokenID uuid.UUID, secret string,
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			ID:        tokenID.String(),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(secret))
+}
+
+// GenerateAccessToken creates a short-lived JWT for user authentication.
+// Claims: sub=user_id, exp=duration, permissions=[]string
+func GenerateAccessToken(userID uuid.UUID, permissions []string, secret string, duration time.Duration) (string, error) {
+	claims := AccessTokenClaims{
+		Permissions: permissions,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   userID.String(),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
 

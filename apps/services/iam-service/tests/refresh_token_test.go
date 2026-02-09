@@ -110,6 +110,11 @@ func TestRefreshTokenLifecycle(t *testing.T) {
 		respBody, _ := io.ReadAll(resp.Body)
 		json.Unmarshal(respBody, &result)
 
+		accessToken := result["access_token"].(string)
+		if accessToken == "" {
+			t.Error("expected access token in response")
+		}
+
 		currentRefreshToken = result["refresh_token"].(string)
 		if currentRefreshToken == "" {
 			t.Error("expected refresh token in response")
@@ -132,6 +137,11 @@ func TestRefreshTokenLifecycle(t *testing.T) {
 		var result map[string]interface{}
 		respBody, _ := io.ReadAll(resp.Body)
 		json.Unmarshal(respBody, &result)
+
+		newAccessToken := result["access_token"].(string)
+		if newAccessToken == "" {
+			t.Error("expected a new access token")
+		}
 
 		newRefreshToken := result["refresh_token"].(string)
 		if newRefreshToken == "" || newRefreshToken == currentRefreshToken {

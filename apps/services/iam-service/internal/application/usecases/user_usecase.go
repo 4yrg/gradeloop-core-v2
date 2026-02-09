@@ -80,3 +80,7 @@ func (uc *UserUsecase) UpdateUser(user *models.User, student *models.Student, em
 func (uc *UserUsecase) DeleteUser(id uuid.UUID) error {
 	return uc.repo.DeleteUser(id)
 }
+
+func (uc *UserUsecase) RestoreUser(id uuid.UUID) error {
+	return uc.repo.RestoreUser(id)
+}

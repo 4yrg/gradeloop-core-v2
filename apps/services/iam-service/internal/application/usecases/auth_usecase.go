@@ -38,19 +38,31 @@ func (uc *AuthUsecase) hashToken(token string) string {
 	return hex.EncodeToString(hash[:])
 }
 
-// Login authenticates a user and returns a raw refresh token and user details
-func (uc *AuthUsecase) Login(email, password string) (string, *models.User, error) {
+// Login authenticates a user and returns a raw access token, raw refresh token and user details
+func (uc *AuthUsecase) Login(email, password string) (string, string, *models.User, error) {
 	user, err := uc.userRepo.GetUserByEmail(email, false)
 	if err != nil {
-		return "", nil, errors.New("unauthorized: invalid credentials")
+		return "", "", nil, errors.New("unauthorized: invalid credentials")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
-		return "", nil, errors.New("unauthorized: invalid credentials")
+		return "", "", nil, errors.New("unauthorized: invalid credentials")
 	}
 
 	if user.PasswordSetAt == nil {
-		return "", nil, errors.New("unauthorized: account not activated")
+		return "", "", nil, errors.New("unauthorized: account not activated")
+	}
+
+	// Fetch permissions for the user
+	permissions, err := uc.userRepo.GetPermissionsByUserID(user.ID)
+	if err != nil {
+		return "", "", nil, fmt.Errorf("failed to fetch user permissions: %w", err)
+	}
+
+	// Issue Access Token (15m)
+	accessToken, err := utils.GenerateAccessToken(user.ID, permissions, uc.jwtSecret, 15*time.Minute)
+	if err != nil {
+		return "", "", nil, fmt.Errorf("failed to generate access token: %w", err)
 	}
 
 	rawToken := uuid.New().String()
@@ -66,20 +78,20 @@ func (uc *AuthUsecase) Login(email, password string) (string, *models.User, erro
 	}
 
 	if err := uc.refreshTokenRepo.Create(refreshToken); err != nil {
-		return "", nil, err
+		return "", "", nil, err
 	}
 
-	return rawToken, user, nil
+	return accessToken, rawToken, user, nil
 }
 
 // Refresh validates the old token and issues a new rotated token
-func (uc *AuthUsecase) Refresh(oldTokenStr string) (string, *models.User, error) {
+func (uc *AuthUsecase) Refresh(oldTokenStr string) (string, string, *models.User, error) {
 	tokenHash := uc.hashToken(oldTokenStr)
 	token, err := uc.refreshTokenRepo.GetByHash(tokenHash)
 	if err != nil {
 		// Log attempt with unknown token hash
 		slog.Warn("Security event: attempt to refresh with non-matching hash or missing token", "token_hash", tokenHash)
-		return "", nil, errors.New("unauthorized: invalid token")
+		return "", "", nil, errors.New("unauthorized: invalid token")
 	}
 
 	// Security Event Logging for revoked or expired tokens
@@ -89,20 +101,32 @@ func (uc *AuthUsecase) Refresh(oldTokenStr string) (string, *models.User, error)
 			"user_id", token.UserID,
 			"is_revoked", token.IsRevoked,
 			"is_expired", token.ExpiresAt.Before(time.Now()))
-		return "", nil, errors.New("unauthorized: token is invalid")
+		return "", "", nil, errors.New("unauthorized: token is invalid")
 	}
 
 	user, err := uc.userRepo.GetUser(token.UserID, false)
 	if err != nil {
-		return "", nil, errors.New("unauthorized: user context lost")
+		return "", "", nil, errors.New("unauthorized: user context lost")
 	}
 
 	// Revoke old token (Rotation)
 	if err := uc.refreshTokenRepo.Revoke(token.TokenID); err != nil {
-		return "", nil, err
+		return "", "", nil, err
 	}
 
-	// Issue new token
+	// Fetch permissions for the user
+	permissions, err := uc.userRepo.GetPermissionsByUserID(user.ID)
+	if err != nil {
+		return "", "", nil, fmt.Errorf("failed to fetch user permissions: %w", err)
+	}
+
+	// Issue new access token
+	accessToken, err := utils.GenerateAccessToken(user.ID, permissions, uc.jwtSecret, 15*time.Minute)
+	if err != nil {
+		return "", "", nil, fmt.Errorf("failed to generate access token: %w", err)
+	}
+
+	// Issue new refresh token
 	newRawToken := uuid.New().String()
 	newTokenHash := uc.hashToken(newRawToken)
 
@@ -116,10 +140,10 @@ func (uc *AuthUsecase) Refresh(oldTokenStr string) (string, *models.User, error)
 	}
 
 	if err := uc.refreshTokenRepo.Create(newRefreshToken); err != nil {
-		return "", nil, err
+		return "", "", nil, err
 	}
 
-	return newRawToken, user, nil
+	return accessToken, newRawToken, user, nil
 }
 
 // RevokeToken performs individual revocation

@@ -111,3 +111,17 @@ func (h *UserHandler) DeleteUser(ctx fiber.Ctx) error {
 
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
+
+func (h *UserHandler) RestoreUser(ctx fiber.Ctx) error {
+	idParam := ctx.Params("id")
+	id, err := uuid.Parse(idParam)
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid ID format"})
+	}
+
+	if err := h.usecase.RestoreUser(id); err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return ctx.SendStatus(fiber.StatusOK)
+}

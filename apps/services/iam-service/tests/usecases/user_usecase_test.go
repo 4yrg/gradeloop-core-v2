@@ -60,6 +60,19 @@ func (m *MockUserRepository) DeleteUser(id uuid.UUID) error {
 	return args.Error(0)
 }
 
+func (m *MockUserRepository) GetPermissionsByUserID(userID uuid.UUID) ([]string, error) {
+	args := m.Called(userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
+}
+
+func (m *MockUserRepository) RestoreUser(id uuid.UUID) error {
+	args := m.Called(id)
+	return args.Error(0)
+}
+
 func TestRegisterUser(t *testing.T) {
 	mockRepo := new(MockUserRepository)
 	uc := usecases.NewUserUsecase(mockRepo)

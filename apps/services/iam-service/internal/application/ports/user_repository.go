@@ -13,4 +13,6 @@ type UserRepository interface {
 	UpdateUser(user *models.User, student *models.Student, employee *models.Employee) error
 	UpdateActivationFields(user *models.User) error
 	DeleteUser(id uuid.UUID) error
+	GetPermissionsByUserID(userID uuid.UUID) ([]string, error)
+	RestoreUser(id uuid.UUID) error
 }

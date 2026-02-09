@@ -47,6 +47,7 @@ func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handl
 	users.Get("/:id", userHandler.GetUser)
 	users.Put("/:id", userHandler.UpdateUser)
 	users.Delete("/:id", userHandler.DeleteUser)
+	users.Patch("/:id/restore", userHandler.RestoreUser)
 	users.Post("/:id/revoke-all-tokens", authHandler.RevokeAllTokens)
 
 	// Role Management Routes (Protected by AdminOnly)
