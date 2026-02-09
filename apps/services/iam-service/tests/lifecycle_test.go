@@ -121,7 +121,7 @@ func TestSecurityLifecycle(t *testing.T) {
 		assert.Equal(t, "update", auditEntry.Action)
 		assert.Equal(t, "user", auditEntry.Entity)
 		assert.Equal(t, user.ID.String(), auditEntry.EntityID)
-		assert.Contains(t, auditEntry.Changes, "Updated Name")
+		assert.Contains(t, string(auditEntry.NewValue), "Updated Name")
 
 		// D. Refresh Token Rotation
 		refreshReq := map[string]string{
