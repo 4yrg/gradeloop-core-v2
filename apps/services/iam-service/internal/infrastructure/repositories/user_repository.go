@@ -18,7 +18,9 @@ func NewUserRepository(db *gorm.DB) *UserRepository {
 
 func (r *UserRepository) CreateUser(user *models.User, student *models.Student, employee *models.Employee) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(user).Error; err != nil {
+		// Omit Student and Employee associations during the base user creation to prevent
+		// GORM from attempting to insert them twice or with zeroed values.
+		if err := tx.Omit("Student", "Employee").Create(user).Error; err != nil {
 			return err
 		}
 
@@ -89,7 +91,7 @@ func (r *UserRepository) UpdateUser(user *models.User, student *models.Student, 
 		}
 
 		// Update base user fields
-		if err := tx.Model(user).Omit("UserType", "CreatedAt", "ID", "PasswordHash").Updates(user).Error; err != nil {
+		if err := tx.Model(user).Omit("UserType", "CreatedAt", "ID", "PasswordHash", "Student", "Employee").Updates(user).Error; err != nil {
 			return err
 		}
 
