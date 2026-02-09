@@ -106,7 +106,7 @@ seed_database_secrets() {
 
     # Seed GradeLoop Core Secrets (US02 Requirements)
     log_info "Seeding GradeLoop Core secrets..."
-    
+
     # secret/gradeloop/postgres -> password
     write_secret "secret/gradeloop/postgres" \
         password "postgres_dev_password_123"
@@ -114,11 +114,11 @@ seed_database_secrets() {
     # secret/gradeloop/iam -> initial_admin_password
     write_secret "secret/gradeloop/iam" \
         initial_admin_password "admin_dev_password_123"
-        
+
     # secret/gradeloop/vault -> token (Local dev access)
     write_secret "secret/gradeloop/vault" \
         token "$VAULT_TOKEN"
-        
+
     log_success "GradeLoop Core secrets seeded"
 }
 
@@ -227,6 +227,13 @@ seed_service_secrets() {
         service_name "ivas-service" \
         log_level "debug" \
         port "8086"
+
+    # IAM Service
+    write_secret "secret/services/iam" \
+        service_name "iam-service" \
+        log_level "debug" \
+        port "3000" \
+        database_url "host=postgres user=postgres password=postgres dbname=gradeloop port=5432 sslmode=disable"
 
     log_success "Service secrets seeded"
 }
@@ -344,6 +351,16 @@ path "secret/data/services/ivas" {
 }
 EOF
 
+    # IAM Service Policy
+    vault policy write iam-service - <<EOF
+path "secret/data/database/*" {
+  capabilities = ["read"]
+}
+path "secret/data/services/iam" {
+  capabilities = ["read"]
+}
+EOF
+
     log_success "Service policies created"
 }
 
@@ -359,7 +376,7 @@ enable_approle_auth() {
     fi
 
     # Create AppRoles for each service
-    services="academics-service assignment-service email-service cipas-service ivas-service"
+    services="academics-service assignment-service email-service cipas-service ivas-service iam-service"
 
     for service in $services; do
         vault write auth/approle/role/$service \
@@ -487,7 +504,7 @@ main() {
     # The 'vault-init' uses ./vault/secrets:/vault/secrets:ro.
     # I should change that mount to RW in the compose file or use a docker volume.
     # Let's assume for now I will fix the mount in next step.
-    
+
     # Actually, I should check if I can write to /vault/secrets.
     # If the script fails to write, init fails.
     # I'll add the write command hoping I fix the mount.

@@ -16,7 +16,7 @@ import (
 func main() {
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
-		dsn = "host=localhost user=postgres password=postgres dbname=gradeloop port=5432 sslmode=disable"
+		log.Fatal("DATABASE_URL environment variable is not set")
 	}
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
