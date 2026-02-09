@@ -29,6 +29,7 @@ type User struct {
 	// Polymorphic Relations
 	Student  *Student  `gorm:"foreignKey:ID" json:"student,omitempty"`
 	Employee *Employee `gorm:"foreignKey:ID" json:"employee,omitempty"`
+	Roles    []Role    `gorm:"many2many:users_roles;" json:"roles"`
 }
 
 func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
