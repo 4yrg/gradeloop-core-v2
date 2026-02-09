@@ -8,6 +8,7 @@ import (
 
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 )
 
 var sensitiveFields = map[string]bool{
@@ -61,15 +62,18 @@ func RedactData(data interface{}) interface{} {
 }
 
 // PrepareAuditLog creates an AuditLog model and redacts sensitive data.
-func PrepareAuditLog(ctx context.Context, action, entity, entityID string, data interface{}) *models.AuditLog {
-	redactedData := RedactData(data)
-	changes, _ := json.Marshal(redactedData)
+func PrepareAuditLog(ctx context.Context, action, entity, entityID string, oldValue, newValue interface{}) *models.AuditLog {
+	redactedOld := RedactData(oldValue)
+	redactedNew := RedactData(newValue)
 
-	var actorID uuid.UUID
+	oldJSON, _ := json.Marshal(redactedOld)
+	newJSON, _ := json.Marshal(redactedNew)
+
+	var actorID *uuid.UUID
+	// Try to get user_id from context (set by auth middleware or fiber locals)
 	if val, ok := ctx.Value("user_id").(string); ok {
-		parsed, err := uuid.Parse(val)
-		if err == nil {
-			actorID = parsed
+		if parsed, err := uuid.Parse(val); err == nil {
+			actorID = &parsed
 		}
 	}
 
@@ -77,7 +81,8 @@ func PrepareAuditLog(ctx context.Context, action, entity, entityID string, data 
 		Action:   action,
 		Entity:   entity,
 		EntityID: entityID,
-		UserID:   actorID,
-		Changes:  string(changes),
+		ActorID:  actorID,
+		OldValue: datatypes.JSON(oldJSON),
+		NewValue: datatypes.JSON(newJSON),
 	}
 }

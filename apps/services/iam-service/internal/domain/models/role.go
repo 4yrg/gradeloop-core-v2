@@ -96,21 +96,3 @@ func (r *Role) BeforeDelete(tx *gorm.DB) (err error) {
 	}
 	return nil
 }
-
-// AuditLog records all mutations for audit consistency (E02/US02)
-type AuditLog struct {
-	ID        uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
-	Action    string    `gorm:"not null" json:"action"`
-	Entity    string    `gorm:"not null" json:"entity"`
-	EntityID  string    `gorm:"not null" json:"entity_id"`
-	UserID    uuid.UUID `gorm:"type:uuid" json:"user_id"`
-	Changes   string    `gorm:"type:text" json:"changes"`
-	CreatedAt time.Time `json:"created_at"`
-}
-
-func (a *AuditLog) BeforeCreate(tx *gorm.DB) (err error) {
-	if a.ID == uuid.Nil {
-		a.ID = uuid.New()
-	}
-	return
-}
