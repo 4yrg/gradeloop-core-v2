@@ -84,7 +84,7 @@ jobs:
         if: ${{ steps.changes.outputs.go == 'true' }}
         uses: actions/setup-go@7b8cf10d4e4a01d4992d18a89f4d7dc5a3e6d6f4
         with:
-          go-version: "1.20"
+          go-version: "1.25"
 
       - name: Go - Lint and Unit Tests
         if: ${{ steps.changes.outputs.go == 'true' }}
@@ -272,16 +272,21 @@ jobs:
             # detect per service
             for svc in apps/services/*; do
               [ -e "$svc" ] || continue
-              if [ -f "$svc/Dockerfile" ] || [ -f "$svc/docker/Dockerfile" ]; then
+              if [ -f "$svc/Dockerfile" ]; then
                 echo "Building $svc" >> ci_summary.txt
-                docker build -t gradeloop/${svc//\//-}:pr-${PR_NUM} "$svc"
+                docker build -t gradeloop/${svc//\//-}:pr-${PR_NUM} -f "$svc/Dockerfile" .
+              elif [ -f "$svc/docker/Dockerfile" ]; then
+                echo "Building $svc" >> ci_summary.txt
+                docker build -t gradeloop/${svc//\//-}:pr-${PR_NUM} -f "$svc/docker/Dockerfile" .
               fi
             done
           else
             for df in "${dockerfiles[@]}"; do
               svc_dir=$(dirname "$df")
+              # If Dockerfile is in a 'docker' subdirectory, use the parent for the tag name
+              tag_dir="${svc_dir%/docker}"
               echo "Building $svc_dir" >> ci_summary.txt
-              docker build -t gradeloop/${svc_dir//\//-}:pr-${PR_NUM} "$svc_dir"
+              docker build -t gradeloop/${tag_dir//\//-}:pr-${PR_NUM} -f "$df" .
             done
           fi
 
