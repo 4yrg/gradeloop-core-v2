@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/application/usecases"
-	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/application/usecases"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -133,7 +133,7 @@ func TestUpdateUser(t *testing.T) {
 	t.Run("successful update", func(t *testing.T) {
 		mockRepo.On("UpdateUser", user, (*models.Student)(nil), (*models.Employee)(nil)).Return(nil).Once()
 		mockAudit.On("CreateAuditLog", mock.Anything, mock.Anything).Return(nil).Once()
-		mockRepo.On("GetUser", id, false).Return(user, nil).Once()
+		mockRepo.On("GetUser", id, false).Return(user, nil).Twice()
 
 		result, err := uc.UpdateUser(user, nil, nil)
 		assert.NoError(t, err)

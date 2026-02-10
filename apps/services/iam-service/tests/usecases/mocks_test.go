@@ -3,7 +3,7 @@ package usecases_test
 import (
 	"context"
 
-	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
 )
@@ -58,6 +58,14 @@ func (m *MockUserRepository) DeleteUser(id uuid.UUID) error {
 }
 
 func (m *MockUserRepository) GetPermissionsByUserID(userID uuid.UUID) ([]string, error) {
+	args := m.Called(userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
+}
+
+func (m *MockUserRepository) GetRolesByUserID(userID uuid.UUID) ([]string, error) {
 	args := m.Called(userID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)

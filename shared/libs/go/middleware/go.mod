@@ -1,22 +1,28 @@
-module github.com/4YRG/gradeloop-core-v2/shared/libs/go/middleware
+module github.com/4yrg/gradeloop-core-v2/shared/libs/go/middleware
 
 go 1.25.6
 
 require (
-	github.com/4YRG/gradeloop-core-v2/shared/libs/go/logger v0.0.0
+	github.com/4yrg/gradeloop-core-v2/shared/libs/go/logger v0.0.0
 	github.com/gofiber/fiber/v3 v3.0.0
 	github.com/google/uuid v1.6.0
 	github.com/prometheus/client_golang v1.21.0
 )
 
-replace github.com/4YRG/gradeloop-core-v2/shared/libs/go/logger => ../logger
+replace github.com/4yrg/gradeloop-core-v2/shared/libs/go/logger => ../logger
 
-require google.golang.org/grpc v1.78.0
+require (
+	go.opentelemetry.io/otel v1.40.0
+	go.opentelemetry.io/otel/trace v1.40.0
+	google.golang.org/grpc v1.78.0
+)
 
 require (
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/go-logr/logr v1.4.3 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gofiber/schema v1.6.0 // indirect
 	github.com/gofiber/utils/v2 v2.0.0 // indirect
 	github.com/klauspost/compress v1.18.3 // indirect
@@ -30,6 +36,8 @@ require (
 	github.com/tinylib/msgp v1.6.3 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.69.0 // indirect
+	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
+	go.opentelemetry.io/otel/metric v1.40.0 // indirect
 	golang.org/x/crypto v0.47.0 // indirect
 	golang.org/x/net v0.49.0 // indirect
 	golang.org/x/sys v0.40.0 // indirect
