@@ -8,6 +8,10 @@ services:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
+      # Metrics
+      - "--metrics.prometheus=true"
+      - "--metrics.prometheus.addEntryPointsLabels=true"
+      - "--metrics.prometheus.addServicesLabels=true"
       # Enable JWT Validator Plugin
       - "--experimental.plugins.jwt-validator.moduleName=github.com/Luka-S/traefik-jwt-validator"
       - "--experimental.plugins.jwt-validator.version=v1.3.0"
@@ -97,12 +101,12 @@ services:
       - "traefik.http.services.iam.loadbalancer.server.port=3000"
 
       # Public IAM Routes (Auth endpoints that don't require JWT)
-      - "traefik.http.routers.iam-public.rule=PathPrefix(`/api/iam/v1/auth/login`) || PathPrefix(`/api/iam/v1/auth/refresh`) || PathPrefix(`/api/iam/v1/auth/activate`) || PathPrefix(`/api/iam/v1/auth/request-activation`)"
+      - "traefik.http.routers.iam-public.rule=PathPrefix(`/api/iam/v1/auth/login`) || PathPrefix(`/api/iam/v1/auth/refresh`) || PathPrefix(`/api/iam/v1/auth/activate`) || PathPrefix(`/api/iam/v1/auth/request-activation`) || PathPrefix(`/api/iam/metrics`)"
       - "traefik.http.routers.iam-public.entrypoints=web"
       - "traefik.http.routers.iam-public.middlewares=iam-replacepath"
 
       # Protected IAM Routes (Requires JWT Validation at the Edge)
-      - "traefik.http.routers.iam-protected.rule=PathPrefix(`/api/iam`) && !(PathPrefix(`/api/iam/v1/auth/login`) || PathPrefix(`/api/iam/v1/auth/refresh`) || PathPrefix(`/api/iam/v1/auth/activate`) || PathPrefix(`/api/iam/v1/auth/request-activation`))"
+      - "traefik.http.routers.iam-protected.rule=PathPrefix(`/api/iam`) && !(PathPrefix(`/api/iam/v1/auth/login`) || PathPrefix(`/api/iam/v1/auth/refresh`) || PathPrefix(`/api/iam/v1/auth/activate`) || PathPrefix(`/api/iam/v1/auth/request-activation`) || PathPrefix(`/api/iam/metrics`))"
       - "traefik.http.routers.iam-protected.entrypoints=web"
       - "traefik.http.routers.iam-protected.middlewares=iam-jwt-auth,iam-replacepath"
 
@@ -133,6 +137,41 @@ services:
           path: ../../apps/services/iam-service
         - action: rebuild
           path: ../../shared/libs/go/secrets
+        - action: rebuild
+          path: ../../shared/libs/go/middleware
+    networks:
+      - gradeloop-network
+
+  # Prometheus - Metrics Collection
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: gradeloop-prometheus-dev
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    ports:
+      - "9090:9090"
+    networks:
+      - gradeloop-network
+
+  # Grafana - Visualization
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: gradeloop-grafana-dev
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
     networks:
       - gradeloop-network
 
@@ -146,3 +185,5 @@ volumes:
     name: gradeloop-vault-audit-logs
   postgres-data:
   postgres-secrets:
+  prometheus-data:
+  grafana-data:
