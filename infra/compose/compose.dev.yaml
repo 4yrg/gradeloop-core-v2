@@ -68,6 +68,21 @@ services:
       - gradeloop-network
     restart: "no"
 
+  # Redis - In-Memory Cache for Rate Limiting
+  redis:
+    image: redis:7-alpine
+    container_name: gradeloop-redis-dev
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+    networks:
+      - gradeloop-network
+
   # PostgreSQL - Database
   postgres:
     image: postgres:16-alpine
@@ -126,10 +141,13 @@ services:
     environment:
       VAULT_ADDR: "http://vault:8200"
       VAULT_TOKEN: "dev-root-token"
+      REDIS_ADDR: "redis:6379"
     depends_on:
       postgres:
         condition: service_healthy
       vault:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     develop:
       watch:
