@@ -1,0 +1,45 @@
+meta {
+  name: Test Template - Account Activation
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{base_url}}/api/v1/email/test-template
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "template_name": "account_activation.html",
+    "test_email": "{{test_email}}",
+    "template_data": {
+      "Name": "Test User",
+      "ActivationLink": "https://gradeloop.com/activate?token=test123"
+    }
+  }
+}
+
+vars:pre-request {
+  test_email: goboveg305@flemist.com
+  base_url: http://localhost:8083
+}
+
+assert {
+  res.status: eq 200
+  res.body.message: eq Test email sent successfully
+}
+
+tests {
+  test("should send test template email successfully", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.message).to.equal("Test email sent successfully");
+    expect(res.body.template).to.equal("account_activation.html");
+    expect(res.body.to).to.equal(bru.getEnvVar("test_email"));
+  });
+}

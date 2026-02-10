@@ -1,0 +1,33 @@
+meta {
+  name: Send Email with Invalid Data
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{base_url}}/api/v1/email/send
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body {
+  {
+    "to": [],
+    "subject": "",
+    "template_name": "",
+    "template_data": {}
+  }
+}
+
+assert {
+  res.status: eq 400
+}
+
+tests {
+  test("should return 400 for invalid email request", function() {
+    expect(res.status).to.equal(400);
+    expect(res.body).to.have.property('error');
+  });
+}
