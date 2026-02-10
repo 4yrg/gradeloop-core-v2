@@ -75,3 +75,26 @@ func ValidateActivationToken(tokenStr string, secret string) (*ActivationClaims,
 
 	return nil, errors.New("invalid token claims")
 }
+
+// ValidateAccessToken verifies an access token's signature and expiry.
+func ValidateAccessToken(tokenStr string, secret string) (*AccessTokenClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenStr, &AccessTokenClaims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("unexpected signing method")
+		}
+		return []byte(secret), nil
+	})
+
+	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return nil, errors.New("token has expired")
+		}
+		return nil, errors.New("invalid token signature or format")
+	}
+
+	if claims, ok := token.Claims.(*AccessTokenClaims); ok && token.Valid {
+		return claims, nil
+	}
+
+	return nil, errors.New("invalid token claims")
+}

@@ -10,7 +10,11 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/limiter"
 )
 
-func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler, permissionHandler *handlers.PermissionHandler, authHandler *handlers.AuthHandler, redisClient *redis.Client, auditRepo ports.AuditRepository) {
+func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler, permissionHandler *handlers.PermissionHandler, authHandler *handlers.AuthHandler) {
+	// Health endpoint
+	app.Get("/api/iam/health", func(c fiber.Ctx) error {
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "ok"})
+	})
 	// API Group
 	api := app.Group("/api")
 	v1 := api.Group("/v1")
@@ -31,6 +35,7 @@ func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handl
 	auth.Delete("/refresh-tokens/:token_id", authHandler.RevokeToken)
 	auth.Post("/activate", activationLimiter, authHandler.Activate)
 	auth.Post("/request-activation", activationLimiter, authHandler.RequestActivation)
+	auth.Get("/validate", authHandler.ValidateToken) // ForwardAuth endpoint for Traefik
 
 	users := v1.Group("/users")
 

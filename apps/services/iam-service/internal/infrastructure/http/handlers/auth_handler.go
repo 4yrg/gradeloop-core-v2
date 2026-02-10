@@ -1,7 +1,10 @@
 package handlers
 
 import (
-	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/application/usecases"
+	"strings"
+
+	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/application/usecases"
+	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/application/utils"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 )
@@ -133,4 +136,50 @@ func (h *AuthHandler) RequestActivation(c fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "if the email exists, an activation link has been sent"})
+}
+
+// ValidateToken handles GET /validate - ForwardAuth endpoint for Traefik
+func (h *AuthHandler) ValidateToken(c fiber.Ctx) error {
+	authHeader := c.Get("Authorization")
+	if authHeader == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "missing authorization header"})
+	}
+
+	// Extract Bearer token
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid authorization header format"})
+	}
+
+	tokenStr := parts[1]
+	if tokenStr == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "missing token"})
+	}
+
+	// Validate the JWT token using the same secret as token generation
+	claims, err := utils.ValidateAccessToken(tokenStr, h.usecase.GetJWTSecret())
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid or expired token"})
+	}
+
+	// Get user details to ensure user is still active
+	userID, err := uuid.Parse(claims.Subject)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid user ID in token"})
+	}
+
+	user, err := h.usecase.GetUserByID(c.Context(), userID)
+	if err != nil || !user.IsActive {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "user not found or inactive"})
+	}
+
+	// Set response headers for Traefik ForwardAuth
+	c.Set("X-User-Id", claims.Subject)
+	c.Set("X-User-Roles", strings.Join(claims.Roles, ","))
+	c.Set("X-User-Permissions", strings.Join(claims.Permissions, ","))
+	c.Set("X-User-Email", user.Email)
+	c.Set("X-User-Name", user.FullName)
+
+	// Return 200 OK for successful validation
+	return c.SendStatus(fiber.StatusOK)
 }

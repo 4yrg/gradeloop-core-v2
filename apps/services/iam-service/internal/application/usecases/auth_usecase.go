@@ -268,3 +268,13 @@ func (uc *AuthUsecase) logAudit(ctx context.Context, action, entity, entityID st
 	auditLog := utils.PrepareAuditLog(ctx, action, entity, entityID, oldValue, newValue)
 	_ = uc.auditRepo.CreateAuditLog(ctx, auditLog)
 }
+
+// GetJWTSecret returns the JWT secret for token validation
+func (uc *AuthUsecase) GetJWTSecret() string {
+	return uc.jwtSecret
+}
+
+// GetUserByID retrieves a user by ID for validation purposes
+func (uc *AuthUsecase) GetUserByID(ctx context.Context, userID uuid.UUID) (*models.User, error) {
+	return uc.userRepo.GetUser(userID, false)
+}

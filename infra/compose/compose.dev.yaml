@@ -1,7 +1,7 @@
 services:
   # Traefik - API Gateway
   traefik:
-    image: traefik:v3.1
+    image: traefik:v3.6.1
     container_name: gradeloop-gateway-dev
     command:
       - "--api.insecure=true"
@@ -18,15 +18,20 @@ services:
       # Enable JWT Validator Plugin
       - "--experimental.plugins.jwt-validator.moduleName=github.com/Luka-S/traefik-jwt-validator"
       - "--experimental.plugins.jwt-validator.version=v1.3.0"
+      # Retry configuration for resilience
+      - "--providers.docker.watch=true"
     ports:
       - "80:80"
       - "8080:8080" # Dashboard
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
-    environment:
-      - JWT_SECRET=gradeloop_dev_secret_32_chars_long_!!
     networks:
       - gradeloop-network
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   # HashiCorp Vault - Secrets Management (Dev Mode)
   vault:
@@ -174,12 +179,12 @@ services:
       - "traefik.http.services.iam.loadbalancer.server.port=3000"
 
       # Public IAM Routes (Auth endpoints that don't require JWT)
-      - "traefik.http.routers.iam-public.rule=PathPrefix(`/api/iam/v1/auth/login`) || PathPrefix(`/api/iam/v1/auth/refresh`) || PathPrefix(`/api/iam/v1/auth/activate`) || PathPrefix(`/api/iam/v1/auth/request-activation`) || PathPrefix(`/api/iam/metrics`)"
+      - "traefik.http.routers.iam-public.rule=PathPrefix(`/api/iam/v1/auth/login`) || PathPrefix(`/api/iam/v1/auth/refresh`) || PathPrefix(`/api/iam/v1/auth/activate`) || PathPrefix(`/api/iam/v1/auth/request-activation`) || PathPrefix(`/api/iam/v1/auth/validate`) || PathPrefix(`/api/iam/health`) || PathPrefix(`/api/iam/metrics`)"
       - "traefik.http.routers.iam-public.entrypoints=web"
       - "traefik.http.routers.iam-public.middlewares=iam-replacepath"
 
       # Protected IAM Routes (Requires JWT Validation at the Edge)
-      - "traefik.http.routers.iam-protected.rule=PathPrefix(`/api/iam`) && !(PathPrefix(`/api/iam/v1/auth/login`) || PathPrefix(`/api/iam/v1/auth/refresh`) || PathPrefix(`/api/iam/v1/auth/activate`) || PathPrefix(`/api/iam/v1/auth/request-activation`) || PathPrefix(`/api/iam/metrics`))"
+      - "traefik.http.routers.iam-protected.rule=PathPrefix(`/api/iam`) && !(PathPrefix(`/api/iam/v1/auth/login`) || PathPrefix(`/api/iam/v1/auth/refresh`) || PathPrefix(`/api/iam/v1/auth/activate`) || PathPrefix(`/api/iam/v1/auth/request-activation`) || PathPrefix(`/api/iam/v1/auth/validate`) || PathPrefix(`/api/iam/health`) || PathPrefix(`/api/iam/metrics`))"
       - "traefik.http.routers.iam-protected.entrypoints=web"
       - "traefik.http.routers.iam-protected.middlewares=iam-jwt-auth,iam-replacepath"
 
@@ -187,15 +192,14 @@ services:
       - "traefik.http.middlewares.iam-replacepath.replacepathregex.regex=^/api/iam(.*)"
       - "traefik.http.middlewares.iam-replacepath.replacepathregex.replacement=/api$$1"
 
-      # Edge Security: JWT Validation Middleware (Shared Secret from environment)
-      - "traefik.http.middlewares.iam-jwt-auth.plugin.jwt-validator.secret=gradeloop_dev_secret_32_chars_long_!!"
-      - "traefik.http.middlewares.iam-jwt-auth.plugin.jwt-validator.proxyHeaderName=Authorization"
-      - "traefik.http.middlewares.iam-jwt-auth.plugin.jwt-validator.authHeaderRequired=true"
+      # JWT Validation via ForwardAuth - Zero Trust Architecture
+      - "traefik.http.middlewares.iam-jwt-auth.forwardauth.address=http://iam-service:3000/api/v1/auth/validate"
+      - "traefik.http.middlewares.iam-jwt-auth.forwardauth.trustForwardHeader=true"
+      - "traefik.http.middlewares.iam-jwt-auth.forwardauth.authResponseHeaders=X-User-Id,X-User-Roles,X-User-Permissions,X-User-Email,X-User-Name"
 
-      # Forwarding validated user context via headers
-      - "traefik.http.middlewares.iam-jwt-auth.plugin.jwt-validator.claimsToHeaders.sub=X-User-Id"
-      - "traefik.http.middlewares.iam-jwt-auth.plugin.jwt-validator.claimsToHeaders.roles=X-User-Roles"
-      - "traefik.http.middlewares.iam-jwt-auth.plugin.jwt-validator.claimsToHeaders.permissions=X-User-Permissions"
+      # Retry mechanism with backoff for IAM service connection resilience
+      - "traefik.http.middlewares.iam-jwt-auth.retry.attempts=3"
+      - "traefik.http.middlewares.iam-jwt-auth.retry.initialInterval=100ms"
     environment:
       VAULT_ADDR: "http://vault:8200"
       VAULT_TOKEN: "dev-root-token"
@@ -207,6 +211,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/iam/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
     develop:
       watch:
         - action: rebuild
@@ -217,6 +227,44 @@ services:
           path: ../../shared/libs/go/middleware
     networks:
       - gradeloop-network
+
+  # Academics Service - Academic Management (Placeholder for future implementation)
+  # academics-service:
+  #   build:
+  #     context: ../../
+  #     dockerfile: apps/services/academics-service/Dockerfile
+  #   container_name: gradeloop-academics-service-dev
+  #   ports:
+  #     - "3001:3000"
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.services.academics.loadbalancer.server.port=3000"
+  #
+  #     # All academics routes require JWT validation
+  #     - "traefik.http.routers.academics.rule=PathPrefix(`/api/academics`)"
+  #     - "traefik.http.routers.academics.entrypoints=web"
+  #     - "traefik.http.routers.academics.middlewares=academics-jwt-auth,academics-replacepath"
+  #
+  #     # Middlewares
+  #     - "traefik.http.middlewares.academics-replacepath.replacepathregex.regex=^/api/academics(.*)"
+  #     - "traefik.http.middlewares.academics-replacepath.replacepathregex.replacement=/api$$1"
+  #
+  #     # JWT Validation via ForwardAuth
+  #     - "traefik.http.middlewares.academics-jwt-auth.forwardauth.address=http://iam-service:3000/api/v1/auth/validate"
+  #     - "traefik.http.middlewares.academics-jwt-auth.forwardauth.trustForwardHeader=true"
+  #     - "traefik.http.middlewares.academics-jwt-auth.forwardauth.authResponseHeaders=X-User-Id,X-User-Roles,X-User-Permissions,X-User-Email,X-User-Name"
+  #   environment:
+  #     VAULT_ADDR: "http://vault:8200"
+  #     VAULT_TOKEN: "dev-root-token"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     vault:
+  #       condition: service_healthy
+  #     iam-service:
+  #       condition: service_healthy
+  #   networks:
+  #     - gradeloop-network
 
   # Prometheus - Metrics Collection
   prometheus:
