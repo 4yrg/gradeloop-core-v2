@@ -83,14 +83,21 @@ func (h *UserHandler) UpdateUser(ctx fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid ID format"})
 	}
 
-	var user models.User
-	if err := ctx.Bind().Body(&user); err != nil {
+	existingUser, err := h.usecase.GetUser(id, false)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
+		}
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	if err := ctx.Bind().Body(existingUser); err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
-	user.ID = id
+	existingUser.ID = id // Ensure ID is not overwritten
 
-	updatedUser, err := h.usecase.UpdateUser(&user, user.Student, user.Employee)
+	updatedUser, err := h.usecase.UpdateUser(existingUser, existingUser.Student, existingUser.Employee)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
