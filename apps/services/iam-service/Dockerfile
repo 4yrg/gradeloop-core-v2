@@ -10,6 +10,8 @@ RUN apk add --no-cache git
 # 1. Copy dependency files first to leverage Docker layer caching
 COPY apps/services/iam-service/go.mod apps/services/iam-service/go.su[m] ./apps/services/iam-service/
 COPY shared/libs/go/secrets/go.mod shared/libs/go/secrets/go.su[m] ./shared/libs/go/secrets/
+COPY shared/libs/go/logger/go.mod shared/libs/go/logger/go.su[m] ./shared/libs/go/logger/
+COPY shared/libs/go/middleware/go.mod shared/libs/go/middleware/go.su[m] ./shared/libs/go/middleware/
 
 # Download dependencies
 WORKDIR /app/apps/services/iam-service
@@ -19,6 +21,8 @@ RUN go mod download
 # This avoids leaking sensitive files (like .git, local envs) into the image
 WORKDIR /app
 COPY shared/libs/go/secrets ./shared/libs/go/secrets
+COPY shared/libs/go/logger ./shared/libs/go/logger
+COPY shared/libs/go/middleware ./shared/libs/go/middleware
 COPY apps/services/iam-service ./apps/services/iam-service
 
 # Build the application binary

@@ -21,6 +21,7 @@ type AuditLog struct {
 	NewValue  datatypes.JSON `gorm:"type:jsonb" json:"new_value"`
 	IPAddress string         `json:"ip_address"`
 	UserAgent string         `json:"user_agent"`
+	TraceID   string         `gorm:"index" json:"trace_id"`
 	CreatedAt time.Time      `gorm:"index" json:"created_at"`
 }
 

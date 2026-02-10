@@ -3,6 +3,8 @@ module github.com/4YRG/gradeloop-core-v2/apps/services/iam-service
 go 1.25.6
 
 require (
+	github.com/4YRG/gradeloop-core-v2/shared/libs/go/logger v0.0.0
+	github.com/4YRG/gradeloop-core-v2/shared/libs/go/middleware v0.0.0
 	github.com/4YRG/gradeloop-core-v2/shared/libs/go/secrets v0.0.0
 	github.com/gofiber/fiber/v3 v3.0.0
 	github.com/golang-jwt/jwt/v5 v5.2.1
@@ -18,7 +20,9 @@ require (
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
+	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v3 v3.0.0 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.0 // indirect
 	github.com/go-sql-driver/mysql v1.8.1 // indirect
@@ -47,8 +51,13 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
+	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/prometheus/client_golang v1.21.0 // indirect
+	github.com/prometheus/client_model v0.6.1 // indirect
+	github.com/prometheus/common v0.62.0 // indirect
+	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
@@ -60,8 +69,15 @@ require (
 	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
 	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251029180050-ab9386a59fda // indirect
+	google.golang.org/grpc v1.78.0 // indirect
+	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gorm.io/driver/mysql v1.5.6 // indirect
 )
+
+replace github.com/4YRG/gradeloop-core-v2/shared/libs/go/logger => ../../../shared/libs/go/logger
+
+replace github.com/4YRG/gradeloop-core-v2/shared/libs/go/middleware => ../../../shared/libs/go/middleware
 
 replace github.com/4YRG/gradeloop-core-v2/shared/libs/go/secrets => ../../../shared/libs/go/secrets
