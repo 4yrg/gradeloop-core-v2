@@ -169,7 +169,9 @@ seed_email_secrets() {
     log_info "Seeding email secrets..."
 
     local email_mount="secret/email"
+    local smtp_mount="secret/smtp"  # For email-notify-service
 
+    # MailHog for local testing
     write_secret "$email_mount/smtp" \
         host "mailhog" \
         port "1025" \
@@ -177,6 +179,14 @@ seed_email_secrets() {
         password "" \
         from "noreply@gradeloop.local" \
         tls "false"
+
+    # Gmail SMTP configuration for email-notify-service (using provided credentials)
+    write_secret "$smtp_mount" \
+        host "smtp.gmail.com" \
+        port "587" \
+        username "rambilal999@gmail.com" \
+        password "vdvz nygr xnqf gecr" \
+        use_tls "true"
 
     log_success "Email secrets seeded"
 }
@@ -327,6 +337,9 @@ EOF
     # Email Service Policy
     vault policy write email-service - <<EOF
 path "secret/data/email/*" {
+  capabilities = ["read"]
+}
+path "secret/data/smtp" {
   capabilities = ["read"]
 }
 path "secret/data/services/email-notify" {

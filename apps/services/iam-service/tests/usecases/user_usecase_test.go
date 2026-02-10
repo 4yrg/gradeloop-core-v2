@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/application/usecases"
-	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/application/usecases"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

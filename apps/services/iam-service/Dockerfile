@@ -8,10 +8,11 @@ WORKDIR /app
 RUN apk add --no-cache git
 
 # 1. Copy dependency files first to leverage Docker layer caching
-COPY apps/services/iam-service/go.mod apps/services/iam-service/go.su[m] ./apps/services/iam-service/
-COPY shared/libs/go/secrets/go.mod shared/libs/go/secrets/go.su[m] ./shared/libs/go/secrets/
-COPY shared/libs/go/logger/go.mod shared/libs/go/logger/go.su[m] ./shared/libs/go/logger/
-COPY shared/libs/go/middleware/go.mod shared/libs/go/middleware/go.su[m] ./shared/libs/go/middleware/
+COPY apps/services/iam-service/go.mod apps/services/iam-service/go.sum ./apps/services/iam-service/
+COPY shared/libs/go/secrets/go.mod shared/libs/go/secrets/go.sum ./shared/libs/go/secrets/
+COPY shared/libs/go/logger/go.mod shared/libs/go/logger/go.sum ./shared/libs/go/logger/
+COPY shared/libs/go/middleware/go.mod shared/libs/go/middleware/go.sum ./shared/libs/go/middleware/
+COPY shared/libs/go/tracing/go.mod shared/libs/go/tracing/go.sum ./shared/libs/go/tracing/
 
 # Download dependencies
 WORKDIR /app/apps/services/iam-service
@@ -23,6 +24,7 @@ WORKDIR /app
 COPY shared/libs/go/secrets ./shared/libs/go/secrets
 COPY shared/libs/go/logger ./shared/libs/go/logger
 COPY shared/libs/go/middleware ./shared/libs/go/middleware
+COPY shared/libs/go/tracing ./shared/libs/go/tracing
 COPY apps/services/iam-service ./apps/services/iam-service
 
 # Build the application binary

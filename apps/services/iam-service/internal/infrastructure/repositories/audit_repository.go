@@ -3,8 +3,8 @@ package repositories
 import (
 	"context"
 
-	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
-	"github.com/4YRG/gradeloop-core-v2/shared/libs/go/logger"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
+	"github.com/4yrg/gradeloop-core-v2/shared/libs/go/logger"
 	"gorm.io/gorm"
 )
 

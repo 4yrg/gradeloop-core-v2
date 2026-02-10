@@ -1,0 +1,33 @@
+meta {
+  name: Health Check
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/health
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+vars:pre-request {
+  base_url: http://localhost:8083
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq healthy
+  res.body.service: eq email-notify-service
+}
+
+tests {
+  test("should return healthy status", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.status).to.equal("healthy");
+    expect(res.body.service).to.equal("email-notify-service");
+  });
+}

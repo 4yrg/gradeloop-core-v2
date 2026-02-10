@@ -3,7 +3,7 @@ package ports
 import (
 	"context"
 
-	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
 )
 
 type AuditRepository interface {

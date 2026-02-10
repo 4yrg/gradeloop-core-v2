@@ -32,6 +32,18 @@ func main() {
 
 	l.Info("Starting IAM Service...")
 
+	// Initialize Tracer
+	tp, err := gl_tracing.InitTracer("iam-service")
+	if err != nil {
+		l.Error("failed to initialize tracer", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if err := tp.Shutdown(context.Background()); err != nil {
+			l.Error("failed to shutdown tracer provider", "error", err)
+		}
+	}()
+
 	// Initialize context for startup operations
 	startupCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -80,6 +92,11 @@ func main() {
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		l.Error("failed to connect to database", "error", err)
+		os.Exit(1)
+	}
+
+	if err := db.Use(otelgorm.NewPlugin()); err != nil {
+		l.Error("failed to use otelgorm plugin", "error", err)
 		os.Exit(1)
 	}
 

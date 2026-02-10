@@ -1,12 +1,10 @@
 package http
 
 import (
-	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/application/ports"
-	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/handlers"
-	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/router"
-	gl_logger "github.com/4YRG/gradeloop-core-v2/shared/libs/go/logger"
-	gl_middleware "github.com/4YRG/gradeloop-core-v2/shared/libs/go/middleware"
-	"github.com/go-redis/redis/v8"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/handlers"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/router"
+	gl_logger "github.com/4yrg/gradeloop-core-v2/shared/libs/go/logger"
+	gl_middleware "github.com/4yrg/gradeloop-core-v2/shared/libs/go/middleware"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/recover"
 )
@@ -17,6 +15,7 @@ func Start(userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler,
 
 	// FiberTrace must be first to ensure trace_id is available for all subsequent logs and middlewares
 	app.Use(gl_middleware.FiberTrace("iam-service"))
+	app.Use(gl_middleware.OtelFiber("iam-service"))
 	app.Use(gl_middleware.Prometheus("iam-service"))
 	app.Use(recover.New())
 

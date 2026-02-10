@@ -3,7 +3,7 @@ package usecases_test
 import (
 	"context"
 
-	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
 )
