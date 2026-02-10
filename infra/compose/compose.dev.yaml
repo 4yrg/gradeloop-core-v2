@@ -13,11 +13,12 @@ services:
       - "--metrics.prometheus.addEntryPointsLabels=true"
       - "--metrics.prometheus.addServicesLabels=true"
       # Tracing
-      - "--tracing.opentelemetry=true"
-      - "--tracing.opentelemetry.address=jaeger:14250"
+      - "--tracing.otlp=true"
+      - "--tracing.otlp.grpc.endpoint=jaeger:4317"
+      - "--tracing.otlp.grpc.insecure=true"
       # Enable JWT Validator Plugin
-      - "--experimental.plugins.jwt-validator.moduleName=github.com/Luka-S/traefik-jwt-validator"
-      - "--experimental.plugins.jwt-validator.version=v1.3.0"
+      # - "--experimental.plugins.jwt-validator.moduleName=github.com/Luka-S/traefik-jwt-validator"
+      # - "--experimental.plugins.jwt-validator.version=v1.1.0"
       # Retry configuration for resilience
       - "--providers.docker.watch=true"
     ports:
@@ -28,7 +29,7 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD", "traefik", "healthcheck"]
+      test: [ "CMD", "traefik", "healthcheck" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -51,7 +52,7 @@ services:
       - vault-audit-logs:/vault/logs
     command: server -dev -dev-root-token-id="dev-root-token"
     healthcheck:
-      test: ["CMD", "vault", "status"]
+      test: [ "CMD", "vault", "status" ]
       interval: 2s
       timeout: 5s
       retries: 15
@@ -84,7 +85,7 @@ services:
       - "6379:6379"
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 2s
       timeout: 5s
       retries: 15
@@ -98,8 +99,8 @@ services:
     container_name: gradeloop-rabbitmq
     hostname: rabbitmq
     ports:
-      - "5672:5672"    # AMQP port
-      - "15672:15672"  # Management UI port
+      - "5672:5672" # AMQP port
+      - "15672:15672" # Management UI port
     environment:
       RABBITMQ_DEFAULT_USER: "admin"
       RABBITMQ_DEFAULT_PASS: "admin123"
@@ -107,14 +108,14 @@ services:
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
       interval: 30s
       timeout: 10s
       retries: 5
     networks:
       - gradeloop-network
 
-   # PostgreSQL - Database
+  # PostgreSQL - Database
   postgres:
     image: postgres:16-alpine
     container_name: gradeloop-postgres-dev
@@ -127,13 +128,12 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 2s
       timeout: 5s
       retries: 15
     networks:
       - gradeloop-network
-
 
   # Email Notify Service
   email-notify-service:
@@ -186,7 +186,7 @@ services:
       # Protected IAM Routes (Requires JWT Validation at the Edge)
       - "traefik.http.routers.iam-protected.rule=PathPrefix(`/api/iam`) && !(PathPrefix(`/api/iam/v1/auth/login`) || PathPrefix(`/api/iam/v1/auth/refresh`) || PathPrefix(`/api/iam/v1/auth/activate`) || PathPrefix(`/api/iam/v1/auth/request-activation`) || PathPrefix(`/api/iam/v1/auth/validate`) || PathPrefix(`/api/iam/health`) || PathPrefix(`/api/iam/metrics`))"
       - "traefik.http.routers.iam-protected.entrypoints=web"
-      - "traefik.http.routers.iam-protected.middlewares=iam-jwt-auth,iam-replacepath"
+      - "traefik.http.routers.iam-protected.middlewares=iam-replacepath"
 
       # Middlewares
       - "traefik.http.middlewares.iam-replacepath.replacepathregex.regex=^/api/iam(.*)"
@@ -198,12 +198,15 @@ services:
       - "traefik.http.middlewares.iam-jwt-auth.forwardauth.authResponseHeaders=X-User-Id,X-User-Roles,X-User-Permissions,X-User-Email,X-User-Name"
 
       # Retry mechanism with backoff for IAM service connection resilience
-      - "traefik.http.middlewares.iam-jwt-auth.retry.attempts=3"
-      - "traefik.http.middlewares.iam-jwt-auth.retry.initialInterval=100ms"
+      - "traefik.http.middlewares.iam-retry.retry.attempts=3"
+      - "traefik.http.middlewares.iam-retry.retry.initialInterval=100ms"
     environment:
       VAULT_ADDR: "http://vault:8200"
       VAULT_TOKEN: "dev-root-token"
       REDIS_ADDR: "redis:6379"
+      INITIAL_ADMIN_USERNAME: "admin@gradeloop.com"
+      INITIAL_ADMIN_PASSWORD: "admin_dev_password_123"
+      JAEGER_ENDPOINT: "jaeger:4317"
     depends_on:
       postgres:
         condition: service_healthy
@@ -212,7 +215,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/iam/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:3000/api/iam/health" ]
       interval: 10s
       timeout: 5s
       retries: 15
@@ -305,8 +308,10 @@ services:
     container_name: gradeloop-jaeger-dev
     ports:
       - "16686:16686" # UI
-      - "14268:14268" # OTLP gRPC
-      - "14250:14250" # OTLP HTTP
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP
+      - "14250:14250" # Jaeger gRPC
+      - "14268:14268" # Jaeger HTTP
     environment:
       - COLLECTOR_OTLP_ENABLED=true
     networks:
@@ -361,6 +366,7 @@ services:
       - ./elk/filebeat.yaml:/usr/share/filebeat/filebeat.yml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: filebeat -e -strict.perms=false
     depends_on:
       - logstash
     networks:

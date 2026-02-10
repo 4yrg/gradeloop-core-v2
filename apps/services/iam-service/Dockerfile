@@ -40,8 +40,8 @@ RUN addgroup -S gradeloop && adduser -S gradeloop -G gradeloop
 # Set the working directory
 WORKDIR /home/gradeloop
 
-# Install CA certificates for secure communication
-RUN apk --no-cache add ca-certificates
+# Install CA certificates and curl for health checks
+RUN apk --no-cache add ca-certificates curl
 
 # 3. Securely copy the binary:
 # - Use --chown=root:root to ensure the non-root user cannot modify the binary

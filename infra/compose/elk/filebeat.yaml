@@ -13,6 +13,8 @@ filebeat.inputs:
 
 # To prevent collecting logs from ELK components themselves and creating a loop
 processors:
+  - add_docker_metadata:
+      host: "unix:///var/run/docker.sock"
   - drop_event:
       when:
         or:
@@ -24,6 +26,14 @@ processors:
               container.name: "gradeloop-kibana"
           - contains:
               container.name: "gradeloop-filebeat"
+          - contains:
+              container.image: "logstash"
+          - contains:
+              container.image: "filebeat"
+          - contains:
+              container.image: "elasticsearch"
+          - contains:
+              container.image: "kibana"
 
 output.logstash:
   hosts: ["logstash:5044"]

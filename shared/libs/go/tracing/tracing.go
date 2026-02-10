@@ -23,7 +23,8 @@ func InitTracer(serviceName string) (*sdktrace.TracerProvider, error) {
 	}
 
 	// Create a gRPC connection to the Jaeger collector
-	conn, err := grpc.DialContext(context.Background(), jaegerEndpoint, grpc.WithInsecure(), grpc.WithBlock())
+	// We remove WithBlock() to prevent stalling the entire service startup if Jaeger is not ready
+	conn, err := grpc.DialContext(context.Background(), jaegerEndpoint, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
