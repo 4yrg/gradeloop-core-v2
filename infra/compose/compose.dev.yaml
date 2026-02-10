@@ -191,6 +191,60 @@ services:
     networks:
       - gradeloop-network
 
+  # Elasticsearch - Log Storage
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
+    container_name: gradeloop-elasticsearch-dev
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    networks:
+      - gradeloop-network
+
+  # Logstash - Log Processing
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.1
+    container_name: gradeloop-logstash-dev
+    ports:
+      - "5044:5044"
+      - "5000:5000"
+    volumes:
+      - ./elk/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+    depends_on:
+      - elasticsearch
+    networks:
+      - gradeloop-network
+
+  # Kibana - Log Visualization
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.1
+    container_name: gradeloop-kibana-dev
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - gradeloop-network
+
+  # Filebeat - Log Shipper
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.11.1
+    container_name: gradeloop-filebeat-dev
+    user: root
+    volumes:
+      - ./elk/filebeat.yaml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    depends_on:
+      - logstash
+    networks:
+      - gradeloop-network
+
 networks:
   gradeloop-network:
     name: gradeloop-network
@@ -204,3 +258,4 @@ volumes:
   prometheus-data:
   grafana-data:
   jaeger-data:
+  elasticsearch-data:
