@@ -71,7 +71,29 @@ services:
       - gradeloop-network
     restart: "no"
 
-  # PostgreSQL - Database
+  # RabbitMQ - Message Broker
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: gradeloop-rabbitmq
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"    # AMQP port
+      - "15672:15672"  # Management UI port
+    environment:
+      RABBITMQ_DEFAULT_USER: "admin"
+      RABBITMQ_DEFAULT_PASS: "admin123"
+      RABBITMQ_DEFAULT_VHOST: "gradeloop"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - gradeloop-network
+
+   # PostgreSQL - Database
   postgres:
     image: postgres:16-alpine
     container_name: gradeloop-postgres-dev
@@ -90,6 +112,38 @@ services:
       retries: 15
     networks:
       - gradeloop-network
+
+
+  # Email Notify Service
+  email-notify-service:
+    build:
+      context: ../../apps/services/email-notify-service
+      dockerfile: Dockerfile
+    container_name: gradeloop-email-service
+    hostname: email-notify-service
+    ports:
+      - "8083:8080"
+    environment:
+      SERVER_HOST: "0.0.0.0"
+      SERVER_PORT: "8080"
+      RABBITMQ_URL: "amqp://admin:admin123@rabbitmq:5672/gradeloop"
+      RABBITMQ_EXCHANGE: "gradeloop.events"
+      RABBITMQ_QUEUE: "email.notifications"
+      VAULT_ADDR: "http://vault:8200"
+      VAULT_TOKEN: "dev-root-token"
+      VAULT_NAMESPACE: ""
+      VAULT_MOUNT_PATH: "secret"
+      SMTP_SECRET_PATH: "secret/data/smtp"
+    depends_on:
+      vault:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      vault-init:
+        condition: service_completed_successfully
+    networks:
+      - gradeloop-network
+    restart: unless-stopped
 
   # IAM Service - Identity and Access Management
   iam-service:
@@ -254,7 +308,11 @@ volumes:
   vault-audit-logs:
     name: gradeloop-vault-audit-logs
   postgres-data:
+    name: gradeloop-postgres-data
   postgres-secrets:
+    name: gradeloop-postgres-secrets
+  rabbitmq-data:
+    name: gradeloop-rabbitmq-data
   prometheus-data:
   grafana-data:
   jaeger-data:

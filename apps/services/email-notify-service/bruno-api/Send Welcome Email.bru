@@ -1,0 +1,47 @@
+meta {
+  name: Send Welcome Email
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{base_url}}/api/v1/email/send
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "to": ["{{test_email}}"],
+    "subject": "Welcome to GradeLoop!",
+    "template_name": "welcome.html",
+    "template_data": {
+      "Name": "New Student",
+      "DashboardLink": "https://gradeloop.com/dashboard",
+      "GettingStartedLink": "https://gradeloop.com/getting-started"
+    }
+  }
+}
+
+vars:pre-request {
+  base_url: http://localhost:8083
+  test_email: goboveg305@flemist.com
+}
+
+assert {
+  res.status: eq 200
+  res.body.message: eq Email sent successfully
+}
+
+tests {
+  test("should send welcome email successfully", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.message).to.equal("Email sent successfully");
+    expect(res.body.to).to.be.an('array');
+    expect(res.body.subject).to.equal("Welcome to GradeLoop!");
+  });
+}

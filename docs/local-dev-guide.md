@@ -87,7 +87,7 @@ CORS_ALLOWED_ORIGINS=http://localhost:5173
 # Service Ports
 ACADEMICS_SERVICE_PORT=8081
 ASSIGNMENT_SERVICE_PORT=8082
-EMAIL_SERVICE_PORT=8083
+EMAIL_NOTIFY_SERVICE_PORT=8083
 
 # Python Services
 CIPAS_SERVICE_PORT=8085
@@ -118,6 +118,7 @@ go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 # Install dependencies for each service
 cd apps/services/academics-service && go mod download && cd ../../..
 cd apps/services/assignment-service && go mod download && cd ../../..
+cd apps/services/email-notify-service && go mod download && cd ../../..
 cd apps/gateway && go mod download && cd ../..
 ```
 
@@ -177,6 +178,7 @@ docker compose -f infra/compose/docker-compose.yml logs -f assignment-service
 - API Gateway: http://localhost:8080
 - Academics Service: http://localhost:8081
 - Assignment Service: http://localhost:8082
+- Email Notify Service: http://localhost:8083
 - MailHog (Email Testing): http://localhost:8025
 
 ### Rebuild After Code Changes
