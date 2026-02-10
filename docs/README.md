@@ -9,7 +9,7 @@
 New to GradeLoop V2? Start here:
 
 1. **[README](../README.md)** - Repository overview and service catalog
-2. **[Local Development Guide](local-dev-guide.md)** - Complete setup instructions
+2. **[Local Development Guide](guides/local-dev-guide.md)** - Complete setup instructions
 3. **[Contributing Guidelines](../CONTRIBUTING.md)** - How to contribute to the project
 
 ---
@@ -20,8 +20,9 @@ New to GradeLoop V2? Start here:
 
 | Document | Description |
 |----------|-------------|
-| [Local Development Guide](local-dev-guide.md) | Setup, debugging, and development workflow |
+| [Local Development Guide](guides/local-dev-guide.md) | Setup, debugging, and development workflow |
 | [Contributing Guidelines](../CONTRIBUTING.md) | Code standards, commit guidelines, PR process |
+| [Git Workflow](governance/git-workflow.md) | Branch naming, commit standards, and PR process |
 | [Service Catalog](../README.md#-service-catalog) | Complete list of all microservices |
 
 ### Architecture & Design
@@ -30,16 +31,16 @@ New to GradeLoop V2? Start here:
 |----------|-------------|
 | [Architecture Decision Records](adr/README.md) | Index of all ADRs |
 | [ADR-001: Monorepo Structure](adr/001-monorepo-structure.md) | Why we chose monorepo architecture |
-| [Service Communication Patterns](service-communication.md) | gRPC, REST, and async messaging guidelines |
-| [Database Migrations](migrations.md) | Schema management and versioning _(Coming Soon)_ |
+| [Service Communication Patterns](guides/service-communication.md) | gRPC, REST, and async messaging guidelines |
+| [Gateway Auth Patterns](guides/gateway-authn.md) | Authentication and authorization at the edge |
 
 ### Operations & Observability
 
 | Document | Description |
 |----------|-------------|
-| [Observability Setup](observability.md) | Metrics, logging, and tracing with Prometheus/Grafana/Jaeger |
-| [Deployment Guide](deployment.md) | Production deployment procedures _(Coming Soon)_ |
-| [Runbooks](runbooks/README.md) | Operational procedures and troubleshooting _(Coming Soon)_ |
+| [Observability Setup](guides/observability.md) | Metrics, logging, and tracing with ELK/Prometheus/Jaeger |
+| [Secrets Management](guides/secrets-management.md) | Using HashiCorp Vault for secure credential storage |
+| [Security Hardening](guides/security-hardening.md) | Platform security standards and best practices |
 
 ### API Documentation
 
@@ -54,6 +55,7 @@ New to GradeLoop V2? Start here:
 
 Each service has its own README in its directory:
 
+- [IAM Service](../apps/services/iam-service/README.md)
 - [Academics Service](../apps/services/academics-service/README.md)
 - [Assignment Service](../apps/services/assignment-service/README.md)
 - [CIPAS Service](../apps/services/cipas-service/README.md) - Plagiarism Analysis
@@ -62,30 +64,39 @@ Each service has its own README in its directory:
 - [BLAIM Service](../apps/services/blaim-service/README.md) - Blockchain Audit
 - [Email Notify Service](../apps/services/email-notify-service/README.md)
 
+### Governance & Reports
+
+| Document | Description |
+|----------|-------------|
+| [CI/CD Guide](governance/ci-guide.md) | GitHub Actions and build pipeline standards |
+| [Code Review Policy](governance/code-review-policy.md) | Standards for code quality and peer reviews |
+| [Emergency Merge](governance/emergency-merge.md) | Procedures for hotfixes and critical releases |
+| [IAM Verification](reports/GRADLOOP-41-verification-report.md) | Security audit and verification for IAM v2 |
+
 ---
 
 ## 🛠️ Common Tasks
 
 ### Development
 
-- **[Running Services Locally](local-dev-guide.md#running-individual-services)**
-- **[Database Migrations](local-dev-guide.md#database-management)**
-- **[Testing](local-dev-guide.md#testing-locally)**
-- **[Debugging](local-dev-guide.md#debugging)**
+- **[Running Services Locally](guides/local-dev-guide.md#running-individual-services)**
+- **[Database Migrations](guides/local-dev-guide.md#database-management)**
+- **[Testing](guides/local-dev-guide.md#testing-locally)**
+- **[Debugging](guides/local-dev-guide.md#debugging)**
 
 ### Adding New Features
 
 - **[Adding a New Service](../README.md#-adding-a-new-service)**
 - **[Creating an ADR](adr/README.md#creating-a-new-adr)**
 - **[Writing Tests](../CONTRIBUTING.md#testing-requirements)**
-- **[API Design Guidelines](service-communication.md#rest-api-guidelines)**
+- **[API Design Guidelines](guides/service-communication.md#rest-api-guidelines)**
 
 ### Operations
 
-- **[Monitoring Dashboards](observability.md#visualization-grafana)**
-- **[Viewing Logs](observability.md#logging-loki)**
-- **[Tracing Requests](observability.md#tracing-jaeger)**
-- **[Setting Up Alerts](observability.md#alerting)**
+- **[Monitoring Dashboards](guides/observability.md#visualization-grafana)**
+- **[Viewing Logs](guides/observability.md#logging-loki)**
+- **[Tracing Requests](guides/observability.md#tracing-jaeger)**
+- **[Setting Up Alerts](guides/observability.md#alerting)**
 
 ---
 
@@ -147,20 +158,20 @@ Read more: [ADR-001: Monorepo Structure](adr/001-monorepo-structure.md)
 ### Service-to-Service Communication
 
 - **Synchronous**: gRPC for low-latency, type-safe communication
-- **Asynchronous**: NATS for event-driven workflows
+- **Asynchronous**: RabbitMQ/NATS for event-driven workflows
 - **External**: REST APIs for browser clients
 
-Read more: [Service Communication Patterns](service-communication.md)
+Read more: [Service Communication Patterns](guides/service-communication.md)
 
 ### Observability
 
 The **three pillars of observability**:
 
 1. **Metrics** (Prometheus) - What is happening?
-2. **Logs** (Loki) - Why is it happening?
+2. **Logs** (ELK/Loki) - Why is it happening?
 3. **Traces** (Jaeger) - Where is it happening?
 
-Read more: [Observability Setup](observability.md)
+Read more: [Observability Setup](guides/observability.md)
 
 ---
 
@@ -248,7 +259,7 @@ cp infra/env/.env.example .env
 | Python import errors | Verify virtual environment is activated |
 | Docker build fails | Try `docker system prune -a` |
 
-Read more: [Local Development Guide - Troubleshooting](local-dev-guide.md#common-issues--troubleshooting)
+Read more: [Local Development Guide - Troubleshooting](guides/local-dev-guide.md#common-issues--troubleshooting)
 
 ---
 

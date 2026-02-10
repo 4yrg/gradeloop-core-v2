@@ -10,15 +10,15 @@ This repository is the single source of truth for GradeLoop V2. The detailed, ac
 Use the links below to find what you need.
 
 Quick links
-- Local development & setup: [docs/local-dev-guide.md](docs/local-dev-guide.md)
+- Local development & setup: [docs/guides/local-dev-guide.md](docs/guides/local-dev-guide.md)
 - Documentation index: [docs/README.md](docs/README.md)
 - Contribution & PR guidelines: [CONTRIBUTING.md](CONTRIBUTING.md)
-- Service communication patterns (gRPC/REST/events): [docs/service-communication.md](docs/service-communication.md)
-- Observability, metrics, logs, and tracing: [docs/observability.md](docs/observability.md)
+- Service communication patterns (gRPC/REST/events): [docs/guides/service-communication.md](docs/guides/service-communication.md)
+- Observability, metrics, logs, and tracing: [docs/guides/observability.md](docs/guides/observability.md)
 - Architecture Decision Records (ADRs): [docs/adr/README.md](docs/adr/README.md) (individual ADRs under `docs/adr/`)
 - API docs placeholder: [docs/api/](docs/api/)
-- Per-service READMEs: `apps/services/<service-name>/README.md` (e.g. [apps/services/assignment-service/](apps/services/assignment-service/), [apps/services/email-notify-service/](apps/services/email-notify-service/))
-- Infrastructure and local compose: [infra/compose/docker-compose.yml](infra/compose/docker-compose.yml)
+- Per-service READMEs: `apps/services/<service-name>/README.md` (e.g. [apps/services/iam-service/](apps/services/iam-service/), [apps/services/email-notify-service/](apps/services/email-notify-service/))
+- Infrastructure and local compose: [infra/compose/compose.dev.yaml](infra/compose/compose.dev.yaml)
 - Dev scripts: [scripts/](scripts/)
 - Ops & observability configs: [ops/](ops/)
 
@@ -29,7 +29,7 @@ Contributing
 - Add ADRs to `docs/adr/` for significant architectural changes.
 
 Where to run things
-- Local full-stack: See [infra/compose/docker-compose.yml](infra/compose/docker-compose.yml) and [docs/local-dev-guide.md](docs/local-dev-guide.md).
+- Local full-stack: See [infra/compose/compose.dev.yaml](infra/compose/compose.dev.yaml) and [docs/guides/local-dev-guide.md](docs/guides/local-dev-guide.md).
 - Run a single service: see that service's README in `apps/services/<service-name>/README.md`.
 
 Support
