@@ -38,8 +38,8 @@ func TestTraceCorrelation(t *testing.T) {
 			EntityID: "test-123",
 		}
 
-		// The CreateAuditLog method in the repository automatically extracts TraceID from UserContext
-		err := auditRepo.CreateAuditLog(c.UserContext(), auditLog)
+		// The CreateAuditLog method in the repository automatically extracts TraceID from Context
+		err := auditRepo.CreateAuditLog(c.Context(), auditLog)
 		if err != nil {
 			return c.Status(500).SendString(err.Error())
 		}

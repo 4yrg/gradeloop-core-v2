@@ -39,7 +39,7 @@ func (h *AuthHandler) Login(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
 
-	accessToken, refreshToken, user, err := h.usecase.Login(c.UserContext(), req.Email, req.Password)
+	accessToken, refreshToken, user, err := h.usecase.Login(c.Context(), req.Email, req.Password)
 	if err != nil {
 		// Specification: Return 401 Unauthorized for invalid credentials
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": err.Error()})
@@ -59,7 +59,7 @@ func (h *AuthHandler) Refresh(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
 
-	accessToken, refreshToken, user, err := h.usecase.Refresh(c.UserContext(), req.RefreshToken)
+	accessToken, refreshToken, user, err := h.usecase.Refresh(c.Context(), req.RefreshToken)
 	if err != nil {
 		// Specification: Return 401 Unauthorized for tokens that are expired, revoked, or non-matching
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": err.Error()})
@@ -80,7 +80,7 @@ func (h *AuthHandler) RevokeToken(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid token id"})
 	}
 
-	if err := h.usecase.RevokeToken(c.UserContext(), tokenID); err != nil {
+	if err := h.usecase.RevokeToken(c.Context(), tokenID); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to revoke token"})
 	}
 
@@ -96,7 +96,7 @@ func (h *AuthHandler) RevokeAllTokens(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
 	}
 
-	if err := h.usecase.RevokeAllUserTokens(c.UserContext(), userID); err != nil {
+	if err := h.usecase.RevokeAllUserTokens(c.Context(), userID); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to revoke all tokens"})
 	}
 
@@ -110,7 +110,7 @@ func (h *AuthHandler) Activate(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
 
-	if err := h.usecase.ActivateAccount(c.UserContext(), req.Token, req.Password); err != nil {
+	if err := h.usecase.ActivateAccount(c.Context(), req.Token, req.Password); err != nil {
 		// Return 403 Forbidden and trigger alert log if a token is reused (handled in usecase)
 		if err.Error() == "forbidden: token has already been used or is invalid" {
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
@@ -128,7 +128,7 @@ func (h *AuthHandler) RequestActivation(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
 
-	if err := h.usecase.RequestActivation(c.UserContext(), req.Email); err != nil {
+	if err := h.usecase.RequestActivation(c.Context(), req.Email); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to request activation"})
 	}
 

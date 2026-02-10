@@ -33,8 +33,8 @@ func FiberTrace(serviceName string) fiber.Handler {
 
 		// Enrich the user context for the structured logger.
 		// This allows logger.WithContext(ctx, l) to automatically pick up the ID.
-		ctx := context.WithValue(c.UserContext(), logger.TraceIDKey, traceID)
-		c.SetUserContext(ctx)
+		ctx := context.WithValue(c.Context(), logger.TraceIDKey, traceID)
+		c.SetContext(ctx)
 
 		// Ensure the trace ID is returned to the caller/gateway for correlation in access logs
 		c.Set("X-Trace-ID", traceID)
