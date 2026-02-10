@@ -12,6 +12,9 @@ services:
       - "--metrics.prometheus=true"
       - "--metrics.prometheus.addEntryPointsLabels=true"
       - "--metrics.prometheus.addServicesLabels=true"
+      # Tracing
+      - "--tracing.opentelemetry=true"
+      - "--tracing.opentelemetry.address=jaeger:14250"
       # Enable JWT Validator Plugin
       - "--experimental.plugins.jwt-validator.moduleName=github.com/Luka-S/traefik-jwt-validator"
       - "--experimental.plugins.jwt-validator.version=v1.3.0"
@@ -175,6 +178,19 @@ services:
     networks:
       - gradeloop-network
 
+  # Jaeger - Distributed Tracing
+  jaeger:
+    image: jaegertracing/all-in-one:1.53
+    container_name: gradeloop-jaeger-dev
+    ports:
+      - "16686:16686" # UI
+      - "14268:14268" # OTLP gRPC
+      - "14250:14250" # OTLP HTTP
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - gradeloop-network
+
 networks:
   gradeloop-network:
     name: gradeloop-network
@@ -187,3 +203,4 @@ volumes:
   postgres-secrets:
   prometheus-data:
   grafana-data:
+  jaeger-data:
