@@ -15,7 +15,11 @@ func Start(userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler,
 
 	// FiberTrace must be first to ensure trace_id is available for all subsequent logs and middlewares
 	app.Use(gl_middleware.FiberTrace("iam-service"))
+	app.Use(gl_middleware.Prometheus("iam-service"))
 	app.Use(recover.New())
+
+	// Metrics endpoint for Prometheus scraping
+	app.Get("/api/metrics", gl_middleware.PrometheusHandler())
 
 	router.Setup(app, userHandler, roleHandler, permissionHandler, authHandler)
 
