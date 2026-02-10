@@ -4,13 +4,15 @@ import (
 	"os"
 	"time"
 
+	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/application/ports"
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/handlers"
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/middleware"
+	"github.com/go-redis/redis/v8"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/limiter"
 )
 
-func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler, permissionHandler *handlers.PermissionHandler, authHandler *handlers.AuthHandler) {
+func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler, permissionHandler *handlers.PermissionHandler, authHandler *handlers.AuthHandler, redisClient *redis.Client, auditRepo ports.AuditRepository) {
 	// API Group
 	api := app.Group("/api")
 	v1 := api.Group("/v1")
@@ -26,7 +28,7 @@ func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handl
 
 	// Auth Routes
 	auth := v1.Group("/auth")
-	auth.Post("/login", authHandler.Login)
+	auth.Post("/login", middleware.BruteForceProtection(redisClient, auditRepo), authHandler.Login)
 	auth.Post("/refresh", authHandler.Refresh)
 	auth.Delete("/refresh-tokens/:token_id", authHandler.RevokeToken)
 	auth.Post("/activate", activationLimiter, authHandler.Activate)
