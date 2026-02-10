@@ -27,7 +27,6 @@
  */
 declare module '$env/static/private' {
 	export const SHELL: string;
-	export const npm_command: string;
 	export const GHOSTTY_BIN_DIR: string;
 	export const COLORTERM: string;
 	export const HYPRLAND_CMD: string;
@@ -37,6 +36,7 @@ declare module '$env/static/private' {
 	export const XDG_MENU_PREFIX: string;
 	export const TERM_PROGRAM_VERSION: string;
 	export const GUM_CONFIRM_PROMPT_FOREGROUND: string;
+	export const JOBS: string;
 	export const XDG_BACKEND: string;
 	export const NODE: string;
 	export const XDG_DATA_HOME: string;
@@ -59,6 +59,7 @@ declare module '$env/static/private' {
 	export const LOGNAME: string;
 	export const XDG_SESSION_DESKTOP: string;
 	export const XDG_SESSION_TYPE: string;
+	export const BUN_WHICH_IGNORE_CWD: string;
 	export const SYSTEMD_EXEC_PID: string;
 	export const _: string;
 	export const TERMINAL: string;
@@ -77,12 +78,12 @@ declare module '$env/static/private' {
 	export const XDG_SEAT_PATH: string;
 	export const MANAGERPID: string;
 	export const BAT_THEME: string;
+	export const INIT_CWD: string;
 	export const STARSHIP_SESSION_KEY: string;
 	export const QT_QPA_PLATFORM: string;
 	export const UWSM_WAIT_VARNAMES: string;
 	export const __MISE_ORIG_PATH: string;
 	export const XDG_CACHE_HOME: string;
-	export const npm_lifecycle_script: string;
 	export const NVM_DIR: string;
 	export const SDL_IM_MODULE: string;
 	export const GHOSTTY_RESOURCES_DIR: string;
@@ -97,7 +98,6 @@ declare module '$env/static/private' {
 	export const __MISE_SESSION: string;
 	export const HYPRLAND_INSTANCE_SIGNATURE: string;
 	export const DISPLAY: string;
-	export const npm_lifecycle_event: string;
 	export const SHLVL: string;
 	export const NVM_CD_FLAGS: string;
 	export const MOZ_ENABLE_WAYLAND: string;
@@ -128,8 +128,6 @@ declare module '$env/static/private' {
 	export const GUM_CONFIRM_SELECTED_FOREGROUND: string;
 	export const HYPRCURSOR_SIZE: string;
 	export const TERM_PROGRAM: string;
-	export const NODE_ENV: string;
-	export const PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS: string;
 }
 
 /**
@@ -160,7 +158,6 @@ declare module '$env/static/public' {
 declare module '$env/dynamic/private' {
 	export const env: {
 		SHELL: string;
-		npm_command: string;
 		GHOSTTY_BIN_DIR: string;
 		COLORTERM: string;
 		HYPRLAND_CMD: string;
@@ -170,6 +167,7 @@ declare module '$env/dynamic/private' {
 		XDG_MENU_PREFIX: string;
 		TERM_PROGRAM_VERSION: string;
 		GUM_CONFIRM_PROMPT_FOREGROUND: string;
+		JOBS: string;
 		XDG_BACKEND: string;
 		NODE: string;
 		XDG_DATA_HOME: string;
@@ -192,6 +190,7 @@ declare module '$env/dynamic/private' {
 		LOGNAME: string;
 		XDG_SESSION_DESKTOP: string;
 		XDG_SESSION_TYPE: string;
+		BUN_WHICH_IGNORE_CWD: string;
 		SYSTEMD_EXEC_PID: string;
 		_: string;
 		TERMINAL: string;
@@ -210,12 +209,12 @@ declare module '$env/dynamic/private' {
 		XDG_SEAT_PATH: string;
 		MANAGERPID: string;
 		BAT_THEME: string;
+		INIT_CWD: string;
 		STARSHIP_SESSION_KEY: string;
 		QT_QPA_PLATFORM: string;
 		UWSM_WAIT_VARNAMES: string;
 		__MISE_ORIG_PATH: string;
 		XDG_CACHE_HOME: string;
-		npm_lifecycle_script: string;
 		NVM_DIR: string;
 		SDL_IM_MODULE: string;
 		GHOSTTY_RESOURCES_DIR: string;
@@ -230,7 +229,6 @@ declare module '$env/dynamic/private' {
 		__MISE_SESSION: string;
 		HYPRLAND_INSTANCE_SIGNATURE: string;
 		DISPLAY: string;
-		npm_lifecycle_event: string;
 		SHLVL: string;
 		NVM_CD_FLAGS: string;
 		MOZ_ENABLE_WAYLAND: string;
@@ -261,8 +259,6 @@ declare module '$env/dynamic/private' {
 		GUM_CONFIRM_SELECTED_FOREGROUND: string;
 		HYPRCURSOR_SIZE: string;
 		TERM_PROGRAM: string;
-		NODE_ENV: string;
-		PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS: string;
 		[key: `PUBLIC_${string}`]: undefined;
 		[key: `${string}`]: string | undefined;
 	}
