@@ -3,6 +3,7 @@ package middleware
 import (
 	"github.com/gofiber/fiber/v3"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.opentelemetry.io/otel/trace"
@@ -28,7 +29,7 @@ func OtelFiber(serviceName string) fiber.Handler {
 		defer span.End()
 
 		// Pass the context with the span to the next handler
-		c.SetUserContext(ctx)
+		c.Locals("otelctx", ctx)
 
 		// Process request
 		err := c.Next()
@@ -36,12 +37,12 @@ func OtelFiber(serviceName string) fiber.Handler {
 		// Set span status based on response
 		if err != nil {
 			span.RecordError(err)
-			span.SetStatus(trace.StatusCodeError, err.Error())
+			span.SetStatus(codes.Error, err.Error())
 		} else {
 			status := c.Response().StatusCode()
 			span.SetAttributes(semconv.HTTPStatusCodeKey.Int(status))
 			if status >= 500 {
-				span.SetStatus(trace.StatusCodeError, "server error")
+				span.SetStatus(codes.Error, "server error")
 			}
 		}
 

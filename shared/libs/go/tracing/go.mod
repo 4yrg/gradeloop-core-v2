@@ -1,4 +1,4 @@
-module github.com/4YRG/gradeloop-core-v2/shared/libs/go/tracing
+module github.com/4yrg/gradeloop-core-v2/shared/libs/go/tracing
 
 go 1.25.7
 

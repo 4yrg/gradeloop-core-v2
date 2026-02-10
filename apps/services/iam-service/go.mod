@@ -1,12 +1,12 @@
-module github.com/4YRG/gradeloop-core-v2/apps/services/iam-service
+module github.com/4yrg/gradeloop-core-v2/apps/services/iam-service
 
 go 1.25.7
 
 require (
-	github.com/4YRG/gradeloop-core-v2/shared/libs/go/logger v0.0.0
-	github.com/4YRG/gradeloop-core-v2/shared/libs/go/middleware v0.0.0
-	github.com/4YRG/gradeloop-core-v2/shared/libs/go/secrets v0.0.0
-	github.com/4YRG/gradeloop-core-v2/shared/libs/go/tracing v0.0.0
+	github.com/4yrg/gradeloop-core-v2/shared/libs/go/logger v0.0.0
+	github.com/4yrg/gradeloop-core-v2/shared/libs/go/middleware v0.0.0
+	github.com/4yrg/gradeloop-core-v2/shared/libs/go/secrets v0.0.0
+	github.com/4yrg/gradeloop-core-v2/shared/libs/go/tracing v0.0.0
 	github.com/gofiber/fiber/v3 v3.0.0
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
@@ -90,10 +90,10 @@ require (
 	gorm.io/driver/mysql v1.5.6 // indirect
 )
 
-replace github.com/4YRG/gradeloop-core-v2/shared/libs/go/logger => ../../../shared/libs/go/logger
+replace github.com/4yrg/gradeloop-core-v2/shared/libs/go/logger => ../../../shared/libs/go/logger
 
-replace github.com/4YRG/gradeloop-core-v2/shared/libs/go/middleware => ../../../shared/libs/go/middleware
+replace github.com/4yrg/gradeloop-core-v2/shared/libs/go/middleware => ../../../shared/libs/go/middleware
 
-replace github.com/4YRG/gradeloop-core-v2/shared/libs/go/secrets => ../../../shared/libs/go/secrets
+replace github.com/4yrg/gradeloop-core-v2/shared/libs/go/secrets => ../../../shared/libs/go/secrets
 
-replace github.com/4YRG/gradeloop-core-v2/shared/libs/go/tracing => ../../../shared/libs/go/tracing
+replace github.com/4yrg/gradeloop-core-v2/shared/libs/go/tracing => ../../../shared/libs/go/tracing

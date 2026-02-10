@@ -1,15 +1,15 @@
-module github.com/4YRG/gradeloop-core-v2/shared/libs/go/middleware
+module github.com/4yrg/gradeloop-core-v2/shared/libs/go/middleware
 
 go 1.25.6
 
 require (
-	github.com/4YRG/gradeloop-core-v2/shared/libs/go/logger v0.0.0
+	github.com/4yrg/gradeloop-core-v2/shared/libs/go/logger v0.0.0
 	github.com/gofiber/fiber/v3 v3.0.0
 	github.com/google/uuid v1.6.0
 	github.com/prometheus/client_golang v1.21.0
 )
 
-replace github.com/4YRG/gradeloop-core-v2/shared/libs/go/logger => ../logger
+replace github.com/4yrg/gradeloop-core-v2/shared/libs/go/logger => ../logger
 
 require (
 	go.opentelemetry.io/otel v1.40.0

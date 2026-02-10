@@ -3,7 +3,7 @@ package middleware
 import (
 	"context"
 
-	"github.com/4YRG/gradeloop-core-v2/shared/libs/go/logger"
+	"github.com/4yrg/gradeloop-core-v2/shared/libs/go/logger"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 )

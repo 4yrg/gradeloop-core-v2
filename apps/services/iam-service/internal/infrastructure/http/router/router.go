@@ -4,8 +4,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/handlers"
-	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/middleware"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/handlers"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/middleware"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/limiter"
 )
