@@ -26,6 +26,7 @@ import (
 const activationTestSecret = "test-secret-key-12345"
 
 func setupActivationTestApp(t *testing.T) (*fiber.App, *gorm.DB) {
+	t.Setenv("GO_ENV", "test")
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("failed to connect database: %v", err)

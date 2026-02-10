@@ -22,7 +22,8 @@ import (
 	"gorm.io/gorm"
 )
 
-func setupLifecycleTestApp() (*fiber.App, *gorm.DB) {
+func setupLifecycleTestApp(t *testing.T) (*fiber.App, *gorm.DB) {
+	t.Setenv("GO_ENV", "test")
 	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	db.AutoMigrate(&models.User{}, &models.Student{}, &models.Employee{}, &models.Role{}, &models.Permission{}, &models.AuditLog{}, &models.RefreshToken{})
 
@@ -61,7 +62,7 @@ func setupLifecycleTestApp() (*fiber.App, *gorm.DB) {
 }
 
 func TestSecurityLifecycle(t *testing.T) {
-	app, db := setupLifecycleTestApp()
+	app, db := setupLifecycleTestApp(t)
 
 	// 1. Verify Bootstrap (Manual trigger for test)
 	// In main, it runs on startup. Here we can simulate or check if creating works.
