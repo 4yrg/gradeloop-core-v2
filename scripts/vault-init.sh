@@ -84,13 +84,14 @@ write_secret() {
     shift
     local args=""
     while [ "$#" -gt 0 ]; do
-        # Build the command arguments key=value
-        args="$args $1=$2"
+        # Properly quote key=value pairs to handle spaces
+        # We use a temporary variable to hold the escaped value
+        args="$args $1=\"$2\""
         shift 2
     done
     log_info "Writing secret to $path..."
-    # shellcheck disable=SC2086
-    if ! vault kv put "$path" $args > /dev/null; then
+    # Use eval to properly expand the quoted arguments
+    if ! eval "vault kv put \"$path\" $args" > /dev/null; then
         log_error "Failed to write secret to $path"
         return 1
     fi
