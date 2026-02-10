@@ -4,13 +4,15 @@ import (
 	"os"
 	"time"
 
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/application/ports"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/handlers"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/middleware"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/limiter"
+	"github.com/redis/go-redis/v9"
 )
 
-func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler, permissionHandler *handlers.PermissionHandler, authHandler *handlers.AuthHandler) {
+func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler, permissionHandler *handlers.PermissionHandler, authHandler *handlers.AuthHandler, redisClient *redis.Client, auditRepo ports.AuditRepository) {
 	// Health endpoint
 	app.Get("/api/iam/health", func(c fiber.Ctx) error {
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "ok"})

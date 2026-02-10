@@ -1,12 +1,14 @@
 package http
 
 import (
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/application/ports"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/handlers"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/router"
 	gl_logger "github.com/4yrg/gradeloop-core-v2/shared/libs/go/logger"
 	gl_middleware "github.com/4yrg/gradeloop-core-v2/shared/libs/go/middleware"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/recover"
+	"github.com/redis/go-redis/v9"
 )
 
 func Start(userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler, permissionHandler *handlers.PermissionHandler, authHandler *handlers.AuthHandler, redisClient *redis.Client, auditRepo ports.AuditRepository) {

@@ -8,7 +8,7 @@ import (
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/application/ports"
 	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
 	gl_logger "github.com/4YRG/gradeloop-core-v2/shared/libs/go/logger"
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 	"github.com/gofiber/fiber/v3"
 )
 
