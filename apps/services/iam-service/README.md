@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Identity and Access Management (IAM) Service is the central security authority of the GradeLoop platform. It manages user identities, authentication, authorization, and session management. It implements a Zero Trust Architecture by providing JWT validation at the edge and fine-grained role-based access control (RBAC) across all microservices. The service is built using the **Go Fiber (v2)** framework and requires **Go 1.25+**.
+The Identity and Access Management (IAM) Service is the central security authority of the GradeLoop platform. It manages user identities, authentication, authorization, and session management. It implements a Zero Trust Architecture by providing JWT validation at the edge and fine-grained role-based access control (RBAC) across all microservices. The service is built using the **Go Fiber (v3)** framework and requires **Go 1.25+**.
 
 ## Features
 
