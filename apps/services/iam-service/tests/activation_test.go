@@ -63,7 +63,7 @@ func setupActivationTestApp(t *testing.T) (*fiber.App, *gorm.DB) {
 	permissionHandler := handlers.NewPermissionHandler(permissionUsecase)
 
 	app := fiber.New()
-	router.Setup(app, userHandler, roleHandler, permissionHandler, authHandler)
+	router.Setup(app, userHandler, roleHandler, permissionHandler, authHandler, nil, &MockAuditRepository{})
 
 	return app, db
 }

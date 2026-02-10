@@ -9,7 +9,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/recover"
 )
 
-func Start(userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler, permissionHandler *handlers.PermissionHandler, authHandler *handlers.AuthHandler) {
+func Start(userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler, permissionHandler *handlers.PermissionHandler, authHandler *handlers.AuthHandler, redisClient *redis.Client, auditRepo ports.AuditRepository) {
 	app := fiber.New()
 	l := gl_logger.New("iam-service")
 
@@ -22,7 +22,7 @@ func Start(userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler,
 	// Metrics endpoint for Prometheus scraping
 	app.Get("/api/metrics", gl_middleware.PrometheusHandler())
 
-	router.Setup(app, userHandler, roleHandler, permissionHandler, authHandler)
+	router.Setup(app, userHandler, roleHandler, permissionHandler, authHandler, redisClient, auditRepo)
 
 	l.Info("Server starting on :3000")
 	if err := app.Listen(":3000"); err != nil {

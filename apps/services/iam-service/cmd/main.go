@@ -10,16 +10,15 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/application/usecases"
-	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
-	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http"
-	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/handlers"
-	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/notifications"
-	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/repositories"
-	gl_logger "github.com/4yrg/gradeloop-core-v2/shared/libs/go/logger"
-	"github.com/4yrg/gradeloop-core-v2/shared/libs/go/secrets"
-	gl_tracing "github.com/4yrg/gradeloop-core-v2/shared/libs/go/tracing"
-	"github.com/uptrace/opentelemetry-go-extra/otelgorm"
+	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/application/usecases"
+	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
+	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http"
+	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/handlers"
+	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/notifications"
+	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/repositories"
+	gl_logger "github.com/4YRG/gradeloop-core-v2/shared/libs/go/logger"
+	"github.com/4YRG/gradeloop-core-v2/shared/libs/go/secrets"
+	"github.com/go-redis/redis/v8"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -165,7 +164,14 @@ func main() {
 	authHandler := handlers.NewAuthHandler(authUsecase)
 
 	// Start Server
-	http.Start(userHandler, roleHandler, permissionHandler, authHandler)
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		redisAddr = "localhost:6379"
+	}
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: redisAddr,
+	})
+	http.Start(userHandler, roleHandler, permissionHandler, authHandler, redisClient, auditRepo)
 }
 
 func bootstrapSuperAdmin(db *gorm.DB, l *slog.Logger) error {
