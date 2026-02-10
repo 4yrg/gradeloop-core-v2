@@ -116,6 +116,10 @@ Each service has its own README in its directory:
 │  │ Service  │  │ Service  │  │ (AI)   ││
 │  └────┬─────┘  └────┬─────┘  └───┬────┘│
 │       │             │             │     │
+│  ┌────────────┐ ┌────────────┐ ┌──────┐│
+│  │Email Notify│ │    IVAS    │ │ BLAIM││
+│  │  Service   │ │   (AI)     │ │ (BC) ││
+│  └────┬───────┘ └────┬───────┘ └──┬───┘│
 │       ▼             ▼             ▼     │
 │  ┌────────────────────────────────────┐│
 │  │         PostgreSQL Databases       ││

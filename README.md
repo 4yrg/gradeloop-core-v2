@@ -17,7 +17,7 @@ Quick links
 - Observability, metrics, logs, and tracing: [docs/observability.md](docs/observability.md)
 - Architecture Decision Records (ADRs): [docs/adr/README.md](docs/adr/README.md) (individual ADRs under `docs/adr/`)
 - API docs placeholder: [docs/api/](docs/api/)
-- Per-service READMEs: `apps/services/<service-name>/README.md` (e.g. [apps/services/assignment-service/](apps/services/assignment-service/))
+- Per-service READMEs: `apps/services/<service-name>/README.md` (e.g. [apps/services/assignment-service/](apps/services/assignment-service/), [apps/services/email-notify-service/](apps/services/email-notify-service/))
 - Infrastructure and local compose: [infra/compose/docker-compose.yml](infra/compose/docker-compose.yml)
 - Dev scripts: [scripts/](scripts/)
 - Ops & observability configs: [ops/](ops/)
