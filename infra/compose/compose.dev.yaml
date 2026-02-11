@@ -238,7 +238,7 @@ services:
       dockerfile: apps/services/academics-service/Dockerfile
     container_name: gradeloop-academics-service-dev
     ports:
-      - "3001:3001"
+      - "3002:3001"
     labels:
       - "traefik.enable=true"
       - "traefik.http.services.academics.loadbalancer.server.port=3001"
