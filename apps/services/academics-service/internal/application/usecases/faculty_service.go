@@ -52,7 +52,7 @@ func (s *FacultyService) CreateFaculty(ctx context.Context, req dto.CreateFacult
 	}
 
 	// Audit Logging
-	auditLog := utils.PrepareAuditLog(ctx, "faculty.create", createdFaculty.ID.String(), nil, createdFaculty)
+	auditLog := utils.PrepareAuditLog(ctx, "faculty.create", "faculty", createdFaculty.ID.String(), nil, createdFaculty)
 	s.auditRepo.CreateAuditLog(ctx, auditLog)
 
 	return createdFaculty, nil
@@ -95,7 +95,7 @@ func (s *FacultyService) UpdateFaculty(ctx context.Context, id uuid.UUID, req dt
 		return nil, err
 	}
 
-	auditLog := utils.PrepareAuditLog(ctx, "faculty.update", updatedFaculty.ID.String(), oldFacultyState, updatedFaculty)
+	auditLog := utils.PrepareAuditLog(ctx, "faculty.update", "faculty", updatedFaculty.ID.String(), oldFacultyState, updatedFaculty)
 	s.auditRepo.CreateAuditLog(ctx, auditLog)
 
 	return updatedFaculty, nil
@@ -115,7 +115,7 @@ func (s *FacultyService) DeactivateFaculty(ctx context.Context, id uuid.UUID) er
 
 	newFacultyState := *faculty
 	newFacultyState.IsActive = false
-	auditLog := utils.PrepareAuditLog(ctx, "faculty.deactivate", id.String(), faculty, newFacultyState)
+	auditLog := utils.PrepareAuditLog(ctx, "faculty.deactivate", "faculty", id.String(), faculty, newFacultyState)
 	s.auditRepo.CreateAuditLog(ctx, auditLog)
 
 	return nil
