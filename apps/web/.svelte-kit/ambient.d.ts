@@ -27,6 +27,7 @@
  */
 declare module '$env/static/private' {
 	export const SHELL: string;
+	export const npm_command: string;
 	export const GHOSTTY_BIN_DIR: string;
 	export const COLORTERM: string;
 	export const HYPRLAND_CMD: string;
@@ -84,6 +85,7 @@ declare module '$env/static/private' {
 	export const UWSM_WAIT_VARNAMES: string;
 	export const __MISE_ORIG_PATH: string;
 	export const XDG_CACHE_HOME: string;
+	export const npm_lifecycle_script: string;
 	export const NVM_DIR: string;
 	export const SDL_IM_MODULE: string;
 	export const GHOSTTY_RESOURCES_DIR: string;
@@ -97,7 +99,9 @@ declare module '$env/static/private' {
 	export const OZONE_PLATFORM: string;
 	export const __MISE_SESSION: string;
 	export const HYPRLAND_INSTANCE_SIGNATURE: string;
+	export const BUN_INTERNAL_BUNX_INSTALL: string;
 	export const DISPLAY: string;
+	export const npm_lifecycle_event: string;
 	export const SHLVL: string;
 	export const NVM_CD_FLAGS: string;
 	export const MOZ_ENABLE_WAYLAND: string;
@@ -158,6 +162,7 @@ declare module '$env/static/public' {
 declare module '$env/dynamic/private' {
 	export const env: {
 		SHELL: string;
+		npm_command: string;
 		GHOSTTY_BIN_DIR: string;
 		COLORTERM: string;
 		HYPRLAND_CMD: string;
@@ -215,6 +220,7 @@ declare module '$env/dynamic/private' {
 		UWSM_WAIT_VARNAMES: string;
 		__MISE_ORIG_PATH: string;
 		XDG_CACHE_HOME: string;
+		npm_lifecycle_script: string;
 		NVM_DIR: string;
 		SDL_IM_MODULE: string;
 		GHOSTTY_RESOURCES_DIR: string;
@@ -228,7 +234,9 @@ declare module '$env/dynamic/private' {
 		OZONE_PLATFORM: string;
 		__MISE_SESSION: string;
 		HYPRLAND_INSTANCE_SIGNATURE: string;
+		BUN_INTERNAL_BUNX_INSTALL: string;
 		DISPLAY: string;
+		npm_lifecycle_event: string;
 		SHLVL: string;
 		NVM_CD_FLAGS: string;
 		MOZ_ENABLE_WAYLAND: string;
