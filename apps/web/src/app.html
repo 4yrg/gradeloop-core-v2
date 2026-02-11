@@ -1,15 +1,52 @@
 <!doctype html>
-
-<html lang="%paraglide.lang%">
+<html lang="%paraglide.lang%" class="light">
 	<head>
 		<meta charset="utf-8" />
-
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+		<!-- Theme Color Meta Tags -->
+		<meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)" />
+		<meta name="theme-color" content="#0b1120" media="(prefers-color-scheme: dark)" />
+
+		<!-- Color Scheme Support -->
+		<meta name="color-scheme" content="light dark" />
+
+		<!-- Prevent Flash of Unstyled Content -->
+		<script>
+			(function () {
+				const theme = localStorage.getItem('gradeloop-theme');
+				const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
+					? 'dark'
+					: 'light';
+				const resolvedTheme = theme === 'system' || !theme ? systemTheme : theme;
+
+				document.documentElement.classList.remove('light', 'dark');
+				document.documentElement.classList.add(resolvedTheme);
+
+				// Update theme-color meta tag
+				const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+				if (themeColorMeta) {
+					const color = resolvedTheme === 'dark' ? '#0b1120' : '#f8fafc';
+					themeColorMeta.setAttribute('content', color);
+				}
+			})();
+		</script>
+
+		<!-- PWA Meta Tags -->
+		<meta name="application-name" content="GradeLoop" />
+		<meta name="apple-mobile-web-app-title" content="GradeLoop" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+		<meta name="mobile-web-app-capable" content="yes" />
+
+		<!-- Security Headers -->
+		<meta http-equiv="X-Content-Type-Options" content="nosniff" />
+		<meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
 
 		%sveltekit.head%
 	</head>
 
-	<body data-sveltekit-preload-data="hover">
+	<body data-sveltekit-preload-data="hover" class="antialiased">
 		<div style="display: contents">%sveltekit.body%</div>
 	</body>
 </html>
