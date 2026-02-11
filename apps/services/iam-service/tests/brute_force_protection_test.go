@@ -65,7 +65,7 @@ func setupBruteForceTestApp(t *testing.T) (*fiber.App, *gorm.DB, *redis.Client) 
 	permissionHandler := handlers.NewPermissionHandler(permissionUsecase)
 
 	app := fiber.New()
-	router.Setup(app, userHandler, roleHandler, permissionHandler, authHandler)
+	router.Setup(app, userHandler, roleHandler, permissionHandler, authHandler, redisClient, auditRepo)
 
 	return app, db, redisClient
 }
@@ -247,7 +247,7 @@ func TestBruteForceProtection_RedisFailureDegradedMode(t *testing.T) {
 	permissionHandler := handlers.NewPermissionHandler(permissionUsecase)
 
 	app := fiber.New()
-	router.Setup(app, userHandler, roleHandler, permissionHandler, authHandler)
+	router.Setup(app, userHandler, roleHandler, permissionHandler, authHandler, nil, auditRepo)
 
 	// Create test user
 	password := "password123"
