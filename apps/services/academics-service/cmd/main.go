@@ -82,7 +82,7 @@ func main() {
 	}
 
 	l.Info("Connected to database. Running auto-migrations...")
-	if err := db.AutoMigrate(&models.Faculty{}, &models.FacultyLeadership{}); err != nil {
+	if err := db.AutoMigrate(&models.Faculty{}, &models.FacultyLeadership{}, &models.AuditLog{}); err != nil {
 		l.Error("failed to migrate database", "error", err)
 		os.Exit(1)
 	}
@@ -90,7 +90,7 @@ func main() {
 	l.Info("Auto-migrations completed. Initializing dependencies...")
 
 	// Dependency Injection
-	auditRepo := repositories.NewMockAuditRepository()
+	auditRepo := repositories.NewGormAuditRepository(db)
 	facultyRepo := repositories.NewGormFacultyRepository(db)
 	facultyService := usecases.NewFacultyService(facultyRepo, auditRepo)
 	facultyHandler := handlers.NewFacultyHandler(facultyService)

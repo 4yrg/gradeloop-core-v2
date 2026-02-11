@@ -6,22 +6,19 @@ import (
 
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academics-service/internal/application/dto"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academics-service/internal/application/ports"
-	"github.com/4yrg/gradeloop-core-v2/apps/services/academics-service/internal/domain/models"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/academics-service/internal/application/utils"
 	"github.com/google/uuid"
+	"github.comcom/4yrg/gradeloop-core-v2/apps/services/academics-service/internal/domain/models"
 )
 
-// I'm assuming an audit repository port exists, similar to the iam-service.
-// For now, I'll define it here. In a real scenario, this would be in a shared location.
-type AuditRepository interface {
-	CreateAuditLog(ctx context.Context, log *models.AuditLog) error
-}
-
+// FacultyService handles the business logic for faculty management.
 type FacultyService struct {
 	facultyRepo ports.FacultyRepository
-	auditRepo   AuditRepository
+	auditRepo   ports.AuditRepository
 }
 
-func NewFacultyService(facultyRepo ports.FacultyRepository, auditRepo AuditRepository) *FacultyService {
+// NewFacultyService creates a new FacultyService.
+func NewFacultyService(facultyRepo ports.FacultyRepository, auditRepo ports.AuditRepository) *FacultyService {
 	return &FacultyService{
 		facultyRepo: facultyRepo,
 		auditRepo:   auditRepo,
@@ -31,7 +28,6 @@ func NewFacultyService(facultyRepo ports.FacultyRepository, auditRepo AuditRepos
 // CreateFaculty handles the business logic for creating a new faculty.
 func (s *FacultyService) CreateFaculty(ctx context.Context, req dto.CreateFacultyRequest) (*models.Faculty, error) {
 	// Business Rule: At least one leader must be provided.
-	// This is also handled by validation on the DTO, but service layer should enforce it.
 	if len(req.Leaders) == 0 {
 		return nil, errors.New("a new faculty must be created with at least one leader")
 	}
@@ -50,14 +46,14 @@ func (s *FacultyService) CreateFaculty(ctx context.Context, req dto.CreateFacult
 		})
 	}
 
-	// The repository handles the transaction for creating both faculty and leaders.
 	createdFaculty, err := s.facultyRepo.CreateFaculty(ctx, faculty, leaders)
 	if err != nil {
 		return nil, err
 	}
 
 	// Audit Logging
-	// s.auditRepo.CreateAuditLog(ctx, prepareAudit("faculty.create", createdFaculty.ID, nil, createdFaculty))
+	auditLog := utils.PrepareAuditLog(ctx, "faculty.create", createdFaculty.ID.String(), nil, createdFaculty)
+	s.auditRepo.CreateAuditLog(ctx, auditLog)
 
 	return createdFaculty, nil
 }
@@ -79,7 +75,7 @@ func (s *FacultyService) UpdateFaculty(ctx context.Context, id uuid.UUID, req dt
 		return nil, err
 	}
 
-	// oldFacultyState := *faculty // for audit logging
+	oldFacultyState := *faculty // for audit logging
 
 	if req.Name != "" {
 		faculty.Name = req.Name
@@ -91,11 +87,6 @@ func (s *FacultyService) UpdateFaculty(ctx context.Context, id uuid.UUID, req dt
 		faculty.Description = req.Description
 	}
 	if req.IsActive != nil {
-		// Business Rule: Cannot deactivate if it's the last active leader.
-		// This rule is about leadership, not the faculty itself. Let's reconsider.
-		// The rule is "A Faculty must have at least one active leader at all times."
-		// Deactivating the faculty doesn't violate this. Deactivating a *leader* would.
-		// This will be handled in a separate `UpdateLeadership` method not required by the story yet.
 		faculty.IsActive = *req.IsActive
 	}
 
@@ -104,7 +95,8 @@ func (s *FacultyService) UpdateFaculty(ctx context.Context, id uuid.UUID, req dt
 		return nil, err
 	}
 
-	// s.auditRepo.CreateAuditLog(ctx, prepareAudit("faculty.update", updatedFaculty.ID, oldFacultyState, updatedFaculty))
+	auditLog := utils.PrepareAuditLog(ctx, "faculty.update", updatedFaculty.ID.String(), oldFacultyState, updatedFaculty)
+	s.auditRepo.CreateAuditLog(ctx, auditLog)
 
 	return updatedFaculty, nil
 }
@@ -116,15 +108,15 @@ func (s *FacultyService) DeactivateFaculty(ctx context.Context, id uuid.UUID) er
 		return err
 	}
 
-	// oldFacultyState := *faculty // for audit logging
-
 	err = s.facultyRepo.DeleteFaculty(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	// faculty.IsActive = false // to log the new state
-	// s.auditRepo.CreateAuditLog(ctx, prepareAudit("faculty.deactivate", id, oldFacultyState, faculty))
+	newFacultyState := *faculty
+	newFacultyState.IsActive = false
+	auditLog := utils.PrepareAuditLog(ctx, "faculty.deactivate", id.String(), faculty, newFacultyState)
+	s.auditRepo.CreateAuditLog(ctx, auditLog)
 
 	return nil
 }
