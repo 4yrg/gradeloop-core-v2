@@ -7,8 +7,8 @@ import (
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academics-service/internal/application/dto"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academics-service/internal/application/ports"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academics-service/internal/application/utils"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/academics-service/internal/domain/models"
 	"github.com/google/uuid"
-	"github.comcom/4yrg/gradeloop-core-v2/apps/services/academics-service/internal/domain/models"
 )
 
 // FacultyService handles the business logic for faculty management.
