@@ -1,0 +1,15 @@
+meta {
+  name: Get Faculty Leaders
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/academics/faculties/:id/leaders
+  body: none
+  auth: none
+}
+
+params:path {
+  id: 
+}

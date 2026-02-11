@@ -1,0 +1,22 @@
+meta {
+  name: Update Faculty
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/api/academics/faculties/:id
+  body: json
+  auth: none
+}
+
+params:path {
+  id: 
+}
+
+body:json {
+  {
+    "name": "Faculty of Engineering Updated",
+    "description": "Updated description for the faculty."
+  }
+}

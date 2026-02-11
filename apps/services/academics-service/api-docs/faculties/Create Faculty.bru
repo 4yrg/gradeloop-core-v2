@@ -1,0 +1,25 @@
+meta {
+  name: Create Faculty
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/academics/faculties
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "name": "Faculty of Engineering",
+    "code": "FOE",
+    "description": "The Faculty of Engineering provides world-class education and research.",
+    "leaders": [
+      {
+        "user_id": "00000000-0000-0000-0000-000000000000",
+        "role": "Dean"
+      }
+    ]
+  }
+}

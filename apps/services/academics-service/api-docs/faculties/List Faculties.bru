@@ -1,0 +1,15 @@
+meta {
+  name: List Faculties
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/academics/faculties?include_inactive=false
+  body: none
+  auth: none
+}
+
+params:query {
+  include_inactive: false
+}
