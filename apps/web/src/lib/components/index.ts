@@ -19,5 +19,11 @@ export { default as AISuggestionPanel } from './ai/AISuggestionPanel.svelte';
 export { default as AIInlineHint } from './ai/AIInlineHint.svelte';
 export { default as AIStreamingText } from './ai/AIStreamingText.svelte';
 
+// Test Components
+export { default as TestResults } from './test/TestResults.svelte';
+
 // Re-export stores
 export * from '../stores/theme';
+
+// Re-export utilities
+export * from '../utils/test-helpers';
