@@ -1,126 +1,89 @@
-"use client";
+'use client';
 
-import React from "react";
+import * as React from 'react';
+import { Slot } from '@radix-ui/react-slot';
+import { cva, type VariantProps } from 'class-variance-authority';
+import { cn } from '@/lib/utils';
 
-export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "ghost" | "destructive" | "ai";
-  size?: "sm" | "md" | "lg";
-  loading?: boolean;
-  children: React.ReactNode;
+const buttonVariants = cva(
+	'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+	{
+		variants: {
+			variant: {
+				default: 'bg-primary text-primary-foreground hover:bg-primary/90',
+				destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+				outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
+				secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+				ghost: 'hover:bg-accent hover:text-accent-foreground',
+				link: 'text-primary underline-offset-4 hover:underline',
+				ai: 'bg-ai-muted text-ai-foreground border border-ai-border hover:bg-ai-muted/80 relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white before:to-transparent before:opacity-0 hover:before:opacity-10 before:transition-opacity'
+			},
+			size: {
+				default: 'h-10 px-4 py-2',
+				sm: 'h-9 rounded-md px-3',
+				lg: 'h-11 rounded-md px-8',
+				icon: 'h-10 w-10'
+			}
+		},
+		defaultVariants: {
+			variant: 'default',
+			size: 'default'
+		}
+	}
+);
+
+export interface ButtonProps
+	extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
+	asChild?: boolean;
+	loading?: boolean;
 }
 
-const buttonVariants = {
-  primary: `
-    bg-action-primary text-neutral-0 border-transparent
-    hover:bg-action-primary-hover
-    active:bg-action-primary-active
-    disabled:bg-neutral-200 disabled:text-neutral-400
-    dark:disabled:bg-neutral-800 dark:disabled:text-neutral-600
-  `,
-  secondary: `
-    bg-neutral-100 text-text-primary border-neutral-300
-    hover:bg-neutral-200
-    active:bg-neutral-300
-    disabled:bg-neutral-200 disabled:text-neutral-400
-    dark:bg-neutral-800 dark:text-text-primary dark:border-neutral-700
-    dark:hover:bg-neutral-700
-    dark:active:bg-neutral-600
-    dark:disabled:bg-neutral-800 dark:disabled:text-neutral-600
-  `,
-  ghost: `
-    bg-transparent text-action-primary border-transparent
-    hover:bg-action-primary hover:bg-opacity-5
-    active:bg-action-primary active:bg-opacity-10
-    disabled:text-neutral-400
-    dark:disabled:text-neutral-600
-  `,
-  destructive: `
-    bg-error text-neutral-0 border-transparent
-    hover:opacity-90
-    active:opacity-80
-    disabled:bg-neutral-200 disabled:text-neutral-400
-    dark:disabled:bg-neutral-800 dark:disabled:text-neutral-600
-  `,
-  ai: `
-    bg-bg-ai text-text-ai border-border-ai
-    hover:bg-opacity-80
-    active:bg-opacity-70
-    disabled:bg-neutral-200 disabled:text-neutral-400
-    dark:disabled:bg-neutral-800 dark:disabled:text-neutral-600
-    relative overflow-hidden
-    before:absolute before:inset-0 before:bg-gradient-to-r
-    before:from-transparent before:via-white before:to-transparent
-    before:opacity-0 hover:before:opacity-10 before:transition-opacity
-  `,
+const LoadingSpinner = ({ size }: { size?: 'default' | 'sm' | 'lg' | 'icon' }) => {
+	const spinnerSize = {
+		default: 'w-4 h-4',
+		sm: 'w-3 h-3',
+		lg: 'w-5 h-5',
+		icon: 'w-4 h-4'
+	};
+
+	return (
+		<svg
+			className={cn('animate-spin', spinnerSize[size || 'default'])}
+			xmlns="http://www.w3.org/2000/svg"
+			fill="none"
+			viewBox="0 0 24 24"
+		>
+			<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+			<path
+				className="opacity-75"
+				fill="currentColor"
+				d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+			/>
+		</svg>
+	);
 };
 
-const buttonSizes = {
-  sm: "h-8 px-3 text-sm gap-1.5",
-  md: "h-10 px-4 text-base gap-2",
-  lg: "h-12 px-6 text-lg gap-2.5",
-};
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+	(
+		{ className, variant, size, asChild = false, loading = false, disabled, children, ...props },
+		ref
+	) => {
+		const Comp = asChild ? Slot : 'button';
+		const isDisabled = disabled || loading;
 
-const LoadingSpinner = ({ size }: { size: "sm" | "md" | "lg" }) => {
-  const spinnerSize = {
-    sm: "w-3 h-3",
-    md: "w-4 h-4",
-    lg: "w-5 h-5",
-  };
+		return (
+			<Comp
+				className={cn(buttonVariants({ variant, size, className }))}
+				ref={ref}
+				disabled={isDisabled}
+				{...props}
+			>
+				{loading && <LoadingSpinner size={size} />}
+				{loading ? <span className="ml-2">{children}</span> : children}
+			</Comp>
+		);
+	}
+);
+Button.displayName = 'Button';
 
-  return (
-    <svg
-      className={`animate-spin ${spinnerSize[size]}`}
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-    >
-      <circle
-        className="opacity-25"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="currentColor"
-        strokeWidth="4"
-      />
-      <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-      />
-    </svg>
-  );
-};
-
-export function Button({
-  variant = "primary",
-  size = "md",
-  loading = false,
-  disabled,
-  children,
-  className = "",
-  ...props
-}: ButtonProps) {
-  const isDisabled = disabled || loading;
-
-  return (
-    <button
-      className={`
-        inline-flex items-center justify-center
-        rounded-lg border font-medium
-        transition-all duration-200 ease-in-out
-        focus:outline-none focus-ring
-        disabled:cursor-not-allowed
-        ${buttonVariants[variant]}
-        ${buttonSizes[size]}
-        ${className}
-      `.trim()}
-      disabled={isDisabled}
-      {...props}
-    >
-      {loading && <LoadingSpinner size={size} />}
-      {children}
-    </button>
-  );
-}
-
-export default Button;
+export { Button, buttonVariants };
