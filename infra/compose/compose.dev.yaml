@@ -231,43 +231,44 @@ services:
     networks:
       - gradeloop-network
 
-  # Academics Service - Academic Management (Placeholder for future implementation)
-  # academics-service:
-  #   build:
-  #     context: ../../
-  #     dockerfile: apps/services/academics-service/Dockerfile
-  #   container_name: gradeloop-academics-service-dev
-  #   ports:
-  #     - "3001:3000"
-  #   labels:
-  #     - "traefik.enable=true"
-  #     - "traefik.http.services.academics.loadbalancer.server.port=3000"
-  #
-  #     # All academics routes require JWT validation
-  #     - "traefik.http.routers.academics.rule=PathPrefix(`/api/academics`)"
-  #     - "traefik.http.routers.academics.entrypoints=web"
-  #     - "traefik.http.routers.academics.middlewares=academics-jwt-auth,academics-replacepath"
-  #
-  #     # Middlewares
-  #     - "traefik.http.middlewares.academics-replacepath.replacepathregex.regex=^/api/academics(.*)"
-  #     - "traefik.http.middlewares.academics-replacepath.replacepathregex.replacement=/api$$1"
-  #
-  #     # JWT Validation via ForwardAuth
-  #     - "traefik.http.middlewares.academics-jwt-auth.forwardauth.address=http://iam-service:3000/api/v1/auth/validate"
-  #     - "traefik.http.middlewares.academics-jwt-auth.forwardauth.trustForwardHeader=true"
-  #     - "traefik.http.middlewares.academics-jwt-auth.forwardauth.authResponseHeaders=X-User-Id,X-User-Roles,X-User-Permissions,X-User-Email,X-User-Name"
-  #   environment:
-  #     VAULT_ADDR: "http://vault:8200"
-  #     VAULT_TOKEN: "dev-root-token"
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     vault:
-  #       condition: service_healthy
-  #     iam-service:
-  #       condition: service_healthy
-  #   networks:
-  #     - gradeloop-network
+  # Academics Service - Academic Management
+  academics-service:
+    build:
+      context: ../../
+      dockerfile: apps/services/academics-service/Dockerfile
+    container_name: gradeloop-academics-service-dev
+    ports:
+      - "3001:3001"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.academics.loadbalancer.server.port=3001"
+
+      # All academics routes require JWT validation
+      - "traefik.http.routers.academics.rule=PathPrefix(`/api/academics`)"
+      - "traefik.http.routers.academics.entrypoints=web"
+      - "traefik.http.routers.academics.middlewares=academics-jwt-auth,academics-replacepath"
+
+      # Middlewares
+      - "traefik.http.middlewares.academics-replacepath.replacepathregex.regex=^/api/academics(.*)"
+      - "traefik.http.middlewares.academics-replacepath.replacepathregex.replacement=/api$$1"
+
+      # JWT Validation via ForwardAuth
+      - "traefik.http.middlewares.academics-jwt-auth.forwardauth.address=http://iam-service:3000/api/v1/auth/validate"
+      - "traefik.http.middlewares.academics-jwt-auth.forwardauth.trustForwardHeader=true"
+      - "traefik.http.middlewares.academics-jwt-auth.forwardauth.authResponseHeaders=X-User-Id,X-User-Roles,X-User-Permissions,X-User-Email,X-User-Name"
+    environment:
+      VAULT_ADDR: "http://vault:8200"
+      VAULT_TOKEN: "dev-root-token"
+      JAEGER_ENDPOINT: "jaeger:4317"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+      iam-service:
+        condition: service_healthy
+    networks:
+      - gradeloop-network
 
   # Prometheus - Metrics Collection
   prometheus:
