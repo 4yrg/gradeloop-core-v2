@@ -1,0 +1,22 @@
+meta {
+  name: Create Specialization
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/academics/degrees/:degree_id/specializations
+  body: json
+  auth: none
+}
+
+params:path {
+  degree_id: {{degreeId}}
+}
+
+body:json {
+  {
+    "name": "Artificial Intelligence Track",
+    "code": "AI"
+  }
+}

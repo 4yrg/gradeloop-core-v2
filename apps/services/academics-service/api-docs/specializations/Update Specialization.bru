@@ -1,0 +1,22 @@
+meta {
+  name: Update Specialization
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/api/academics/specializations/:id
+  body: json
+  auth: none
+}
+
+params:path {
+  id: {{specializationId}}
+}
+
+body:json {
+  {
+    "name": "Machine Learning Track",
+    "code": "ML"
+  }
+}

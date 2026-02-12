@@ -1,0 +1,19 @@
+meta {
+  name: Get Specialization
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/academics/specializations/:id?include_inactive=false
+  body: none
+  auth: none
+}
+
+params:query {
+  include_inactive: false
+}
+
+params:path {
+  id: {{specializationId}}
+}
