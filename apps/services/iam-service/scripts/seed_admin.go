@@ -70,7 +70,7 @@ func main() {
 func parseArgs() (*SeedOptions, error) {
 	opts := &SeedOptions{
 		Email:    getEnvOrDefault("SEED_ADMIN_EMAIL", "admin@gradeloop.com"),
-		Password: getEnvOrDefault("SEED_ADMIN_PASSWORD", ""),
+		Password: getEnvOrDefault("SEED_ADMIN_PASSWORD", "Admin@123"),
 		FullName: getEnvOrDefault("SEED_ADMIN_NAME", "Super Admin"),
 		Force:    getEnvOrDefault("SEED_FORCE", "false") == "true",
 	}
@@ -80,8 +80,8 @@ func parseArgs() (*SeedOptions, error) {
 		return nil, errors.New("SEED_ADMIN_PASSWORD environment variable is required")
 	}
 
-	if len(opts.Password) < 12 {
-		return nil, errors.New("admin password must be at least 12 characters long")
+	if len(opts.Password) < 8 {
+		return nil, errors.New("admin password must be at least 8 characters long")
 	}
 
 	return opts, nil
@@ -311,7 +311,7 @@ func printUsage() {
 	fmt.Println("Usage: go run seed_admin.go")
 	fmt.Println("\nEnvironment Variables:")
 	fmt.Println("  SEED_ADMIN_EMAIL     Admin email address (default: admin@gradeloop.com)")
-	fmt.Println("  SEED_ADMIN_PASSWORD  Admin password (required, min 12 characters)")
+	fmt.Println("  SEED_ADMIN_PASSWORD  Admin password (default: Admin@123, min 8 characters)")
 	fmt.Println("  SEED_ADMIN_NAME      Admin full name (default: Super Admin)")
 	fmt.Println("  SEED_FORCE           Force recreate admin user (default: false)")
 	fmt.Println("\nVault Configuration:")
@@ -320,5 +320,7 @@ func printUsage() {
 	fmt.Println("\nDatabase Configuration (via Vault):")
 	fmt.Println("  The script retrieves database connection details from Vault")
 	fmt.Println("\nExample:")
-	fmt.Println("  SEED_ADMIN_PASSWORD=MySecurePassword123 go run scripts/seed_admin.go")
+	fmt.Println("  SEED_ADMIN_PASSWORD=Admin@123 go run scripts/seed_admin.go")
+	fmt.Println("  # Or use default credentials:")
+	fmt.Println("  go run scripts/seed_admin.go")
 }
