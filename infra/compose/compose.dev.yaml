@@ -71,26 +71,6 @@ services:
     networks:
       - gradeloop-network
 
-  # PostgreSQL - Database
-  postgres:
-    image: postgres:16-alpine
-    container_name: gradeloop-postgres-dev
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: gradeloop
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
-      interval: 2s
-      timeout: 5s
-      retries: 15
-    networks:
-      - gradeloop-network
-
   # Email Notify Service
   email-notify-service:
     build:
@@ -153,11 +133,7 @@ services:
       - "traefik.http.middlewares.iam-retry.retry.attempts=3"
       - "traefik.http.middlewares.iam-retry.retry.initialInterval=100ms"
     environment:
-      POSTGRES_HOST: ${POSTGRES_HOST}
-      POSTGRES_PORT: ${POSTGRES_PORT}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      DATABASE_URL: ${POSTGRES_URL_BASE}iam_db?sslmode=${POSTGRES_SSLMODE}
       REDIS_ADDR: "redis:6379"
       INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL}
       INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD}
@@ -165,8 +141,6 @@ services:
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       JAEGER_ENDPOINT: "jaeger:4317"
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
@@ -214,15 +188,9 @@ services:
       - "traefik.http.middlewares.academics-jwt-auth.forwardauth.trustForwardHeader=true"
       - "traefik.http.middlewares.academics-jwt-auth.forwardauth.authResponseHeaders=X-User-Id,X-User-Roles,X-User-Permissions,X-User-Email,X-User-Name"
     environment:
-      POSTGRES_HOST: ${POSTGRES_HOST}
-      POSTGRES_PORT: ${POSTGRES_PORT}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      DATABASE_URL: ${POSTGRES_URL_BASE}academics_db?sslmode=${POSTGRES_SSLMODE}
       JAEGER_ENDPOINT: "jaeger:4317"
     depends_on:
-      postgres:
-        condition: service_healthy
       iam-service:
         condition: service_healthy
     networks:
@@ -282,10 +250,6 @@ networks:
     driver: bridge
 
 volumes:
-  postgres-data:
-    name: gradeloop-postgres-data
-  postgres-secrets:
-    name: gradeloop-postgres-secrets
   rabbitmq-data:
     name: gradeloop-rabbitmq-data
   prometheus-data:

@@ -57,6 +57,7 @@ type DatabaseConfig struct {
 	Port     string
 	Database string
 	SSLMode  string
+	RawURL   string
 }
 
 // JWTConfig holds JWT authentication configuration
@@ -151,6 +152,9 @@ func (ec *EnvClient) GetSecretMap(ctx context.Context, path string) (map[string]
 }
 
 func (ec *EnvClient) GetDatabaseConfig(ctx context.Context) (*DatabaseConfig, error) {
+	if dbURL := os.Getenv("DATABASE_URL"); dbURL != "" {
+		return &DatabaseConfig{RawURL: dbURL}, nil
+	}
 	return &DatabaseConfig{
 		Username: getEnv("POSTGRES_USER", "postgres"),
 		Password: getEnv("POSTGRES_PASSWORD", "postgres"),
@@ -327,6 +331,9 @@ func getEnv(key, defaultValue string) string {
 
 // ConnectionString builds a PostgreSQL connection string from DatabaseConfig
 func (dc *DatabaseConfig) ConnectionString() string {
+	if dc.RawURL != "" {
+		return dc.RawURL
+	}
 	return fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		dc.Host, dc.Port, dc.Username, dc.Password, dc.Database, dc.SSLMode,
