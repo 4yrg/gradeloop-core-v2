@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Lexend } from "next/font/google";
 import "./globals.css";
+import { Providers } from "@/components/providers";
 
 const lexend = Lexend({
   variable: "--font-lexend",
@@ -10,7 +11,11 @@ const lexend = Lexend({
 
 export const metadata: Metadata = {
   title: "GradeLoop | Intelligent LMS",
-  description: "Experience the next generation of academic management with intelligent insights and seamless collaboration.",
+  description:
+    "Experience the next generation of academic management with intelligent insights and seamless collaboration.",
+  other: {
+    "csrf-token": "placeholder", // Will be replaced by middleware with actual CSRF token
+  },
 };
 
 export default function RootLayout({
@@ -19,9 +24,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <meta name="csrf-token" content="placeholder" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="theme-color" content="#000000" />
+      </head>
       <body className={`${lexend.variable} antialiased font-sans`}>
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
