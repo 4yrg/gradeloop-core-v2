@@ -1,0 +1,19 @@
+meta {
+  name: Get Degree
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/academics/degrees/:id?include_inactive=false
+  body: none
+  auth: none
+}
+
+params:query {
+  include_inactive: false
+}
+
+params:path {
+  id: {{degreeId}}
+}
