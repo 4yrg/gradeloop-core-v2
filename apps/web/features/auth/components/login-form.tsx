@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import Link from "next/link"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -134,12 +135,12 @@ export function LoginForm() {
                                 </FormItem>
                             )}
                         />
-                        <button
-                            type="button"
+                        <Link
+                            href="/forgot-password"
                             className="text-sm font-medium text-primary hover:underline transition-all"
                         >
                             Forgot Password?
-                        </button>
+                        </Link>
                     </div>
 
                     <Button
