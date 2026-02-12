@@ -29,53 +29,10 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD", "traefik", "healthcheck"]
+      test: [ "CMD", "traefik", "healthcheck" ]
       interval: 10s
       timeout: 5s
       retries: 3
-
-  # HashiCorp Vault - Secrets Management (Dev Mode)
-  vault:
-    image: hashicorp/vault:1.15
-    container_name: gradeloop-vault-dev
-    hostname: vault
-    ports:
-      - "8200:8200"
-    environment:
-      VAULT_DEV_ROOT_TOKEN_ID: "dev-root-token"
-      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
-      VAULT_ADDR: "http://127.0.0.1:8200"
-      VAULT_LOG_LEVEL: "info"
-    cap_add:
-      - IPC_LOCK
-    volumes:
-      - vault-audit-logs:/vault/logs
-    command: server -dev -dev-root-token-id="dev-root-token"
-    healthcheck:
-      test: ["CMD", "vault", "status"]
-      interval: 2s
-      timeout: 5s
-      retries: 15
-    networks:
-      - gradeloop-network
-
-  # Vault Initializer - Seeds initial secrets on startup
-  vault-init:
-    image: hashicorp/vault:1.15
-    container_name: gradeloop-vault-init
-    depends_on:
-      vault:
-        condition: service_healthy
-    environment:
-      VAULT_ADDR: "http://vault:8200"
-      VAULT_TOKEN: "dev-root-token"
-    volumes:
-      - ../../scripts/vault-init.sh:/vault-init.sh:ro
-      - ./vault/secrets:/vault/secrets:rw
-    command: /bin/sh /vault-init.sh
-    networks:
-      - gradeloop-network
-    restart: "no"
 
   # Redis - In-Memory Cache for Rate Limiting
   redis:
@@ -85,14 +42,13 @@ services:
       - "6379:6379"
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 2s
       timeout: 5s
       retries: 15
     networks:
       - gradeloop-network
 
-  # PostgreSQL - Database
   # RabbitMQ - Message Broker
   rabbitmq:
     image: rabbitmq:3.12-management
@@ -108,7 +64,7 @@ services:
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -128,7 +84,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 2s
       timeout: 5s
       retries: 15
@@ -150,18 +106,14 @@ services:
       RABBITMQ_URL: "amqp://admin:admin123@rabbitmq:5672/gradeloop"
       RABBITMQ_EXCHANGE: "gradeloop.events"
       RABBITMQ_QUEUE: "email.notifications"
-      VAULT_ADDR: "http://vault:8200"
-      VAULT_TOKEN: "dev-root-token"
-      VAULT_NAMESPACE: ""
-      VAULT_MOUNT_PATH: "secret"
-      SMTP_SECRET_PATH: "secret/data/smtp"
+      # Load from .env at root
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
     depends_on:
-      vault:
-        condition: service_healthy
       rabbitmq:
         condition: service_healthy
-      vault-init:
-        condition: service_completed_successfully
     networks:
       - gradeloop-network
     restart: unless-stopped
@@ -201,21 +153,24 @@ services:
       - "traefik.http.middlewares.iam-retry.retry.attempts=3"
       - "traefik.http.middlewares.iam-retry.retry.initialInterval=100ms"
     environment:
-      VAULT_ADDR: "http://vault:8200"
-      VAULT_TOKEN: "dev-root-token"
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
       REDIS_ADDR: "redis:6379"
-      INITIAL_ADMIN_EMAIL: "admin@gradeloop.com"
-      INITIAL_ADMIN_PASSWORD: "Admin@123"
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       JAEGER_ENDPOINT: "jaeger:4317"
     depends_on:
       postgres:
         condition: service_healthy
-      vault:
-        condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/iam/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:3000/api/iam/health" ]
       interval: 10s
       timeout: 5s
       retries: 15
@@ -228,6 +183,8 @@ services:
           path: ../../shared/libs/go/secrets
         - action: rebuild
           path: ../../shared/libs/go/middleware
+        - action: rebuild
+          path: ../../shared/libs/go/logger
     networks:
       - gradeloop-network
 
@@ -257,13 +214,14 @@ services:
       - "traefik.http.middlewares.academics-jwt-auth.forwardauth.trustForwardHeader=true"
       - "traefik.http.middlewares.academics-jwt-auth.forwardauth.authResponseHeaders=X-User-Id,X-User-Roles,X-User-Permissions,X-User-Email,X-User-Name"
     environment:
-      VAULT_ADDR: "http://vault:8200"
-      VAULT_TOKEN: "dev-root-token"
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
       JAEGER_ENDPOINT: "jaeger:4317"
     depends_on:
       postgres:
-        condition: service_healthy
-      vault:
         condition: service_healthy
       iam-service:
         condition: service_healthy
@@ -318,69 +276,12 @@ services:
     networks:
       - gradeloop-network
 
-  # Elasticsearch - Log Storage
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
-    container_name: gradeloop-elasticsearch-dev
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    ports:
-      - "9200:9200"
-    volumes:
-      - elasticsearch-data:/usr/share/elasticsearch/data
-    networks:
-      - gradeloop-network
-
-  # Logstash - Log Processing
-  logstash:
-    image: docker.elastic.co/logstash/logstash:8.11.1
-    container_name: gradeloop-logstash-dev
-    ports:
-      - "5044:5044"
-      - "5000:5000"
-    volumes:
-      - ./elk/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
-    depends_on:
-      - elasticsearch
-    networks:
-      - gradeloop-network
-
-  # Kibana - Log Visualization
-  kibana:
-    image: docker.elastic.co/kibana/kibana:8.11.1
-    container_name: gradeloop-kibana-dev
-    ports:
-      - "5601:5601"
-    depends_on:
-      - elasticsearch
-    networks:
-      - gradeloop-network
-
-  # Filebeat - Log Shipper
-  filebeat:
-    image: docker.elastic.co/beats/filebeat:8.11.1
-    container_name: gradeloop-filebeat-dev
-    user: root
-    volumes:
-      - ./elk/filebeat.yaml:/usr/share/filebeat/filebeat.yml:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-    command: filebeat -e -strict.perms=false
-    depends_on:
-      - logstash
-    networks:
-      - gradeloop-network
-
 networks:
   gradeloop-network:
     name: gradeloop-network
     driver: bridge
 
 volumes:
-  vault-audit-logs:
-    name: gradeloop-vault-audit-logs
   postgres-data:
     name: gradeloop-postgres-data
   postgres-secrets:
@@ -390,4 +291,3 @@ volumes:
   prometheus-data:
   grafana-data:
   jaeger-data:
-  elasticsearch-data:
