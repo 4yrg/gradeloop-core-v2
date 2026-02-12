@@ -206,8 +206,8 @@ func bootstrapSuperAdmin(db *gorm.DB, l *slog.Logger) error {
 		return errors.New("INITIAL_ADMIN_USERNAME and INITIAL_ADMIN_PASSWORD must be set")
 	}
 
-	if len(password) < 12 {
-		return errors.New("initial admin password must be at least 12 characters long")
+	if len(password) < 8 {
+		return errors.New("initial admin password must be at least 8 characters long")
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), 12)

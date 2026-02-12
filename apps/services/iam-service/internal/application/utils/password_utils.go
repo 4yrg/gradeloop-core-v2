@@ -6,10 +6,10 @@ import (
 )
 
 // ValidatePasswordPolicy enforces the strong password policy:
-// >= 12 characters, 4 character classes (uppercase, lowercase, numbers, symbols)
+// >= 8 characters, 4 character classes (uppercase, lowercase, numbers, symbols)
 func ValidatePasswordPolicy(password string) error {
-	if len(password) < 12 {
-		return errors.New("password must be at least 12 characters long")
+	if len(password) < 8 {
+		return errors.New("password must be at least 8 characters long")
 	}
 
 	var (
