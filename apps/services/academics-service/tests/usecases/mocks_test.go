@@ -264,3 +264,168 @@ func (m *MockAuditRepository) CreateAuditLog(ctx context.Context, log *models.Au
 	args := m.Called(ctx, log)
 	return args.Error(0)
 }
+
+// MockEnrollmentRepository is a mock implementation of ports.EnrollmentRepository
+type MockEnrollmentRepository struct {
+	mock.Mock
+}
+
+func (m *MockEnrollmentRepository) AddBatchMember(ctx context.Context, member *models.BatchMember) error {
+	args := m.Called(ctx, member)
+	return args.Error(0)
+}
+
+func (m *MockEnrollmentRepository) GetBatchMembers(ctx context.Context, batchID uuid.UUID) ([]models.BatchMember, error) {
+	args := m.Called(ctx, batchID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]models.BatchMember), args.Error(1)
+}
+
+func (m *MockEnrollmentRepository) GetBatchMember(ctx context.Context, batchID, userID uuid.UUID) (*models.BatchMember, error) {
+	args := m.Called(ctx, batchID, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.BatchMember), args.Error(1)
+}
+
+func (m *MockEnrollmentRepository) UpdateBatchMember(ctx context.Context, member *models.BatchMember) error {
+	args := m.Called(ctx, member)
+	return args.Error(0)
+}
+
+func (m *MockEnrollmentRepository) CreateCourseInstance(ctx context.Context, instance *models.CourseInstance) (*models.CourseInstance, error) {
+	args := m.Called(ctx, instance)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.CourseInstance), args.Error(1)
+}
+
+func (m *MockEnrollmentRepository) GetCourseInstanceByID(ctx context.Context, id uuid.UUID) (*models.CourseInstance, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.CourseInstance), args.Error(1)
+}
+
+func (m *MockEnrollmentRepository) UpdateCourseInstance(ctx context.Context, instance *models.CourseInstance) (*models.CourseInstance, error) {
+	args := m.Called(ctx, instance)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.CourseInstance), args.Error(1)
+}
+
+func (m *MockEnrollmentRepository) ListCourseInstances(ctx context.Context, batchID *uuid.UUID, semesterID *uuid.UUID) ([]models.CourseInstance, error) {
+	args := m.Called(ctx, batchID, semesterID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]models.CourseInstance), args.Error(1)
+}
+
+func (m *MockEnrollmentRepository) AssignInstructor(ctx context.Context, assignment *models.CourseInstructor) error {
+	args := m.Called(ctx, assignment)
+	return args.Error(0)
+}
+
+func (m *MockEnrollmentRepository) RemoveInstructor(ctx context.Context, courseInstanceID, userID uuid.UUID) error {
+	args := m.Called(ctx, courseInstanceID, userID)
+	return args.Error(0)
+}
+
+func (m *MockEnrollmentRepository) GetCourseInstructors(ctx context.Context, courseInstanceID uuid.UUID) ([]models.CourseInstructor, error) {
+	args := m.Called(ctx, courseInstanceID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]models.CourseInstructor), args.Error(1)
+}
+
+func (m *MockEnrollmentRepository) EnrollStudent(ctx context.Context, enrollment *models.CourseEnrollment) error {
+	args := m.Called(ctx, enrollment)
+	return args.Error(0)
+}
+
+func (m *MockEnrollmentRepository) UpdateEnrollment(ctx context.Context, enrollment *models.CourseEnrollment) error {
+	args := m.Called(ctx, enrollment)
+	return args.Error(0)
+}
+
+func (m *MockEnrollmentRepository) GetEnrollments(ctx context.Context, courseInstanceID uuid.UUID) ([]models.CourseEnrollment, error) {
+	args := m.Called(ctx, courseInstanceID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]models.CourseEnrollment), args.Error(1)
+}
+
+func (m *MockEnrollmentRepository) GetEnrollment(ctx context.Context, courseInstanceID, studentID uuid.UUID) (*models.CourseEnrollment, error) {
+	args := m.Called(ctx, courseInstanceID, studentID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.CourseEnrollment), args.Error(1)
+}
+
+// MockCourseRepository is a mock implementation of ports.CourseRepository
+type MockCourseRepository struct {
+	mock.Mock
+}
+
+func (m *MockCourseRepository) CreateCourse(ctx context.Context, course *models.Course) (*models.Course, error) {
+	args := m.Called(ctx, course)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.Course), args.Error(1)
+}
+
+func (m *MockCourseRepository) GetCourseByID(ctx context.Context, id uuid.UUID) (*models.Course, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.Course), args.Error(1)
+}
+
+func (m *MockCourseRepository) ListCourses(ctx context.Context) ([]models.Course, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]models.Course), args.Error(1)
+}
+
+// MockSemesterRepository is a mock implementation of ports.SemesterRepository
+type MockSemesterRepository struct {
+	mock.Mock
+}
+
+func (m *MockSemesterRepository) CreateSemester(ctx context.Context, semester *models.Semester) (*models.Semester, error) {
+	args := m.Called(ctx, semester)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.Semester), args.Error(1)
+}
+
+func (m *MockSemesterRepository) GetSemesterByID(ctx context.Context, id uuid.UUID) (*models.Semester, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.Semester), args.Error(1)
+}
+
+func (m *MockSemesterRepository) ListSemesters(ctx context.Context, includeInactive bool) ([]models.Semester, error) {
+	args := m.Called(ctx, includeInactive)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]models.Semester), args.Error(1)
+}
