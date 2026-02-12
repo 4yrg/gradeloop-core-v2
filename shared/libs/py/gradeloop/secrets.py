@@ -149,9 +149,6 @@ class SecretsClient:
 
     def get_database_config(self) -> DatabaseConfig:
         """Retrieve database configuration."""
-        if os.getenv("DATABASE_URL"):
-            return DatabaseConfig(raw_url=os.getenv("DATABASE_URL"))
-
         if os.getenv("POSTGRES_HOST"):
             return DatabaseConfig(
                 username=os.getenv("POSTGRES_USER", "postgres"),
@@ -174,7 +171,7 @@ class SecretsClient:
 
     def get_jwt_config(self) -> JWTConfig:
         """Retrieve JWT configuration."""
-        if os.Getenv("JWT_ACCESS_SECRET"):
+        if os.getenv("JWT_ACCESS_SECRET"):
             return JWTConfig(
                 secret=os.getenv("JWT_ACCESS_SECRET", ""),
                 algorithm=os.getenv("JWT_ALGORITHM", "HS256"),
