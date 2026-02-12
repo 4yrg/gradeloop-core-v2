@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { motion } from "motion/react"
-import { School, HelpCircle } from "lucide-react"
+import { HelpCircle } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -41,8 +41,12 @@ export function AuthLayout({ children, className }: AuthLayoutProps) {
                 {/* Decorative Branding Element */}
                 <div className="absolute top-12 left-12">
                     <div className="flex items-center space-x-2 text-white">
-                        <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                            <School className="h-6 w-6 text-white" />
+                        <div className="flex items-center justify-center">
+                            <img
+                                src="/brand/assets/logo.png"
+                                alt="GradeLoop"
+                                className="h-10 w-auto"
+                            />
                         </div>
                         <span className="text-2xl font-bold tracking-tight">GradeLoop</span>
                     </div>
@@ -54,8 +58,12 @@ export function AuthLayout({ children, className }: AuthLayoutProps) {
                 <div className="w-full max-w-md">
                     {/* Mobile Branding */}
                     <div className="flex lg:hidden items-center space-x-2 mb-10">
-                        <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                            <School className="h-6 w-6 text-white" />
+                        <div className="flex items-center justify-center">
+                            <img
+                                src="/brand/assets/logo.png"
+                                alt="GradeLoop"
+                                className="h-10 w-auto"
+                            />
                         </div>
                         <span className="text-2xl font-bold text-[#002333] tracking-tight">
                             GradeLoop
