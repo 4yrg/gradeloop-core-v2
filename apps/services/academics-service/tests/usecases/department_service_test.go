@@ -13,48 +13,6 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// MockDepartmentRepository is a mock implementation of ports.DepartmentRepository
-type MockDepartmentRepository struct {
-	mock.Mock
-}
-
-func (m *MockDepartmentRepository) CreateDepartment(ctx context.Context, department *models.Department) (*models.Department, error) {
-	args := m.Called(ctx, department)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.Department), args.Error(1)
-}
-
-func (m *MockDepartmentRepository) GetDepartmentByID(ctx context.Context, id uuid.UUID, includeInactive bool) (*models.Department, error) {
-	args := m.Called(ctx, id, includeInactive)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.Department), args.Error(1)
-}
-
-func (m *MockDepartmentRepository) ListDepartmentsByFaculty(ctx context.Context, facultyID uuid.UUID, includeInactive bool) ([]models.Department, error) {
-	args := m.Called(ctx, facultyID, includeInactive)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]models.Department), args.Error(1)
-}
-
-func (m *MockDepartmentRepository) UpdateDepartment(ctx context.Context, department *models.Department) (*models.Department, error) {
-	args := m.Called(ctx, department)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.Department), args.Error(1)
-}
-
-func (m *MockDepartmentRepository) DeleteDepartment(ctx context.Context, id uuid.UUID) error {
-	args := m.Called(ctx, id)
-	return args.Error(0)
-}
-
 func TestDepartmentService_CreateDepartment(t *testing.T) {
 	mockDeptRepo := new(MockDepartmentRepository)
 	mockFacultyRepo := new(MockFacultyRepository)

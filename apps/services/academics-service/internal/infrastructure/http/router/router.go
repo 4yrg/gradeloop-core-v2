@@ -11,6 +11,7 @@ func Setup(
 	departmentHandler *handlers.DepartmentHandler,
 	degreeHandler *handlers.DegreeHandler,
 	specializationHandler *handlers.SpecializationHandler,
+	batchHandler *handlers.BatchHandler,
 ) {
 	api := app.Group("/api")
 	academics := api.Group("/academics")
@@ -53,4 +54,13 @@ func Setup(
 	specializations.Get("/:id", specializationHandler.GetSpecialization)
 	specializations.Patch("/:id", specializationHandler.UpdateSpecialization)
 	specializations.Delete("/:id", specializationHandler.DeleteSpecialization)
+
+	// Batch routes
+	batches := academics.Group("/batches")
+	batches.Post("/", batchHandler.CreateBatch)
+	batches.Get("/:id", batchHandler.GetBatch)
+	batches.Get("/:id/children", batchHandler.GetDirectChildren)
+	batches.Get("/tree/:root_id", batchHandler.GetSubtree)
+	batches.Patch("/:id", batchHandler.UpdateBatch)
+	batches.Delete("/:id", batchHandler.DeleteBatch)
 }
