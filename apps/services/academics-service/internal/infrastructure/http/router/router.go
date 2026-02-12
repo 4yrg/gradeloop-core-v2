@@ -5,7 +5,13 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-func Setup(app *fiber.App, facultyHandler *handlers.FacultyHandler, departmentHandler *handlers.DepartmentHandler) {
+func Setup(
+	app *fiber.App,
+	facultyHandler *handlers.FacultyHandler,
+	departmentHandler *handlers.DepartmentHandler,
+	degreeHandler *handlers.DegreeHandler,
+	specializationHandler *handlers.SpecializationHandler,
+) {
 	api := app.Group("/api")
 	academics := api.Group("/academics")
 
@@ -27,4 +33,24 @@ func Setup(app *fiber.App, facultyHandler *handlers.FacultyHandler, departmentHa
 	departments.Get("/:id", departmentHandler.GetDepartment)
 	departments.Patch("/:id", departmentHandler.UpdateDepartment)
 	departments.Delete("/:id", departmentHandler.DeleteDepartment)
+
+	// Degree routes (nested under departments)
+	departments.Post("/:department_id/degrees", degreeHandler.CreateDegree)
+	departments.Get("/:department_id/degrees", degreeHandler.ListDegrees)
+
+	// Degree routes (top-level)
+	degrees := academics.Group("/degrees")
+	degrees.Get("/:id", degreeHandler.GetDegree)
+	degrees.Patch("/:id", degreeHandler.UpdateDegree)
+	degrees.Delete("/:id", degreeHandler.DeleteDegree)
+
+	// Specialization routes (nested under degrees)
+	degrees.Post("/:degree_id/specializations", specializationHandler.CreateSpecialization)
+	degrees.Get("/:degree_id/specializations", specializationHandler.ListSpecializations)
+
+	// Specialization routes (top-level)
+	specializations := academics.Group("/specializations")
+	specializations.Get("/:id", specializationHandler.GetSpecialization)
+	specializations.Patch("/:id", specializationHandler.UpdateSpecialization)
+	specializations.Delete("/:id", specializationHandler.DeleteSpecialization)
 }
