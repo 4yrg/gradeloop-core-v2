@@ -35,6 +35,20 @@ type requestActivationRequest struct {
 	Email string `json:"email"`
 }
 
+type forgotPasswordRequest struct {
+	Email string `json:"email"`
+}
+
+type resetPasswordRequest struct {
+	Token    string `json:"token"`
+	Password string `json:"password"`
+}
+
+type changePasswordRequest struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
 // Login handles POST /login
 func (h *AuthHandler) Login(c fiber.Ctx) error {
 	var req loginRequest
@@ -182,4 +196,82 @@ func (h *AuthHandler) ValidateToken(c fiber.Ctx) error {
 
 	// Return 200 OK for successful validation
 	return c.SendStatus(fiber.StatusOK)
+}
+
+// ForgotPassword handles POST /forgot-password
+func (h *AuthHandler) ForgotPassword(c fiber.Ctx) error {
+	var req forgotPasswordRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	if req.Email == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "email is required"})
+	}
+
+	if err := h.usecase.ForgotPassword(c.Context(), req.Email); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	// Always return success to prevent user enumeration
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "if the email exists, a password reset link has been sent",
+	})
+}
+
+// ResetPassword handles POST /reset-password
+func (h *AuthHandler) ResetPassword(c fiber.Ctx) error {
+	var req resetPasswordRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	if req.Token == "" || req.Password == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "token and password are required"})
+	}
+
+	if err := h.usecase.ResetPassword(c.Context(), req.Token, req.Password); err != nil {
+		if strings.Contains(err.Error(), "invalid") || strings.Contains(err.Error(), "expired") {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "password has been reset successfully",
+	})
+}
+
+// ChangePassword handles PATCH /users/me/password
+func (h *AuthHandler) ChangePassword(c fiber.Ctx) error {
+	var req changePasswordRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	if req.CurrentPassword == "" || req.NewPassword == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "current password and new password are required"})
+	}
+
+	// Extract user ID from JWT token (set by auth middleware)
+	userID := c.Locals("user_id")
+	if userID == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "user not authenticated"})
+	}
+
+	userUUID, err := uuid.Parse(userID.(string))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user ID"})
+	}
+
+	if err := h.usecase.ChangePassword(c.Context(), userUUID, req.CurrentPassword, req.NewPassword); err != nil {
+		if strings.Contains(err.Error(), "incorrect") {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "password has been changed successfully",
+	})
 }
