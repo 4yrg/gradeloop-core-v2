@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/application/ports"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/application/usecases"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http"
@@ -110,7 +111,7 @@ func main() {
 	db.Exec("DELETE FROM roles WHERE role_name = '' OR role_name IS NULL")
 
 	// Auto Migration
-	if err := db.AutoMigrate(&models.User{}, &models.Student{}, &models.Employee{}, &models.Role{}, &models.Permission{}, &models.AuditLog{}, &models.RefreshToken{}); err != nil {
+	if err := db.AutoMigrate(&models.User{}, &models.Student{}, &models.Employee{}, &models.Role{}, &models.Permission{}, &models.AuditLog{}, &models.RefreshToken{}, &models.PasswordResetToken{}); err != nil {
 		l.Error("failed to migrate database", "error", err)
 		os.Exit(1)
 	}
@@ -153,12 +154,23 @@ func main() {
 	roleRepo := repositories.NewRoleRepository(db)
 	permissionRepo := repositories.NewPermissionRepository(db)
 	refreshTokenRepo := repositories.NewRefreshTokenRepository(db)
-	notificationStub := notifications.NewNotificationStub()
+	passwordResetRepo := repositories.NewPasswordResetRepository(db)
+
+	// Initialize notification service (email service integration)
+	var notificationService ports.NotificationPort
+	emailServiceURL := os.Getenv("EMAIL_SERVICE_URL")
+	if emailServiceURL != "" {
+		l.Info("Using email notification client", "email_service_url", emailServiceURL)
+		notificationService = notifications.NewEmailNotificationClient(emailServiceURL)
+	} else {
+		l.Info("Email service URL not configured, using notification stub")
+		notificationService = notifications.NewNotificationStub()
+	}
 
 	userUsecase := usecases.NewUserUsecase(userRepo, auditRepo)
 	roleUsecase := usecases.NewRoleUsecase(roleRepo, auditRepo)
 	permissionUsecase := usecases.NewPermissionUsecase(permissionRepo)
-	authUsecase := usecases.NewAuthUsecase(userRepo, refreshTokenRepo, auditRepo, notificationStub, jwtConfig.Secret)
+	authUsecase := usecases.NewAuthUsecase(userRepo, refreshTokenRepo, passwordResetRepo, auditRepo, notificationService, jwtConfig.Secret)
 
 	userHandler := handlers.NewUserHandler(userUsecase)
 	roleHandler := handlers.NewRoleHandler(roleUsecase)
