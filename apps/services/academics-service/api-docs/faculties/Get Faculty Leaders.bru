@@ -1,0 +1,19 @@
+meta {
+  name: Get Faculty Leaders
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{base_url}}/faculties/:id/leaders
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+params:path {
+  id: 
+}
