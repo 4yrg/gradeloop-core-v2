@@ -17,11 +17,12 @@ type RouteConfig struct {
 	Path       string `yaml:"path"`
 	Method     string `yaml:"method"`
 	Permission string `yaml:"permission"`
+	Service    string `yaml:"service"`
 }
 
 type Config struct {
-	Routes   []RouteConfig     `yaml:"routes"`
-	Upstream map[string]string `yaml:"upstream"`
+	Routes    []RouteConfig     `yaml:"routes"`
+	Upstream  map[string]string `yaml:"upstream"`
 	JWTSecret string
 }
 

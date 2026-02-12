@@ -37,10 +37,17 @@ func main() {
 		permissionMid := middleware.HasPermission(r.Permission, logger)
 
 		// Register route in fiber
-		app.Add(r.Method, r.Path, jwtMid, permissionMid, func(c fiber.Ctx) error {
-			// Determine upstream based on service prefix or explicit config
-			// For Academics Service, all routes in our config are Academics.
-			target := cfg.Upstream["academics"] + c.Path()
+		app.Add([]string{r.Method}, r.Path, jwtMid, permissionMid, func(c fiber.Ctx) error {
+			// Determine upstream based on service configuration
+			upstreamURL, ok := cfg.Upstream[r.Service]
+			if !ok {
+				logger.Error("upstream not found for service", "service", r.Service)
+				return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": "upstream_configuration_error"})
+			}
+
+			// Remove the service prefix if needed, or just forward as is.
+			// Assuming services expect the full path /api/...
+			target := upstreamURL + c.Path()
 			return proxy.Do(c, target)
 		})
 	}
