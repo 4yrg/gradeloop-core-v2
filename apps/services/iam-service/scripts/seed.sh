@@ -47,7 +47,7 @@ USAGE:
 
 OPTIONS:
     -e, --email <EMAIL>         Admin email address (default: $DEFAULT_ADMIN_EMAIL)
-    -p, --password <PASSWORD>   Admin password (required, min 12 characters)
+    -p, --password <PASSWORD>   Admin password (required, min 8 characters)
     -n, --name <NAME>           Admin full name (default: $DEFAULT_ADMIN_NAME)
     -f, --force                 Force recreate admin user even if users exist
     -h, --help                  Show this help message
