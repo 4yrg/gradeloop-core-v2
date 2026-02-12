@@ -71,10 +71,14 @@ EXAMPLES:
     $0 --password MySecurePassword123 --force
 
     # Using environment variables
-    SEED_ADMIN_PASSWORD=MySecurePassword123 $0
+    SEED_ADMIN_PASSWORD=Admin@123 $0
+
+    # Using default credentials (no password needed)
+    $0
 
 NOTES:
-    - Password must be at least 12 characters long
+    - Password must be at least 8 characters long
+    - Default admin credentials: admin@gradeloop.com / Admin@123
     - Vault must be running and accessible
     - Database connection details are retrieved from Vault
     - The script will create all necessary permissions and roles
@@ -86,8 +90,8 @@ EOF
 validate_password() {
     local password="$1"
 
-    if [[ ${#password} -lt 12 ]]; then
-        print_error "Password must be at least 12 characters long"
+    if [[ ${#password} -lt 8 ]]; then
+        print_error "Password must be at least 8 characters long"
         return 1
     fi
 
@@ -264,6 +268,12 @@ main() {
     print_info "  Email: $SEED_ADMIN_EMAIL"
     print_info "  Name: $SEED_ADMIN_NAME"
     print_info "  Force: $SEED_FORCE"
+
+    # Show default credentials info
+    print_info "Default admin credentials:"
+    print_info "  Email: admin@gradeloop.com"
+    print_info "  Password: Admin@123"
+    print_info ""
 
     # Ask for confirmation unless force mode
     if [[ "$force" != "true" ]]; then
