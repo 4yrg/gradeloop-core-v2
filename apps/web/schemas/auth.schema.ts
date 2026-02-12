@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  LoginSchema,
+  ForgotPasswordSchema,
+  ResetPasswordSchema,
+} from "../features/auth/schemas/auth.schema";
 
 // Base user schema
 export const UserSchema = z.object({
@@ -304,3 +309,8 @@ export const ClientAuthStateSchema = z.object({
 });
 
 export type ClientAuthState = z.infer<typeof ClientAuthStateSchema>;
+
+// Re-export form schemas for compatibility
+export { LoginSchema, ForgotPasswordSchema, ResetPasswordSchema };
+
+export default {};
