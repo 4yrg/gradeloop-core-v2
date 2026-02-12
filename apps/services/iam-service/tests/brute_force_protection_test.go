@@ -51,9 +51,10 @@ func setupBruteForceTestApp(t *testing.T) (*fiber.App, *gorm.DB, *redis.Client) 
 	refreshTokenRepo := repositories.NewRefreshTokenRepository(db)
 	auditRepo := &MockAuditRepository{}
 	notificationStub := notifications.NewNotificationStub()
+	passwordResetRepo := repositories.NewPasswordResetRepository(db)
 
 	// Usecases
-	authUsecase := usecases.NewAuthUsecase(userRepo, refreshTokenRepo, auditRepo, notificationStub, "test-secret")
+	authUsecase := usecases.NewAuthUsecase(userRepo, refreshTokenRepo, passwordResetRepo, auditRepo, notificationStub, "test-secret")
 	userUsecase := usecases.NewUserUsecase(userRepo, auditRepo)
 	roleUsecase := &usecases.RoleUsecase{}
 	permissionUsecase := &usecases.PermissionUsecase{}
@@ -233,9 +234,10 @@ func TestBruteForceProtection_RedisFailureDegradedMode(t *testing.T) {
 	refreshTokenRepo := repositories.NewRefreshTokenRepository(db)
 	auditRepo := &MockAuditRepository{}
 	notificationStub := notifications.NewNotificationStub()
+	passwordResetRepo := repositories.NewPasswordResetRepository(db)
 
 	// Usecases
-	authUsecase := usecases.NewAuthUsecase(userRepo, refreshTokenRepo, auditRepo, notificationStub, "test-secret")
+	authUsecase := usecases.NewAuthUsecase(userRepo, refreshTokenRepo, passwordResetRepo, auditRepo, notificationStub, "test-secret")
 	userUsecase := usecases.NewUserUsecase(userRepo, auditRepo)
 	roleUsecase := &usecases.RoleUsecase{}
 	permissionUsecase := &usecases.PermissionUsecase{}

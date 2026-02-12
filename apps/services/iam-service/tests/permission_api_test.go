@@ -54,7 +54,8 @@ func setupTestApp(t *testing.T) (*fiber.App, *gorm.DB) {
 
 	notificationStub := notifications.NewNotificationStub()
 	refreshTokenRepo := repositories.NewRefreshTokenRepository(db)
-	authUsecase := usecases.NewAuthUsecase(userRepo, refreshTokenRepo, auditRepo, notificationStub, "test-secret")
+	passwordResetRepo := repositories.NewPasswordResetRepository(db)
+	authUsecase := usecases.NewAuthUsecase(userRepo, refreshTokenRepo, passwordResetRepo, auditRepo, notificationStub, "test-secret")
 	authHandler := handlers.NewAuthHandler(authUsecase)
 
 	app := fiber.New()
