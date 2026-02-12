@@ -47,7 +47,8 @@ func setupLifecycleTestApp(t *testing.T) (*fiber.App, *gorm.DB) {
 	userUsecase := usecases.NewUserUsecase(userRepo, auditRepo)
 	roleUsecase := usecases.NewRoleUsecase(roleRepo, auditRepo)
 	permissionUsecase := usecases.NewPermissionUsecase(permissionRepo)
-	authUsecase := usecases.NewAuthUsecase(userRepo, refreshTokenRepo, auditRepo, notificationStub, "test-secret")
+	passwordResetRepo := repositories.NewPasswordResetRepository(db)
+	authUsecase := usecases.NewAuthUsecase(userRepo, refreshTokenRepo, passwordResetRepo, auditRepo, notificationStub, "test-secret")
 
 	// Handlers
 	userHandler := handlers.NewUserHandler(userUsecase)
