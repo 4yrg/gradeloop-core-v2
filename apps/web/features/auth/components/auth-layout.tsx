@@ -19,7 +19,7 @@ export function AuthLayout({ children, className }: AuthLayoutProps) {
                 <img
                     alt="Students collaborating"
                     className="absolute inset-0 w-full h-full object-cover"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuBosbDyT9lByLgoGb2Tz0T3zJflWl_1F9BbBT-xfoUoNqYSkXpkd5LaZ2e6hcyhZIN-gTcUia2pETFZB2-xL_dESVKUHQjh3ppb9lGCcJV5f0bXs_0B2AvbsXzN1I9NC_CMf5a6jgwjBmfpZ3ri6IJxnisM2rvz7Komw6YikkjOHEovr7fMhGfk0LOXdAMUHOdmsFyriYtMhO5ItosqhDfswxA8GD_eotUDY3OeQTWvyYpXO7njH9rJszOrY7KRd3c1-A3AY44QCyI"
+                    src="/images/auth/auth1.jpg"
                 />
                 <div className="absolute inset-0 bg-gradient-to-b from-[#002333]/40 to-[#159999]/60 flex flex-col justify-end p-16 text-white">
                     <div className="max-w-md">
