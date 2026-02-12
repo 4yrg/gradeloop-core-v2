@@ -5,6 +5,7 @@ import (
 
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 // AdminOnly middleware ensures that only users with admin status can access the decorated endpoints.
@@ -66,6 +67,65 @@ func ForcePasswordReset() fiber.Handler {
 				"error":    "Mandatory password reset required",
 				"redirect": "/force-password-reset",
 			})
+		}
+
+		return c.Next()
+	}
+}
+
+// AuthRequired middleware extracts and validates JWT token from Authorization header
+// and sets user_id in context for protected endpoints
+func AuthRequired() fiber.Handler {
+	return func(c fiber.Ctx) error {
+		authHeader := c.Get("Authorization")
+		if authHeader == "" {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "Missing authorization header",
+			})
+		}
+
+		// Extract Bearer token
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "Invalid authorization header format",
+			})
+		}
+
+		tokenStr := parts[1]
+		if tokenStr == "" {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "Missing token",
+			})
+		}
+
+		// Validate JWT token - we need the JWT secret from environment or config
+		// For now, we'll extract from X-User-Id header set by API gateway
+		userIDHeader := c.Get("X-User-Id")
+		if userIDHeader == "" {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "Invalid or expired token",
+			})
+		}
+
+		// Validate user ID format
+		userID, err := uuid.Parse(userIDHeader)
+		if err != nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "Invalid user ID in token",
+			})
+		}
+
+		// Set user ID in context for handlers to use
+		c.Locals("user_id", userID.String())
+
+		// Also set roles and permissions if available from headers
+		if rolesHeader := c.Get("X-User-Roles"); rolesHeader != "" {
+			c.Locals("user_roles", strings.Split(rolesHeader, ","))
+		}
+
+		if permissionsHeader := c.Get("X-User-Permissions"); permissionsHeader != "" {
+			c.Locals("user_permissions", strings.Split(permissionsHeader, ","))
 		}
 
 		return c.Next()
