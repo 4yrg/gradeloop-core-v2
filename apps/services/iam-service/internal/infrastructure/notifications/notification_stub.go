@@ -26,3 +26,15 @@ func (s *NotificationStub) SendActivationLink(ctx context.Context, userID uuid.U
 	// In a real implementation, this would make a gRPC or REST call to the email-notify-service.
 	return nil
 }
+
+// SendPasswordResetLink simulates sending a password reset email by logging the details.
+func (s *NotificationStub) SendPasswordResetLink(ctx context.Context, userID uuid.UUID, email string, resetLink string) error {
+	slog.Info("NotificationStub: Sending password reset link",
+		"user_id", userID,
+		"email", email,
+		"reset_link", resetLink,
+	)
+
+	// In a real implementation, this would make a gRPC or REST call to the email-notify-service.
+	return nil
+}
