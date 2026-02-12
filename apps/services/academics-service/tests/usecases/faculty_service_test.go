@@ -13,66 +13,6 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// MockFacultyRepository is a mock implementation of ports.FacultyRepository
-type MockFacultyRepository struct {
-	mock.Mock
-}
-
-func (m *MockFacultyRepository) CreateFaculty(ctx context.Context, faculty *models.Faculty, leaders []models.FacultyLeadership) (*models.Faculty, error) {
-	args := m.Called(ctx, faculty, leaders)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.Faculty), args.Error(1)
-}
-
-func (m *MockFacultyRepository) GetFacultyByID(ctx context.Context, id uuid.UUID, includeInactive bool) (*models.Faculty, error) {
-	args := m.Called(ctx, id, includeInactive)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.Faculty), args.Error(1)
-}
-
-func (m *MockFacultyRepository) ListFaculties(ctx context.Context, includeInactive bool) ([]models.Faculty, error) {
-	args := m.Called(ctx, includeInactive)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]models.Faculty), args.Error(1)
-}
-
-func (m *MockFacultyRepository) UpdateFaculty(ctx context.Context, faculty *models.Faculty) (*models.Faculty, error) {
-	args := m.Called(ctx, faculty)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.Faculty), args.Error(1)
-}
-
-func (m *MockFacultyRepository) DeleteFaculty(ctx context.Context, id uuid.UUID) error {
-	args := m.Called(ctx, id)
-	return args.Error(0)
-}
-
-func (m *MockFacultyRepository) GetFacultyLeaders(ctx context.Context, facultyID uuid.UUID) ([]models.FacultyLeadership, error) {
-	args := m.Called(ctx, facultyID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]models.FacultyLeadership), args.Error(1)
-}
-
-// MockAuditRepository is a mock implementation of ports.AuditRepository
-type MockAuditRepository struct {
-	mock.Mock
-}
-
-func (m *MockAuditRepository) CreateAuditLog(ctx context.Context, log *models.AuditLog) error {
-	args := m.Called(ctx, log)
-	return args.Error(0)
-}
-
 func TestFacultyService_CreateFaculty(t *testing.T) {
 	mockFacultyRepo := new(MockFacultyRepository)
 	mockAuditRepo := new(MockAuditRepository)
