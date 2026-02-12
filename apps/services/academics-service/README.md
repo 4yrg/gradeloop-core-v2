@@ -8,6 +8,10 @@ The Academics Service is responsible for managing the core academic structure of
 
 - **Faculty Management**: Create, update, and deactivate academic faculties.
 - **Leadership Management**: Assign and manage leadership roles within faculties.
+- **Department Management**: Create and manage departments within faculties.
+- **Degree Management**: Create and manage degree programs within departments.
+- **Specialization Management**: Create and manage specializations within degrees.
+- **Batch/Group Management**: Create hierarchical batches with nested sub-groups for cohort management.
 
 ## Tech Stack
 
@@ -27,6 +31,15 @@ The Academics Service is responsible for managing the core academic structure of
 - `PATCH /api/academics/faculties/{id}`: Update a faculty's metadata.
 - `DELETE /api/academics-service/faculties/{id}`: Deactivate a faculty.
 - `GET /api/academics/faculties/{id}/leaders`: Get the leadership panel for a faculty.
+
+### Batches
+
+- `POST /api/academics/batches`: Create a new batch (root or child).
+- `GET /api/academics/batches/{id}`: Get a single batch by ID.
+- `GET /api/academics/batches/{id}/children`: List direct children of a batch.
+- `GET /api/academics/batches/tree/{root_id}`: Get full subtree starting from a root batch.
+- `PATCH /api/academics/batches/{id}`: Update a batch's details.
+- `DELETE /api/academics/batches/{id}`: Soft delete a batch with recursive cascade.
 
 ## Development
 
