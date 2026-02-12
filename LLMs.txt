@@ -2,105 +2,365 @@
 
 This project is a high-performance web client built with **Bun**, **Next.js (App Router)**, and a strictly typed ecosystem for an AI-integrated Learning Management System (LMS).
 
-## Primary Tech Stack
+---
+
+# Primary Tech Stack
+
 - **Runtime**: Bun (Strictly use `bun` for scripts and package management)
 - **Framework**: Next.js 16+ (App Router)
-- **UI Architecture**: HeroUI v3 (React Native/Web unified components)
-- **Animation**: Motion (The `motion` package; avoid `framer-motion` imports)
+- **UI Architecture**: shadcn/ui (Radix UI + TailwindCSS v4)
+- **Animation**: Motion (`motion` package only — never `framer-motion`)
 - **State Management**: Zustand v5 (Store-based, immutable state)
-- **Data Layer**: TanStack Query v5 (React Query)
+- **Data Layer**: TanStack Query v5
 - **HTTP Client**: Axios (Instance-based)
 - **Form Handling**: React Hook Form v7 with Hookform Resolvers
 - **Validation**: Zod v4 (Schema-first development)
 - **Styling**: TailwindCSS v4 with PostCSS
-- **Utilities**: clsx for conditional classes, date-fns for date manipulation
+- **Utilities**: clsx (or `cn` utility), date-fns
+- **Icons**: lucide-react
 
-## Development Standards & Patterns
+---
 
-### 1. Data Fetching & Type Safety (The "Golden Pipeline")
-All API interactions must follow this rigid flow to ensure runtime and compile-time safety:
-- **Define Schemas**: Create a Zod schema in `@/schemas` or feature folders.
-- **Axios Fetchers**: Perform requests using a central Axios instance.
-- **Validation**: Every fetcher MUST use `Schema.parse(response.data)` before returning. Do not use `as Type` assertions.
-- **Query Hooks**: Wrap fetchers in TanStack Query `useQuery` or `useMutation` hooks.
-- **Example Pattern**:
-  ```typescript
-  // Schema Definition
-  const UserSchema = z.object({
-    id: z.string(),
-    name: z.string(),
-    email: z.string().email(),
-    role: z.enum(['student', 'instructor', 'admin'])
+# Development Standards & Patterns
+
+---
+
+## 1. Data Fetching & Type Safety (The "Golden Pipeline")
+
+All API interactions must strictly follow this pipeline:
+
+1. **Define Zod Schema**
+2. **Axios fetcher**
+3. **Validate with `Schema.parse()`**
+4. **Wrap in TanStack Query hook**
+
+### Rules
+
+- ❌ Never use `as Type` assertions
+- ❌ Never return unvalidated response data
+- ✅ Always validate using Zod before returning
+
+### Required Pattern
+
+```ts
+// schemas/user.schema.ts
+import { z } from "zod";
+
+export const UserSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string().email(),
+  role: z.enum(["student", "instructor", "admin"]),
+});
+
+export type User = z.infer<typeof UserSchema>;
+```
+
+```ts
+// features/users/api/get-user.ts
+import { api } from "@/lib/api";
+import { UserSchema } from "@/schemas/user.schema";
+
+export const getUser = async (id: string) => {
+  const res = await api.get(`/users/${id}`);
+  return UserSchema.parse(res.data);
+};
+```
+
+```ts
+// features/users/hooks/use-user.ts
+import { useQuery } from "@tanstack/react-query";
+import { getUser } from "../api/get-user";
+
+export const useUser = (id: string) =>
+  useQuery({
+    queryKey: ["user", id],
+    queryFn: () => getUser(id),
   });
+```
 
-  // Fetcher with validation
-  const getUser = async (id: string) => {
-    const res = await api.get(`/user/${id}`);
-    return UserSchema.parse(res.data);
-  };
+---
 
-  // Query Hook
-  const useUser = (id: string) =>
-    useQuery({
-      queryKey: ['user', id],
-      queryFn: () => getUser(id)
-    });
-  ```
+## 2. UI & Styling (shadcn/ui + Motion + TailwindCSS v4)
 
-### 2. UI & Styling (HeroUI v3 + Motion + TailwindCSS)
-- **Component Source**: Use `@heroui/react` (v3) and `@heroui/styles`.
-- **Layouts**: Use HeroUI's layout components (Navbar, Card, Modal) as primary containers.
-- **Animations**: Use the `motion` package for all transitions.
-  - Correct import: `import { motion } from "motion/react"` or `import { motion } from "motion"`.
-  - Avoid `framer-motion` legacy references.
-- **Styling**: TailwindCSS v4 with utility-first approach.
-- **Server vs Client**: Explicitly mark HeroUI/Motion components with `'use client'` at the top of the file.
+### Component Source
 
-### 3. Form Handling (React Hook Form + Zod)
-- Use React Hook Form v7 with Zod validation via `@hookform/resolvers`.
-- Pattern:
-  ```typescript
-  const formSchema = z.object({
-    email: z.string().email(),
-    password: z.string().min(8)
-  });
+* All UI components must be generated via **shadcn/ui CLI**
+* Components live in `/components/ui`
+* Built on **Radix UI primitives**
+* Styled via TailwindCSS + design tokens
 
-  const { register, handleSubmit, formState: { errors } } = useForm({
-    resolver: zodResolver(formSchema)
-  });
-  ```
+### Theming Rules
 
-### 4. State Management (Zustand v5)
-- Use the `create<T>()` pattern with explicit interfaces.
-- **Shallow Checks**: Use `useStore` with selectors to prevent unnecessary re-renders.
-- **Persistence**: Only use persist middleware for essential session data (e.g., Auth, Theme).
-- **Separation of Concerns**: Do not store TanStack Query cache data in Zustand. Keep server-state and UI-state separate.
+* Use semantic CSS variables (no raw hex in components)
+* All components inherit tokens
+* Dark mode via `.dark` class
+* No inline styles
+* No arbitrary Tailwind color values
 
-### 5. Code Style & Architecture
-- **Naming**: Use PascalCase for components, camelCase for hooks and functions.
-- **Structure**: Feature-based directory structure (e.g., `/features/auth`, `/features/dashboard`).
-- **Icons**: Use `lucide-react` or HeroUI's built-in icon sets.
-- **TypeScript**: Strict mode enabled, no `any` types allowed.
+---
 
-## Project Structure Reference
+### Animation Rules
+
+Use **Motion** package only.
+
+✅ Correct imports:
+
+```ts
+import { motion } from "motion/react";
+// or
+import { motion } from "motion";
+```
+
+🚫 Never use:
+
+```ts
+import { motion } from "framer-motion";
+```
+
+### Animation Standards
+
+* 60fps smooth transitions
+* Prefer transform + opacity
+* Avoid layout thrashing
+* Use motion for:
+  * Dialog transitions
+  * Page transitions
+  * Sidebar animations
+  * Hover micro-interactions
+
+---
+
+## 3. Form Handling (React Hook Form + Zod)
+
+Always use schema-first validation.
+
+```ts
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+
+const formSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+});
+
+type FormValues = z.infer<typeof formSchema>;
+
+const form = useForm<FormValues>({
+  resolver: zodResolver(formSchema),
+});
+```
+
+### UI Pattern
+
+* Use shadcn `<Form />` wrappers
+* Use `<FormField />`
+* Display errors using `<FormMessage />`
+
+---
+
+## 4. State Management (Zustand v5)
+
+Use typed store pattern:
+
+```ts
+import { create } from "zustand";
+
+interface ThemeState {
+  theme: "light" | "dark";
+  setTheme: (theme: "light" | "dark") => void;
+}
+
+export const useThemeStore = create<ThemeState>((set) => ({
+  theme: "light",
+  setTheme: (theme) => set({ theme }),
+}));
+```
+
+### Rules
+
+* Use selectors to avoid re-renders
+* Do NOT store TanStack Query server data
+* Persist only:
+  * Auth session
+  * Theme preference
+
+---
+
+## 5. UI Component Standards (shadcn)
+
+All components must:
+
+* Be in `/components/ui`
+* Use `cn()` utility for class merging
+* Be accessible (Radix handles most)
+* Support dark mode automatically
+* Use semantic tokens only
+
+### Required Base Components
+
+* Button
+* Input
+* Textarea
+* Select
+* Card
+* Table
+* Badge
+* Alert
+* Dialog
+* DropdownMenu
+* Tabs
+* Tooltip
+* Sheet (for mobile sidebar)
+* Skeleton
+
+---
+
+# Project Structure Reference
+
 ```
 /apps/web/
-├── app/                    # Next.js App Router (Pages and Layouts)
-│   ├── globals.css         # Global TailwindCSS styles
-│   ├── layout.tsx          # Root layout with providers
-│   └── page.tsx            # Home page
-├── components/             # Shared UI atoms/molecules
-├── features/               # Domain-specific logic (hooks, components, schemas)
-├── lib/                    # Shared instances (axios, queryClient)
-├── store/                  # Zustand store definitions
-├── schemas/                # Zod validation schemas
-├── public/                 # Static assets
-├── package.json            # Dependencies and scripts
-├── tsconfig.json           # TypeScript configuration
-├── next.config.ts          # Next.js configuration
-├── tailwind.config.ts      # TailwindCSS configuration
-└── postcss.config.mjs      # PostCSS configuration
+├── app/
+│   ├── globals.css
+│   ├── layout.tsx
+│   └── page.tsx
+├── components/
+│   ├── ui/               # shadcn components
+│   └── layout/           # App layout components
+├── features/
+│   ├── auth/
+│   ├── dashboard/
+│   ├── assignments/
+│   └── courses/
+├── lib/
+│   ├── api.ts
+│   ├── query-client.ts
+│   └── utils.ts
+├── store/
+├── schemas/
+├── public/
+├── tailwind.config.ts
+└── postcss.config.mjs
 ```
+
+---
+
+# Root Layout Requirements
+
+### `layout.tsx` must:
+
+* Wrap app in `QueryClientProvider`
+* Include Theme provider (class strategy)
+* Avoid hydration mismatch
+* Be server-safe
+
+### Client Providers Wrapper Pattern
+
+```ts
+// components/providers.tsx
+"use client";
+
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "@/lib/query-client";
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      {children}
+    </QueryClientProvider>
+  );
+}
+```
+
+---
+
+# Package Management (STRICT)
+
+### Install
+
+```bash
+bun install
+```
+
+### Add dependency
+
+```bash
+bun add <package>
+```
+
+### Dev
+
+```bash
+bun run dev
+```
+
+🚫 Never use npm
+🚫 Never use yarn
+
+---
+
+# Accessibility Standards
+
+* WCAG 2.1 AA minimum
+* 4.5:1 text contrast
+* 3:1 UI component contrast
+* Keyboard accessible
+* Focus rings visible and styled
+* No color-only state indicators
+
+---
+
+# Performance Requirements
+
+* Initial page load < 2s
+* 60fps animations
+* Proper TanStack Query caching
+* Avoid unnecessary re-renders
+* Use dynamic imports where appropriate
+* Avoid client components unless required
+
+---
+
+# Business Context
+
+GradeLoop is an AI-integrated LMS serving:
+
+* Students
+* Instructors
+* Administrators
+
+The UI must feel:
+
+* Professional
+* Fast
+* Clean
+* Ergonomic for long coding sessions
+* Cohesive across roles
+
+---
+
+# Key Features to Implement
+
+* Role-based dashboards
+* Assignment management
+* AI plagiarism interface
+* Real-time notifications
+* Grade analytics
+* Course enrollment workflows
+* Authentication & authorization
+
+---
+
+# Critical Development Rules
+
+* Strict TypeScript (no `any`)
+* No raw API data without Zod parsing
+* No direct fetch without Axios instance
+* No hardcoded theme colors
+* No framer-motion
+* No HeroUI
+* No Pages Router patterns
 
 ## Critical Instructions for AI Agents
 
@@ -110,7 +370,7 @@ All API interactions must follow this rigid flow to ensure runtime and compile-t
 - **Scripts**: Run development with `bun run dev`, build with `bun run build`.
 
 ### Framework Specifics
-- **HeroUI v3**: Refer to v3 documentation specifically; do not use v2 (NextUI) syntax.
+- **shadcn/ui**: Use shadcn/ui CLI for component generation; components are based on Radix UI primitives.
 - **Next.js**: Use App Router patterns, not Pages Router.
 - **React**: Version 19+ with concurrent features.
 
@@ -119,35 +379,11 @@ All API interactions must follow this rigid flow to ensure runtime and compile-t
 - Use proper error boundaries for React error handling.
 
 ### Hydration & SSR
-- Ensure `QueryClientProvider` and `HeroUIProvider` are implemented in the root layout with a Client Component wrapper.
+- Ensure `QueryClientProvider` is implemented in the root layout with a Client Component wrapper.
 - Handle hydration mismatches properly with Next.js patterns.
 
 ### Development Workflow
-1. **Dependencies**: All major dependencies are already configured in package.json.
+1. **Dependencies**: All major dependencies are configured in package.json.
 2. **Linting**: ESLint with Next.js configuration is set up.
 3. **TypeScript**: Strict mode with proper path mapping (`@/*` for root imports).
 4. **Git**: Follow conventional commits as specified in CONTRIBUTING.md.
-
-## Business Context
-GradeLoop is an AI-integrated Learning Management System designed for educational institutions. The web client serves multiple user roles:
-- **Students**: Assignment submissions, grade viewing, course enrollment
-- **Instructors**: Course management, grading, assignment creation
-- **Administrators**: System management, analytics, user administration
-
-## Key Features to Implement
-- Dashboard with role-based views
-- Assignment management system
-- AI-powered plagiarism detection interface
-- Real-time notifications
-- Grade analytics and reporting
-- Course enrollment workflows
-- User authentication and authorization
-
-## Performance Requirements
-- Fast initial page load (<2s)
-- Smooth animations (60fps)
-- Efficient data fetching with proper caching
-- Mobile-responsive design
-- Accessibility compliance (WCAG 2.1 AA)
-
-This context should guide all development decisions and code generation for the GradeLoop V2 web client.
