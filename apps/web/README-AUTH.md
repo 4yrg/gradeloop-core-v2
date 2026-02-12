@@ -68,12 +68,17 @@ A production-grade session management system built for GradeLoop's AI-integrated
 
 ### 1. Environment Setup
 
+### Environment Variables
 ```bash
 # Required environment variables
 NEXT_PUBLIC_IAM_SERVICE_URL=http://localhost:3001
-JWT_ACCESS_SECRET=your-access-token-secret
-JWT_REFRESH_SECRET=your-refresh-token-secret
+JWT_ACCESS_SECRET=gradeloop_access_secret_32_chars_!!
+JWT_REFRESH_SECRET=gradeloop_refresh_secret_32_chars!
 NEXT_PUBLIC_SECURE_COOKIES=true
+
+# Default Admin Credentials (Development Only)
+INITIAL_ADMIN_EMAIL=admin@gradeloop.com
+INITIAL_ADMIN_PASSWORD=Admin@123
 ```
 
 ### 2. Basic Usage
@@ -281,12 +286,16 @@ NODE_ENV=production
 NEXT_PUBLIC_SECURE_COOKIES=true
 NEXT_PUBLIC_IAM_SERVICE_URL=https://iam.gradeloop.com
 
-# JWT secrets (use strong random values)
-JWT_ACCESS_SECRET=<256-bit-secret>
-JWT_REFRESH_SECRET=<256-bit-secret>
+# JWT secrets (use strong random values - NOT the dev values below!)
+JWT_ACCESS_SECRET=<generate-secure-256-bit-secret>
+JWT_REFRESH_SECRET=<generate-secure-256-bit-secret>
 
 # Domain for cookie scope
 NEXT_PUBLIC_DOMAIN=gradeloop.com
+
+# IMPORTANT: Change default admin credentials in production!
+INITIAL_ADMIN_EMAIL=your-admin@yourdomain.com
+INITIAL_ADMIN_PASSWORD=YourSecurePassword123!
 ```
 
 ### Database Setup
@@ -321,6 +330,16 @@ const auditEvents = [
 ```
 
 ## 🔧 Configuration
+
+### Default Admin Credentials
+```bash
+# Development Environment
+Email:    admin@gradeloop.com
+Password: Admin@123
+
+# These credentials are automatically seeded during setup
+# Change them immediately in production environments!
+```
 
 ### Token Lifetimes
 ```typescript
@@ -380,6 +399,19 @@ console.log(useAuthStore.getState());
 // Validate tokens manually
 import { JWTManager } from '@/lib/jwt';
 JWTManager.validateTokenStructure(token);
+```
+
+### Quick Setup
+```bash
+# 1. Start services
+docker-compose -f infra/compose/compose.dev.yaml up -d
+
+# 2. Initialize admin credentials (automatic)
+./scripts/setup-admin.sh
+
+# 3. Login with default credentials
+# Email: admin@gradeloop.com
+# Password: Admin@123
 ```
 
 ## 📈 Performance Considerations
