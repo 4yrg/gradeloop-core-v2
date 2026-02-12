@@ -31,21 +31,6 @@ services:
       timeout: 5s
       retries: 3
 
-  # Redis - In-Memory Cache for Rate Limiting
-  redis:
-    image: redis:7-alpine
-    container_name: gradeloop-redis-dev
-    ports:
-      - "6379:6379"
-    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
-    healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
-      interval: 2s
-      timeout: 5s
-      retries: 15
-    networks:
-      - gradeloop-network
-
   # RabbitMQ - Message Broker
   rabbitmq:
     image: rabbitmq:3.12-management
@@ -120,11 +105,8 @@ services:
       - ../../.env
     environment:
       DATABASE_URL: ${POSTGRES_URL_BASE}iam_db?sslmode=${POSTGRES_SSLMODE}
-      REDIS_ADDR: "redis:6379"
+      REDIS_ADDR: "${REDIS_HOST}:${REDIS_PORT}"
       JAEGER_ENDPOINT: "jaeger:4317"
-    depends_on:
-      redis:
-        condition: service_healthy
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:3000/api/iam/health" ]
       interval: 10s
