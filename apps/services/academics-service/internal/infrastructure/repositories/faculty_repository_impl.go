@@ -88,10 +88,25 @@ func (r *GormFacultyRepository) UpdateFaculty(ctx context.Context, faculty *mode
 	return r.GetFacultyByID(ctx, faculty.ID, true)
 }
 
-// DeleteFaculty soft-deletes a faculty by setting `is_active` to false.
+// DeleteFaculty soft-deletes a faculty and cascades the deactivation to its departments.
 func (r *GormFacultyRepository) DeleteFaculty(ctx context.Context, id uuid.UUID) error {
-	err := r.db.WithContext(ctx).Model(&models.Faculty{}).Where("id = ?", id).Update("is_active", false).Error
-	return err
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Deactivate the faculty
+		facultyResult := tx.Model(&models.Faculty{}).Where("id = ?", id).Update("is_active", false)
+		if facultyResult.Error != nil {
+			return facultyResult.Error
+		}
+		if facultyResult.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+
+		// Cascade soft-delete to departments
+		if err := tx.Model(&models.Department{}).Where("faculty_id = ?", id).Update("is_active", false).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
 // GetFacultyLeaders retrieves the leadership panel for a specific faculty.

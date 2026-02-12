@@ -82,7 +82,7 @@ func main() {
 	}
 
 	l.Info("Connected to database. Running auto-migrations...")
-	if err := db.AutoMigrate(&models.Faculty{}, &models.FacultyLeadership{}, &models.AuditLog{}); err != nil {
+	if err := db.AutoMigrate(&models.Faculty{}, &models.FacultyLeadership{}, &models.Department{}, &models.AuditLog{}); err != nil {
 		l.Error("failed to migrate database", "error", err)
 		os.Exit(1)
 	}
@@ -92,8 +92,13 @@ func main() {
 	// Dependency Injection
 	auditRepo := repositories.NewGormAuditRepository(db)
 	facultyRepo := repositories.NewGormFacultyRepository(db)
+	deptRepo := repositories.NewGormDepartmentRepository(db)
+
 	facultyService := usecases.NewFacultyService(facultyRepo, auditRepo)
+	deptService := usecases.NewDepartmentService(deptRepo, facultyRepo, auditRepo)
+
 	facultyHandler := handlers.NewFacultyHandler(facultyService)
+	deptHandler := handlers.NewDepartmentHandler(deptService)
 
 	// Start Server
 	app := fiber.New()
@@ -101,7 +106,7 @@ func main() {
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "ok"})
 	})
 
-	router.Setup(app, facultyHandler)
+	router.Setup(app, facultyHandler, deptHandler)
 
 	port := os.Getenv("PORT")
 	if port == "" {

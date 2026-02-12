@@ -1,0 +1,23 @@
+meta {
+  name: List Departments
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/faculties/:faculty_id/departments?include_inactive=false
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+params:path {
+  faculty_id:
+}
+
+params:query {
+  include_inactive: false
+}
