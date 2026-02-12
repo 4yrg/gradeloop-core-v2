@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { motion } from "motion/react"
-import { GraduationCap } from "lucide-react"
+import { School, HelpCircle } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -13,60 +13,74 @@ interface AuthLayoutProps {
 
 export function AuthLayout({ children, className }: AuthLayoutProps) {
     return (
-        <div className="flex min-h-screen w-full flex-col md:flex-row bg-background overflow-hidden">
-            {/* Left Panel - Branding & Illustration */}
-            <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.6, ease: "easeOut" }}
-                className="relative hidden w-1/2 flex-col justify-between p-10 md:flex bg-muted/30"
-            >
-                {/* Background Overlay Effect */}
-                <div className="absolute inset-0 z-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 opacity-50" />
-
-                {/* Logo */}
-                <div className="relative z-10 flex items-center gap-2 text-primary">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-ai-glow">
-                        <GraduationCap className="h-6 w-6" />
+        <div className="flex min-h-screen w-full bg-background font-sans overflow-hidden">
+            {/* Left Side: Inspiring Imagery (Hidden on mobile) */}
+            <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-[#002333]">
+                <img
+                    alt="Students collaborating"
+                    className="absolute inset-0 w-full h-full object-cover"
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuBosbDyT9lByLgoGb2Tz0T3zJflWl_1F9BbBT-xfoUoNqYSkXpkd5LaZ2e6hcyhZIN-gTcUia2pETFZB2-xL_dESVKUHQjh3ppb9lGCcJV5f0bXs_0B2AvbsXzN1I9NC_CMf5a6jgwjBmfpZ3ri6IJxnisM2rvz7Komw6YikkjOHEovr7fMhGfk0LOXdAMUHOdmsFyriYtMhO5ItosqhDfswxA8GD_eotUDY3OeQTWvyYpXO7njH9rJszOrY7KRd3c1-A3AY44QCyI"
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-[#002333]/40 to-[#159999]/60 flex flex-col justify-end p-16 text-white">
+                    <div className="max-w-md">
+                        <div className="mb-6">
+                            <span className="bg-primary/30 backdrop-blur-md text-white text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider">
+                                Education First
+                            </span>
+                        </div>
+                        <h1 className="text-4xl font-bold mb-4 leading-tight">
+                            Empowering the next generation of learners.
+                        </h1>
+                        <p className="text-lg text-white/90">
+                            Join thousands of students and educators using GradeLoop to reach
+                            their academic milestones every day.
+                        </p>
                     </div>
-                    <span className="text-2xl font-bold tracking-tight">GradeLoop</span>
                 </div>
 
-                {/* Content / Tagline */}
-                <div className="relative z-10 mt-auto max-w-lg space-y-6">
-                    <div className="inline-flex items-center rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-semibold text-primary transition-colors">
-                        EDUCATION FIRST
+                {/* Decorative Branding Element */}
+                <div className="absolute top-12 left-12">
+                    <div className="flex items-center space-x-2 text-white">
+                        <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+                            <School className="h-6 w-6 text-white" />
+                        </div>
+                        <span className="text-2xl font-bold tracking-tight">GradeLoop</span>
                     </div>
-                    <h1 className="text-5xl font-bold leading-tight tracking-tighter text-foreground">
-                        Empowering the next generation of learners.
-                    </h1>
-                    <p className="text-lg text-muted-foreground">
-                        Join thousands of students and educators using GradeLoop to reach their academic milestones every day.
-                    </p>
                 </div>
-
-                {/* Decorative Element */}
-                <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-background to-transparent opacity-40" />
-            </motion.div>
-
-            {/* Right Panel - Auth Content */}
-            <div className="flex flex-1 items-center justify-center p-6 md:p-12 lg:p-16">
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.2 }}
-                    className={cn("w-full max-w-[400px] space-y-8", className)}
-                >
-                    {children}
-                </motion.div>
             </div>
 
-            {/* Mobile Branding (only visible on small screens) */}
-            <div className="absolute top-6 left-6 flex items-center gap-2 md:hidden text-primary">
-                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                    <GraduationCap className="h-5 w-5" />
+            {/* Right Side: Login/Auth Content */}
+            <div className="w-full lg:w-1/2 flex items-center justify-center p-8 sm:p-12 lg:p-24 bg-white">
+                <div className="w-full max-w-md">
+                    {/* Mobile Branding */}
+                    <div className="flex lg:hidden items-center space-x-2 mb-10">
+                        <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+                            <School className="h-6 w-6 text-white" />
+                        </div>
+                        <span className="text-2xl font-bold text-[#002333] tracking-tight">
+                            GradeLoop
+                        </span>
+                    </div>
+
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5 }}
+                        className={className}
+                    >
+                        {children}
+                    </motion.div>
                 </div>
-                <span className="text-xl font-bold">GradeLoop</span>
+            </div>
+
+            {/* Support Help Bubble */}
+            <div className="fixed bottom-6 right-6">
+                <button className="bg-[#002333] text-white p-4 rounded-full shadow-2xl hover:bg-primary transition-all group flex items-center space-x-2">
+                    <HelpCircle className="h-5 w-5" />
+                    <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-medium">
+                        Need help?
+                    </span>
+                </button>
             </div>
         </div>
     )
