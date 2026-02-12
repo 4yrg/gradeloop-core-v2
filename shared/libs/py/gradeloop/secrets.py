@@ -149,6 +149,9 @@ class SecretsClient:
 
     def get_database_config(self) -> DatabaseConfig:
         """Retrieve database configuration."""
+        if os.getenv("DATABASE_URL"):
+            return DatabaseConfig(raw_url=os.getenv("DATABASE_URL"))
+
         if os.getenv("POSTGRES_HOST"):
             return DatabaseConfig(
                 username=os.getenv("POSTGRES_USER", "postgres"),
