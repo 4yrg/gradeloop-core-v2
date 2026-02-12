@@ -40,29 +40,35 @@ export function LoginForm() {
     }
 
     return (
-        <div className="flex flex-col gap-6">
-            <div className="flex flex-col gap-2">
-                <h1 className="text-3xl font-bold tracking-tight text-foreground">Welcome back</h1>
-                <p className="text-muted-foreground">
+        <div className="w-full">
+            <div className="mb-10">
+                <h2 className="text-3xl font-bold text-[#002333] mb-2">Welcome back</h2>
+                <p className="text-slate-500">
                     Enter your details to access your dashboard.
                 </p>
             </div>
 
             <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                     <FormField
                         control={form.control}
                         name="email"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Email Address</FormLabel>
+                                <FormLabel className="text-[#002333] mb-2">
+                                    Email Address
+                                </FormLabel>
                                 <FormControl>
                                     <Input
                                         placeholder="e.g. alex@example.com"
                                         type="email"
                                         disabled={isLoading}
                                         {...field}
-                                        className={cn(form.formState.errors.email && "border-destructive focus-visible:ring-destructive")}
+                                        className={cn(
+                                            "px-4 py-3 h-12 rounded-lg border-slate-200 focus:ring-2 focus:ring-primary focus:border-primary transition-colors",
+                                            form.formState.errors.email &&
+                                            "border-destructive focus:ring-destructive"
+                                        )}
                                     />
                                 </FormControl>
                                 <FormMessage />
@@ -75,7 +81,7 @@ export function LoginForm() {
                         name="password"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Password</FormLabel>
+                                <FormLabel className="text-[#002333]">Password</FormLabel>
                                 <FormControl>
                                     <div className="relative">
                                         <Input
@@ -84,17 +90,22 @@ export function LoginForm() {
                                             disabled={isLoading}
                                             {...field}
                                             className={cn(
-                                                "pr-10",
-                                                form.formState.errors.password && "border-destructive focus-visible:ring-destructive"
+                                                "px-4 py-3 h-12 pr-12 rounded-lg border-slate-200 focus:ring-2 focus:ring-primary focus:border-primary transition-colors",
+                                                form.formState.errors.password &&
+                                                "border-destructive focus:ring-destructive"
                                             )}
                                         />
                                         <button
                                             type="button"
                                             onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
                                             tabIndex={-1}
                                         >
-                                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                            {showPassword ? (
+                                                <EyeOff className="h-5 w-5" />
+                                            ) : (
+                                                <Eye className="h-5 w-5" />
+                                            )}
                                         </button>
                                     </div>
                                 </FormControl>
@@ -114,10 +125,10 @@ export function LoginForm() {
                                             type="checkbox"
                                             checked={field.value}
                                             onChange={field.onChange}
-                                            className="h-4 w-4 rounded border-input bg-background text-primary focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-all cursor-pointer accent-primary"
+                                            className="h-4 w-4 text-primary focus:ring-primary border-slate-300 rounded cursor-pointer"
                                         />
                                     </FormControl>
-                                    <FormLabel className="font-medium cursor-pointer">
+                                    <FormLabel className="text-sm font-medium text-slate-600 cursor-pointer">
                                         Remember me
                                     </FormLabel>
                                 </FormItem>
@@ -125,13 +136,17 @@ export function LoginForm() {
                         />
                         <button
                             type="button"
-                            className="text-sm font-semibold text-primary hover:underline transition-all"
+                            className="text-sm font-medium text-primary hover:underline transition-all"
                         >
                             Forgot Password?
                         </button>
                     </div>
 
-                    <Button type="submit" className="w-full h-11" disabled={isLoading} variant="ai" glow>
+                    <Button
+                        type="submit"
+                        className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-semibold rounded-lg shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
+                        disabled={isLoading}
+                    >
                         {isLoading ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -144,20 +159,25 @@ export function LoginForm() {
                 </form>
             </Form>
 
-            <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-muted" />
+            {/* Divider */}
+            <div className="relative py-8">
+                <div aria-hidden="true" className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-slate-200"></div>
                 </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground font-medium">
+                <div className="relative flex justify-center text-sm">
+                    <span className="px-2 bg-white text-slate-500 uppercase tracking-wider text-xs font-semibold">
                         Or continue with
                     </span>
                 </div>
             </div>
 
+            {/* Social Logins */}
             <div className="grid grid-cols-2 gap-4">
-                <Button variant="outline" className="h-11 border-muted hover:bg-muted/50 transition-colors" type="button">
-                    <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+                <button
+                    className="flex w-full items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-[#002333] hover:bg-slate-50 transition-colors"
+                    type="button"
+                >
+                    <svg className="h-5 w-5" viewBox="0 0 24 24">
                         <path
                             d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                             fill="#4285F4"
@@ -167,30 +187,34 @@ export function LoginForm() {
                             fill="#34A853"
                         />
                         <path
-                            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.26.81-.58z"
+                            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"
                             fill="#FBBC05"
                         />
                         <path
-                            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 12-4.53z"
+                            d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                             fill="#EA4335"
                         />
                     </svg>
                     Google
-                </Button>
-                <Button variant="outline" className="h-11 border-muted hover:bg-muted/50 transition-colors" type="button">
-                    <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
-                        <path d="M1 1h10v10H1z" fill="#f25022" />
-                        <path d="M13 1h10v10H13z" fill="#7dbb00" />
-                        <path d="M1 13h10v10H1z" fill="#00a1f1" />
-                        <path d="M13 13h10v10H13z" fill="#ffbb00" />
+                </button>
+                <button
+                    className="flex w-full items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-[#002333] hover:bg-slate-50 transition-colors"
+                    type="button"
+                >
+                    <svg className="h-5 w-5" viewBox="0 0 23 23">
+                        <path d="M0 0h23v23H0z" fill="#f3f3f3" />
+                        <path d="M1 1h10v10H1z" fill="#f35325" />
+                        <path d="M12 1h10v10H12z" fill="#81bc06" />
+                        <path d="M1 12h10v10H1z" fill="#05a6f0" />
+                        <path d="M12 12h10v10H12z" fill="#ffba08" />
                     </svg>
                     Microsoft
-                </Button>
+                </button>
             </div>
 
-            <p className="text-center text-sm text-muted-foreground">
+            <p className="mt-10 text-center text-sm text-slate-500">
                 Don&apos;t have an account yet?{" "}
-                <button className="font-semibold text-primary hover:underline transition-all">
+                <button className="font-semibold text-primary hover:text-primary/80 transition-colors">
                     Sign up for free
                 </button>
             </p>
