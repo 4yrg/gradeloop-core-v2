@@ -82,7 +82,7 @@ func main() {
 	}
 
 	l.Info("Connected to database. Running auto-migrations...")
-	if err := db.AutoMigrate(&models.Faculty{}, &models.FacultyLeadership{}, &models.Department{}, &models.Degree{}, &models.Specialization{}, &models.AuditLog{}); err != nil {
+	if err := db.AutoMigrate(&models.Faculty{}, &models.FacultyLeadership{}, &models.Department{}, &models.Degree{}, &models.Specialization{}, &models.Batch{}, &models.AuditLog{}); err != nil {
 		l.Error("failed to migrate database", "error", err)
 		os.Exit(1)
 	}
@@ -95,16 +95,19 @@ func main() {
 	deptRepo := repositories.NewGormDepartmentRepository(db)
 	degreeRepo := repositories.NewGormDegreeRepository(db)
 	specializationRepo := repositories.NewGormSpecializationRepository(db)
+	batchRepo := repositories.NewBatchRepository(db)
 
 	facultyService := usecases.NewFacultyService(facultyRepo, auditRepo)
 	deptService := usecases.NewDepartmentService(deptRepo, facultyRepo, auditRepo)
 	degreeService := usecases.NewDegreeService(degreeRepo, deptRepo, specializationRepo, auditRepo)
 	specializationService := usecases.NewSpecializationService(specializationRepo, degreeRepo, deptRepo, auditRepo)
+	batchService := usecases.NewBatchService(batchRepo, degreeRepo, specializationRepo, deptRepo, auditRepo)
 
 	facultyHandler := handlers.NewFacultyHandler(facultyService)
 	deptHandler := handlers.NewDepartmentHandler(deptService)
 	degreeHandler := handlers.NewDegreeHandler(degreeService)
 	specializationHandler := handlers.NewSpecializationHandler(specializationService)
+	batchHandler := handlers.NewBatchHandler(batchService)
 
 	// Start Server
 	app := fiber.New()
@@ -112,7 +115,7 @@ func main() {
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "ok"})
 	})
 
-	router.Setup(app, facultyHandler, deptHandler, degreeHandler, specializationHandler)
+	router.Setup(app, facultyHandler, deptHandler, degreeHandler, specializationHandler, batchHandler)
 
 	port := os.Getenv("PORT")
 	if port == "" {
