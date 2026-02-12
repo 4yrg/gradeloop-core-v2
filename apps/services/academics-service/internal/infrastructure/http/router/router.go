@@ -5,7 +5,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-func Setup(app *fiber.App, facultyHandler *handlers.FacultyHandler) {
+func Setup(app *fiber.App, facultyHandler *handlers.FacultyHandler, departmentHandler *handlers.DepartmentHandler) {
 	api := app.Group("/api")
 	academics := api.Group("/academics")
 
@@ -17,4 +17,14 @@ func Setup(app *fiber.App, facultyHandler *handlers.FacultyHandler) {
 	faculties.Patch("/:id", facultyHandler.UpdateFaculty)
 	faculties.Delete("/:id", facultyHandler.DeactivateFaculty)
 	faculties.Get("/:id/leaders", facultyHandler.GetFacultyLeaders)
+
+	// Department routes (nested under faculties)
+	faculties.Post("/:faculty_id/departments", departmentHandler.CreateDepartment)
+	faculties.Get("/:faculty_id/departments", departmentHandler.ListDepartments)
+
+	// Department routes (top-level)
+	departments := academics.Group("/departments")
+	departments.Get("/:id", departmentHandler.GetDepartment)
+	departments.Patch("/:id", departmentHandler.UpdateDepartment)
+	departments.Delete("/:id", departmentHandler.DeleteDepartment)
 }
