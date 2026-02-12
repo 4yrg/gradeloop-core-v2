@@ -18,6 +18,7 @@ type Faculty struct {
 	UpdatedAt   time.Time           `gorm:"not null;default:now()"`
 	DeletedAt   gorm.DeletedAt      `gorm:"index"`
 	Leaders     []FacultyLeadership `gorm:"foreignKey:FacultyID"`
+	Departments []Department        `gorm:"foreignKey:FacultyID"`
 }
 
 // FacultyLeadership maps a User from the IAM service to a leadership role in a Faculty.
