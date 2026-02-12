@@ -12,6 +12,8 @@ func Setup(
 	degreeHandler *handlers.DegreeHandler,
 	specializationHandler *handlers.SpecializationHandler,
 	batchHandler *handlers.BatchHandler,
+	enrollmentHandler *handlers.EnrollmentHandler,
+	academicStructureHandler *handlers.AcademicStructureHandler,
 ) {
 	api := app.Group("/api")
 	academics := api.Group("/academics")
@@ -63,4 +65,34 @@ func Setup(
 	batches.Get("/tree/:root_id", batchHandler.GetSubtree)
 	batches.Patch("/:id", batchHandler.UpdateBatch)
 	batches.Delete("/:id", batchHandler.DeleteBatch)
+
+	// Batch Membership (GRADLOOP-57)
+	batches.Post("/:batch_id/members", enrollmentHandler.AddBatchMember)
+	batches.Get("/:batch_id/members", enrollmentHandler.GetBatchMembers)
+	batches.Patch("/:batch_id/members/:user_id", enrollmentHandler.UpdateBatchMember)
+
+	// Course Instance (GRADLOOP-57)
+	courseInstances := academics.Group("/course-instances")
+	courseInstances.Post("/", enrollmentHandler.CreateCourseInstance)
+	courseInstances.Get("/:id", enrollmentHandler.GetCourseInstance)
+	courseInstances.Patch("/:id", enrollmentHandler.UpdateCourseInstance)
+
+	// Course Instructor (GRADLOOP-57)
+	courseInstances.Post("/:id/instructors", enrollmentHandler.AssignInstructor)
+	courseInstances.Get("/:id/instructors", enrollmentHandler.GetCourseInstructors)
+	courseInstances.Delete("/:id/instructors/:user_id", enrollmentHandler.RemoveInstructor)
+
+	// Course Enrollment (GRADLOOP-57)
+	courseInstances.Post("/:id/enrollments", enrollmentHandler.EnrollStudent)
+	courseInstances.Get("/:id/enrollments", enrollmentHandler.GetEnrollments)
+	courseInstances.Patch("/:id/enrollments/:user_id", enrollmentHandler.UpdateEnrollment)
+
+	// Academic Structure (Support for CourseInstance)
+	courses := academics.Group("/courses")
+	courses.Post("/", academicStructureHandler.CreateCourse)
+	courses.Get("/", academicStructureHandler.ListCourses)
+
+	semesters := academics.Group("/semesters")
+	semesters.Post("/", academicStructureHandler.CreateSemester)
+	semesters.Get("/", academicStructureHandler.ListSemesters)
 }
