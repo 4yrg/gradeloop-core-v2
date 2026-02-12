@@ -377,20 +377,20 @@ Use the service or component name:
 
 ```bash
 # Feature
-feat(assignments): add bulk upload functionality [GRADLOOP-123]
+feat(assignments): add bulk upload functionality [GRADELOOP-123]
 
 # Bug fix
-fix(cipas): resolve memory leak in plagiarism analyzer [GRADLOOP-456]
+fix(cipas): resolve memory leak in plagiarism analyzer [GRADELOOP-456]
 
 # Documentation
-docs(readme): update installation instructions [GRADLOOP-789]
+docs(readme): update installation instructions [GRADELOOP-789]
 
 # Refactoring
-refactor(academics): extract course validation logic [GRADLOOP-234]
+refactor(academics): extract course validation logic [GRADELOOP-234]
 
 # Multiple changes (use git commit multiple times)
-feat(assignments): add due date validation [GRADLOOP-111]
-test(assignments): add due date validation tests [GRADLOOP-111]
+feat(assignments): add due date validation [GRADELOOP-111]
+test(assignments): add due date validation tests [GRADELOOP-111]
 ```
 
 ### Commit Best Practices
