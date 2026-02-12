@@ -1,0 +1,26 @@
+meta {
+  name: Update Department
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{base_url}}/departments/:id
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+params:path {
+  id:
+}
+
+body:json {
+  {
+    "name": "Department of Computer Science and Engineering",
+    "description": "Updated description."
+  }
+}

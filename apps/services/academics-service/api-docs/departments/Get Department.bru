@@ -1,0 +1,19 @@
+meta {
+  name: Get Department
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/departments/:id
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+params:path {
+  id:
+}
