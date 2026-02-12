@@ -16,9 +16,6 @@ services:
       - "--tracing.otlp=true"
       - "--tracing.otlp.grpc.endpoint=jaeger:4317"
       - "--tracing.otlp.grpc.insecure=true"
-      # Enable JWT Validator Plugin
-      # - "--experimental.plugins.jwt-validator.moduleName=github.com/Luka-S/traefik-jwt-validator"
-      # - "--experimental.plugins.jwt-validator.version=v1.1.0"
       # Retry configuration for resilience
       - "--providers.docker.watch=true"
     ports:
@@ -80,17 +77,14 @@ services:
     hostname: email-notify-service
     ports:
       - "8083:8080"
+    env_file:
+      - ../../.env
     environment:
       SERVER_HOST: "0.0.0.0"
       SERVER_PORT: "8080"
       RABBITMQ_URL: "amqp://admin:admin123@rabbitmq:5672/gradeloop"
       RABBITMQ_EXCHANGE: "gradeloop.events"
       RABBITMQ_QUEUE: "email.notifications"
-      # Load from .env at root
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_PORT: ${SMTP_PORT}
-      SMTP_USER: ${SMTP_USER}
-      SMTP_PASS: ${SMTP_PASS}
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -109,36 +103,24 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.services.iam.loadbalancer.server.port=3000"
-
-      # Public IAM Routes (Auth endpoints that don't require JWT)
       - "traefik.http.routers.iam-public.rule=PathPrefix(`/api/iam/v1/auth/login`) || PathPrefix(`/api/iam/v1/auth/refresh`) || PathPrefix(`/api/iam/v1/auth/activate`) || PathPrefix(`/api/iam/v1/auth/request-activation`) || PathPrefix(`/api/iam/v1/auth/validate`) || PathPrefix(`/api/iam/health`) || PathPrefix(`/api/iam/metrics`)"
       - "traefik.http.routers.iam-public.entrypoints=web"
       - "traefik.http.routers.iam-public.middlewares=iam-replacepath"
-
-      # Protected IAM Routes (Requires JWT Validation at the Edge)
       - "traefik.http.routers.iam-protected.rule=PathPrefix(`/api/iam`) && !(PathPrefix(`/api/iam/v1/auth/login`) || PathPrefix(`/api/iam/v1/auth/refresh`) || PathPrefix(`/api/iam/v1/auth/activate`) || PathPrefix(`/api/iam/v1/auth/request-activation`) || PathPrefix(`/api/iam/v1/auth/validate`) || PathPrefix(`/api/iam/health`) || PathPrefix(`/api/iam/metrics`))"
       - "traefik.http.routers.iam-protected.entrypoints=web"
       - "traefik.http.routers.iam-protected.middlewares=iam-replacepath"
-
-      # Middlewares
       - "traefik.http.middlewares.iam-replacepath.replacepathregex.regex=^/api/iam(.*)"
       - "traefik.http.middlewares.iam-replacepath.replacepathregex.replacement=/api$$1"
-
-      # JWT Validation via ForwardAuth - Zero Trust Architecture
       - "traefik.http.middlewares.iam-jwt-auth.forwardauth.address=http://iam-service:3000/api/v1/auth/validate"
       - "traefik.http.middlewares.iam-jwt-auth.forwardauth.trustForwardHeader=true"
       - "traefik.http.middlewares.iam-jwt-auth.forwardauth.authResponseHeaders=X-User-Id,X-User-Roles,X-User-Permissions,X-User-Email,X-User-Name"
-
-      # Retry mechanism with backoff for IAM service connection resilience
       - "traefik.http.middlewares.iam-retry.retry.attempts=3"
       - "traefik.http.middlewares.iam-retry.retry.initialInterval=100ms"
+    env_file:
+      - ../../.env
     environment:
       DATABASE_URL: ${POSTGRES_URL_BASE}iam_db?sslmode=${POSTGRES_SSLMODE}
       REDIS_ADDR: "redis:6379"
-      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL}
-      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD}
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       JAEGER_ENDPOINT: "jaeger:4317"
     depends_on:
       redis:
@@ -173,20 +155,16 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.services.academics.loadbalancer.server.port=3001"
-
-      # All academics routes require JWT validation
       - "traefik.http.routers.academics.rule=PathPrefix(`/api/academics`)"
       - "traefik.http.routers.academics.entrypoints=web"
       - "traefik.http.routers.academics.middlewares=academics-jwt-auth,academics-replacepath"
-
-      # Middlewares
       - "traefik.http.middlewares.academics-replacepath.replacepathregex.regex=^/api/academics(.*)"
       - "traefik.http.middlewares.academics-replacepath.replacepathregex.replacement=/api$$1"
-
-      # JWT Validation via ForwardAuth
       - "traefik.http.middlewares.academics-jwt-auth.forwardauth.address=http://iam-service:3000/api/v1/auth/validate"
       - "traefik.http.middlewares.academics-jwt-auth.forwardauth.trustForwardHeader=true"
       - "traefik.http.middlewares.academics-jwt-auth.forwardauth.authResponseHeaders=X-User-Id,X-User-Roles,X-User-Permissions,X-User-Email,X-User-Name"
+    env_file:
+      - ../../.env
     environment:
       DATABASE_URL: ${POSTGRES_URL_BASE}academics_db?sslmode=${POSTGRES_SSLMODE}
       JAEGER_ENDPOINT: "jaeger:4317"
