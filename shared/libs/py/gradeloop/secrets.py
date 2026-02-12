@@ -90,112 +90,76 @@ class RedisConfig:
         return f"redis://{self.host}:{self.port}/{self.db}"
 
 
-class VaultClient:
+class SecretsClient:
     """
-    HashiCorp Vault client for retrieving secrets.
-
-    Usage:
-        >>> client = VaultClient()
-        >>> db_config = client.get_database_config()
-        >>> print(db_config.connection_string())
+    Client for retrieving secrets from environment variables or Vault.
     """
 
     def __init__(self, config: Optional[Config] = None):
         """
-        Initialize Vault client.
-
-        Args:
-            config: Vault configuration. If None, uses environment variables.
-
-        Raises:
-            ValueError: If configuration is invalid.
-            VaultError: If connection to Vault fails.
+        Initialize Secrets client.
         """
         self.config = config or Config.from_env()
-
-        if not self.config.address:
-            raise ValueError("Vault address is required")
-
-        if not self.config.token:
-            raise ValueError("Vault token is required")
-
-        # Create HVAC client
-        self._client = hvac.Client(
-            url=self.config.address,
-            token=self.config.token,
-            namespace=self.config.namespace,
-            verify=self.config.verify,
-            timeout=self.config.timeout,
-        )
-
-        # Verify authentication
-        if self.config.token and not self._client.is_authenticated():
-            raise VaultError("Failed to authenticate with Vault")
+        self._vault_client = None
+        
+        # Only try to initialize hvac if we have a vault address
+        if self.config.address and os.getenv("USE_VAULT", "false").lower() == "true":
+            try:
+                self._vault_client = hvac.Client(
+                    url=self.config.address,
+                    token=self.config.token,
+                    namespace=self.config.namespace,
+                    verify=self.config.verify,
+                    timeout=self.config.timeout,
+                )
+                if not self._vault_client.is_authenticated():
+                    self._vault_client = None
+            except Exception:
+                self._vault_client = None
 
     def get_secret(self, path: str, key: str) -> str:
-        """
-        Retrieve a single secret value.
+        """Retrieve a secret value."""
+        # Check env first
+        env_val = os.getenv(key)
+        if env_val is not None:
+            return env_val
 
-        Args:
-            path: Secret path (relative to mount point)
-            key: Secret key
-
-        Returns:
-            Secret value as string
-
-        Raises:
-            VaultError: If secret retrieval fails
-            KeyError: If key doesn't exist in secret
-        """
-        secrets = self.get_secret_map(path)
-
-        if key not in secrets:
-            raise KeyError(f"Key '{key}' not found in secret path '{path}'")
-
-        return str(secrets[key])
+        if self._vault_client:
+            try:
+                secrets = self.get_secret_map(path)
+                return str(secrets.get(key, ""))
+            except Exception:
+                pass
+        
+        return ""
 
     def get_secret_map(self, path: str) -> Dict[str, Any]:
-        """
-        Retrieve all secrets at the given path.
+        """Retrieve all secrets at the given path."""
+        if not self._vault_client:
+            return {}
 
-        Args:
-            path: Secret path (relative to mount point)
-
-        Returns:
-            Dictionary of secret key-value pairs
-
-        Raises:
-            VaultError: If secret retrieval fails
-        """
         try:
-            # KV v2 read
-            response = self._client.secrets.kv.v2.read_secret_version(
+            response = self._vault_client.secrets.kv.v2.read_secret_version(
                 path=path,
                 mount_point=self.config.mount_path,
             )
-
-            if not response or "data" not in response:
-                raise VaultError(f"No secret found at path '{path}'")
-
-            data = response["data"].get("data", {})
-            return data
-
+            return response["data"].get("data", {}) if response else {}
         except Exception as e:
-            raise VaultError(f"Failed to read secret at path '{path}': {str(e)}")
+            return {}
 
     def get_database_config(self) -> DatabaseConfig:
-        """
-        Retrieve database configuration from Vault.
+        """Retrieve database configuration."""
+        if os.getenv("POSTGRES_HOST"):
+            return DatabaseConfig(
+                username=os.getenv("POSTGRES_USER", "postgres"),
+                password=os.getenv("POSTGRES_PASSWORD", "postgres"),
+                host=os.getenv("POSTGRES_HOST", "localhost"),
+                port=os.getenv("POSTGRES_PORT", "5432"),
+                database=os.getenv("POSTGRES_DB", "gradeloop"),
+                sslmode=os.getenv("POSTGRES_SSLMODE", "disable"),
+            )
 
-        Returns:
-            DatabaseConfig object
-
-        Raises:
-            VaultError: If configuration retrieval fails
-        """
-        path = "database/postgres"
-        secrets = self.get_secret_map(path)
-
+        secrets = self.get_secret_map("database/postgres")
         return DatabaseConfig(
             username=secrets.get("username", ""),
             password=secrets.get("password", ""),
@@ -206,18 +170,16 @@ class VaultClient:
         )
 
     def get_jwt_config(self) -> JWTConfig:
-        """
-        Retrieve JWT configuration from Vault.
+        """Retrieve JWT configuration."""
+        if os.Getenv("JWT_ACCESS_SECRET"):
+            return JWTConfig(
+                secret=os.getenv("JWT_ACCESS_SECRET", ""),
+                algorithm=os.getenv("JWT_ALGORITHM", "HS256"),
+                expiry=os.getenv("JWT_ACCESS_EXPIRY", "15m"),
+                refresh_expiry=os.getenv("JWT_REFRESH_EXPIRY", "30d"),
+            )
 
-        Returns:
-            JWTConfig object
-
-        Raises:
-            VaultError: If configuration retrieval fails
-        """
-        path = "auth/jwt"
-        secrets = self.get_secret_map(path)
-
+        secrets = self.get_secret_map("auth/jwt")
         return JWTConfig(
             secret=secrets.get("secret", ""),
             algorithm=secrets.get("algorithm", "HS256"),
@@ -226,18 +188,16 @@ class VaultClient:
         )
 
     def get_redis_config(self) -> RedisConfig:
-        """
-        Retrieve Redis configuration from Vault.
+        """Retrieve Redis configuration."""
+        if os.getenv("REDIS_HOST"):
+            return RedisConfig(
+                host=os.getenv("REDIS_HOST", "localhost"),
+                port=os.getenv("REDIS_PORT", "6379"),
+                password=os.getenv("REDIS_PASSWORD", ""),
+                db=os.getenv("REDIS_DB", "0"),
+            )
 
-        Returns:
-            RedisConfig object
-
-        Raises:
-            VaultError: If configuration retrieval fails
-        """
-        path = "cache/redis"
-        secrets = self.get_secret_map(path)
-
+        secrets = self.get_secret_map("cache/redis")
         return RedisConfig(
             host=secrets.get("host", "localhost"),
             port=secrets.get("port", "6379"),
@@ -246,25 +206,15 @@ class VaultClient:
         )
 
     @property
-    def client(self) -> hvac.Client:
-        """
-        Access to the underlying HVAC client.
-
-        Returns:
-            The HVAC client instance
-        """
-        return self._client
+    def client(self) -> Optional[hvac.Client]:
+        return self._vault_client
 
     def close(self):
-        """Close the client and clean up resources."""
-        # HVAC client doesn't require explicit cleanup
         pass
 
     def __enter__(self):
-        """Context manager entry."""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit."""
         self.close()
         return False
