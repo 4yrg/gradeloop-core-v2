@@ -7,6 +7,14 @@ import { Eye, EyeOff, Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
+} from "@/components/ui/form"
 import { LoginSchema, type LoginValues } from "../schemas/auth.schema"
 import { cn } from "@/lib/utils"
 
@@ -14,11 +22,7 @@ export function LoginForm() {
     const [showPassword, setShowPassword] = React.useState(false)
     const [isLoading, setIsLoading] = React.useState(false)
 
-    const {
-        register,
-        handleSubmit,
-        formState: { errors },
-    } = useForm<LoginValues>({
+    const form = useForm<LoginValues>({
         resolver: zodResolver(LoginSchema),
         defaultValues: {
             email: "",
@@ -44,96 +48,101 @@ export function LoginForm() {
                 </p>
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-                <div className="space-y-2">
-                    <label
-                        htmlFor="email"
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                        Email Address
-                    </label>
-                    <Input
-                        id="email"
-                        type="email"
-                        placeholder="e.g. alex@example.com"
-                        disabled={isLoading}
-                        {...register("email")}
-                        className={cn(errors.email && "border-destructive focus-visible:ring-destructive")}
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+                    <FormField
+                        control={form.control}
+                        name="email"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Email Address</FormLabel>
+                                <FormControl>
+                                    <Input
+                                        placeholder="e.g. alex@example.com"
+                                        type="email"
+                                        disabled={isLoading}
+                                        {...field}
+                                        className={cn(form.formState.errors.email && "border-destructive focus-visible:ring-destructive")}
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
                     />
-                    {errors.email && (
-                        <p className="text-xs font-medium text-destructive">{errors.email.message}</p>
-                    )}
-                </div>
 
-                <div className="space-y-2">
+                    <FormField
+                        control={form.control}
+                        name="password"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Password</FormLabel>
+                                <FormControl>
+                                    <div className="relative">
+                                        <Input
+                                            type={showPassword ? "text" : "password"}
+                                            placeholder="••••••••"
+                                            disabled={isLoading}
+                                            {...field}
+                                            className={cn(
+                                                "pr-10",
+                                                form.formState.errors.password && "border-destructive focus-visible:ring-destructive"
+                                            )}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                            tabIndex={-1}
+                                        >
+                                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                        </button>
+                                    </div>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+
                     <div className="flex items-center justify-between">
-                        <label
-                            htmlFor="password"
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                        >
-                            Password
-                        </label>
-                    </div>
-                    <div className="relative">
-                        <Input
-                            id="password"
-                            type={showPassword ? "text" : "password"}
-                            placeholder="••••••••"
-                            disabled={isLoading}
-                            {...register("password")}
-                            className={cn(
-                                "pr-10",
-                                errors.password && "border-destructive focus-visible:ring-destructive"
+                        <FormField
+                            control={form.control}
+                            name="rememberMe"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                    <FormControl>
+                                        <input
+                                            type="checkbox"
+                                            checked={field.value}
+                                            onChange={field.onChange}
+                                            className="h-4 w-4 rounded border-input bg-background text-primary focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-all cursor-pointer accent-primary"
+                                        />
+                                    </FormControl>
+                                    <FormLabel className="font-medium cursor-pointer">
+                                        Remember me
+                                    </FormLabel>
+                                </FormItem>
                             )}
                         />
                         <button
                             type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                            tabIndex={-1}
+                            className="text-sm font-semibold text-primary hover:underline transition-all"
                         >
-                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            Forgot Password?
                         </button>
                     </div>
-                    {errors.password && (
-                        <p className="text-xs font-medium text-destructive">{errors.password.message}</p>
-                    )}
-                </div>
 
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <input
-                            type="checkbox"
-                            id="rememberMe"
-                            {...register("rememberMe")}
-                            className="h-4 w-4 rounded border-input bg-background text-primary focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-all cursor-pointer accent-primary"
-                        />
-                        <label
-                            htmlFor="rememberMe"
-                            className="text-sm font-medium leading-none cursor-pointer"
-                        >
-                            Remember me
-                        </label>
-                    </div>
-                    <button
-                        type="button"
-                        className="text-sm font-semibold text-primary hover:underline transition-all"
-                    >
-                        Forgot Password?
-                    </button>
-                </div>
-
-                <Button type="submit" className="w-full h-11" disabled={isLoading} variant="ai" glow>
-                    {isLoading ? (
-                        <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Signing In...
-                        </>
-                    ) : (
-                        "Sign In"
-                    )}
-                </Button>
-            </form>
+                    <Button type="submit" className="w-full h-11" disabled={isLoading} variant="ai" glow>
+                        {isLoading ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Signing In...
+                            </>
+                        ) : (
+                            "Sign In"
+                        )}
+                    </Button>
+                </form>
+            </Form>
 
             <div className="relative">
                 <div className="absolute inset-0 flex items-center">
