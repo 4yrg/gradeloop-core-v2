@@ -37,6 +37,8 @@ func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handl
 	auth.Delete("/refresh-tokens/:token_id", authHandler.RevokeToken)
 	auth.Post("/activate", activationLimiter, authHandler.Activate)
 	auth.Post("/request-activation", activationLimiter, authHandler.RequestActivation)
+	auth.Post("/forgot-password", activationLimiter, authHandler.ForgotPassword)
+	auth.Post("/reset-password", authHandler.ResetPassword)
 	auth.Get("/validate", authHandler.ValidateToken) // ForwardAuth endpoint for Traefik
 
 	users := v1.Group("/users")
@@ -57,6 +59,10 @@ func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handl
 	users.Delete("/:id", userHandler.DeleteUser)
 	users.Patch("/:id/restore", userHandler.RestoreUser)
 	users.Post("/:id/revoke-all-tokens", authHandler.RevokeAllTokens)
+
+	// Protected user endpoints requiring authentication
+	protectedUsers := users.Group("/me", middleware.AuthRequired())
+	protectedUsers.Patch("/password", authHandler.ChangePassword)
 
 	// Role Management Routes (Protected by AdminOnly)
 	roles := v1.Group("/roles", middleware.AdminOnly())
