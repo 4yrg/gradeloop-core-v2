@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"time"
 
@@ -46,6 +47,23 @@ func NewVaultRepository(address, token, namespace, mountPath, smtpSecretPath str
 }
 
 func (r *VaultRepository) GetSMTPConfig(ctx context.Context) (*domain.SMTPConfig, error) {
+	// Fallback to environment variables if Vault is not available
+	if os.Getenv("SMTP_HOST") != "" {
+		port, _ := strconv.Atoi(getEnv("SMTP_PORT", "587"))
+		useTLS, _ := strconv.ParseBool(getEnv("SMTP_USE_TLS", "true"))
+		return &domain.SMTPConfig{
+			Host:     os.Getenv("SMTP_HOST"),
+			Port:     port,
+			Username: os.Getenv("SMTP_USER"),
+			Password: os.Getenv("SMTP_PASS"),
+			UseTLS:   useTLS,
+		}, nil
+	}
+
+	if r.client == nil {
+		return nil, fmt.Errorf("vault client not initialized and SMTP_HOST env not set")
+	}
+
 	secret, err := r.client.Logical().ReadWithContext(ctx, r.smtpSecret)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read SMTP secret from vault: %w", err)
@@ -106,6 +124,13 @@ func (r *VaultRepository) GetSMTPConfig(ctx context.Context) (*domain.SMTPConfig
 	}
 
 	return config, nil
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 func (r *VaultRepository) Close() error {
