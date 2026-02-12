@@ -1,76 +1,4 @@
 import { z } from "zod";
-<<<<<<< HEAD
-import {
-  LoginSchema,
-  ForgotPasswordSchema,
-  ResetPasswordSchema,
-} from "../features/auth/schemas/auth.schema";
-
-// Re-export form schemas for compatibility
-export { LoginSchema, ForgotPasswordSchema, ResetPasswordSchema };
-
-export type LoginValues = z.infer<typeof LoginSchema>;
-export type ForgotPasswordValues = z.infer<typeof ForgotPasswordSchema>;
-export type ResetPasswordValues = z.infer<typeof ResetPasswordSchema>;
-
-// Core domain types used across the frontend
-export type User = {
-  id: string;
-  email: string;
-  name?: string;
-  permissions?: string[];
-  role?: string;
-};
-
-export type Session = {
-  id: string;
-  device?: string;
-  ip?: string;
-  createdAt: string;
-  expiresAt?: string;
-};
-
-export type ActiveSession = Session;
-
-export type AccessTokenPayload = {
-  sub: string;
-  permissions: string[];
-  iat?: number;
-  exp?: number;
-};
-
-export type RefreshTokenPayload = {
-  sub: string;
-  sessionId?: string;
-  iat?: number;
-  exp?: number;
-};
-
-export type CookieConfig = {
-  name: string;
-  maxAge?: number;
-  domain?: string;
-  path?: string;
-  secure?: boolean;
-  httpOnly?: boolean;
-  sameSite?: "lax" | "strict" | "none";
-};
-
-// Other auth-related request/response types (minimal)
-export type LoginRequest = {
-  email: string;
-  password: string;
-  rememberMe?: boolean;
-};
-
-export type LoginResponse = {
-  access_token: string;
-  refresh_token: string;
-  user: User;
-};
-
-export default {};
-=======
 
 // Base user schema
 export const UserSchema = z.object({
@@ -104,8 +32,6 @@ export const AccessTokenPayloadSchema = z.object({
   exp: z.number(),
   jti: z.string().uuid(), // JWT ID for revocation
   session_id: z.string().uuid(), // for session tracking
-  iss: z.string().optional(),
-  aud: z.string().optional(),
 });
 
 export type AccessTokenPayload = z.infer<typeof AccessTokenPayloadSchema>;
@@ -117,8 +43,6 @@ export const RefreshTokenPayloadSchema = z.object({
   iat: z.number(),
   exp: z.number(),
   jti: z.string().uuid(),
-  iss: z.string().optional(),
-  aud: z.string().optional(),
 });
 
 export type RefreshTokenPayload = z.infer<typeof RefreshTokenPayloadSchema>;
@@ -160,28 +84,28 @@ export type RefreshResponse = z.infer<typeof RefreshResponseSchema>;
 
 // Session management schemas
 export const SessionSchema = z.object({
-  id: z.uuid(),
-  user_id: z.uuid(),
+  id: z.string().uuid(),
+  user_id: z.string().uuid(),
   device_name: z.string(),
-  ip_address: z.string().regex(/^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/, "Invalid IP address").optional(),
+  ip_address: z.string().ip().optional(),
   user_agent: z.string().optional(),
   is_active: z.boolean(),
-  last_activity: z.iso.datetime(),
-  expires_at: z.iso.datetime(),
-  created_at: z.iso.datetime(),
+  last_activity: z.string().datetime(),
+  expires_at: z.string().datetime(),
+  created_at: z.string().datetime(),
 });
 
 export type Session = z.infer<typeof SessionSchema>;
 
 export const RefreshTokenSchema = z.object({
-  id: z.uuid(),
-  session_id: z.uuid(),
-  user_id: z.uuid(),
+  id: z.string().uuid(),
+  session_id: z.string().uuid(),
+  user_id: z.string().uuid(),
   token_hash: z.string(),
-  expires_at: z.iso.datetime(),
-  revoked_at: z.iso.datetime().optional(),
-  created_at: z.iso.datetime(),
-  last_used_at: z.iso.datetime().optional(),
+  expires_at: z.string().datetime(),
+  revoked_at: z.string().datetime().optional(),
+  created_at: z.string().datetime(),
+  last_used_at: z.string().datetime().optional(),
 });
 
 export type RefreshToken = z.infer<typeof RefreshTokenSchema>;
@@ -201,7 +125,7 @@ export const ChangePasswordRequestSchema = z.object({
 export type ChangePasswordRequest = z.infer<typeof ChangePasswordRequestSchema>;
 
 export const ForgotPasswordRequestSchema = z.object({
-  email: z.email(),
+  email: z.string().email(),
 });
 
 export type ForgotPasswordRequest = z.infer<typeof ForgotPasswordRequestSchema>;
@@ -224,7 +148,7 @@ export const SessionValidationResponseSchema = z.object({
   valid: z.boolean(),
   user: UserSchema.optional(),
   session: SessionSchema.optional(),
-  expires_at: z.iso.datetime().optional(),
+  expires_at: z.string().datetime().optional(),
 });
 
 export type SessionValidationResponse = z.infer<typeof SessionValidationResponseSchema>;
@@ -248,7 +172,7 @@ export const AuthErrorSchema = z.object({
   error: z.string(),
   error_description: z.string(),
   error_code: z.string(),
-  timestamp: z.iso.datetime(),
+  timestamp: z.string().datetime(),
 });
 
 export type AuthError = z.infer<typeof AuthErrorSchema>;
@@ -282,10 +206,10 @@ export const AuthAuditLogSchema = z.object({
     "account_locked",
     "account_unlocked",
   ]),
-  ip_address: z.string().regex(/^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/, "Invalid IP address").optional(),
+  ip_address: z.string().ip().optional(),
   user_agent: z.string().optional(),
-  details: z.record(z.string(), z.unknown()).optional(),
-  created_at: z.iso.datetime(),
+  details: z.record(z.unknown()).optional(),
+  created_at: z.string().datetime(),
 });
 
 export type AuthAuditLog = z.infer<typeof AuthAuditLogSchema>;
@@ -294,9 +218,9 @@ export type AuthAuditLog = z.infer<typeof AuthAuditLogSchema>;
 export const ActiveSessionSchema = z.object({
   session_id: z.string().uuid(),
   device_name: z.string(),
-  ip_address: z.string().regex(/^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/, "Invalid IP address").optional(),
-  last_activity: z.iso.datetime(),
-  created_at: z.iso.datetime(),
+  ip_address: z.string().ip().optional(),
+  last_activity: z.string().datetime(),
+  created_at: z.string().datetime(),
   is_current: z.boolean(),
 });
 
@@ -311,7 +235,7 @@ export type SessionListResponse = z.infer<typeof SessionListResponseSchema>;
 
 // Permission and role schemas
 export const PermissionSchema = z.object({
-  id: z.uuid(),
+  id: z.string().uuid(),
   name: z.string(),
   description: z.string().optional(),
   resource: z.string(),
@@ -321,7 +245,7 @@ export const PermissionSchema = z.object({
 export type Permission = z.infer<typeof PermissionSchema>;
 
 export const RoleSchema = z.object({
-  id: z.uuid(),
+  id: z.string().uuid(),
   name: z.string(),
   description: z.string().optional(),
   permissions: z.array(PermissionSchema),
@@ -332,7 +256,7 @@ export type Role = z.infer<typeof RoleSchema>;
 
 // Authorization schemas
 export const AuthorizationContextSchema = z.object({
-  user_id: z.uuid(),
+  user_id: z.string().uuid(),
   roles: z.array(z.string()),
   permissions: z.array(z.string()),
   resource: z.string().optional(),
@@ -380,4 +304,3 @@ export const ClientAuthStateSchema = z.object({
 });
 
 export type ClientAuthState = z.infer<typeof ClientAuthStateSchema>;
->>>>>>> 9b29d9f (feat(auth): add comprehensive authentication schemas with JWT and session management)
