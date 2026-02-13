@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 
@@ -19,12 +18,11 @@ import {
 import { LoginSchema, type LoginValues } from "../schemas/auth.schema";
 import { cn } from "@/lib/utils";
 
-export function LoginForm() {
+function LoginFormComponent() {
   const [showPassword, setShowPassword] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
 
-  const form = useForm<LoginValues>({
-    resolver: zodResolver(LoginSchema),
+  const form = useForm({
     defaultValues: {
       email: "",
       password: "",
@@ -32,7 +30,23 @@ export function LoginForm() {
     },
   });
 
-  async function onSubmit(data: LoginValues) {
+  async function onSubmit(data: any) {
+    // Custom validation
+    const email = data.email || "";
+    const password = data.password || "";
+
+    // Validate email
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      form.setError("email", { message: "Please enter a valid email address" });
+      return;
+    }
+
+    // Validate password
+    if (!password || password.length < 8) {
+      form.setError("password", { message: "Password must be at least 8 characters long" });
+      return;
+    }
+
     setIsLoading(true);
     // Simulate API call
     console.log("Login data:", data);
@@ -43,10 +57,8 @@ export function LoginForm() {
   return (
     <div className="w-full">
       <div className="mb-10">
-        <h2 className="text-3xl font-bold text-foreground mb-2">
-          Welcome back
-        </h2>
-        <p className="text-muted-foreground">
+        <h2 className="text-3xl font-bold text-[#002333] mb-2">Welcome back</h2>
+        <p className="text-slate-500">
           Enter your details to access your dashboard.
         </p>
       </div>
@@ -58,7 +70,7 @@ export function LoginForm() {
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-foreground mb-2">
+                <FormLabel className="text-[#002333] mb-2">
                   Email Address
                 </FormLabel>
                 <FormControl>
@@ -68,7 +80,7 @@ export function LoginForm() {
                     disabled={isLoading}
                     {...field}
                     className={cn(
-                      "px-4 py-3 h-12 rounded-lg border-input bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring transition-colors placeholder:text-muted-foreground",
+                      "px-4 py-3 h-12 rounded-lg border-slate-200 bg-white text-slate-900 focus:ring-2 focus:ring-primary focus:border-primary transition-colors placeholder:text-slate-400",
                       form.formState.errors.email &&
                         "border-destructive focus:ring-destructive",
                     )}
@@ -84,7 +96,7 @@ export function LoginForm() {
             name="password"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-foreground">Password</FormLabel>
+                <FormLabel className="text-[#002333]">Password</FormLabel>
                 <FormControl>
                   <div className="relative">
                     <Input
@@ -93,7 +105,7 @@ export function LoginForm() {
                       disabled={isLoading}
                       {...field}
                       className={cn(
-                        "px-4 py-3 h-12 pr-12 rounded-lg border-input bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring transition-colors placeholder:text-muted-foreground",
+                        "px-4 py-3 h-12 pr-12 rounded-lg border-slate-200 bg-white text-slate-900 focus:ring-2 focus:ring-primary focus:border-primary transition-colors placeholder:text-slate-400",
                         form.formState.errors.password &&
                           "border-destructive focus:ring-destructive",
                       )}
@@ -101,7 +113,7 @@ export function LoginForm() {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
                       tabIndex={-1}
                     >
                       {showPassword ? (
@@ -128,10 +140,10 @@ export function LoginForm() {
                       type="checkbox"
                       checked={field.value}
                       onChange={field.onChange}
-                      className="h-4 w-4 text-primary focus:ring-primary border-input rounded cursor-pointer accent-primary"
+                      className="h-4 w-4 text-primary focus:ring-primary border-slate-300 rounded cursor-pointer"
                     />
                   </FormControl>
-                  <FormLabel className="text-sm font-medium text-muted-foreground cursor-pointer">
+                  <FormLabel className="text-sm font-medium text-slate-600 cursor-pointer">
                     Remember me
                   </FormLabel>
                 </FormItem>
@@ -164,3 +176,5 @@ export function LoginForm() {
     </div>
   );
 }
+
+export { LoginFormComponent as LoginForm };
