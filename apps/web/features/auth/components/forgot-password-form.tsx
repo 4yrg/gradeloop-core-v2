@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, ArrowLeft, CheckCircle } from "lucide-react";
 import Link from "next/link";
 
@@ -22,12 +21,12 @@ import {
 } from "../schemas/auth.schema";
 import { cn } from "@/lib/utils";
 
-export function ForgotPasswordForm() {
+function ForgotPasswordFormComponent() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [isSubmitted, setIsSubmitted] = React.useState(false);
 
-  const form = useForm<ForgotPasswordValues>({
-    resolver: zodResolver(ForgotPasswordSchema),
+  const form = useForm({
+    mode: "onChange",
     defaultValues: {
       email: "",
     },
@@ -35,11 +34,21 @@ export function ForgotPasswordForm() {
 
   async function onSubmit(data: ForgotPasswordValues) {
     setIsLoading(true);
-    console.log("Forgot password data:", data);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setIsLoading(false);
-    setIsSubmitted(true);
+    try {
+      const base = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3000";
+      await fetch(`${base}/api/v1/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: data.email }),
+      });
+      // Always show neutral message to avoid user enumeration
+      setIsSubmitted(true);
+    } catch (err) {
+      // Network error -> still show neutral message to avoid revealing existence
+      setIsSubmitted(true);
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   if (isSubmitted) {
@@ -142,3 +151,5 @@ export function ForgotPasswordForm() {
     </div>
   );
 }
+
+export { ForgotPasswordFormComponent as ForgotPasswordForm };

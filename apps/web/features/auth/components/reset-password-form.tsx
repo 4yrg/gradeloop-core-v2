@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Loader2, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 
@@ -21,15 +20,19 @@ import {
   type ResetPasswordValues,
 } from "../schemas/auth.schema";
 import { PasswordStrengthIndicator } from "./password-strength-indicator";
+import { useSearchParams, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-export function ResetPasswordForm() {
+function ResetPasswordFormComponent() {
+  const [errorMsg, setErrorMsg] = React.useState("");
+  const search = useSearchParams();
+  const router = useRouter();
   const [showPassword, setShowPassword] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
   const [isSubmitted, setIsSubmitted] = React.useState(false);
 
-  const form = useForm<ResetPasswordValues>({
-    resolver: zodResolver(ResetPasswordSchema),
+  const form = useForm({
+    mode: "onChange",
     defaultValues: {
       password: "",
       confirmPassword: "",
@@ -39,14 +42,56 @@ export function ResetPasswordForm() {
   const password = form.watch("password");
   const confirmPassword = form.watch("confirmPassword");
 
-  async function onSubmit(data: ResetPasswordValues) {
+  const onSubmit = async (data: any) => {
+    // Custom validation
+    const password = data.password || "";
+    const confirmPassword = data.confirmPassword || "";
+
+    // Validate password
+    if (!password || password.length < 8) {
+      form.setError("password", { message: "Password must be at least 8 characters long" });
+      return;
+    }
+    if (!/[A-Z]/.test(password)) {
+      form.setError("password", { message: "Password must contain at least one uppercase letter" });
+      return;
+    }
+    if (!/[0-9!@#$%^&*]/.test(password)) {
+      form.setError("password", { message: "Password must contain at least one number or symbol" });
+      return;
+    }
+
+    // Validate confirm password
+    if (password !== confirmPassword) {
+      form.setError("confirmPassword", { message: "Passwords do not match" });
+      return;
+    }
+
     setIsLoading(true);
-    console.log("Reset password data:", data);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setIsLoading(false);
-    setIsSubmitted(true);
-  }
+    setErrorMsg("");
+    try {
+      const token = search.get("token") || "";
+      const base = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3000";
+      const res = await fetch(`${base}/api/v1/auth/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, new_password: data.password }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setErrorMsg((j && (j.error || j.message)) || "Failed to reset password");
+        setIsLoading(false);
+        return;
+      }
+      setIsSubmitted(true);
+      // optionally redirect to login after short delay
+      setTimeout(() => router.push("/login"), 1200);
+    } catch (err) {
+      setErrorMsg("Network error, please try again");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   if (isSubmitted) {
     return (
@@ -176,3 +221,5 @@ export function ResetPasswordForm() {
     </div>
   );
 }
+
+export { ResetPasswordFormComponent as ResetPasswordForm };
