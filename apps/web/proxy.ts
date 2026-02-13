@@ -42,15 +42,7 @@ const FACULTY_ROUTES = [
   "/students",
 ];
 
-// Rate limiting configuration
-const RATE_LIMIT_CONFIG = {
-  auth: { maxRequests: 5, windowMs: 15 * 60 * 1000 }, // 5 requests per 15 minutes
-  api: { maxRequests: 100, windowMs: 60 * 1000 }, // 100 requests per minute
-  general: { maxRequests: 1000, windowMs: 60 * 1000 }, // 1000 requests per minute
-};
-
-// In-memory rate limit store (use Redis in production)
-const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+// Rate limiting disabled in proxy (use service-level protection)
 
 class MiddlewareError extends Error {
   constructor(
@@ -73,8 +65,7 @@ export async function proxy(request: NextRequest) {
       return response;
     }
 
-    // Apply rate limiting
-    await applyRateLimit(request);
+    // Rate limiting disabled in proxy middleware
 
     // Handle CSRF protection for state-changing requests
     if (isStateMutatingRequest(request)) {
@@ -179,43 +170,7 @@ function isStateMutatingRequest(request: NextRequest): boolean {
   return ["POST", "PUT", "PATCH", "DELETE"].includes(method);
 }
 
-async function applyRateLimit(request: NextRequest): Promise<void> {
-  const clientIP = getClientIP(request);
-  const pathname = request.nextUrl.pathname;
-
-  let config = RATE_LIMIT_CONFIG.general;
-
-  if (pathname.startsWith("/api/auth/")) {
-    config = RATE_LIMIT_CONFIG.auth;
-  } else if (pathname.startsWith("/api/")) {
-    config = RATE_LIMIT_CONFIG.api;
-  }
-
-  const key = `${clientIP}:${pathname.startsWith("/api/auth/") ? "auth" : "general"}`;
-  const now = Date.now();
-  const windowStart = now - config.windowMs;
-
-  let rateLimitData = rateLimitStore.get(key);
-
-  if (!rateLimitData || rateLimitData.resetTime <= windowStart) {
-    rateLimitData = { count: 1, resetTime: now + config.windowMs };
-  } else {
-    rateLimitData.count++;
-  }
-
-  rateLimitStore.set(key, rateLimitData);
-
-  // Clean up old entries
-  if (Math.random() < 0.01) {
-    // 1% chance to clean up
-    cleanupRateLimitStore();
-  }
-
-  if (rateLimitData.count > config.maxRequests) {
-    const retryAfter = Math.ceil((rateLimitData.resetTime - now) / 1000);
-    throw new MiddlewareError(`Rate limit exceeded`, 429);
-  }
-}
+// Rate limiting removed from proxy middleware. Use service-level protections instead.
 
 async function validateCSRFToken(request: NextRequest): Promise<void> {
   // Skip CSRF validation for auth endpoints (they handle it internally)
@@ -453,14 +408,7 @@ function getClientIP(request: NextRequest): string {
   return "unknown";
 }
 
-function cleanupRateLimitStore(): void {
-  const now = Date.now();
-  for (const [key, data] of rateLimitStore.entries()) {
-    if (data.resetTime <= now) {
-      rateLimitStore.delete(key);
-    }
-  }
-}
+// cleanupRateLimitStore removed along with proxy rate limiting
 
 // Configure which paths the middleware should run on
 export const config = {
