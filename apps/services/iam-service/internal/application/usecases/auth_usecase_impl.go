@@ -100,11 +100,12 @@ func (a *authUsecase) Login(ctx context.Context, email, password string) (string
 
 	// Store refresh token in database with user association
 	refreshTokenRecord := &models.RefreshToken{
-		Token:     refreshToken,
-		UserID:    user.ID,
-		Expiry:    time.Now().Add(30 * 24 * time.Hour), // 30 days
-		IsActive:  true,
-		IsUsed:    false,
+		ID:       uuid.New(),
+		UserID:   user.ID,
+		Token:    refreshToken,
+		Expiry:   time.Now().Add(30 * 24 * time.Hour), // 30 days
+		IsActive: true,
+		IsUsed:   false,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -194,11 +195,12 @@ func (a *authUsecase) Refresh(ctx context.Context, refreshToken string) (string,
 
 	// Store new refresh token and invalidate old one
 	newTokenRecord := &models.RefreshToken{
-		Token:     newRefreshToken,
-		UserID:    user.ID,
-		Expiry:    time.Now().Add(30 * 24 * time.Hour), // 30 days
-		IsActive:  true,
-		IsUsed:    false,
+		ID:       uuid.New(),
+		UserID:   user.ID,
+		Token:    newRefreshToken,
+		Expiry:   time.Now().Add(30 * 24 * time.Hour), // 30 days
+		IsActive: true,
+		IsUsed:   false,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}

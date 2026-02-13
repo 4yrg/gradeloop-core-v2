@@ -7,6 +7,10 @@ const PUBLIC_ROUTES = [
   "/contact",
   "/privacy",
   "/terms",
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
 ];
 
 const PROTECTED_ROUTES = [

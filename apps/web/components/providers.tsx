@@ -42,20 +42,34 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Initialize auth state on mount by validating session
   React.useEffect(() => {
+    console.log("[AuthProvider] useEffect triggered", { 
+      isAuthenticated: authStore.isAuthenticated, 
+      isLoading: authStore.isLoading 
+    });
+    
     const initializeAuth = async () => {
       // Skip if already authenticated or loading
       if (authStore.isAuthenticated || authStore.isLoading) {
+        console.log("[AuthProvider] Skipping initialization - already authenticated or loading");
         return;
       }
 
+      console.log("[AuthProvider] Starting session validation");
       authStore.setLoading(true);
 
       try {
+        // TEMPORARILY DISABLE SESSION VALIDATION TO DEBUG LOOP
+        console.log("[AuthProvider] Session validation temporarily disabled");
+        authStore.setLoading(false);
+        return;
+        
+        /*
         // Validate current session using HTTPOnly cookies
         const sessionResult = await apiClient.validateSession();
 
         if (sessionResult.valid && sessionResult.user) {
           // Session is valid, update auth state
+          console.log("[AuthProvider] Valid session found");
           authStore.setAuthenticated(true);
           authStore.setUser(
             sessionResult.user as {
@@ -70,18 +84,22 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
           authStore.updateLastActivity();
         } else {
           // No valid session, ensure we're logged out
+          console.log("[AuthProvider] No valid session, logging out");
           authStore.logout();
         }
+        */
       } catch (error) {
-        console.error("Auth initialization error:", error);
+        console.error("[AuthProvider] Auth initialization error:", error);
+        // On error, ensure we're logged out but don't retry immediately
         authStore.logout();
       } finally {
         authStore.setLoading(false);
       }
     };
 
+    // Only initialize once on mount, not on every render
     initializeAuth();
-  }, [authStore]);
+  }, []); // Empty dependency array - only run once
 
   // Auto-refresh token when it's about to expire
   React.useEffect(() => {
@@ -146,39 +164,98 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 
 // Session monitor component
 function SessionMonitor({ children }: { children: React.ReactNode }) {
+  // TEMPORARILY DISABLE SESSION MONITOR TO DEBUG LOOP
+  console.log("[SessionMonitor] Temporarily disabled");
+  return <>{children}</>;
+  
+  /*
   const authStore = useAuthStore();
+  
+  // Only render the monitoring logic when authenticated
+  if (!authStore.isAuthenticated) {
+    return <>{children}</>;
+  }
+
+  return (
+    <SessionMonitoringLogic>
+      {children}
+    </SessionMonitoringLogic>
+  );
+  */
+}
+
+// Separate component for the actual monitoring logic
+function SessionMonitoringLogic({ children }: { children: React.ReactNode }) {
+  const authStore = useAuthStore();
+  const [validationErrorCount, setValidationErrorCount] = React.useState(0);
+  const MAX_VALIDATION_ERRORS = 3; // Allow up to 3 consecutive validation errors
 
   // Monitor session validity
   React.useEffect(() => {
-    if (!authStore.isAuthenticated) return;
+    console.log("[SessionMonitor] useEffect triggered", { 
+      isAuthenticated: authStore.isAuthenticated,
+      validationErrorCount
+    });
+    
+    const checkSession = async () => {
+      console.log("[SessionMonitor] Checking session");
+      try {
+        // Check if session is expired based on local state
+        if (authStore.isSessionExpired()) {
+          console.log("Session expired, logging out");
+          authStore.logout();
+          return;
+        }
 
-    const checkSession = () => {
-      // Check if session is expired based on local state
-      if (authStore.isSessionExpired()) {
-        console.log("Session expired, logging out");
-        authStore.logout();
-        return;
-      }
+        // Check for inactivity timeout (30 minutes)
+        const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+        const timeSinceActivity = Date.now() - authStore.lastActivity;
 
-      // Check for inactivity timeout (30 minutes)
-      const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
-      const timeSinceActivity = Date.now() - authStore.lastActivity;
+        if (timeSinceActivity > INACTIVITY_TIMEOUT) {
+          console.log("Session inactive timeout, logging out");
+          authStore.logout();
+          return;
+        }
 
-      if (timeSinceActivity > INACTIVITY_TIMEOUT) {
-        console.log("Session inactive timeout, logging out");
-        authStore.logout();
-        return;
+        // Periodically validate session with the server (every 5 minutes)
+        // But only if we haven't had too many validation errors
+        if (validationErrorCount < MAX_VALIDATION_ERRORS) {
+          try {
+            console.log("[SessionMonitor] Calling validateSession");
+            const validationResult = await apiClient.validateSession();
+            if (!validationResult.valid) {
+              console.log("Server session invalid, logging out");
+              authStore.logout();
+              return;
+            }
+            // Reset error count on successful validation
+            if (validationErrorCount > 0) {
+              setValidationErrorCount(0);
+            }
+          } catch (error) {
+            console.error("Session validation failed:", error);
+            setValidationErrorCount(prev => prev + 1);
+            
+            // If we've hit the max errors, log out
+            if (validationErrorCount + 1 >= MAX_VALIDATION_ERRORS) {
+              console.log("Too many validation errors, logging out");
+              authStore.logout();
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Session check error:", error);
       }
     };
 
-    // Check session every minute
-    const interval = setInterval(checkSession, 60 * 1000);
+    // Check session every 5 minutes (instead of every minute to reduce load)
+    const interval = setInterval(checkSession, 5 * 60 * 1000);
 
     // Initial check
     checkSession();
 
     return () => clearInterval(interval);
-  }, [authStore]);
+  }, [authStore, validationErrorCount]);
 
   return <>{children}</>;
 }
