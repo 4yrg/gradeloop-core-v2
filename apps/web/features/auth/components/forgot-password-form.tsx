@@ -55,10 +55,10 @@ export function ForgotPasswordForm() {
           </Link>
           <div className="text-center">
             <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-            <h2 className="text-3xl font-bold text-[#002333] mb-2">
+            <h2 className="text-3xl font-bold text-foreground mb-2">
               Check Your Email
             </h2>
-            <p className="text-slate-500">
+            <p className="text-muted-foreground">
               We&apos;ve sent a password reset link to your email address.
               Please check your inbox and follow the instructions.
             </p>
@@ -67,7 +67,7 @@ export function ForgotPasswordForm() {
         <Link href="/login">
           <Button
             variant="outline"
-            className="w-full h-12 border-slate-200 text-[#002333]"
+            className="w-full h-12 border-input text-foreground"
           >
             Back to Login
           </Button>
@@ -86,10 +86,10 @@ export function ForgotPasswordForm() {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Login
         </Link>
-        <h2 className="text-3xl font-bold text-[#002333] mb-2">
+        <h2 className="text-3xl font-bold text-foreground mb-2">
           Forgot Password
         </h2>
-        <p className="text-slate-500">
+        <p className="text-muted-foreground">
           Enter your email address and we&apos;ll send you a link to reset your
           password.
         </p>
@@ -102,7 +102,7 @@ export function ForgotPasswordForm() {
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-[#002333] mb-2">
+                <FormLabel className="text-foreground mb-2">
                   Email Address
                 </FormLabel>
                 <FormControl>
@@ -112,7 +112,7 @@ export function ForgotPasswordForm() {
                     disabled={isLoading}
                     {...field}
                     className={cn(
-                      "px-4 py-3 h-12 rounded-lg border-slate-200 bg-white text-slate-900 focus:ring-2 focus:ring-primary focus:border-primary transition-colors placeholder:text-slate-400",
+                      "px-4 py-3 h-12 rounded-lg border-input bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring transition-colors placeholder:text-muted-foreground",
                       form.formState.errors.email &&
                         "border-destructive focus:ring-destructive",
                     )}
@@ -125,7 +125,7 @@ export function ForgotPasswordForm() {
 
           <Button
             type="submit"
-            className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-semibold rounded-lg shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
+            className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-lg shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
             disabled={isLoading}
           >
             {isLoading ? (
