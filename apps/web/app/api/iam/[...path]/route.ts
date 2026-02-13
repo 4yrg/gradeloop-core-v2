@@ -1,23 +1,11 @@
 import { NextResponse } from "next/server";
 
-// Use server-side IAM_SERVICE_URL for Docker internal network communication
-// Falls back to NEXT_PUBLIC_IAM_SERVICE_URL for local dev, then localhost
 const IAM_SERVICE_URL =
-  process.env.IAM_SERVICE_URL || 
-  process.env.NEXT_PUBLIC_IAM_SERVICE_URL || 
-  "http://localhost:8080";
-// Don't append /v1 here - it's part of the incoming path
-const API_BASE = IAM_SERVICE_URL;
+  process.env.NEXT_PUBLIC_IAM_SERVICE_URL || "http://localhost:3000";
+const API_BASE = `${IAM_SERVICE_URL}/api/v1`;
 
 async function proxy(req: Request, path: string) {
-  // Forward the path as-is to the IAM service, adding /api prefix
-  const cleanPath = path;
-  const url = `${API_BASE}/api/${cleanPath}`;
-  
-  console.log("[PROXY] Incoming path:", path);
-  console.log("[PROXY] Clean path:", cleanPath);
-  console.log("[PROXY] API_BASE:", API_BASE);
-  console.log("[PROXY] Final URL:", url);
+  const url = `${API_BASE}/${path}`.replace(/([^:]:)\/\//g, "$1/");
 
   // Build headers for outgoing request
   const outHeaders: Record<string, string> = {};
@@ -31,24 +19,15 @@ async function proxy(req: Request, path: string) {
   const cookie = req.headers.get("cookie");
   if (cookie) outHeaders["cookie"] = cookie;
 
-  const init = {
+  const init: RequestInit = {
     method: req.method,
     headers: outHeaders,
     // Forward body if present
     body: req.method === "GET" || req.method === "HEAD" ? undefined : req.body,
     redirect: "manual",
-    // Required when sending a body with fetch
-    duplex: req.method !== "GET" && req.method !== "HEAD" ? "half" : undefined,
-  } as RequestInit & { duplex?: string };
+  };
 
-  console.log("[PROXY] Making request to:", url);
-  console.log("[PROXY] Request method:", req.method);
-  console.log("[PROXY] Request headers:", Object.keys(outHeaders));
-  
   const res = await fetch(url, init);
-  
-  console.log("[PROXY] Response status:", res.status);
-  console.log("[PROXY] Response headers:", [...res.headers.entries()]);
 
   // Clone response headers but remove hop-by-hop headers
   const headers = new Headers(res.headers);
@@ -62,33 +41,28 @@ async function proxy(req: Request, path: string) {
   });
 }
 
-export async function GET(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
-  const resolvedParams = await params;
-  const path = (resolvedParams.path || []).join("/") || "";
+export async function GET(request: Request, { params }: { params: { path: string[] } }) {
+  const path = (params.path || []).join("/") || "";
   return proxy(request, path);
 }
 
-export async function POST(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
-  const resolvedParams = await params;
-  const path = (resolvedParams.path || []).join("/") || "";
+export async function POST(request: Request, { params }: { params: { path: string[] } }) {
+  const path = (params.path || []).join("/") || "";
   return proxy(request, path);
 }
 
-export async function PUT(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
-  const resolvedParams = await params;
-  const path = (resolvedParams.path || []).join("/") || "";
+export async function PUT(request: Request, { params }: { params: { path: string[] } }) {
+  const path = (params.path || []).join("/") || "";
   return proxy(request, path);
 }
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
-  const resolvedParams = await params;
-  const path = (resolvedParams.path || []).join("/") || "";
+export async function PATCH(request: Request, { params }: { params: { path: string[] } }) {
+  const path = (params.path || []).join("/") || "";
   return proxy(request, path);
 }
 
-export async function DELETE(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
-  const resolvedParams = await params;
-  const path = (resolvedParams.path || []).join("/") || "";
+export async function DELETE(request: Request, { params }: { params: { path: string[] } }) {
+  const path = (params.path || []).join("/") || "";
   return proxy(request, path);
 }
 
