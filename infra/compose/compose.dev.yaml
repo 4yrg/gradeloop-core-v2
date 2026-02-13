@@ -99,6 +99,8 @@ services:
       - "traefik.http.middlewares.iam-retry.retry.initialInterval=100ms"
     env_file:
       - ../../.env
+    environment:
+      DATABASE_URL: "${POSTGRES_URL_BASE}iam_db?sslmode=${POSTGRES_SSLMODE}"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/iam/health"]
       interval: 10s
