@@ -68,10 +68,10 @@ function ForgotPasswordFormComponent() {
           </Link>
           <div className="text-center">
             <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-            <h2 className="text-3xl font-bold text-foreground mb-2">
+            <h2 className="text-3xl font-bold text-[#002333] mb-2">
               Check Your Email
             </h2>
-            <p className="text-muted-foreground">
+            <p className="text-slate-500">
               We&apos;ve sent a password reset link to your email address.
               Please check your inbox and follow the instructions.
             </p>

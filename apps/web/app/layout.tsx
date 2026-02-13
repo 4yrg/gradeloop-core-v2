@@ -7,21 +7,13 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 const lexend = Lexend({
   variable: "--font-lexend",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "GradeLoop | Intelligent LMS",
+  title: "GradeLoop - Academic Management Platform",
   description:
-    "Experience the next generation of academic management with intelligent insights and seamless collaboration.",
-  other: {
-    "csrf-token": "placeholder", // Will be replaced by middleware with actual CSRF token
-  },
-  description:
-    "Experience the next generation of academic management with intelligent insights and seamless collaboration.",
-  other: {
-    "csrf-token": "placeholder", // Will be replaced by middleware with actual CSRF token
-  },
+    "Modern academic management platform for institutions, faculty, and students",
 };
 
 export default function RootLayout({
@@ -32,13 +24,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <meta name="csrf-token" content="placeholder" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#000000" />
-      </head>
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <meta name="csrf-token" content="placeholder" />
+        <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#000000" />
       </head>
