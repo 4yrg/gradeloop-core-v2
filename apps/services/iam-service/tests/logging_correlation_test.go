@@ -7,6 +7,7 @@ import (
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/repositories"
 	"github.com/4yrg/gradeloop-core-v2/shared/libs/go/middleware"
+	_ "github.com/glebarez/sqlite"
 	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/sqlite"
