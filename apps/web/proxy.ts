@@ -129,8 +129,7 @@ export async function proxy(request: NextRequest) {
 
 function shouldSkipMiddleware(pathname: string): boolean {
   const skipPatterns = [
-    /^\/api\/auth\//, // Auth API routes handle their own middleware
-    /^\/api\/health/, // Health check endpoints
+    /^\/api\//, // All API routes handle their own auth (including /api/v1/auth/...)
     /^\/_next\//, // Next.js internal files
     /^\/favicon\.ico$/,
     /^\/robots\.txt$/,
