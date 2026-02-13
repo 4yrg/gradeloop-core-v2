@@ -252,7 +252,7 @@ async function getAuthenticationStatus(request: NextRequest): Promise<{
 
   try {
     // Verify access token
-    const payload = JWTManager.verifyAccessToken(accessToken);
+    const payload = await JWTManager.verifyAccessToken(accessToken);
 
     // Check if token should be refreshed (5 minutes before expiry)
     const timeUntilExpiry = payload.exp * 1000 - Date.now();
@@ -272,9 +272,8 @@ async function getAuthenticationStatus(request: NextRequest): Promise<{
     };
   } catch (error) {
     if (error instanceof TokenExpiredError) {
-      // Token expired, try to refresh
       try {
-        const refreshPayload = JWTManager.verifyRefreshToken(refreshToken);
+        const refreshPayload = await JWTManager.verifyRefreshToken(refreshToken);
         return {
           isAuthenticated: true,
           user: null, // Will be populated after refresh
@@ -430,7 +429,7 @@ function getClientIP(request: NextRequest): string {
     return cfConnectingIp.trim();
   }
 
-  return request.ip || "unknown";
+  return "unknown";
 }
 
 function cleanupRateLimitStore(): void {
@@ -448,11 +447,10 @@ export const config = {
     /*
      * Match all request paths except for the ones starting with:
      * - api/auth (handled separately)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public assets
+     * - _next (static files)
+     * - favicon.ico, robots.txt, sitemap.xml
+     * - common static files
      */
-    "/((?!api/auth|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\.(png|jpg|jpeg|gif|svg|ico|css|js|woff|woff2|ttf|eot)$).*)",
+    "/((?!api/auth|_next|favicon.ico|robots.txt|sitemap.xml|.*\\..*$).*)",
   ],
 };

@@ -1,5 +1,4 @@
-import jwt from "jsonwebtoken";
-import crypto from "crypto";
+import * as jose from "jose";
 import { z } from "zod";
 import type {
   AccessTokenPayload,
@@ -39,8 +38,8 @@ const AccessTokenClaimsSchema = z.object({
   permissions: z.array(z.string()),
   iat: z.number(),
   exp: z.number(),
-  iss: z.string(),
-  aud: z.string(),
+  iss: z.string().optional(),
+  aud: z.string().optional(),
   jti: z.string().uuid(),
   session_id: z.string().uuid(),
 });
@@ -51,8 +50,8 @@ const RefreshTokenClaimsSchema = z.object({
   token_id: z.string().uuid(),
   iat: z.number(),
   exp: z.number(),
-  iss: z.string(),
-  aud: z.string(),
+  iss: z.string().optional(),
+  aud: z.string().optional(),
   jti: z.string().uuid(),
 });
 
@@ -91,6 +90,13 @@ export class TokenMalformedError extends JWTError {
 
 // JWT Token Manager
 export class JWTManager {
+  private static getSecret(type: "access" | "refresh"): Uint8Array {
+    const secret = type === "access"
+      ? JWT_CONFIG.ACCESS_TOKEN.SECRET
+      : JWT_CONFIG.REFRESH_TOKEN.SECRET;
+    return new TextEncoder().encode(secret);
+  }
+
   /**
    * Generate a secure JWT ID
    */
@@ -101,15 +107,15 @@ export class JWTManager {
   /**
    * Generate an access token with user claims
    */
-  static generateAccessToken(
+  static async generateAccessToken(
     user: User,
     sessionId: string,
     jti?: string
-  ): {
+  ): Promise<{
     token: string;
     payload: AccessTokenPayload;
     expiresAt: Date;
-  } {
+  }> {
     const now = Math.floor(Date.now() / 1000);
     const tokenJTI = jti || this.generateJTI();
 
@@ -127,15 +133,14 @@ export class JWTManager {
       exp: now + 15 * 60, // 15 minutes
       jti: tokenJTI,
       session_id: sessionId,
+      iss: JWT_CONFIG.ACCESS_TOKEN.ISSUER,
+      aud: JWT_CONFIG.ACCESS_TOKEN.AUDIENCE,
     };
 
-    const token = jwt.sign(payload, JWT_CONFIG.ACCESS_TOKEN.SECRET, {
-      algorithm: JWT_CONFIG.ACCESS_TOKEN.ALGORITHM,
-      issuer: JWT_CONFIG.ACCESS_TOKEN.ISSUER,
-      audience: JWT_CONFIG.ACCESS_TOKEN.AUDIENCE,
-      expiresIn: JWT_CONFIG.ACCESS_TOKEN.EXPIRES_IN,
-      jwtid: tokenJTI,
-    });
+    const secret = this.getSecret("access");
+    const token = await new jose.SignJWT(payload as any)
+      .setProtectedHeader({ alg: JWT_CONFIG.ACCESS_TOKEN.ALGORITHM })
+      .sign(secret);
 
     return {
       token,
@@ -147,16 +152,16 @@ export class JWTManager {
   /**
    * Generate a refresh token
    */
-  static generateRefreshToken(
+  static async generateRefreshToken(
     userId: string,
     sessionId: string,
     jti?: string
-  ): {
+  ): Promise<{
     token: string;
     payload: RefreshTokenPayload;
     tokenId: string;
     expiresAt: Date;
-  } {
+  }> {
     const now = Math.floor(Date.now() / 1000);
     const tokenJTI = jti || this.generateJTI();
     const tokenId = crypto.randomUUID();
@@ -168,15 +173,14 @@ export class JWTManager {
       iat: now,
       exp: now + 30 * 24 * 60 * 60, // 30 days
       jti: tokenJTI,
+      iss: JWT_CONFIG.REFRESH_TOKEN.ISSUER,
+      aud: JWT_CONFIG.REFRESH_TOKEN.AUDIENCE,
     };
 
-    const token = jwt.sign(payload, JWT_CONFIG.REFRESH_TOKEN.SECRET, {
-      algorithm: JWT_CONFIG.REFRESH_TOKEN.ALGORITHM,
-      issuer: JWT_CONFIG.REFRESH_TOKEN.ISSUER,
-      audience: JWT_CONFIG.REFRESH_TOKEN.AUDIENCE,
-      expiresIn: JWT_CONFIG.REFRESH_TOKEN.EXPIRES_IN,
-      jwtid: tokenJTI,
-    });
+    const secret = this.getSecret("refresh");
+    const token = await new jose.SignJWT(payload as any)
+      .setProtectedHeader({ alg: JWT_CONFIG.REFRESH_TOKEN.ALGORITHM })
+      .sign(secret);
 
     return {
       token,
@@ -189,30 +193,25 @@ export class JWTManager {
   /**
    * Verify and decode an access token
    */
-  static verifyAccessToken(token: string): AccessTokenPayload {
+  static async verifyAccessToken(token: string): Promise<AccessTokenPayload> {
     try {
-      const decoded = jwt.verify(token, JWT_CONFIG.ACCESS_TOKEN.SECRET, {
+      const secret = this.getSecret("access");
+      const { payload } = await jose.jwtVerify(token, secret, {
         algorithms: [JWT_CONFIG.ACCESS_TOKEN.ALGORITHM],
         issuer: JWT_CONFIG.ACCESS_TOKEN.ISSUER,
         audience: JWT_CONFIG.ACCESS_TOKEN.AUDIENCE,
-        clockTolerance: 30, // 30 seconds clock skew tolerance
+        clockTolerance: 30,
       });
 
       // Validate the decoded payload structure
-      const validatedPayload = AccessTokenClaimsSchema.parse(decoded);
-
-      return validatedPayload;
+      return AccessTokenClaimsSchema.parse(payload);
     } catch (error) {
-      if (error instanceof jwt.TokenExpiredError) {
+      if (error instanceof jose.errors.JWTExpired) {
         throw new TokenExpiredError("Access token has expired");
       }
 
-      if (error instanceof jwt.JsonWebTokenError) {
+      if (error instanceof jose.errors.JWTInvalid || error instanceof jose.errors.JWSSignatureVerificationFailed) {
         throw new TokenInvalidError("Access token is invalid");
-      }
-
-      if (error instanceof jwt.NotBeforeError) {
-        throw new TokenInvalidError("Access token is not active yet");
       }
 
       if (error instanceof z.ZodError) {
@@ -226,30 +225,25 @@ export class JWTManager {
   /**
    * Verify and decode a refresh token
    */
-  static verifyRefreshToken(token: string): RefreshTokenPayload {
+  static async verifyRefreshToken(token: string): Promise<RefreshTokenPayload> {
     try {
-      const decoded = jwt.verify(token, JWT_CONFIG.REFRESH_TOKEN.SECRET, {
+      const secret = this.getSecret("refresh");
+      const { payload } = await jose.jwtVerify(token, secret, {
         algorithms: [JWT_CONFIG.REFRESH_TOKEN.ALGORITHM],
         issuer: JWT_CONFIG.REFRESH_TOKEN.ISSUER,
         audience: JWT_CONFIG.REFRESH_TOKEN.AUDIENCE,
-        clockTolerance: 30, // 30 seconds clock skew tolerance
+        clockTolerance: 30,
       });
 
       // Validate the decoded payload structure
-      const validatedPayload = RefreshTokenClaimsSchema.parse(decoded);
-
-      return validatedPayload;
+      return RefreshTokenClaimsSchema.parse(payload);
     } catch (error) {
-      if (error instanceof jwt.TokenExpiredError) {
+      if (error instanceof jose.errors.JWTExpired) {
         throw new TokenExpiredError("Refresh token has expired");
       }
 
-      if (error instanceof jwt.JsonWebTokenError) {
+      if (error instanceof jose.errors.JWTInvalid || error instanceof jose.errors.JWSSignatureVerificationFailed) {
         throw new TokenInvalidError("Refresh token is invalid");
-      }
-
-      if (error instanceof jwt.NotBeforeError) {
-        throw new TokenInvalidError("Refresh token is not active yet");
       }
 
       if (error instanceof z.ZodError) {
@@ -265,7 +259,7 @@ export class JWTManager {
    */
   static decodeToken(token: string): any {
     try {
-      return jwt.decode(token, { complete: true });
+      return jose.decodeJwt(token);
     } catch (error) {
       throw new TokenMalformedError("Token cannot be decoded");
     }
@@ -276,7 +270,7 @@ export class JWTManager {
    */
   static isTokenExpired(token: string): boolean {
     try {
-      const decoded = jwt.decode(token) as { exp?: number };
+      const decoded = jose.decodeJwt(token) as { exp?: number };
       if (!decoded?.exp) return true;
 
       return Date.now() >= decoded.exp * 1000;
@@ -290,7 +284,7 @@ export class JWTManager {
    */
   static getTokenExpiration(token: string): Date | null {
     try {
-      const decoded = jwt.decode(token) as { exp?: number };
+      const decoded = jose.decodeJwt(token) as { exp?: number };
       return decoded?.exp ? new Date(decoded.exp * 1000) : null;
     } catch {
       return null;
@@ -312,7 +306,7 @@ export class JWTManager {
    */
   static extractUserId(token: string): string | null {
     try {
-      const decoded = jwt.decode(token) as { sub?: string };
+      const decoded = jose.decodeJwt(token) as { sub?: string };
       return decoded?.sub || null;
     } catch {
       return null;
@@ -324,7 +318,7 @@ export class JWTManager {
    */
   static extractSessionId(token: string): string | null {
     try {
-      const decoded = jwt.decode(token) as { session_id?: string };
+      const decoded = jose.decodeJwt(token) as { session_id?: string };
       return decoded?.session_id || null;
     } catch {
       return null;
@@ -334,7 +328,7 @@ export class JWTManager {
   /**
    * Generate token pair (access + refresh)
    */
-  static generateTokenPair(user: User, sessionId: string): {
+  static async generateTokenPair(user: User, sessionId: string): Promise<{
     accessToken: {
       token: string;
       payload: AccessTokenPayload;
@@ -346,9 +340,9 @@ export class JWTManager {
       tokenId: string;
       expiresAt: Date;
     };
-  } {
-    const accessToken = this.generateAccessToken(user, sessionId);
-    const refreshToken = this.generateRefreshToken(user.id, sessionId);
+  }> {
+    const accessToken = await this.generateAccessToken(user, sessionId);
+    const refreshToken = await this.generateRefreshToken(user.id, sessionId);
 
     return {
       accessToken,
@@ -370,15 +364,13 @@ export class JWTManager {
     let payload: any = null;
 
     try {
-      const decoded = jwt.decode(token, { complete: true });
+      header = jose.decodeProtectedHeader(token);
+      payload = jose.decodeJwt(token);
 
-      if (!decoded) {
+      if (!payload) {
         errors.push("Token cannot be decoded");
         return { isValid: false, header, payload, errors };
       }
-
-      header = decoded.header;
-      payload = decoded.payload;
 
       // Validate header
       try {
@@ -396,7 +388,7 @@ export class JWTManager {
       if (!payload.jti) errors.push("Missing JWT ID (jti) claim");
 
       // Check expiration
-      if (payload.exp && Date.now() >= payload.exp * 1000) {
+      if (payload.exp && Date.now() >= (payload.exp as number) * 1000) {
         errors.push("Token is expired");
       }
 
@@ -440,7 +432,9 @@ export class RefreshTokenHasher {
    * Generate a secure random token string (alternative to JWT for simple use cases)
    */
   static generateSecureToken(length = 32): string {
-    return crypto.randomBytes(length).toString("base64url");
+    const bytes = new Uint8Array(length);
+    globalThis.crypto.getRandomValues(bytes);
+    return Buffer.from(bytes).toString("base64url");
   }
 }
 
@@ -450,7 +444,9 @@ export class CSRFTokenManager {
    * Generate a CSRF token
    */
   static generateToken(): string {
-    return crypto.randomBytes(32).toString("base64url");
+    const bytes = new Uint8Array(32);
+    globalThis.crypto.getRandomValues(bytes);
+    return Buffer.from(bytes).toString("base64url");
   }
 
   /**
@@ -459,11 +455,16 @@ export class CSRFTokenManager {
   static validateToken(headerToken: string, cookieToken: string): boolean {
     if (!headerToken || !cookieToken) return false;
 
-    // Use timing-safe comparison to prevent timing attacks
-    return crypto.timingSafeEqual(
-      Buffer.from(headerToken, "base64url"),
-      Buffer.from(cookieToken, "base64url")
-    );
+    // Constant-time comparison to prevent timing attacks
+    if (headerToken.length !== cookieToken.length) {
+      return false;
+    }
+
+    let result = 0;
+    for (let i = 0; i < headerToken.length; i++) {
+      result |= headerToken.charCodeAt(i) ^ cookieToken.charCodeAt(i);
+    }
+    return result === 0;
   }
 }
 
@@ -498,7 +499,7 @@ export const jwtUtils = {
    */
   extractAccessTokenClaims(token: string): Partial<AccessTokenPayload> {
     try {
-      const decoded = jwt.decode(token) as AccessTokenPayload;
+      const decoded = jose.decodeJwt(token) as AccessTokenPayload;
       return decoded || {};
     } catch {
       return {};
