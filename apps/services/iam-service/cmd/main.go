@@ -10,11 +10,13 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/application/ports"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/application/usecases"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/handlers"
-    
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/notifications"
+
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/repositories"
 	gl_logger "github.com/4yrg/gradeloop-core-v2/shared/libs/go/logger"
 	"github.com/4yrg/gradeloop-core-v2/shared/libs/go/secrets"
@@ -84,7 +86,7 @@ func main() {
 	db.Exec("DELETE FROM roles WHERE role_name = '' OR role_name IS NULL")
 
 	// Auto Migration
-	if err := db.AutoMigrate(&models.User{}, &models.Student{}, &models.Employee{}, &models.Role{}, &models.Permission{}, &models.AuditLog{}); err != nil {
+	if err := db.AutoMigrate(&models.User{}, &models.Student{}, &models.Employee{}, &models.Role{}, &models.Permission{}, &models.AuditLog{}, &models.PasswordResetToken{}); err != nil {
 		l.Error("failed to migrate database", "error", err)
 		os.Exit(1)
 	}
@@ -126,9 +128,17 @@ func main() {
 	userRepo := repositories.NewUserRepository(db)
 	roleRepo := repositories.NewRoleRepository(db)
 	permissionRepo := repositories.NewPermissionRepository(db)
-	// Refresh token and password reset repositories are managed by the dedicated auth service now.
+	// Initialize repositories used by auth
+	passwordResetRepo := repositories.NewPasswordResetRepository(db)
 
-	// Notification client not required in this service after auth removal
+	// Notification client: prefer real email service if provided, otherwise stub
+	var notifier ports.NotificationPort
+	emailBase := os.Getenv("EMAIL_SERVICE_BASE_URL")
+	if emailBase != "" {
+		notifier = notifications.NewEmailNotificationClient(emailBase)
+	} else {
+		notifier = notifications.NewNotificationStub()
+	}
 
 	userUsecase := usecases.NewUserUsecase(userRepo, auditRepo)
 	roleUsecase := usecases.NewRoleUsecase(roleRepo, auditRepo)
@@ -136,8 +146,15 @@ func main() {
 	userHandler := handlers.NewUserHandler(userUsecase)
 	roleHandler := handlers.NewRoleHandler(roleUsecase)
 	permissionHandler := handlers.NewPermissionHandler(permissionUsecase)
-	// Do not initialize auth handler in this service; authentication responsibilities
-	// have been moved to a dedicated auth service. Pass nil to the HTTP layer.
+
+	// Auth usecase and handler
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		l.Warn("JWT_SECRET not set; using insecure default for dev")
+		jwtSecret = "dev-secret"
+	}
+	authUsecase := usecases.NewAuthUsecase(userRepo, passwordResetRepo, notifier, jwtSecret, 15*time.Minute, auditRepo)
+	authHandler := handlers.NewAuthHandler(authUsecase)
 
 	// Start Server
 	redisAddr := os.Getenv("REDIS_ADDR")
@@ -147,7 +164,7 @@ func main() {
 	redisClient := redis.NewClient(&redis.Options{
 		Addr: redisAddr,
 	})
-	http.Start(userHandler, roleHandler, permissionHandler, nil, redisClient, auditRepo)
+	http.Start(userHandler, roleHandler, permissionHandler, authHandler, redisClient, auditRepo)
 }
 
 func bootstrapSuperAdmin(db *gorm.DB, l *slog.Logger) error {

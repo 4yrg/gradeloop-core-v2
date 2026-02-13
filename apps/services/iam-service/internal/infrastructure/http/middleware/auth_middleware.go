@@ -1,8 +1,10 @@
 package middleware
 
 import (
+	"os"
 	"strings"
 
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/application/utils"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -77,14 +79,45 @@ func ForcePasswordReset() fiber.Handler {
 // and sets user_id in context for protected endpoints
 func AuthRequired() fiber.Handler {
 	return func(c fiber.Ctx) error {
+		// Prefer cookie-based access token
+		accessToken := c.Cookies("access_token")
+		jwtSecret := os.Getenv("JWT_SECRET")
+
+		if accessToken != "" && jwtSecret != "" {
+			claims, err := utils.ValidateAccessToken(accessToken, jwtSecret)
+			if err == nil && claims != nil {
+				// Subject should be user ID
+				if claims.Subject != "" {
+					if uid, err := uuid.Parse(claims.Subject); err == nil {
+						c.Locals("user_id", uid.String())
+					}
+				}
+
+				// set roles and permissions
+				c.Locals("user_roles", claims.Roles)
+				c.Locals("user_permissions", claims.Permissions)
+
+				// set is_admin flag for convenience
+				for _, r := range claims.Roles {
+					if strings.TrimSpace(r) == "admin" {
+						c.Locals("is_admin", true)
+						break
+					}
+				}
+
+				return c.Next()
+			}
+			// fallthrough to header-based validation if cookie invalid
+		}
+
+		// Fallback to header-based approach used when gateway provides identity headers
 		authHeader := c.Get("Authorization")
 		if authHeader == "" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Missing authorization header",
+				"error": "Missing authorization header or cookie",
 			})
 		}
 
-		// Extract Bearer token
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -99,8 +132,7 @@ func AuthRequired() fiber.Handler {
 			})
 		}
 
-		// Validate JWT token - we need the JWT secret from environment or config
-		// For now, we'll extract from X-User-Id header set by API gateway
+		// Gateway-forwarded headers expected
 		userIDHeader := c.Get("X-User-Id")
 		if userIDHeader == "" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -108,7 +140,6 @@ func AuthRequired() fiber.Handler {
 			})
 		}
 
-		// Validate user ID format
 		userID, err := uuid.Parse(userIDHeader)
 		if err != nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -116,10 +147,8 @@ func AuthRequired() fiber.Handler {
 			})
 		}
 
-		// Set user ID in context for handlers to use
 		c.Locals("user_id", userID.String())
 
-		// Also set roles and permissions if available from headers
 		if rolesHeader := c.Get("X-User-Roles"); rolesHeader != "" {
 			c.Locals("user_roles", strings.Split(rolesHeader, ","))
 		}
