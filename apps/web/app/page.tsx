@@ -7,13 +7,35 @@ export default function Home() {
       <nav className="fixed top-0 z-50 w-full border-b border-white/5 bg-background/80 backdrop-blur-md">
         <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
           <div className="flex items-center gap-2">
-            <div className="size-8 rounded-lg bg-primary flex items-center justify-center font-bold text-primary-foreground">G</div>
+            <div className="size-8 rounded-lg bg-primary flex items-center justify-center font-bold text-primary-foreground">
+              G
+            </div>
             <span className="text-xl font-bold tracking-tight">GradeLoop</span>
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-muted-foreground">
-            <a href="#features" className="hover:text-primary transition-colors">Features</a>
-            <a href="#platform" className="hover:text-primary transition-colors">Platform</a>
-            <a href="#about" className="hover:text-primary transition-colors">About</a>
+            <a
+              href="#features"
+              className="hover:text-primary transition-colors"
+            >
+              Features
+            </a>
+            <a
+              href="#platform"
+              className="hover:text-primary transition-colors"
+            >
+              Platform
+            </a>
+            <a href="#about" className="hover:text-primary transition-colors">
+              About
+            </a>
+            {process.env.NODE_ENV === "development" && (
+              <a
+                href="/theme-test"
+                className="hover:text-primary transition-colors text-primary/80"
+              >
+                Theme Test
+              </a>
+            )}
           </div>
           <button className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground ai-glow inline-flex">
             Get Started
@@ -37,7 +59,9 @@ export default function Home() {
               <span className="text-primary italic">Intelligent Insights.</span>
             </h1>
             <p className="mx-auto max-w-[700px] text-lg md:text-xl text-muted-foreground mb-10 leading-relaxed">
-              GradeLoop is a modern, AI-integrated Learning Management System designed to streamline academic workflows and provide actionable data for educators and students.
+              GradeLoop is a modern, AI-integrated Learning Management System
+              designed to streamline academic workflows and provide actionable
+              data for educators and students.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <button className="h-12 px-8 rounded-full bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/20 ai-glow transition-all hover:scale-105">
@@ -70,7 +94,9 @@ export default function Home() {
         <section id="features" className="py-20 bg-muted/30">
           <div className="container mx-auto px-4 md:px-6">
             <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">Everything you need to succeed.</h2>
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">
+                Everything you need to succeed.
+              </h2>
               <p className="text-muted-foreground max-w-2xl mx-auto italic">
                 A complete suite of tools built for modern education.
               </p>
@@ -84,7 +110,8 @@ export default function Home() {
                 </div>
                 <h3 className="text-xl font-bold mb-3">Smart Grading</h3>
                 <p className="text-muted-foreground leading-relaxed">
-                  Automated grading assistants and rubric-based evaluations that save time and ensure consistency across all departments.
+                  Automated grading assistants and rubric-based evaluations that
+                  save time and ensure consistency across all departments.
                 </p>
               </div>
 
@@ -95,7 +122,8 @@ export default function Home() {
                 </div>
                 <h3 className="text-xl font-bold mb-3">Real-time Analytics</h3>
                 <p className="text-muted-foreground leading-relaxed">
-                  Visualize performance trends and engagement levels instantly with our powerful, interactive dashboard.
+                  Visualize performance trends and engagement levels instantly
+                  with our powerful, interactive dashboard.
                 </p>
               </div>
 
@@ -106,7 +134,8 @@ export default function Home() {
                 </div>
                 <h3 className="text-xl font-bold mb-3">AI Insights</h3>
                 <p className="text-muted-foreground leading-relaxed">
-                  Predictive modeling and student-at-risk detection using advanced machine learning to improve retention and outcomes.
+                  Predictive modeling and student-at-risk detection using
+                  advanced machine learning to improve retention and outcomes.
                 </p>
               </div>
             </div>
@@ -120,9 +149,13 @@ export default function Home() {
               {/* Background accent */}
               <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
 
-              <h2 className="text-3xl md:text-5xl font-bold mb-6">Ready to transform your <br className="hidden md:block" /> institution?</h2>
+              <h2 className="text-3xl md:text-5xl font-bold mb-6">
+                Ready to transform your <br className="hidden md:block" />{" "}
+                institution?
+              </h2>
               <p className="text-primary-foreground/80 text-lg mb-10 max-w-xl mx-auto">
-                Join the hundreds of institutions already using GradeLoop to drive academic excellence.
+                Join the hundreds of institutions already using GradeLoop to
+                drive academic excellence.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <button className="h-12 px-10 rounded-full bg-background text-foreground font-bold hover:bg-zinc-100 transition-all">
@@ -141,15 +174,24 @@ export default function Home() {
         <div className="container mx-auto px-4 md:px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-2">
-              <div className="size-8 rounded-lg bg-muted flex items-center justify-center font-bold text-muted-foreground border border-border">G</div>
-              <span className="text-lg font-bold tracking-tight">GradeLoop</span>
+              <div className="size-8 rounded-lg bg-muted flex items-center justify-center font-bold text-muted-foreground border border-border">
+                G
+              </div>
+              <span className="text-lg font-bold tracking-tight">
+                GradeLoop
+              </span>
             </div>
             <div className="text-sm text-muted-foreground">
-              © 2026 GradeLoop Core v2. Built with precision for the future of LMS.
+              © 2026 GradeLoop Core v2. Built with precision for the future of
+              LMS.
             </div>
             <div className="flex items-center gap-6 text-sm font-medium text-muted-foreground">
-              <a href="#" className="hover:text-primary transition-colors">Privacy Policy</a>
-              <a href="#" className="hover:text-primary transition-colors">Terms of Service</a>
+              <a href="#" className="hover:text-primary transition-colors">
+                Privacy Policy
+              </a>
+              <a href="#" className="hover:text-primary transition-colors">
+                Terms of Service
+              </a>
             </div>
           </div>
         </div>
