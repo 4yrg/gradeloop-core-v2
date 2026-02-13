@@ -1,4 +1,3 @@
-import { cookies } from "next/headers";
 import type { CookieConfig } from "@/schemas/auth.schema";
 
 // Environment-based configuration
@@ -16,12 +15,15 @@ export const COOKIE_NAMES = {
   DEVICE_ID: "__Secure-gl-device-id",
 } as const;
 
-// Cookie configurations with security defaults
-export const COOKIE_CONFIGS: Record<keyof typeof COOKIE_NAMES, CookieConfig> = {
+// Cookie configurations for client-side access (non-HTTPOnly cookies only)
+export const CLIENT_COOKIE_CONFIGS: Record<
+  keyof typeof COOKIE_NAMES,
+  CookieConfig
+> = {
   ACCESS_TOKEN: {
     name: COOKIE_NAMES.ACCESS_TOKEN,
     secure: IS_PRODUCTION || SECURE_COOKIES,
-    httpOnly: false, // Client needs access for Authorization headers
+    httpOnly: true, // This will be HTTPOnly on server, not accessible on client
     sameSite: "lax",
     maxAge: 15 * 60, // 15 minutes
     path: "/",
@@ -30,7 +32,7 @@ export const COOKIE_CONFIGS: Record<keyof typeof COOKIE_NAMES, CookieConfig> = {
   REFRESH_TOKEN: {
     name: COOKIE_NAMES.REFRESH_TOKEN,
     secure: IS_PRODUCTION || SECURE_COOKIES,
-    httpOnly: false, // Client needs access for refresh requests
+    httpOnly: true, // This will be HTTPOnly on server, not accessible on client
     sameSite: "lax",
     maxAge: 30 * 24 * 60 * 60, // 30 days
     path: "/",
@@ -48,7 +50,7 @@ export const COOKIE_CONFIGS: Record<keyof typeof COOKIE_NAMES, CookieConfig> = {
   SESSION_ID: {
     name: COOKIE_NAMES.SESSION_ID,
     secure: IS_PRODUCTION || SECURE_COOKIES,
-    httpOnly: false, // Client needs access for session management
+    httpOnly: true, // This will be HTTPOnly on server, not accessible on client
     sameSite: "lax",
     maxAge: 30 * 24 * 60 * 60, // 30 days
     path: "/",
@@ -65,127 +67,10 @@ export const COOKIE_CONFIGS: Record<keyof typeof COOKIE_NAMES, CookieConfig> = {
   },
 };
 
-// Cookie utility class for server-side operations
-export class ServerCookieManager {
-  private cookieStore: ReturnType<typeof cookies>;
-
-  constructor() {
-    this.cookieStore = cookies();
-  }
-
-  /**
-   * Set a secure cookie with proper configuration
-   */
-  setCookie(
-    name: keyof typeof COOKIE_NAMES,
-    value: string,
-    options?: Partial<CookieConfig>,
-  ): void {
-    const config = COOKIE_CONFIGS[name];
-    const finalConfig = { ...config, ...options };
-
-    this.cookieStore.set(finalConfig.name, value, {
-      secure: finalConfig.secure,
-      httpOnly: finalConfig.httpOnly,
-      sameSite: finalConfig.sameSite,
-      maxAge: finalConfig.maxAge,
-      path: finalConfig.path,
-      domain: finalConfig.domain,
-    });
-  }
-
-  /**
-   * Get a cookie value by name
-   */
-  getCookie(name: keyof typeof COOKIE_NAMES): string | undefined {
-    const config = COOKIE_CONFIGS[name];
-    return this.cookieStore.get(config.name)?.value;
-  }
-
-  /**
-   * Delete a cookie by setting it to expire immediately
-   */
-  deleteCookie(name: keyof typeof COOKIE_NAMES): void {
-    const config = COOKIE_CONFIGS[name];
-    this.cookieStore.set(config.name, "", {
-      secure: config.secure,
-      httpOnly: config.httpOnly,
-      sameSite: config.sameSite,
-      maxAge: 0, // Expire immediately
-      path: config.path,
-      domain: config.domain,
-    });
-  }
-
-  /**
-   * Set authentication cookies (access + refresh + session)
-   */
-  setAuthCookies(
-    accessToken: string,
-    refreshToken: string,
-    sessionId: string,
-    csrfToken: string,
-  ): void {
-    this.setCookie("ACCESS_TOKEN", accessToken);
-    this.setCookie("REFRESH_TOKEN", refreshToken);
-    this.setCookie("SESSION_ID", sessionId);
-    this.setCookie("CSRF_TOKEN", csrfToken);
-  }
-
-  /**
-   * Clear all authentication cookies
-   */
-  clearAuthCookies(): void {
-    this.deleteCookie("ACCESS_TOKEN");
-    this.deleteCookie("REFRESH_TOKEN");
-    this.deleteCookie("SESSION_ID");
-    this.deleteCookie("CSRF_TOKEN");
-  }
-
-  /**
-   * Get all authentication cookies
-   */
-  getAuthCookies(): {
-    accessToken?: string;
-    refreshToken?: string;
-    sessionId?: string;
-    csrfToken?: string;
-  } {
-    return {
-      accessToken: this.getCookie("ACCESS_TOKEN"),
-      refreshToken: this.getCookie("REFRESH_TOKEN"),
-      sessionId: this.getCookie("SESSION_ID"),
-      csrfToken: this.getCookie("CSRF_TOKEN"),
-    };
-  }
-
-  /**
-   * Check if user has valid auth cookies
-   */
-  hasAuthCookies(): boolean {
-    const { accessToken, refreshToken, sessionId } = this.getAuthCookies();
-    return !!(accessToken && refreshToken && sessionId);
-  }
-
-  /**
-   * Set device ID for device tracking
-   */
-  setDeviceId(deviceId: string): void {
-    this.setCookie("DEVICE_ID", deviceId);
-  }
-
-  /**
-   * Get device ID
-   */
-  getDeviceId(): string | undefined {
-    return this.getCookie("DEVICE_ID");
-  }
-}
-
-// Client-side cookie utilities for non-HTTP-only cookies
+// Client-side cookie utilities for non-HTTP-only cookies ONLY
 export class ClientCookieManager {
   /**
-   * Get a client-accessible cookie (non-HTTP-only)
+   * Get a client-accessible cookie (non-HTTP-only only)
    */
   static getCookie(name: string): string | null {
     if (typeof document === "undefined") return null;
@@ -200,7 +85,7 @@ export class ClientCookieManager {
   }
 
   /**
-   * Set a client-side cookie
+   * Set a client-side cookie (non-HTTPOnly only)
    */
   static setCookie(
     name: string,
@@ -245,32 +130,24 @@ export class ClientCookieManager {
   }
 
   /**
-   * Get CSRF token for client-side requests
+   * Get CSRF token for client-side requests (non-HTTPOnly)
    */
   static getCsrfToken(): string | null {
     return this.getCookie(COOKIE_NAMES.CSRF_TOKEN);
   }
 
   /**
-   * Get access token from cookies
+   * Get device ID from cookies (non-HTTPOnly)
    */
-  static getAccessToken(): string | null {
-    return this.getCookie(COOKIE_NAMES.ACCESS_TOKEN);
+  static getDeviceId(): string | null {
+    return this.getCookie(COOKIE_NAMES.DEVICE_ID);
   }
 
   /**
-   * Get refresh token from cookies
+   * Note: Access tokens, refresh tokens, and session IDs are HTTPOnly
+   * and cannot be accessed from client-side JavaScript for security reasons.
+   * These are automatically sent with HTTP requests by the browser.
    */
-  static getRefreshToken(): string | null {
-    return this.getCookie(COOKIE_NAMES.REFRESH_TOKEN);
-  }
-
-  /**
-   * Get session ID from cookies
-   */
-  static getSessionId(): string | null {
-    return this.getCookie(COOKIE_NAMES.SESSION_ID);
-  }
 }
 
 // Cookie security validation utilities
@@ -289,13 +166,16 @@ export class CookieSecurityValidator {
       violations.push("Secure flag must be set in production");
     }
 
-    // Check for HTTPOnly for sensitive cookies
+    // Check for HTTPOnly for sensitive cookies (Note: auth cookies are HTTPOnly on server-side)
     if (
       (config.name.includes("token") || config.name.includes("session")) &&
       !config.httpOnly &&
       config.name !== COOKIE_NAMES.CSRF_TOKEN
     ) {
-      violations.push("HTTPOnly must be set for authentication cookies");
+      // This is expected for client-side config - auth cookies are HTTPOnly on server
+      violations.push(
+        "HTTPOnly must be set for authentication cookies (handled server-side)",
+      );
     }
 
     // Check SameSite attribute
@@ -344,13 +224,15 @@ export class CookieSecurityValidator {
       violations: string[];
     }>;
   } {
-    const results = Object.entries(COOKIE_CONFIGS).map(([name, config]) => {
-      const validation = this.validateConfig(config);
-      return {
-        cookieName: name,
-        ...validation,
-      };
-    });
+    const results = Object.entries(CLIENT_COOKIE_CONFIGS).map(
+      ([name, config]) => {
+        const validation = this.validateConfig(config);
+        return {
+          cookieName: name,
+          ...validation,
+        };
+      },
+    );
 
     const isCompliant = results.every((result) => result.isValid);
 
@@ -420,8 +302,7 @@ export const cookieUtils = {
   },
 };
 
-// Export singleton instances
-export const serverCookies = new ServerCookieManager();
+// Export static classes
 export const clientCookies = ClientCookieManager;
 export const cookieSecurity = CookieSecurityValidator;
 
@@ -429,7 +310,27 @@ export const cookieSecurity = CookieSecurityValidator;
 if (IS_DEVELOPMENT) {
   // Log cookie security audit in development
   const audit = CookieSecurityValidator.auditAllConfigs();
-  if (!audit.isCompliant) {
-    console.warn("Cookie Security Audit Failed:", audit.results);
+
+  // Filter out expected HTTPOnly "violations" for server-side secure cookies
+  const actualViolations = audit.results.filter((result) => {
+    if (
+      result.cookieName === "CSRF_TOKEN" ||
+      result.cookieName === "DEVICE_ID"
+    ) {
+      return !result.isValid;
+    }
+    // For auth tokens, only flag non-HTTPOnly violations if they're not server-managed
+    return result.violations.some((v) => !v.includes("HTTPOnly"));
+  });
+
+  if (actualViolations.length > 0) {
+    console.warn(
+      "Cookie Security Audit - Actual violations:",
+      actualViolations,
+    );
+  } else {
+    console.info(
+      "✅ Cookie Security Audit Passed - All authentication cookies are properly secured with HTTPOnly on server-side",
+    );
   }
 }

@@ -40,6 +40,10 @@ func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handl
 	auth.Post("/forgot-password", activationLimiter, authHandler.ForgotPassword)
 	auth.Post("/reset-password", authHandler.ResetPassword)
 	auth.Get("/validate", authHandler.ValidateToken) // ForwardAuth endpoint for Traefik
+	auth.Post("/store-tokens", authHandler.StoreTokens)
+	auth.Post("/clear-tokens", authHandler.ClearTokens)
+	auth.Get("/session", authHandler.ValidateSession)
+	auth.Post("/logout", authHandler.Logout)
 
 	users := v1.Group("/users")
 

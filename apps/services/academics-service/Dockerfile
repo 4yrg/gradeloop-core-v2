@@ -12,7 +12,6 @@ COPY apps/services/academics-service/go.mod apps/services/academics-service/go.s
 COPY shared/libs/go/secrets/go.mod shared/libs/go/secrets/go.sum ./shared/libs/go/secrets/
 COPY shared/libs/go/logger/go.mod shared/libs/go/logger/go.sum ./shared/libs/go/logger/
 COPY shared/libs/go/middleware/go.mod shared/libs/go/middleware/go.sum ./shared/libs/go/middleware/
-COPY shared/libs/go/tracing/go.mod shared/libs/go/tracing/go.sum ./shared/libs/go/tracing/
 
 # Download dependencies
 WORKDIR /app/apps/services/academics-service
@@ -24,7 +23,6 @@ WORKDIR /app
 COPY shared/libs/go/secrets ./shared/libs/go/secrets
 COPY shared/libs/go/logger ./shared/libs/go/logger
 COPY shared/libs/go/middleware ./shared/libs/go/middleware
-COPY shared/libs/go/tracing ./shared/libs/go/tracing
 COPY apps/services/academics-service ./apps/services/academics-service
 
 # Build the application binary
