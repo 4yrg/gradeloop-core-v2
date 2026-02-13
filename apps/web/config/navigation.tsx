@@ -13,7 +13,7 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   {
     label: "Dashboard",
-    href: "/",
+    href: "/dashboard",
     icon: <Icons.dashboard size={18} />,
   },
   {
