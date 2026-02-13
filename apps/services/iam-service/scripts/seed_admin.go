@@ -151,8 +151,6 @@ func runMigrations(db *gorm.DB, logger *slog.Logger) error {
 		&models.Role{},
 		&models.Permission{},
 		&models.AuditLog{},
-		&models.RefreshToken{},
-		&models.PasswordResetToken{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to migrate database: %w", err)

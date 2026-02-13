@@ -10,12 +10,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/application/ports"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/application/usecases"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/handlers"
-	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/notifications"
+    
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/repositories"
 	gl_logger "github.com/4yrg/gradeloop-core-v2/shared/libs/go/logger"
 	"github.com/4yrg/gradeloop-core-v2/shared/libs/go/secrets"
@@ -66,13 +65,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	l.Info("Retrieving JWT configuration from Vault...")
-	jwtConfig, err := secretsClient.GetJWTConfig(startupCtx)
-	if err != nil {
-		l.Error("failed to retrieve JWT configuration", "error", err)
-		os.Exit(1)
-	}
-
 	l.Info("Database configuration retrieved successfully")
 	dsn := dbConfig.ConnectionString()
 
@@ -92,7 +84,7 @@ func main() {
 	db.Exec("DELETE FROM roles WHERE role_name = '' OR role_name IS NULL")
 
 	// Auto Migration
-	if err := db.AutoMigrate(&models.User{}, &models.Student{}, &models.Employee{}, &models.Role{}, &models.Permission{}, &models.AuditLog{}, &models.RefreshToken{}, &models.PasswordResetToken{}); err != nil {
+	if err := db.AutoMigrate(&models.User{}, &models.Student{}, &models.Employee{}, &models.Role{}, &models.Permission{}, &models.AuditLog{}); err != nil {
 		l.Error("failed to migrate database", "error", err)
 		os.Exit(1)
 	}
@@ -134,29 +126,18 @@ func main() {
 	userRepo := repositories.NewUserRepository(db)
 	roleRepo := repositories.NewRoleRepository(db)
 	permissionRepo := repositories.NewPermissionRepository(db)
-	refreshTokenRepo := repositories.NewRefreshTokenRepository(db)
-	passwordResetRepo := repositories.NewPasswordResetRepository(db)
+	// Refresh token and password reset repositories are managed by the dedicated auth service now.
 
-	// Initialize notification service (email service integration)
-	var notificationService ports.NotificationPort
-	emailServiceURL := os.Getenv("EMAIL_SERVICE_URL")
-	if emailServiceURL != "" {
-		l.Info("Using email notification client", "email_service_url", emailServiceURL)
-		notificationService = notifications.NewEmailNotificationClient(emailServiceURL)
-	} else {
-		l.Info("Email service URL not configured, using notification stub")
-		notificationService = notifications.NewNotificationStub()
-	}
+	// Notification client not required in this service after auth removal
 
 	userUsecase := usecases.NewUserUsecase(userRepo, auditRepo)
 	roleUsecase := usecases.NewRoleUsecase(roleRepo, auditRepo)
 	permissionUsecase := usecases.NewPermissionUsecase(permissionRepo)
-	authUsecase := usecases.NewAuthUsecase(userRepo, refreshTokenRepo, passwordResetRepo, auditRepo, notificationService, jwtConfig.Secret)
-
 	userHandler := handlers.NewUserHandler(userUsecase)
 	roleHandler := handlers.NewRoleHandler(roleUsecase)
 	permissionHandler := handlers.NewPermissionHandler(permissionUsecase)
-	authHandler := handlers.NewAuthHandler(authUsecase)
+	// Do not initialize auth handler in this service; authentication responsibilities
+	// have been moved to a dedicated auth service. Pass nil to the HTTP layer.
 
 	// Start Server
 	redisAddr := os.Getenv("REDIS_ADDR")
@@ -166,7 +147,7 @@ func main() {
 	redisClient := redis.NewClient(&redis.Options{
 		Addr: redisAddr,
 	})
-	http.Start(userHandler, roleHandler, permissionHandler, authHandler, redisClient, auditRepo)
+	http.Start(userHandler, roleHandler, permissionHandler, nil, redisClient, auditRepo)
 }
 
 func bootstrapSuperAdmin(db *gorm.DB, l *slog.Logger) error {
