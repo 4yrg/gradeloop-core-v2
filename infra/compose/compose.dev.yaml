@@ -99,9 +99,6 @@ services:
       - "traefik.http.middlewares.iam-retry.retry.initialInterval=100ms"
     env_file:
       - ../../.env
-    environment:
-      DATABASE_URL: ${POSTGRES_URL_BASE}iam_db?sslmode=${POSTGRES_SSLMODE}
-      REDIS_ADDR: "${REDIS_HOST}:${REDIS_PORT}"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/iam/health"]
       interval: 10s
@@ -143,8 +140,7 @@ services:
     env_file:
       - ../../.env
     environment:
-      DATABASE_URL: ${POSTGRES_URL_BASE}academics_db?sslmode=${POSTGRES_SSLMODE}
-    depends_on:
+      DATABASE_URL: "${POSTGRES_URL_BASE}academics_db?sslmode=${POSTGRES_SSLMODE}"
       iam-service:
         condition: service_healthy
     develop:
