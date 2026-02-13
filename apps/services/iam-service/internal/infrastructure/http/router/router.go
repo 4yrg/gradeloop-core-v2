@@ -8,11 +8,13 @@ import (
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/handlers"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/middleware"
 	"github.com/gofiber/fiber/v3"
-	"github.com/gofiber/fiber/v3/middleware/limiter"
 	"github.com/redis/go-redis/v9"
 )
 
 func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler, permissionHandler *handlers.PermissionHandler, authHandler *handlers.AuthHandler, redisClient *redis.Client, auditRepo ports.AuditRepository) {
+	// Keep parameters to preserve call signature; rate limiting handled elsewhere.
+	_ = redisClient
+	_ = auditRepo
 	// Health endpoint
 	app.Get("/api/iam/health", func(c fiber.Ctx) error {
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "ok"})
@@ -21,18 +23,12 @@ func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handl
 	api := app.Group("/api")
 	v1 := api.Group("/v1")
 
-	// Rate Limit: 1 req/min for activation
+	// Activation rate limiter disabled in router (handled elsewhere if needed)
 	var activationLimiter fiber.Handler = func(c fiber.Ctx) error { return c.Next() }
-	if os.Getenv("GO_ENV") != "test" {
-		activationLimiter = limiter.New(limiter.Config{
-			Max:        1,
-			Expiration: 1 * time.Minute,
-		})
-	}
 
 	// Auth Routes
 	auth := v1.Group("/auth")
-	auth.Post("/login", middleware.BruteForceProtection(redisClient, auditRepo), authHandler.Login)
+	auth.Post("/login", authHandler.Login)
 	auth.Post("/refresh", authHandler.Refresh)
 	auth.Delete("/refresh-tokens/:token_id", authHandler.RevokeToken)
 	auth.Post("/activate", activationLimiter, authHandler.Activate)
@@ -47,14 +43,8 @@ func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handl
 
 	users := v1.Group("/users")
 
-	// Rate Limit: 10 req/min for /users (POST)
+	// Rate limiting for /users POST is disabled in router (handled elsewhere if needed)
 	var postLimiter fiber.Handler = func(c fiber.Ctx) error { return c.Next() }
-	if os.Getenv("GO_ENV") != "test" {
-		postLimiter = limiter.New(limiter.Config{
-			Max:        10,
-			Expiration: 1 * time.Minute,
-		})
-	}
 
 	users.Post("/", postLimiter, userHandler.CreateUser)
 	users.Get("/", userHandler.ListUsers)
