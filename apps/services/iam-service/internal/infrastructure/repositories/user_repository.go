@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"context"
 	"errors"
 
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
@@ -184,4 +185,32 @@ func (r *UserRepository) RestoreUser(id uuid.UUID) error {
 
 		return tx.Unscoped().Model(&user).Update("deleted_at", nil).Error
 	})
+}
+
+// Refresh token methods
+func (r *UserRepository) StoreRefreshToken(ctx context.Context, token *models.RefreshToken) error {
+	return r.db.WithContext(ctx).Create(token).Error
+}
+
+func (r *UserRepository) GetRefreshToken(token string) (*models.RefreshToken, error) {
+	var refreshToken models.RefreshToken
+	err := r.db.Where("token = ? AND is_active = ?", token, true).First(&refreshToken).Error
+	if err != nil {
+		return nil, err
+	}
+	return &refreshToken, nil
+}
+
+func (r *UserRepository) InvalidateRefreshToken(token string) error {
+	return r.db.Model(&models.RefreshToken{}).Where("token = ?", token).Update("is_active", false).Error
+}
+
+func (r *UserRepository) MarkRefreshTokenAsUsed(token string) error {
+	return r.db.Model(&models.RefreshToken{}).Where("token = ?", token).Update("is_used", true).Error
+}
+
+func (r *UserRepository) RevokeAllUserRefreshTokens(ctx context.Context, userID uuid.UUID) error {
+	return r.db.WithContext(ctx).Model(&models.RefreshToken{}).
+		Where("user_id = ?", userID).
+		Update("is_active", false).Error
 }

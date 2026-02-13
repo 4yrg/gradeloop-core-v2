@@ -8,7 +8,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler, permissionHandler *handlers.PermissionHandler, authHandler interface{}, redisClient *redis.Client, auditRepo ports.AuditRepository) {
+func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler, permissionHandler *handlers.PermissionHandler, authHandler *handlers.AuthHandler, redisClient *redis.Client, auditRepo ports.AuditRepository) {
 	// Keep parameters to preserve call signature; rate limiting handled elsewhere.
 	_ = redisClient
 	_ = auditRepo
@@ -23,37 +23,23 @@ func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handl
 	// Activation rate limiter disabled in router (handled elsewhere if needed)
 	var activationLimiter fiber.Handler = func(c fiber.Ctx) error { return c.Next() }
 
-	// Auth Routes - register only if authHandler provided (auth may be handled by a separate service)
-	if authHandler != nil {
-		if ah, ok := authHandler.(interface {
-			Login(c fiber.Ctx) error
-			Refresh(c fiber.Ctx) error
-			RevokeToken(c fiber.Ctx) error
-			Activate(c fiber.Ctx) error
-			RequestActivation(c fiber.Ctx) error
-			ForgotPassword(c fiber.Ctx) error
-			ResetPassword(c fiber.Ctx) error
-			ValidateToken(c fiber.Ctx) error
-			StoreTokens(c fiber.Ctx) error
-			ClearTokens(c fiber.Ctx) error
-			ValidateSession(c fiber.Ctx) error
-			Logout(c fiber.Ctx) error
-		}); ok {
-			auth := v1.Group("/auth")
-			auth.Post("/login", ah.Login)
-			auth.Post("/refresh", ah.Refresh)
-			auth.Delete("/refresh-tokens/:token_id", ah.RevokeToken)
-			auth.Post("/activate", activationLimiter, ah.Activate)
-			auth.Post("/request-activation", activationLimiter, ah.RequestActivation)
-			auth.Post("/forgot-password", activationLimiter, ah.ForgotPassword)
-			auth.Post("/reset-password", ah.ResetPassword)
-			auth.Get("/validate", ah.ValidateToken) // ForwardAuth endpoint for Traefik
-			auth.Post("/store-tokens", ah.StoreTokens)
-			auth.Post("/clear-tokens", ah.ClearTokens)
-			auth.Get("/session", ah.ValidateSession)
-			auth.Post("/logout", ah.Logout)
-		}
-	}
+	// Brute force protection middleware
+	bruteForceLimiter := middleware.BruteForceProtection(redisClient, auditRepo)
+
+	// Auth Routes
+	auth := v1.Group("/auth")
+	auth.Post("/login", bruteForceLimiter, authHandler.Login)
+	auth.Post("/refresh", authHandler.Refresh)
+	auth.Delete("/refresh-tokens/:token_id", authHandler.RevokeToken)
+	auth.Post("/activate", bruteForceLimiter, authHandler.Activate)
+	auth.Post("/request-activation", activationLimiter, authHandler.RequestActivation)
+	auth.Post("/forgot-password", bruteForceLimiter, authHandler.ForgotPassword)
+	auth.Post("/reset-password", authHandler.ResetPassword)
+	auth.Get("/validate", authHandler.ValidateToken) // ForwardAuth endpoint for Traefik
+	auth.Post("/store-tokens", authHandler.StoreTokens)
+	auth.Post("/clear-tokens", authHandler.ClearTokens)
+	auth.Get("/session", middleware.AuthRequired(), authHandler.ValidateSession)
+	auth.Post("/logout", authHandler.Logout)
 
 	users := v1.Group("/users")
 
@@ -66,19 +52,9 @@ func Setup(app *fiber.App, userHandler *handlers.UserHandler, roleHandler *handl
 	users.Put("/:id", userHandler.UpdateUser)
 	users.Delete("/:id", userHandler.DeleteUser)
 	users.Patch("/:id/restore", userHandler.RestoreUser)
-	// Token revocation and protected user endpoints are only available when authHandler is enabled
-	if authHandler != nil {
-		if ah, ok := authHandler.(interface {
-			RevokeAllTokens(c fiber.Ctx) error
-			ChangePassword(c fiber.Ctx) error
-		}); ok {
-			users.Post("/:id/revoke-all-tokens", ah.RevokeAllTokens)
-
-			// Protected user endpoints requiring authentication
-			protectedUsers := users.Group("/me", middleware.AuthRequired())
-			protectedUsers.Patch("/password", ah.ChangePassword)
-		}
-	}
+	// Protected user endpoints requiring authentication
+	protectedUsers := users.Group("/me", middleware.AuthRequired())
+	protectedUsers.Patch("/password", authHandler.ChangePassword)
 
 	// Role Management Routes (Protected by AdminOnly)
 	roles := v1.Group("/roles", middleware.AdminOnly())

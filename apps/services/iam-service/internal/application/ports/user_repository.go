@@ -1,6 +1,7 @@
 package ports
 
 import (
+	"context"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
 	"github.com/google/uuid"
 )
@@ -16,4 +17,11 @@ type UserRepository interface {
 	GetPermissionsByUserID(userID uuid.UUID) ([]string, error)
 	GetRolesByUserID(userID uuid.UUID) ([]string, error)
 	RestoreUser(id uuid.UUID) error
+
+	// Refresh token methods
+	StoreRefreshToken(ctx context.Context, token *models.RefreshToken) error
+	GetRefreshToken(token string) (*models.RefreshToken, error)
+	InvalidateRefreshToken(token string) error
+	MarkRefreshTokenAsUsed(token string) error
+	RevokeAllUserRefreshTokens(ctx context.Context, userID uuid.UUID) error
 }
