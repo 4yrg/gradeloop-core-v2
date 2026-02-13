@@ -3,6 +3,7 @@ import { z } from "zod";
 import { CSRFTokenManager } from "./jwt";
 import { ClientCookieManager, COOKIE_NAMES } from "./cookies";
 import { useAuthStore } from "@/store/auth.store";
+import type { User } from "@/schemas/auth.schema";
 // Auth schema types available but not all currently used
 
 // API Configuration - Direct to IAM service
@@ -467,7 +468,7 @@ api.interceptors.response.use(
 export const apiClient = {
   // Authentication methods
   async login(credentials: { email: string; password: string }): Promise<{
-    user: unknown;
+    user: User;
     access_token: string;
     token_type: "Bearer";
     expires_in: number;

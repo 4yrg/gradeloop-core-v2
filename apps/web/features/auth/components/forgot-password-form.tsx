@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, CheckCircle } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -44,65 +44,25 @@ export function ForgotPasswordForm() {
 
   if (isSubmitted) {
     return (
-        <div className="w-full">
-            <div className="mb-10">
-                <Link
-                    href="/login"
-                    className="flex items-center text-sm font-medium text-primary hover:underline mb-6 transition-all"
-                >
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to Login
-                </Link>
-                <h2 className="text-3xl font-bold text-[#002333] mb-2">Forgot Password</h2>
-                <p className="text-slate-500">
-                    Enter your email address and we&apos;ll send you a link to reset your password.
-                </p>
-            </div>
-
-            <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                    <FormField
-                        control={form.control}
-                        name="email"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel className="text-[#002333] mb-2">
-                                    Email Address
-                                </FormLabel>
-                                <FormControl>
-                                    <Input
-                                        placeholder="e.g. alex@example.com"
-                                        type="email"
-                                        disabled={isLoading}
-                                        {...field}
-                                        className={cn(
-                                            "px-4 py-3 h-12 rounded-lg border-slate-200 focus:ring-2 focus:ring-primary focus:border-primary transition-colors",
-                                            form.formState.errors.email &&
-                                            "border-destructive focus:ring-destructive"
-                                        )}
-                                    />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-
-                    <Button
-                        type="submit"
-                        className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-semibold rounded-lg shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
-                        disabled={isLoading}
-                    >
-                        {isLoading ? (
-                            <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Sending Link...
-                            </>
-                        ) : (
-                            "Send Reset Link"
-                        )}
-                    </Button>
-                </form>
-            </Form>
+      <div className="w-full">
+        <div className="mb-10">
+          <Link
+            href="/login"
+            className="flex items-center text-sm font-medium text-primary hover:underline mb-6 transition-all"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Login
+          </Link>
+          <div className="text-center">
+            <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
+            <h2 className="text-3xl font-bold text-[#002333] mb-2">
+              Check Your Email
+            </h2>
+            <p className="text-slate-500">
+              We&apos;ve sent a password reset link to your email address.
+              Please check your inbox and follow the instructions.
+            </p>
+          </div>
         </div>
         <Link href="/login">
           <Button
