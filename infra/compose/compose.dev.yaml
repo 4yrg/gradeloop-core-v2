@@ -18,7 +18,7 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: [ "CMD", "traefik", "healthcheck" ]
+      test: ["CMD", "traefik", "healthcheck"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -38,7 +38,7 @@ services:
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     healthcheck:
-      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -99,7 +99,7 @@ services:
       DATABASE_URL: ${POSTGRES_URL_BASE}iam_db?sslmode=${POSTGRES_SSLMODE}
       REDIS_ADDR: "${REDIS_HOST}:${REDIS_PORT}"
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:3000/api/iam/health" ]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/iam/health"]
       interval: 10s
       timeout: 5s
       retries: 15
@@ -145,6 +145,44 @@ services:
         condition: service_healthy
     networks:
       - gradeloop-network
+
+  # Frontend Web Application
+  frontend:
+    image: oven/bun:latest
+    container_name: gradeloop-frontend-dev
+    working_dir: /app
+    command: ["bun", "dev", "--port", "3001"]
+    ports:
+      - "3001:3001"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3001"
+      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.routers.frontend.priority=1"
+    volumes:
+      - ../../apps/web:/app
+      - /app/node_modules
+      - /app/.next
+    env_file:
+      - ../../.env
+    environment:
+      NODE_ENV: development
+      NEXT_TELEMETRY_DISABLED: 1
+      PORT: 3001
+    depends_on:
+      - iam-service
+      - academics-service
+    networks:
+      - gradeloop-network
+    develop:
+      watch:
+        - action: sync
+          path: ../../apps/web
+          target: /app
+          ignore:
+            - node_modules/
+            - .next/
 
 networks:
   gradeloop-network:
