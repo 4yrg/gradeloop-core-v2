@@ -14,7 +14,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func Start(userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler, permissionHandler *handlers.PermissionHandler, authHandler *handlers.AuthHandler, redisClient *redis.Client, auditRepo ports.AuditRepository) {
+func Start(userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler, permissionHandler *handlers.PermissionHandler, authHandler interface{}, redisClient *redis.Client, auditRepo ports.AuditRepository) {
 	app := fiber.New()
 	l := gl_logger.New("iam-service")
 
