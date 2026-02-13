@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { Suspense } from "react"
 import { AuthLayout } from "@/features/auth/components/auth-layout"
 import { ResetPasswordForm } from "@/features/auth/components/reset-password-form"
 
@@ -10,7 +11,9 @@ export const metadata: Metadata = {
 export default function ResetPasswordPage() {
     return (
         <AuthLayout>
-            <ResetPasswordForm />
+            <Suspense fallback={<div>Loading...</div>}>
+                <ResetPasswordForm />
+            </Suspense>
         </AuthLayout>
     )
 }
