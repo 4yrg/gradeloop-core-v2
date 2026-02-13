@@ -55,6 +55,7 @@ function LoginFormComponent() {
     setIsLoading(true);
     
     try {
+      console.log("[LOGIN] Attempting login with email:", email);
       // Call the login API
       const result = await apiClient.login({
         email,

@@ -89,10 +89,15 @@ func main() {
 	db.Exec("DELETE FROM roles WHERE role_name = '' OR role_name IS NULL")
 
 	// Auto Migration
-	if err := db.AutoMigrate(&models.User{}, &models.Student{}, &models.Employee{}, &models.Role{}, &models.Permission{}, &models.AuditLog{}, &models.PasswordResetToken{}, &models.RefreshToken{}); err != nil {
+	if err := db.AutoMigrate(&models.User{}, &models.Student{}, &models.Employee{}, &models.Role{}, &models.Permission{}, &models.AuditLog{}, &models.PasswordResetToken{}); err != nil {
 		l.Error("failed to migrate database", "error", err)
 		os.Exit(1)
 	}
+	// Skip RefreshToken migration for now due to schema conflicts
+	// if err := db.AutoMigrate(&models.RefreshToken{}); err != nil {
+	// 	l.Error("failed to migrate refresh tokens", "error", err)
+	// 	os.Exit(1)
+	// }
 
 	l.Info("Auto-migrations completed. Seeding initial data...")
 

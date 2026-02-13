@@ -582,14 +582,23 @@ export const apiClient = {
     valid: boolean;
     user?: unknown;
   }> {
+    console.log("[API] validateSession called at", new Date().toISOString());
     try {
       // Validate session via IAM service - cookies are sent automatically
       const response = await api.get("/auth/session");
+      console.log("[API] validateSession success:", response.data);
       return {
         valid: response.data.valid,
         user: response.data.user,
       };
     } catch (error) {
+      console.log("[API] validateSession error:", error);
+      // Handle 401 specifically - no valid session
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        console.log("[API] 401 response - no valid session");
+        return { valid: false };
+      }
+      
       // Detect rate limit either via our RateLimitError class or an Axios response status
       let isRateLimited = false;
       let retryAfterSeconds: number | undefined;
