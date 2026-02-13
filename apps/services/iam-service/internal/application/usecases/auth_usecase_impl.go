@@ -69,7 +69,7 @@ func (a *authUsecase) Login(ctx context.Context, email, password string) (string
 				Action:   "failed_login_attempt",
 				Entity:   "users",
 				EntityID: user.Email,
-				UserID:   &user.ID,
+				ActorID:  &user.ID,
 			})
 		}
 		return "", "", nil, errors.New("invalid credentials")
@@ -119,7 +119,7 @@ func (a *authUsecase) Login(ctx context.Context, email, password string) (string
 			Action:   "successful_login",
 			Entity:   "users",
 			EntityID: user.Email,
-			UserID:   &user.ID,
+			ActorID:  &user.ID,
 		})
 	}
 
@@ -341,7 +341,7 @@ func (a *authUsecase) ForgotPassword(ctx context.Context, email string) error {
 	resetToken := &models.PasswordResetToken{
 		UserID:    user.ID,
 		TokenHash: hashHex,
-		Expiry:    time.Now().Add(15 * time.Minute),
+		ExpiresAt: time.Now().Add(15 * time.Minute),
 		CreatedAt: time.Now(),
 	}
 
@@ -394,7 +394,7 @@ func (a *authUsecase) ResetPassword(ctx context.Context, token, newPassword stri
 	}
 
 	// Check if token is expired
-	if time.Now().After(resetToken.Expiry) {
+	if time.Now().After(resetToken.ExpiresAt) {
 		_ = a.passwordResetRepo.DeleteByID(resetToken.ID)
 		return errors.New("reset token has expired")
 	}
@@ -450,7 +450,7 @@ func (a *authUsecase) ValidateToken(ctx context.Context, token string) (*models.
 	// Don't expose password hash in response
 	user.PasswordHash = ""
 
-	return &user, nil
+	return user, nil
 }
 
 func (a *authUsecase) ChangePassword(ctx context.Context, userID uuid.UUID, currentPassword, newPassword string) error {

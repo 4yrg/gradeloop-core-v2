@@ -50,7 +50,7 @@ func BruteForceProtection(redisClient *redis.Client, auditRepo ports.AuditReposi
 			if err != nil || ttl <= 0 {
 				// TTL expired, reset counter
 				pipe := redisClient.TxPipeline()
-				pipe.SetEX(c.Context(), key, "1", AttemptWindow)
+				pipe.SetEx(c.Context(), key, "1", AttemptWindow)
 				pipe.Exec(c.Context())
 				return c.Next()
 			}
@@ -64,7 +64,7 @@ func BruteForceProtection(redisClient *redis.Client, auditRepo ports.AuditReposi
 		// Increment the attempt counter
 		if current == 0 {
 			// First attempt, set with expiration
-			redisClient.SetEX(c.Context(), key, "1", AttemptWindow)
+			redisClient.SetEx(c.Context(), key, "1", AttemptWindow)
 		} else {
 			// Increment existing counter
 			redisClient.Incr(c.Context(), key)
