@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"os"
 	"strings"
 
@@ -58,9 +59,10 @@ type storeTokensRequest struct {
 }
 
 // Login handles POST /login
-func (h *AuthHandler) Login(c *fiber.Ctx) error {
+func (h *AuthHandler) Login(c fiber.Ctx) error {
 	var req loginRequest
-	if err := c.BodyParser(&req); err != nil {
+	var body = c.Body()
+	if err := json.Unmarshal(body, &req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
 
@@ -82,7 +84,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 }
 
 // Refresh handles POST /refresh
-func (h *AuthHandler) Refresh(c *fiber.Ctx) error {
+func (h *AuthHandler) Refresh(c fiber.Ctx) error {
 	// Get refresh token from HTTPOnly cookie instead of request body
 	refreshTokenCookie := c.Cookies("__Secure-gl-refresh-token")
 	if refreshTokenCookie == "" {
@@ -106,7 +108,7 @@ func (h *AuthHandler) Refresh(c *fiber.Ctx) error {
 }
 
 // RevokeToken handles DELETE /refresh-tokens/{token_id}
-func (h *AuthHandler) RevokeToken(c *fiber.Ctx) error {
+func (h *AuthHandler) RevokeToken(c fiber.Ctx) error {
 	idStr := c.Params("token_id")
 	tokenID, err := uuid.Parse(idStr)
 	if err != nil {
@@ -122,7 +124,7 @@ func (h *AuthHandler) RevokeToken(c *fiber.Ctx) error {
 }
 
 // RevokeAllTokens handles POST /users/{id}/revoke-all-tokens
-func (h *AuthHandler) RevokeAllTokens(c *fiber.Ctx) error {
+func (h *AuthHandler) RevokeAllTokens(c fiber.Ctx) error {
 	idStr := c.Params("id")
 	userID, err := uuid.Parse(idStr)
 	if err != nil {
@@ -137,9 +139,10 @@ func (h *AuthHandler) RevokeAllTokens(c *fiber.Ctx) error {
 }
 
 // Activate handles POST /activate
-func (h *AuthHandler) Activate(c *fiber.Ctx) error {
+func (h *AuthHandler) Activate(c fiber.Ctx) error {
 	var req activateRequest
-	if err := c.BodyParser(&req); err != nil {
+	var body = c.Body()
+	if err := json.Unmarshal(body, &req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
 
@@ -155,9 +158,10 @@ func (h *AuthHandler) Activate(c *fiber.Ctx) error {
 }
 
 // RequestActivation handles POST /request-activation
-func (h *AuthHandler) RequestActivation(c *fiber.Ctx) error {
+func (h *AuthHandler) RequestActivation(c fiber.Ctx) error {
 	var req requestActivationRequest
-	if err := c.BodyParser(&req); err != nil {
+	var body = c.Body()
+	if err := json.Unmarshal(body, &req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
 
@@ -169,7 +173,7 @@ func (h *AuthHandler) RequestActivation(c *fiber.Ctx) error {
 }
 
 // ValidateToken handles GET /validate - ForwardAuth endpoint for Traefik
-func (h *AuthHandler) ValidateToken(c *fiber.Ctx) error {
+func (h *AuthHandler) ValidateToken(c fiber.Ctx) error {
 	authHeader := c.Get("Authorization")
 	if authHeader == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "missing authorization header"})
@@ -215,9 +219,10 @@ func (h *AuthHandler) ValidateToken(c *fiber.Ctx) error {
 }
 
 // ForgotPassword handles POST /forgot-password
-func (h *AuthHandler) ForgotPassword(c *fiber.Ctx) error {
+func (h *AuthHandler) ForgotPassword(c fiber.Ctx) error {
 	var req forgotPasswordRequest
-	if err := c.BodyParser(&req); err != nil {
+	var body = c.Body()
+	if err := json.Unmarshal(body, &req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
 
@@ -236,9 +241,10 @@ func (h *AuthHandler) ForgotPassword(c *fiber.Ctx) error {
 }
 
 // ResetPassword handles POST /reset-password
-func (h *AuthHandler) ResetPassword(c *fiber.Ctx) error {
+func (h *AuthHandler) ResetPassword(c fiber.Ctx) error {
 	var req resetPasswordRequest
-	if err := c.BodyParser(&req); err != nil {
+	var body = c.Body()
+	if err := json.Unmarshal(body, &req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
 
@@ -259,9 +265,10 @@ func (h *AuthHandler) ResetPassword(c *fiber.Ctx) error {
 }
 
 // ChangePassword handles PATCH /users/me/password
-func (h *AuthHandler) ChangePassword(c *fiber.Ctx) error {
+func (h *AuthHandler) ChangePassword(c fiber.Ctx) error {
 	var req changePasswordRequest
-	if err := c.Bind().Body(&req); err != nil {
+	var body = c.Body()
+	if err := json.Unmarshal(body, &req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
 
@@ -293,9 +300,10 @@ func (h *AuthHandler) ChangePassword(c *fiber.Ctx) error {
 }
 
 // StoreTokens handles POST /auth/store-tokens - stores tokens in HTTPOnly cookies
-func (h *AuthHandler) StoreTokens(c *fiber.Ctx) error {
+func (h *AuthHandler) StoreTokens(c fiber.Ctx) error {
 	var req storeTokensRequest
-	if err := c.Bind().Body(&req); err != nil {
+	var body = c.Body()
+	if err := json.Unmarshal(body, &req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
 
@@ -327,7 +335,7 @@ func (h *AuthHandler) StoreTokens(c *fiber.Ctx) error {
 }
 
 // ClearTokens handles POST /auth/clear-tokens - clears HTTPOnly authentication cookies
-func (h *AuthHandler) ClearTokens(c *fiber.Ctx) error {
+func (h *AuthHandler) ClearTokens(c fiber.Ctx) error {
 	// Clear all authentication cookies by setting them to expire immediately
 	cookies := []string{
 		"__Secure-gl-access-token",
@@ -358,7 +366,7 @@ func (h *AuthHandler) ClearTokens(c *fiber.Ctx) error {
 }
 
 // ValidateSession handles GET /auth/session - validates current session using HTTPOnly cookies
-func (h *AuthHandler) ValidateSession(c *fiber.Ctx) error {
+func (h *AuthHandler) ValidateSession(c fiber.Ctx) error {
 	// Get access token from HTTPOnly cookie
 	accessToken := c.Cookies("__Secure-gl-access-token")
 	if accessToken == "" {

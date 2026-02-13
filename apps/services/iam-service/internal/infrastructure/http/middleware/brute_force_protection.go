@@ -2,8 +2,8 @@ package middleware
 
 import (
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/application/ports"
-	"github.com/redis/go-redis/v9"
 	"github.com/gofiber/fiber/v3"
+	"github.com/redis/go-redis/v9"
 )
 
 // BruteForceProtection is intentionally disabled in development to avoid

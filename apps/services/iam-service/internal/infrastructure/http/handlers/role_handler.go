@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"strings"
 
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/application/usecases"
@@ -22,9 +23,10 @@ func NewRoleHandler(uc *usecases.RoleUsecase) *RoleHandler {
 }
 
 // CreateRole handles POST /roles
-func (h *RoleHandler) CreateRole(ctx *fiber.Ctx) error {
+func (h *RoleHandler) CreateRole(ctx fiber.Ctx) error {
 	var role models.Role
-	if err := ctx.BodyParser(&role); err != nil {
+	var body = ctx.Body()
+	if err := json.Unmarshal(body, &role); err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
@@ -40,7 +42,7 @@ func (h *RoleHandler) CreateRole(ctx *fiber.Ctx) error {
 }
 
 // ListRoles handles GET /roles
-func (h *RoleHandler) ListRoles(ctx *fiber.Ctx) error {
+func (h *RoleHandler) ListRoles(ctx fiber.Ctx) error {
 	roles, err := h.usecase.ListRoles(ctx.Context())
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
@@ -50,7 +52,7 @@ func (h *RoleHandler) ListRoles(ctx *fiber.Ctx) error {
 }
 
 // UpdatePermissions handles PATCH /roles/{id}/permissions
-func (h *RoleHandler) UpdatePermissions(ctx *fiber.Ctx) error {
+func (h *RoleHandler) UpdatePermissions(ctx fiber.Ctx) error {
 	idParam := ctx.Params("id")
 	roleID, err := uuid.Parse(idParam)
 	if err != nil {
@@ -58,7 +60,8 @@ func (h *RoleHandler) UpdatePermissions(ctx *fiber.Ctx) error {
 	}
 
 	var req UpdateRolePermissionsRequest
-	if err := ctx.BodyParser(&req); err != nil {
+	var body = ctx.Body()
+	if err := json.Unmarshal(body, &req); err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
@@ -74,7 +77,7 @@ func (h *RoleHandler) UpdatePermissions(ctx *fiber.Ctx) error {
 }
 
 // DeleteRole handles DELETE /roles/{id}
-func (h *RoleHandler) DeleteRole(ctx *fiber.Ctx) error {
+func (h *RoleHandler) DeleteRole(ctx fiber.Ctx) error {
 	idParam := ctx.Params("id")
 	id, err := uuid.Parse(idParam)
 	if err != nil {
