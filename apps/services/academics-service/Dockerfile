@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.25-alpine AS builder
+FROM golang:1.25.7-alpine AS builder
 
 # Set the working directory to the project root
 WORKDIR /app
@@ -52,3 +52,32 @@ EXPOSE 3001
 
 # Run the binary
 CMD ["./academics-service"]
+
+
+# Dev stage: provides a fast local development image with file-mount hot-reload
+FROM golang:1.25.7-alpine AS dev
+WORKDIR /app
+
+# Ensure git is available and install air (live-reload tool)
+RUN apk add --no-cache git ca-certificates curl \
+	&& mkdir -p /go/bin \
+	&& curl -sSfL https://raw.githubusercontent.com/cosmtrek/air/master/install.sh | sh
+
+# Keep Go module files in the image to leverage cached downloads
+COPY apps/services/academics-service/go.mod apps/services/academics-service/go.sum ./apps/services/academics-service/
+COPY shared/libs/go/secrets/go.mod shared/libs/go/secrets/go.sum ./shared/libs/go/secrets/
+COPY shared/libs/go/logger/go.mod shared/libs/go/logger/go.sum ./shared/libs/go/logger/
+COPY shared/libs/go/middleware/go.mod shared/libs/go/middleware/go.sum ./shared/libs/go/middleware/
+
+WORKDIR /app/apps/services/academics-service
+RUN go mod download
+
+# Expose port and run air; source is expected to be mounted by compose
+WORKDIR /app/apps/services/academics-service
+EXPOSE 3001
+ENV PATH="/go/bin:${PATH}"
+
+RUN printf '#!/bin/sh\nset -e\nif [ ! -f .air.toml ]; then\n  if command -v air >/dev/null 2>&1; then\n    air init\n  fi\nfi\nexec air -c .air.toml\n' > /usr/local/bin/air-entrypoint.sh \
+	&& chmod +x /usr/local/bin/air-entrypoint.sh
+
+CMD ["/bin/sh", "/usr/local/bin/air-entrypoint.sh"]
