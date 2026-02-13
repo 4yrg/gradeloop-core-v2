@@ -60,8 +60,8 @@ export function Sidebar({ open, onClose, collapsed, onToggleCollapse }: SidebarP
     <ShellSidebar
       ref={drawerRef}
       className={`fixed inset-y-0 left-0 z-30 transform lg:transform-none transition-all duration-200 ${
-        open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-      } ${collapsed ? 'w-[72px]' : 'w-[280px]'}`}
+          open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        } ${collapsed ? 'w-[72px] lg:w-[72px]' : 'w-[280px] lg:w-[280px]'}`}
     >
       <SidebarHeader>
         <div className="flex items-center gap-3">
