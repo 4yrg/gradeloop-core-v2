@@ -141,6 +141,7 @@ services:
       - ../../.env
     environment:
       DATABASE_URL: "${POSTGRES_URL_BASE}academics_db?sslmode=${POSTGRES_SSLMODE}"
+    depends_on:
       iam-service:
         condition: service_healthy
     develop:
