@@ -66,8 +66,9 @@ func (h *AuthHandler) Login(c fiber.Ctx) error {
 
 	accessToken, refreshToken, user, err := h.usecase.Login(c.Context(), req.Email, req.Password)
 	if err != nil {
-		// Specification: Return 401 Unauthorized for invalid credentials
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": err.Error()})
+		// Specification: Return generic 401 Unauthorized for invalid credentials
+		// Do not leak whether email or password was incorrect.
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid email or password"})
 	}
 
 	// Set secure HTTPOnly cookies for authentication
