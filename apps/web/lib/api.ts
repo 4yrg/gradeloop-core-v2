@@ -388,6 +388,14 @@ api.interceptors.response.use(
 
     // Handle network errors
     if (!error.response) {
+      // Log helpful debug info: request URL and axios message
+      try {
+        const reqUrl = (originalRequest && (originalRequest as any).url) || api.defaults.baseURL;
+        console.error("Network error contacting:", reqUrl, error.message);
+      } catch (e) {
+        console.error("Network error (unable to determine request URL)", error.message);
+      }
+
       return Promise.reject(new NetworkError("Network request failed"));
     }
 

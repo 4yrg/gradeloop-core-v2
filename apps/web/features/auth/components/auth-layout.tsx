@@ -21,7 +21,7 @@ export function AuthLayout({ children, className }: AuthLayoutProps) {
           className="absolute inset-0 w-full h-full object-cover"
           src="/images/auth/auth1.jpg"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/40 to-primary/80 dark:from-background/40 dark:to-primary/60 flex flex-col justify-end p-16 text-primary-foreground">
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/40 to-primary/80 dark:from-background/40 dark:to-primary/60 flex flex-col justify-end p-16 text-white">
           <div className="max-w-md">
             <div className="mb-6">
               <span className="bg-primary/30 backdrop-blur-md text-white text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider">
@@ -31,7 +31,7 @@ export function AuthLayout({ children, className }: AuthLayoutProps) {
             <h1 className="text-4xl font-bold mb-4 leading-tight">
               Empowering the next generation of learners.
             </h1>
-            <p className="text-lg text-primary-foreground/90">
+            <p className="text-lg text-white/90">
               Join thousands of students and educators using GradeLoop to reach
               their academic milestones every day.
             </p>
@@ -40,7 +40,7 @@ export function AuthLayout({ children, className }: AuthLayoutProps) {
 
         {/* Decorative Branding Element */}
         <div className="absolute top-12 left-12">
-          <div className="flex items-center space-x-2 text-primary-foreground">
+          <div className="flex items-center space-x-2 text-white">
             <div className="flex items-center justify-center">
               <img
                 src="/brand/assets/logo.png"
