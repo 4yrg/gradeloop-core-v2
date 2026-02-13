@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 const IAM_SERVICE_URL =
   process.env.IAM_SERVICE_URL || 
   process.env.NEXT_PUBLIC_IAM_SERVICE_URL || 
-  "http://localhost:3000";
+  "http://localhost:8080";
 // Don't append /v1 here - it's part of the incoming path
 const API_BASE = IAM_SERVICE_URL;
 

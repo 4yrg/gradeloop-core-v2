@@ -167,13 +167,44 @@ async function getAuthenticationStatus(request: NextRequest): Promise<{
   sessionId: string | null;
   shouldRefresh: boolean;
 }> {
-  // Authentication is now handled by external service, so we assume no authentication here
-  return {
-    isAuthenticated: false,
-    user: null,
-    sessionId: null,
-    shouldRefresh: false,
-  };
+  try {
+    // Call IAM service to validate authentication
+    // Forward the cookies from the original request to the IAM service
+    const cookie = request.headers.get("cookie");
+    
+    const response = await fetch("http://localhost:8080/api/v1/auth/validate", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        ...(cookie ? { "Cookie": cookie } : {}),
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      return {
+        isAuthenticated: true,
+        user: data,
+        sessionId: data.id || null,
+        shouldRefresh: false,
+      };
+    }
+    
+    return {
+      isAuthenticated: false,
+      user: null,
+      sessionId: null,
+      shouldRefresh: false,
+    };
+  } catch (error) {
+    console.error("Authentication validation failed:", error);
+    return {
+      isAuthenticated: false,
+      user: null,
+      sessionId: null,
+      shouldRefresh: false,
+    };
+  }
 }
 
 function hasAdminAccess(user: any): boolean {
