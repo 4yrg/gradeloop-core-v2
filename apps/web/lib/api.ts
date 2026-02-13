@@ -6,10 +6,16 @@ import { useAuthStore } from "@/store/auth.store";
 import type { User } from "@/schemas/auth.schema";
 // Auth schema types available but not all currently used
 
-// API Configuration - Direct to IAM service
+// API Configuration - prefer same-origin in browser to avoid CSP/CORS issues
+// When running in the browser we use a relative path so requests are same-origin
+// and won't be blocked by a Content Security Policy that restricts `connect-src`.
 const IAM_SERVICE_URL =
-  process.env.NEXT_PUBLIC_IAM_SERVICE_URL || "http://localhost:3000";
-const API_BASE_URL = `${IAM_SERVICE_URL}/api/v1`;
+  typeof window === "undefined"
+    ? process.env.NEXT_PUBLIC_IAM_SERVICE_URL || "http://localhost:3000"
+    : "";
+const API_BASE_URL = IAM_SERVICE_URL
+  ? `${IAM_SERVICE_URL.replace(/\/+$/g, "")}/api/v1`
+  : "/api/v1";
 const REQUEST_TIMEOUT = 30000; // 30 seconds
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY = 1000; // 1 second
