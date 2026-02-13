@@ -10,6 +10,7 @@ import (
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/notifications"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/repositories"
+	_ "github.com/glebarez/sqlite"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -56,7 +57,7 @@ func TestLoginAndResetFlow(t *testing.T) {
 	}
 
 	// Forgot password should create a token
-	if err := auth.ForgotPassword(context.Background(), "test@example.com", "https://example.com/reset"); err != nil {
+	if err := auth.ForgotPassword(context.Background(), "test@example.com"); err != nil {
 		t.Fatalf("forgot password failed: %v", err)
 	}
 
@@ -78,7 +79,8 @@ func TestLoginAndResetFlow(t *testing.T) {
 	}
 
 	// Cleanup expired
-	if err := prRepo.DeleteExpired(time.Now().Add(1 * time.Hour)); err != nil {
+	// DeleteExpired takes no args in this repo implementation in tests
+	if err := prRepo.DeleteExpired(); err != nil {
 		t.Fatalf("delete expired: %v", err)
 	}
 }
