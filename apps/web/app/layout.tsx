@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import { Lexend } from "next/font/google";
 import "./globals.css";
+<<<<<<< HEAD
 import AppShell from "@/components/layout/AppShell";
+=======
+import { Providers } from "@/components/providers";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+>>>>>>> b740d5e (feat(web): add floating dark mode toggle and fix build errors [GRADELOOP-43])
 
 const lexend = Lexend({
   variable: "--font-lexend",
@@ -31,7 +36,14 @@ export default function RootLayout({
         <meta name="theme-color" content="#000000" />
       </head>
       <body className={`${lexend.variable} antialiased font-sans`}>
+<<<<<<< HEAD
         <AppShell>{children}</AppShell>
+=======
+        <Providers>
+          {children}
+          <ThemeToggle />
+        </Providers>
+>>>>>>> b740d5e (feat(web): add floating dark mode toggle and fix build errors [GRADELOOP-43])
       </body>
     </html>
   );

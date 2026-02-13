@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { JWTManager, TokenExpiredError, TokenInvalidError } from "./lib/jwt";
-import { ServerCookieManager, COOKIE_NAMES } from "./lib/cookies";
+import { ServerCookieManager, COOKIE_NAMES } from "./lib/cookies.server";
 import { CSRFTokenManager } from "./lib/jwt";
 
 // Route configuration
@@ -17,7 +17,12 @@ const PUBLIC_ROUTES = [
   "/terms",
 ];
 
-const AUTH_ROUTES = ["/login", "/register", "/forgot-password", "/reset-password"];
+const AUTH_ROUTES = [
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+];
 
 const PROTECTED_ROUTES = [
   "/dashboard",
@@ -272,7 +277,8 @@ async function getAuthenticationStatus(request: NextRequest): Promise<{
   } catch (error) {
     if (error instanceof TokenExpiredError) {
       try {
-        const refreshPayload = await JWTManager.verifyRefreshToken(refreshToken);
+        const refreshPayload =
+          await JWTManager.verifyRefreshToken(refreshToken);
         return {
           isAuthenticated: true,
           user: null, // Will be populated after refresh
@@ -307,14 +313,22 @@ function hasAdminAccess(user: any): boolean {
 
   return (
     user.roles?.some((role: string) => adminRoles.includes(role)) ||
-    user.permissions?.some((permission: string) => adminPermissions.includes(permission))
+    user.permissions?.some((permission: string) =>
+      adminPermissions.includes(permission),
+    )
   );
 }
 
 function hasFacultyAccess(user: any): boolean {
   if (!user) return false;
 
-  const facultyRoles = ["faculty", "instructor", "teacher", "admin", "super_admin"];
+  const facultyRoles = [
+    "faculty",
+    "instructor",
+    "teacher",
+    "admin",
+    "super_admin",
+  ];
   const facultyPermissions = [
     "courses:manage",
     "assignments:create",
@@ -324,7 +338,9 @@ function hasFacultyAccess(user: any): boolean {
 
   return (
     user.roles?.some((role: string) => facultyRoles.includes(role)) ||
-    user.permissions?.some((permission: string) => facultyPermissions.includes(permission))
+    user.permissions?.some((permission: string) =>
+      facultyPermissions.includes(permission),
+    )
   );
 }
 
@@ -345,12 +361,15 @@ async function handleTokenRefresh(
 ): Promise<NextResponse> {
   try {
     // Make internal request to refresh endpoint
-    const refreshResponse = await fetch(`${request.nextUrl.origin}/api/auth/refresh`, {
-      method: "POST",
-      headers: {
-        Cookie: request.headers.get("cookie") || "",
+    const refreshResponse = await fetch(
+      `${request.nextUrl.origin}/api/auth/refresh`,
+      {
+        method: "POST",
+        headers: {
+          Cookie: request.headers.get("cookie") || "",
+        },
       },
-    });
+    );
 
     if (refreshResponse.ok) {
       // Copy new cookies to response
@@ -370,7 +389,10 @@ async function handleTokenRefresh(
   }
 }
 
-function updateLastActivity(response: NextResponse, sessionId: string | null): void {
+function updateLastActivity(
+  response: NextResponse,
+  sessionId: string | null,
+): void {
   if (sessionId) {
     // Add header to trigger activity update in API
     response.headers.set("X-Update-Activity", "true");

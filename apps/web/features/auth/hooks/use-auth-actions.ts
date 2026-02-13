@@ -9,6 +9,9 @@ import type {
   ChangePasswordRequest,
   ForgotPasswordRequest,
   ResetPasswordRequest,
+  LoginResponse,
+  User,
+  Session,
 } from "@/schemas/auth.schema";
 
 // Login hook
@@ -21,10 +24,10 @@ export const useLogin = () => {
     mutationFn: async (credentials: { email: string; password: string }) => {
       return apiClient.login(credentials);
     },
-    onSuccess: (data) => {
+    onSuccess: (data: LoginResponse) => {
       // Update auth store
       authStore.login(
-        data.user,
+        data.user as User,
         {
           id: data.session_id,
           user_id: data.user.id,
@@ -35,7 +38,7 @@ export const useLogin = () => {
             Date.now() + data.expires_in * 1000,
           ).toISOString(),
           created_at: new Date().toISOString(),
-        },
+        } as Session,
         Date.now() + data.expires_in * 1000,
         data.session_id,
       );
@@ -45,7 +48,7 @@ export const useLogin = () => {
 
       // Show success message
       toast.success("Welcome back!", {
-        description: `Logged in as ${data.user.full_name}`,
+        description: `Logged in as ${(data.user as User).full_name}`,
       });
 
       // Redirect to dashboard or return URL
