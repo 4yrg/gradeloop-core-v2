@@ -571,6 +571,23 @@ export const apiClient = {
         user: response.data.user,
       };
     } catch (error) {
+      // If we were rate limited, respect the retry-after header and retry once
+      try {
+        if (error instanceof RateLimitError) {
+          const retryAfter = (error.data as any)?.retryAfter;
+          const waitMs = retryAfter && Number.isFinite(retryAfter) ? retryAfter * 1000 : 1000;
+          console.warn(`Session validation rate limited, retrying after ${waitMs}ms`);
+          await new Promise((resolve) => setTimeout(resolve, waitMs));
+          const retryResponse = await api.get("/auth/session");
+          return {
+            valid: retryResponse.data.valid,
+            user: retryResponse.data.user,
+          };
+        }
+      } catch (e) {
+        console.error("Session validation retry failed:", e);
+      }
+
       console.error("Session validation error:", error);
       return { valid: false };
     }
