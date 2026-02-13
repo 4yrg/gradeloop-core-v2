@@ -40,8 +40,8 @@ func Start(userHandler *handlers.UserHandler, roleHandler *handlers.RoleHandler,
 
 	router.Setup(app, userHandler, roleHandler, permissionHandler, authHandler, redisClient, auditRepo)
 
-	l.Info("Server starting on :3000")
-	if err := app.Listen(":3000"); err != nil {
+	l.Info("Server starting on :8080")
+	if err := app.Listen(":8080"); err != nil {
 		l.Error("Error starting server", "error", err)
 	}
 }

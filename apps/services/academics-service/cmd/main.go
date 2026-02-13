@@ -148,7 +148,7 @@ func main() {
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "3001"
+		port = "8081"
 	}
 	l.Info("Server starting", "port", port)
 	if err := app.Listen(":" + port); err != nil {

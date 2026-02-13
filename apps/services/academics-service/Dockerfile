@@ -48,7 +48,7 @@ COPY --from=builder --chown=root:root --chmod=755 /app/apps/services/academics-s
 USER gradeloop
 
 # Expose the application port
-EXPOSE 3001
+EXPOSE 8081
 
 # Run the binary
 CMD ["./academics-service"]

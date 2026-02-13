@@ -14,7 +14,7 @@ import type { User } from "@/schemas/auth.schema";
 // Client-side: Use NEXT_PUBLIC_IAM_SERVICE_URL (relative path)
 const IAM_SERVICE_URL =
   typeof window === "undefined"
-    ? process.env.IAM_SERVICE_URL || process.env.NEXT_PUBLIC_IAM_SERVICE_URL || "http://localhost:3000"
+    ? process.env.IAM_SERVICE_URL || process.env.NEXT_PUBLIC_IAM_SERVICE_URL || "http://localhost:8080"
     : process.env.NEXT_PUBLIC_IAM_SERVICE_URL || "";
 const API_BASE_URL = IAM_SERVICE_URL
   ? `${IAM_SERVICE_URL.replace(/\/+$/g, "")}/v1`
