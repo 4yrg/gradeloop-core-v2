@@ -571,11 +571,24 @@ export const apiClient = {
         user: response.data.user,
       };
     } catch (error) {
-      // If we were rate limited, respect the retry-after header and retry once
-      try {
-        if (error instanceof RateLimitError) {
-          const retryAfter = (error.data as any)?.retryAfter;
-          const waitMs = retryAfter && Number.isFinite(retryAfter) ? retryAfter * 1000 : 1000;
+      // Detect rate limit either via our RateLimitError class or an Axios response status
+      let isRateLimited = false;
+      let retryAfterSeconds: number | undefined;
+
+      if (error instanceof RateLimitError) {
+        isRateLimited = true;
+        retryAfterSeconds = (error.data as any)?.retryAfter;
+      } else if (axios.isAxiosError(error) && error.response?.status === 429) {
+        isRateLimited = true;
+        const header = error.response.headers["retry-after"];
+        retryAfterSeconds = header ? parseInt(header) : undefined;
+      }
+
+      if (isRateLimited) {
+        try {
+          const waitMs = retryAfterSeconds && Number.isFinite(retryAfterSeconds)
+            ? retryAfterSeconds * 1000
+            : 1000;
           console.warn(`Session validation rate limited, retrying after ${waitMs}ms`);
           await new Promise((resolve) => setTimeout(resolve, waitMs));
           const retryResponse = await api.get("/auth/session");
@@ -583,9 +596,9 @@ export const apiClient = {
             valid: retryResponse.data.valid,
             user: retryResponse.data.user,
           };
+        } catch (e) {
+          console.error("Session validation retry failed:", e);
         }
-      } catch (e) {
-        console.error("Session validation retry failed:", e);
       }
 
       console.error("Session validation error:", error);
