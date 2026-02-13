@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
 
+// Use server-side IAM_SERVICE_URL for Docker internal network communication
+// Falls back to NEXT_PUBLIC_IAM_SERVICE_URL for local dev, then localhost
 const IAM_SERVICE_URL =
-  process.env.NEXT_PUBLIC_IAM_SERVICE_URL || "http://localhost:3000";
-const API_BASE = `${IAM_SERVICE_URL}/api/v1`;
+  process.env.IAM_SERVICE_URL || 
+  process.env.NEXT_PUBLIC_IAM_SERVICE_URL || 
+  "http://localhost:3000";
+// Don't append /v1 here - it's part of the incoming path
+const API_BASE = IAM_SERVICE_URL;
 
 async function proxy(req: Request, path: string) {
-  const url = `${API_BASE}/${path}`.replace(/([^:]:)\/\//g, "$1/");
+  // Remove the "v1/" prefix from the path since API_BASE already includes /v1
+  const cleanPath = path.startsWith("v1/") ? path.slice(3) : path;
+  const url = `${API_BASE}/${cleanPath}`.replace(/([^:]:)\/\//g, "$1/");
 
   // Build headers for outgoing request
   const outHeaders: Record<string, string> = {};

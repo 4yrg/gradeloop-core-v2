@@ -35,9 +35,28 @@ type User struct {
 	Roles    []Role    `gorm:"many2many:users_roles;" json:"roles"`
 }
 
+// RefreshToken stores refresh tokens for user sessions
+type RefreshToken struct {
+	ID        uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
+	Token     string    `gorm:"not null;uniqueIndex" json:"-"` // Don't expose token in JSON
+	UserID    uuid.UUID `gorm:"type:uuid;not null" json:"user_id"`
+	Expiry    time.Time `gorm:"not null" json:"expiry"`
+	IsActive  bool      `gorm:"default:true" json:"is_active"`
+	IsUsed    bool      `gorm:"default:false" json:"is_used"` // For replay attack detection
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
 	if u.ID == uuid.Nil {
 		u.ID = uuid.New()
+	}
+	return
+}
+
+func (rt *RefreshToken) BeforeCreate(tx *gorm.DB) (err error) {
+	if rt.ID == uuid.Nil {
+		rt.ID = uuid.New()
 	}
 	return
 }

@@ -183,9 +183,19 @@ services:
       NODE_ENV: development
       NEXT_TELEMETRY_DISABLED: 1
       PORT: 3001
+      # Server-side only - Docker internal network URLs
+      IAM_SERVICE_URL: "http://traefik/api/iam"
+      ACADEMICS_SERVICE_URL: "http://traefik/api/academics"
+      API_GATEWAY_URL: "http://traefik"
+      # Client-side - Public URLs for browser
+      NEXT_PUBLIC_API_GATEWAY_URL: "http://localhost"
+      NEXT_PUBLIC_IAM_SERVICE_URL: "/api/iam"
+      NEXT_PUBLIC_ACADEMICS_SERVICE_URL: "/api/academics"
+      NEXT_PUBLIC_APP_URL: "http://localhost"
     depends_on:
       - iam-service
       - academics-service
+      - traefik
     networks:
       - gradeloop-network
     develop:

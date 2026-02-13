@@ -15,12 +15,17 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { LoginSchema, type LoginValues } from "../schemas/auth.schema";
 import { cn } from "@/lib/utils";
+import { apiClient } from "@/lib/api";
+import { useAuth } from "@/store/auth.store";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 function LoginFormComponent() {
   const [showPassword, setShowPassword] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
+  const { login } = useAuth();
+  const router = useRouter();
 
   const form = useForm({
     defaultValues: {
@@ -48,10 +53,50 @@ function LoginFormComponent() {
     }
 
     setIsLoading(true);
-    // Simulate API call
-    console.log("Login data:", data);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setIsLoading(false);
+    
+    try {
+      // Call the login API
+      const result = await apiClient.login({
+        email,
+        password
+      });
+      
+      // Update auth state
+      login(
+        result.user,
+        {
+          id: result.session_id,
+          user_id: result.user.id,
+          device_name: "Web Browser",
+          is_active: true,
+          last_activity: new Date().toISOString(),
+          expires_at: new Date(Date.now() + (result.expires_in * 1000)).toISOString(),
+          created_at: new Date().toISOString()
+        },
+        Date.now() + (result.expires_in * 1000),
+        result.session_id
+      );
+      
+      toast.success("Login successful!");
+      
+      // Redirect to dashboard
+      router.push("/");
+    } catch (error: any) {
+      console.error("Login error:", error);
+      
+      // Extract error message
+      let errorMessage = "Login failed. Please try again.";
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage);
+      form.setError("root", { message: errorMessage });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (

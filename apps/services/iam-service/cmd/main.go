@@ -39,6 +39,7 @@ func main() {
 	defer cancel()
 
 	l.Info("Initializing secrets client...")
+
 	// Initialize Secrets Client (Vault)
 	// NewClient(nil) uses default configuration from environment variables:
 	// VAULT_ADDR, VAULT_TOKEN, VAULT_MOUNT_PATH, etc.
@@ -50,6 +51,7 @@ func main() {
 	defer secretsClient.Close()
 
 	l.Info("Retrieving database configuration from Vault...")
+
 	// Retrieve Database Configuration from Vault with retry logic
 	var dbConfig *secrets.DatabaseConfig
 	maxRetries := 10
@@ -71,6 +73,7 @@ func main() {
 	dsn := dbConfig.ConnectionString()
 
 	l.Info("Connecting to database...")
+
 	// Initialize Database Connection using GORM
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
@@ -86,12 +89,13 @@ func main() {
 	db.Exec("DELETE FROM roles WHERE role_name = '' OR role_name IS NULL")
 
 	// Auto Migration
-	if err := db.AutoMigrate(&models.User{}, &models.Student{}, &models.Employee{}, &models.Role{}, &models.Permission{}, &models.AuditLog{}, &models.PasswordResetToken{}); err != nil {
+	if err := db.AutoMigrate(&models.User{}, &models.Student{}, &models.Employee{}, &models.Role{}, &models.Permission{}, &models.AuditLog{}, &models.PasswordResetToken{}, &models.RefreshToken{}); err != nil {
 		l.Error("failed to migrate database", "error", err)
 		os.Exit(1)
 	}
 
 	l.Info("Auto-migrations completed. Seeding initial data...")
+
 	// Seed Permissions
 	initialPermissions := []models.Permission{
 		{Name: "iam:users:create", Description: "Create users", Category: "IAM", IsCustom: false},
@@ -123,6 +127,7 @@ func main() {
 	}
 
 	l.Info("Bootstrapping completed. Initializing dependencies...")
+
 	// Dependency Injection
 	auditRepo := repositories.NewAuditRepository(db)
 	userRepo := repositories.NewUserRepository(db)
@@ -143,10 +148,6 @@ func main() {
 	userUsecase := usecases.NewUserUsecase(userRepo, auditRepo)
 	roleUsecase := usecases.NewRoleUsecase(roleRepo, auditRepo)
 	permissionUsecase := usecases.NewPermissionUsecase(permissionRepo)
-	userHandler := handlers.NewUserHandler(userUsecase)
-	roleHandler := handlers.NewRoleHandler(roleUsecase)
-	permissionHandler := handlers.NewPermissionHandler(permissionUsecase)
-
 	// Auth usecase and handler
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
@@ -155,6 +156,9 @@ func main() {
 	}
 	authUsecase := usecases.NewAuthUsecase(userRepo, passwordResetRepo, notifier, jwtSecret, 15*time.Minute, auditRepo)
 	authHandler := handlers.NewAuthHandler(authUsecase)
+	userHandler := handlers.NewUserHandler(userUsecase)
+	roleHandler := handlers.NewRoleHandler(roleUsecase)
+	permissionHandler := handlers.NewPermissionHandler(permissionUsecase)
 
 	// Start Server
 	redisAddr := os.Getenv("REDIS_ADDR")

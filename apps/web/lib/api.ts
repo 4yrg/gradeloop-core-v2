@@ -10,13 +10,15 @@ import type { User } from "@/schemas/auth.schema";
 // API Configuration - prefer same-origin in browser to avoid CSP/CORS issues
 // When running in the browser we use a relative path so requests are same-origin
 // and won't be blocked by a Content Security Policy that restricts `connect-src`.
+// Server-side: Use IAM_SERVICE_URL (Docker internal) or fallback to NEXT_PUBLIC_IAM_SERVICE_URL
+// Client-side: Use NEXT_PUBLIC_IAM_SERVICE_URL (relative path)
 const IAM_SERVICE_URL =
   typeof window === "undefined"
-    ? process.env.NEXT_PUBLIC_IAM_SERVICE_URL || "http://localhost:3000"
-    : "";
+    ? process.env.IAM_SERVICE_URL || process.env.NEXT_PUBLIC_IAM_SERVICE_URL || "http://localhost:3000"
+    : process.env.NEXT_PUBLIC_IAM_SERVICE_URL || "";
 const API_BASE_URL = IAM_SERVICE_URL
-  ? `${IAM_SERVICE_URL.replace(/\/+$/g, "")}/api/v1`
-  : "/api/v1";
+  ? `${IAM_SERVICE_URL.replace(/\/+$/g, "")}/v1`
+  : "/api/iam/v1";
 const REQUEST_TIMEOUT = 30000; // 30 seconds
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY = 1000; // 1 second
@@ -246,15 +248,15 @@ class TokenManager {
       this.refreshing = true;
       authStore.setRefreshing(true);
 
-      const refreshToken = this.getRefreshToken();
-      if (!refreshToken) {
-        throw new AuthenticationError("No refresh token available");
-      }
-
       // Call IAM service refresh endpoint
-      const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-        refresh_token: refreshToken,
-      });
+      // Note: refresh token is sent automatically via HTTPOnly cookie
+      const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {});
+
+      // Check if the response indicates refresh is not implemented
+      if (response.data?.error && response.data.error.includes('Not implemented')) {
+        // If refresh is not implemented, treat as session expired
+        throw new AuthenticationError('Session expired');
+      }
 
       const refreshData = IAMRefreshResponseSchema.parse(response.data);
 
@@ -423,12 +425,8 @@ api.interceptors.response.use(
         try {
           await TokenManager.refreshAccessToken();
 
-          // Retry original request with new token
-          const newToken = TokenManager.getAccessToken();
-          if (newToken && originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${newToken}`;
-            return api(originalRequest);
-          }
+          // Retry original request (tokens are sent automatically via HTTPOnly cookies)
+          return api(originalRequest);
         } catch (refreshError) {
           console.error("Token refresh in interceptor failed:", refreshError);
           return Promise.reject(new AuthenticationError("Session expired"));
@@ -535,6 +533,11 @@ export const apiClient = {
   }> {
     // Refresh via IAM service - refresh token is sent automatically via HTTPOnly cookie
     const response = await api.post("/auth/refresh", {});
+
+    // Check if refresh is not implemented
+    if (response.data.error && response.data.error.includes('Not implemented')) {
+      throw new AuthenticationError('Session expired');
+    }
 
     const refreshData = IAMRefreshResponseSchema.parse(response.data);
 

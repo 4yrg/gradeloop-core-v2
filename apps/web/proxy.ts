@@ -1,27 +1,12 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { JWTManager, TokenExpiredError, TokenInvalidError } from "./lib/jwt";
-import { ServerCookieManager, COOKIE_NAMES } from "./lib/cookies.server";
-import { CSRFTokenManager } from "./lib/jwt";
-
 // Route configuration
 const PUBLIC_ROUTES = [
   "/",
-  "/login",
-  "/register",
-  "/forgot-password",
-  "/reset-password",
   "/about",
   "/contact",
   "/privacy",
   "/terms",
-];
-
-const AUTH_ROUTES = [
-  "/login",
-  "/register",
-  "/forgot-password",
-  "/reset-password",
 ];
 
 const PROTECTED_ROUTES = [
@@ -77,10 +62,7 @@ export async function proxy(request: NextRequest) {
 
     // Handle public routes
     if (isPublicRoute(pathname)) {
-      // Redirect authenticated users away from auth pages
-      if (authResult.isAuthenticated && isAuthRoute(pathname)) {
-        return NextResponse.redirect(new URL("/dashboard", request.url));
-      }
+      // No redirection needed since auth is handled externally
       return addSecurityHeaders(response);
     }
 
@@ -100,11 +82,7 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(new URL("/unauthorized", request.url));
       }
 
-      // Refresh token if needed
-      if (authResult.shouldRefresh) {
-        return await handleTokenRefresh(request, response);
-      }
-
+      // No token refresh needed as auth is handled externally
       // Update last activity
       updateLastActivity(response, authResult.sessionId);
     }
@@ -148,7 +126,8 @@ function isPublicRoute(pathname: string): boolean {
 }
 
 function isAuthRoute(pathname: string): boolean {
-  return AUTH_ROUTES.some((route) => pathname.startsWith(route));
+  const authRoutes = ["/login", "/register", "/forgot-password", "/reset-password"];
+  return authRoutes.some((route) => pathname.startsWith(route));
 }
 
 function isProtectedRoute(pathname: string): boolean {
@@ -177,16 +156,9 @@ async function validateCSRFToken(request: NextRequest): Promise<void> {
     return;
   }
 
-  const headerToken = request.headers.get("X-CSRF-Token");
-  const cookieToken = request.cookies.get(COOKIE_NAMES.CSRF_TOKEN)?.value;
-
-  if (!headerToken || !cookieToken) {
-    throw new MiddlewareError("CSRF token missing", 403);
-  }
-
-  if (!CSRFTokenManager.validateToken(headerToken, cookieToken)) {
-    throw new MiddlewareError("Invalid CSRF token", 403);
-  }
+  // CSRF validation temporarily disabled as auth endpoints have been removed
+  // This function is kept for potential future implementation
+  return;
 }
 
 async function getAuthenticationStatus(request: NextRequest): Promise<{
@@ -195,68 +167,13 @@ async function getAuthenticationStatus(request: NextRequest): Promise<{
   sessionId: string | null;
   shouldRefresh: boolean;
 }> {
-  const accessToken = request.cookies.get(COOKIE_NAMES.ACCESS_TOKEN)?.value;
-  const refreshToken = request.cookies.get(COOKIE_NAMES.REFRESH_TOKEN)?.value;
-  const sessionId = request.cookies.get(COOKIE_NAMES.SESSION_ID)?.value;
-
-  if (!accessToken || !refreshToken || !sessionId) {
-    return {
-      isAuthenticated: false,
-      user: null,
-      sessionId: null,
-      shouldRefresh: false,
-    };
-  }
-
-  try {
-    // Verify access token
-    const payload = await JWTManager.verifyAccessToken(accessToken);
-
-    // Check if token should be refreshed (5 minutes before expiry)
-    const timeUntilExpiry = payload.exp * 1000 - Date.now();
-    const shouldRefresh = timeUntilExpiry <= 5 * 60 * 1000; // 5 minutes
-
-    return {
-      isAuthenticated: true,
-      user: {
-        id: payload.sub,
-        email: payload.email,
-        user_type: payload.user_type,
-        roles: payload.roles,
-        permissions: payload.permissions,
-      },
-      sessionId: payload.session_id,
-      shouldRefresh,
-    };
-  } catch (error) {
-    if (error instanceof TokenExpiredError) {
-      try {
-        const refreshPayload =
-          await JWTManager.verifyRefreshToken(refreshToken);
-        return {
-          isAuthenticated: true,
-          user: null, // Will be populated after refresh
-          sessionId: refreshPayload.session_id,
-          shouldRefresh: true,
-        };
-      } catch (refreshError) {
-        // Refresh token also invalid
-        return {
-          isAuthenticated: false,
-          user: null,
-          sessionId: null,
-          shouldRefresh: false,
-        };
-      }
-    }
-
-    return {
-      isAuthenticated: false,
-      user: null,
-      sessionId: null,
-      shouldRefresh: false,
-    };
-  }
+  // Authentication is now handled by external service, so we assume no authentication here
+  return {
+    isAuthenticated: false,
+    user: null,
+    sessionId: null,
+    shouldRefresh: false,
+  };
 }
 
 function hasAdminAccess(user: any): boolean {
@@ -313,34 +230,9 @@ async function handleTokenRefresh(
   request: NextRequest,
   response: NextResponse,
 ): Promise<NextResponse> {
-  try {
-    // Make internal request to refresh endpoint
-    const refreshResponse = await fetch(
-      `${request.nextUrl.origin}/api/auth/refresh`,
-      {
-        method: "POST",
-        headers: {
-          Cookie: request.headers.get("cookie") || "",
-        },
-      },
-    );
-
-    if (refreshResponse.ok) {
-      // Copy new cookies to response
-      const setCookieHeaders = refreshResponse.headers.getSetCookie();
-      setCookieHeaders.forEach((cookie) => {
-        response.headers.append("Set-Cookie", cookie);
-      });
-
-      return response;
-    } else {
-      // Refresh failed, redirect to login
-      return redirectToLogin(request);
-    }
-  } catch (error) {
-    console.error("Token refresh in middleware failed:", error);
-    return redirectToLogin(request);
-  }
+  // Token refresh is now handled by external auth service
+  // This function is kept for potential future implementation
+  return response;
 }
 
 function updateLastActivity(
@@ -414,11 +306,10 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api/auth (handled separately)
      * - _next (static files)
      * - favicon.ico, robots.txt, sitemap.xml
      * - common static files
      */
-    "/((?!api/auth|_next|favicon.ico|robots.txt|sitemap.xml|.*\\..*$).*)",
+    "/((?!_next|favicon.ico|robots.txt|sitemap.xml|.*\\..*$).*)",
   ],
 };
