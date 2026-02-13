@@ -91,8 +91,10 @@ function LoginFormComponent() {
   return (
     <div className="w-full">
       <div className="mb-10">
-        <h2 className="text-3xl font-bold text-[#002333] mb-2">Welcome back</h2>
-        <p className="text-slate-500">
+        <h2 className="text-3xl font-bold text-foreground mb-2">
+          Welcome back
+        </h2>
+        <p className="text-muted-foreground">
           Enter your details to access your dashboard.
         </p>
       </div>
@@ -104,7 +106,7 @@ function LoginFormComponent() {
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-[#002333] mb-2">
+                <FormLabel className="text-foreground mb-2">
                   Email Address
                 </FormLabel>
                 <FormControl>
@@ -114,7 +116,7 @@ function LoginFormComponent() {
                     disabled={isLoading}
                     {...field}
                     className={cn(
-                      "px-4 py-3 h-12 rounded-lg border-slate-200 bg-white text-slate-900 focus:ring-2 focus:ring-primary focus:border-primary transition-colors placeholder:text-slate-400",
+                      "px-4 py-3 h-12 rounded-lg border-input bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring transition-colors placeholder:text-muted-foreground",
                       form.formState.errors.email &&
                         "border-destructive focus:ring-destructive",
                     )}
@@ -130,7 +132,7 @@ function LoginFormComponent() {
             name="password"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-[#002333]">Password</FormLabel>
+                <FormLabel className="text-foreground">Password</FormLabel>
                 <FormControl>
                   <div className="relative">
                     <Input
@@ -139,7 +141,7 @@ function LoginFormComponent() {
                       disabled={isLoading}
                       {...field}
                       className={cn(
-                        "px-4 py-3 h-12 pr-12 rounded-lg border-slate-200 bg-white text-slate-900 focus:ring-2 focus:ring-primary focus:border-primary transition-colors placeholder:text-slate-400",
+                        "px-4 py-3 h-12 pr-12 rounded-lg border-input bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-ring transition-colors placeholder:text-muted-foreground",
                         form.formState.errors.password &&
                           "border-destructive focus:ring-destructive",
                       )}
@@ -147,7 +149,7 @@ function LoginFormComponent() {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
                       tabIndex={-1}
                     >
                       {showPassword ? (
@@ -174,10 +176,10 @@ function LoginFormComponent() {
                       type="checkbox"
                       checked={field.value}
                       onChange={field.onChange}
-                      className="h-4 w-4 text-primary focus:ring-primary border-slate-300 rounded cursor-pointer"
+                      className="h-4 w-4 text-primary focus:ring-primary border-input rounded cursor-pointer accent-primary"
                     />
                   </FormControl>
-                  <FormLabel className="text-sm font-medium text-slate-600 cursor-pointer">
+                  <FormLabel className="text-sm font-medium text-muted-foreground cursor-pointer">
                     Remember me
                   </FormLabel>
                 </FormItem>
