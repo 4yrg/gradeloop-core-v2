@@ -12,7 +12,7 @@ services:
       - "--providers.docker.watch=true"
     ports:
       - "80:80"
-      - "8080:8080" # Dashboard
+      - "8082:8080" # Dashboard
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
     networks:
@@ -80,10 +80,10 @@ services:
       dockerfile: apps/services/iam-service/Dockerfile
     container_name: gradeloop-iam-service-dev
     ports:
-      - "3000:3000"
+      - "8080:8080"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.services.iam.loadbalancer.server.port=3000"
+      - "traefik.http.services.iam.loadbalancer.server.port=8080"
       - "traefik.http.routers.iam-public.rule=PathPrefix(`/api/iam/v1/auth/login`) || PathPrefix(`/api/iam/v1/auth/refresh`) || PathPrefix(`/api/iam/v1/auth/activate`) || PathPrefix(`/api/iam/v1/auth/request-activation`) || PathPrefix(`/api/iam/v1/auth/validate`) || PathPrefix(`/api/iam/health`) || PathPrefix(`/api/iam/metrics`)"
       - "traefik.http.routers.iam-public.entrypoints=web"
       - "traefik.http.routers.iam-public.middlewares=iam-replacepath"
@@ -92,7 +92,7 @@ services:
       - "traefik.http.routers.iam-protected.middlewares=iam-replacepath"
       - "traefik.http.middlewares.iam-replacepath.replacepathregex.regex=^/api/iam(.*)"
       - "traefik.http.middlewares.iam-replacepath.replacepathregex.replacement=/api$$1"
-      - "traefik.http.middlewares.iam-jwt-auth.forwardauth.address=http://iam-service:3000/api/v1/auth/validate"
+      - "traefik.http.middlewares.iam-jwt-auth.forwardauth.address=http://iam-service:8080/api/v1/auth/validate"
       - "traefik.http.middlewares.iam-jwt-auth.forwardauth.trustForwardHeader=true"
       - "traefik.http.middlewares.iam-jwt-auth.forwardauth.authResponseHeaders=X-User-Id,X-User-Roles,X-User-Permissions,X-User-Email,X-User-Name"
       - "traefik.http.middlewares.iam-retry.retry.attempts=3"
@@ -102,7 +102,7 @@ services:
     environment:
       DATABASE_URL: "${POSTGRES_URL_BASE}iam_db?sslmode=${POSTGRES_SSLMODE}"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/iam/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/iam/health"]
       interval: 10s
       timeout: 5s
       retries: 15
@@ -127,16 +127,16 @@ services:
       dockerfile: apps/services/academics-service/Dockerfile
     container_name: gradeloop-academics-service-dev
     ports:
-      - "3002:3001"
+      - "8081:8081"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.services.academics.loadbalancer.server.port=3001"
+      - "traefik.http.services.academics.loadbalancer.server.port=8081"
       - "traefik.http.routers.academics.rule=PathPrefix(`/api/academics`)"
       - "traefik.http.routers.academics.entrypoints=web"
       - "traefik.http.routers.academics.middlewares=academics-jwt-auth,academics-replacepath"
       - "traefik.http.middlewares.academics-replacepath.replacepathregex.regex=^/api/academics(.*)"
       - "traefik.http.middlewares.academics-replacepath.replacepathregex.replacement=/api$$1"
-      - "traefik.http.middlewares.academics-jwt-auth.forwardauth.address=http://iam-service:3000/api/v1/auth/validate"
+      - "traefik.http.middlewares.academics-jwt-auth.forwardauth.address=http://iam-service:8080/api/v1/auth/validate"
       - "traefik.http.middlewares.academics-jwt-auth.forwardauth.trustForwardHeader=true"
       - "traefik.http.middlewares.academics-jwt-auth.forwardauth.authResponseHeaders=X-User-Id,X-User-Roles,X-User-Permissions,X-User-Email,X-User-Name"
     env_file:
