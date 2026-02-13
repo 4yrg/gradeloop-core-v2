@@ -64,7 +64,32 @@ func main() {
 		os.Exit(1)
 	}
 
-	l.Info("Connected to database. Running auto-migrations...")
+	l.Info("Connected to database. Ensuring ENUM types exist...")
+	// Create degree_level enum if it doesn't exist
+	if err := db.Exec(`
+		DO $$ BEGIN
+			IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'degree_level') THEN
+				CREATE TYPE degree_level AS ENUM ('Undergraduate', 'Postgraduate');
+			END IF;
+			IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'batch_member_status') THEN
+				CREATE TYPE batch_member_status AS ENUM ('Active', 'Graduated', 'Suspended');
+			END IF;
+			IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'course_instance_status') THEN
+				CREATE TYPE course_instance_status AS ENUM ('Planned', 'Active', 'Completed', 'Cancelled');
+			END IF;
+			IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'course_instructor_role') THEN
+				CREATE TYPE course_instructor_role AS ENUM ('Lead', 'TA');
+			END IF;
+			IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'enrollment_status') THEN
+				CREATE TYPE enrollment_status AS ENUM ('Enrolled', 'Dropped', 'Completed');
+			END IF;
+		END $$;
+	`).Error; err != nil {
+		l.Error("failed to create degree_level type", "error", err)
+		os.Exit(1)
+	}
+
+	l.Info("Running auto-migrations...")
 	if err := db.AutoMigrate(
 		&models.Faculty{},
 		&models.FacultyLeadership{},
