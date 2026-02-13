@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.25.7-alpine AS builder
+FROM golang:1.22-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -56,26 +56,3 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
 
 # Run the application
 CMD ["./main"]
-
-
-# Dev stage: fast local development image with hot-reload (air)
-FROM golang:1.25.7-alpine AS dev
-WORKDIR /app
-
-RUN apk add --no-cache git ca-certificates curl \
-    && mkdir -p /go/bin \
-    && curl -sSfL https://raw.githubusercontent.com/cosmtrek/air/master/install.sh | sh
-
-# Copy module files to leverage cache
-COPY go.mod go.sum ./
-WORKDIR /app
-RUN go mod download
-
-# Expose port and run air; source is expected to be mounted by compose
-EXPOSE 8080
-ENV PATH="/go/bin:${PATH}"
-
-RUN printf '#!/bin/sh\nset -e\ncd /app || true\nif [ ! -f .air.toml ]; then\n  if command -v air >/dev/null 2>&1; then\n    air init\n  fi\nfi\nexec air -c .air.toml\n' > /usr/local/bin/air-entrypoint.sh \
-    && chmod +x /usr/local/bin/air-entrypoint.sh
-
-CMD ["/bin/sh", "/usr/local/bin/air-entrypoint.sh"]

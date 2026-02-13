@@ -1,5 +1,4 @@
 services:
-
   # Traefik - API Gateway
   traefik:
     image: traefik:v3.6.1
@@ -19,7 +18,7 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: [ "CMD", "traefik", "healthcheck" ]
+      test: ["CMD", "traefik", "healthcheck"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -39,19 +38,42 @@ services:
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     healthcheck:
-      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 30s
       timeout: 10s
       retries: 5
     networks:
       - gradeloop-network
 
-  # IAM Service - Identity and Access Management (First Backend Service)
+  # Email Notify Service
+  email-notify-service:
+    build:
+      context: ../../apps/services/email-notify-service
+      dockerfile: Dockerfile
+    container_name: gradeloop-email-service
+    hostname: email-notify-service
+    ports:
+      - "8083:8080"
+    env_file:
+      - ../../.env
+    environment:
+      SERVER_HOST: "0.0.0.0"
+      SERVER_PORT: "8080"
+      RABBITMQ_URL: "amqp://admin:admin123@rabbitmq:5672/gradeloop"
+      RABBITMQ_EXCHANGE: "gradeloop.events"
+      RABBITMQ_QUEUE: "email.notifications"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - gradeloop-network
+    restart: unless-stopped
+
+  # IAM Service - Identity and Access Management
   iam-service:
     build:
       context: ../../
       dockerfile: apps/services/iam-service/Dockerfile
-      target: dev
     container_name: gradeloop-iam-service-dev
     ports:
       - "3000:3000"
@@ -76,21 +98,12 @@ services:
     environment:
       DATABASE_URL: ${POSTGRES_URL_BASE}iam_db?sslmode=${POSTGRES_SSLMODE}
       REDIS_ADDR: "${REDIS_HOST}:${REDIS_PORT}"
-      WEB_APP_ORIGIN: "http://localhost:3001"
-      USE_ENV_SECRETS: "true"
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:3000/api/iam/health" ]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/iam/health"]
       interval: 10s
       timeout: 5s
       retries: 15
       start_period: 30s
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-    volumes:
-      - ../../apps/services/iam-service:/app/apps/services/iam-service:delegated
-      - ../../shared:/app/shared:delegated
-      - /go/pkg/mod:/go/pkg/mod
     develop:
       watch:
         - action: rebuild
@@ -104,12 +117,11 @@ services:
     networks:
       - gradeloop-network
 
-  # Academics Service - Academic Management (Second Backend Service)
+  # Academics Service - Academic Management
   academics-service:
     build:
       context: ../../
       dockerfile: apps/services/academics-service/Dockerfile
-      target: dev
     container_name: gradeloop-academics-service-dev
     ports:
       - "3002:3001"
@@ -131,49 +143,15 @@ services:
     depends_on:
       iam-service:
         condition: service_healthy
-    volumes:
-      - ../../apps/services/academics-service:/app/apps/services/academics-service:delegated
-      - ../../shared:/app/shared:delegated
-      - /go/pkg/mod:/go/pkg/mod
     networks:
       - gradeloop-network
-
-  # Email Notify Service (Third Backend Service)
-  email-notify-service:
-    build:
-      context: ../../apps/services/email-notify-service
-      dockerfile: Dockerfile
-      target: dev
-    container_name: gradeloop-email-service
-    hostname: email-notify-service
-    ports:
-      - "8083:8080"
-    env_file:
-      - ../../.env
-    environment:
-      SERVER_HOST: "0.0.0.0"
-      SERVER_PORT: "8080"
-      RABBITMQ_URL: "amqp://admin:admin123@rabbitmq:5672/gradeloop"
-      RABBITMQ_EXCHANGE: "gradeloop.events"
-      RABBITMQ_QUEUE: "email.notifications"
-    depends_on:
-      academics-service:
-        condition: service_started
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - gradeloop-network
-    restart: unless-stopped
-    volumes:
-      - ../../apps/services/email-notify-service:/app:delegated
-      - /go/pkg/mod:/go/pkg/mod
 
   # Frontend Web Application
   frontend:
     image: oven/bun:latest
     container_name: gradeloop-frontend-dev
     working_dir: /app
-    command: [ "sh", "-c", "bun install && bun dev --port 3001" ]
+    command: ["bun", "dev", "--port", "3001"]
     ports:
       - "3001:3001"
     labels:
@@ -192,14 +170,9 @@ services:
       NODE_ENV: development
       NEXT_TELEMETRY_DISABLED: 1
       PORT: 3001
-      NEXT_PUBLIC_IAM_SERVICE_URL: "http://localhost:3000"
     depends_on:
-      iam-service:
-        condition: service_healthy
-      academics-service:
-        condition: service_started
-      email-notify-service:
-        condition: service_started
+      - iam-service
+      - academics-service
     networks:
       - gradeloop-network
     develop:
