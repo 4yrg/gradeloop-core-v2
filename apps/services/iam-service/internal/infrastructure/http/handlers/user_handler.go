@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"errors"
 	"strconv"
 
@@ -24,9 +25,10 @@ func NewUserHandler(uc *usecases.UserUsecase) *UserHandler {
 	return &UserHandler{usecase: uc}
 }
 
-func (h *UserHandler) CreateUser(ctx *fiber.Ctx) error {
+func (h *UserHandler) CreateUser(ctx fiber.Ctx) error {
 	var req CreateUserRequest
-	if err := ctx.BodyParser(&req); err != nil {
+	var body = ctx.Body()
+	if err := json.Unmarshal(body, &req); err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body: " + err.Error()})
 	}
 
@@ -38,7 +40,7 @@ func (h *UserHandler) CreateUser(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusCreated).JSON(user)
 }
 
-func (h *UserHandler) GetUser(ctx *fiber.Ctx) error {
+func (h *UserHandler) GetUser(ctx fiber.Ctx) error {
 	idParam := ctx.Params("id")
 	id, err := uuid.Parse(idParam)
 	if err != nil {
@@ -58,7 +60,7 @@ func (h *UserHandler) GetUser(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusOK).JSON(user)
 }
 
-func (h *UserHandler) ListUsers(ctx *fiber.Ctx) error {
+func (h *UserHandler) ListUsers(ctx fiber.Ctx) error {
 	page, _ := strconv.Atoi(ctx.Query("page", "1"))
 	limit, _ := strconv.Atoi(ctx.Query("limit", "10"))
 	includeDeleted := ctx.Query("include_deleted") == "true"
@@ -76,7 +78,7 @@ func (h *UserHandler) ListUsers(ctx *fiber.Ctx) error {
 	})
 }
 
-func (h *UserHandler) UpdateUser(ctx *fiber.Ctx) error {
+func (h *UserHandler) UpdateUser(ctx fiber.Ctx) error {
 	idParam := ctx.Params("id")
 	id, err := uuid.Parse(idParam)
 	if err != nil {
@@ -91,7 +93,8 @@ func (h *UserHandler) UpdateUser(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	if err := ctx.BodyParser(existingUser); err != nil {
+	var body = ctx.Body()
+	if err := json.Unmarshal(body, existingUser); err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
@@ -105,7 +108,7 @@ func (h *UserHandler) UpdateUser(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusOK).JSON(updatedUser)
 }
 
-func (h *UserHandler) DeleteUser(ctx *fiber.Ctx) error {
+func (h *UserHandler) DeleteUser(ctx fiber.Ctx) error {
 	idParam := ctx.Params("id")
 	id, err := uuid.Parse(idParam)
 	if err != nil {
@@ -119,7 +122,7 @@ func (h *UserHandler) DeleteUser(ctx *fiber.Ctx) error {
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
-func (h *UserHandler) RestoreUser(ctx *fiber.Ctx) error {
+func (h *UserHandler) RestoreUser(ctx fiber.Ctx) error {
 	idParam := ctx.Params("id")
 	id, err := uuid.Parse(idParam)
 	if err != nil {
