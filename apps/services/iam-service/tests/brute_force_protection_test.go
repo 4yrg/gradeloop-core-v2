@@ -18,6 +18,7 @@ import (
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/repositories"
 	"github.com/gofiber/fiber/v3"
 	"github.com/redis/go-redis/v9"
+	miniredis "github.com/alicebob/miniredis/v2"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/sqlite"
@@ -37,10 +38,16 @@ func setupBruteForceTestApp(t *testing.T) (*fiber.App, *gorm.DB, *redis.Client) 
 	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	db.AutoMigrate(&models.User{}, &models.RefreshToken{})
 
-	// Redis
+	// Redis - use real REDIS_ADDR when provided, otherwise spawn an in-memory miniredis for tests
 	redisAddr := os.Getenv("REDIS_ADDR")
 	if redisAddr == "" {
-		redisAddr = "localhost:6379"
+		mr, err := miniredis.Run()
+		if err != nil {
+			t.Fatalf("failed to start miniredis: %v", err)
+		}
+		// Use the in-memory server address
+		redisAddr = mr.Addr()
+		// Note: mr will live for the duration of the test process; it's fine to not explicitly stop it here
 	}
 	redisClient := redis.NewClient(&redis.Options{Addr: redisAddr})
 	// Flush Redis to ensure a clean state for the test
