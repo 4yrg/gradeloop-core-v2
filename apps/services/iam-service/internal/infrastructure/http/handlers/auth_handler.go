@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"os"
 	"strings"
 
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/application/usecases"
@@ -306,12 +307,14 @@ func (h *AuthHandler) StoreTokens(c fiber.Ctx) error {
 
 	// Set CSRF token as non-HTTPOnly cookie for client access
 	if req.CSRFToken != "" {
+		webAppOrigin := os.Getenv("WEB_APP_ORIGIN")
+		secure := strings.HasPrefix(webAppOrigin, "https")
 		c.Cookie(&fiber.Cookie{
 			Name:     "__Secure-gl-csrf-token",
 			Value:    req.CSRFToken,
 			MaxAge:   15 * 60, // 15 minutes
 			HTTPOnly: false,   // Client needs access
-			Secure:   true,
+			Secure:   secure,
 			SameSite: fiber.CookieSameSiteLaxMode,
 			Path:     "/",
 		})
@@ -333,13 +336,16 @@ func (h *AuthHandler) ClearTokens(c fiber.Ctx) error {
 		"__Secure-gl-device-id",
 	}
 
+	webAppOrigin := os.Getenv("WEB_APP_ORIGIN")
+	secure := strings.HasPrefix(webAppOrigin, "https")
+
 	for _, cookieName := range cookies {
 		c.Cookie(&fiber.Cookie{
 			Name:     cookieName,
 			Value:    "",
 			MaxAge:   -1, // Expire immediately
 			HTTPOnly: true,
-			Secure:   true,
+			Secure:   secure,
 			SameSite: fiber.CookieSameSiteLaxMode,
 			Path:     "/",
 		})
@@ -414,13 +420,18 @@ func (h *AuthHandler) Logout(c fiber.Ctx) error {
 
 // Helper method to set authentication cookies
 func (h *AuthHandler) setAuthCookies(c fiber.Ctx, accessToken, refreshToken, sessionID string) {
+	// Determine whether cookies should be marked Secure.
+	// In development (localhost over HTTP) we must not set Secure=true otherwise cookies won't be sent.
+	webAppOrigin := os.Getenv("WEB_APP_ORIGIN")
+	secure := strings.HasPrefix(webAppOrigin, "https")
+
 	// Set access token cookie (HTTPOnly, 15 minutes)
 	c.Cookie(&fiber.Cookie{
 		Name:     "__Secure-gl-access-token",
 		Value:    accessToken,
 		MaxAge:   15 * 60, // 15 minutes
 		HTTPOnly: true,    // Security: not accessible from JavaScript
-		Secure:   true,
+		Secure:   secure,
 		SameSite: fiber.CookieSameSiteLaxMode,
 		Path:     "/",
 	})
@@ -431,7 +442,7 @@ func (h *AuthHandler) setAuthCookies(c fiber.Ctx, accessToken, refreshToken, ses
 		Value:    refreshToken,
 		MaxAge:   30 * 24 * 60 * 60, // 30 days
 		HTTPOnly: true,              // Security: not accessible from JavaScript
-		Secure:   true,
+		Secure:   secure,
 		SameSite: fiber.CookieSameSiteLaxMode,
 		Path:     "/",
 	})
@@ -442,7 +453,7 @@ func (h *AuthHandler) setAuthCookies(c fiber.Ctx, accessToken, refreshToken, ses
 		Value:    sessionID,
 		MaxAge:   30 * 24 * 60 * 60, // 30 days
 		HTTPOnly: true,              // Security: not accessible from JavaScript
-		Secure:   true,
+		Secure:   secure,
 		SameSite: fiber.CookieSameSiteLaxMode,
 		Path:     "/",
 	})
@@ -458,13 +469,16 @@ func (h *AuthHandler) clearAuthCookies(c fiber.Ctx) {
 		"__Secure-gl-device-id",
 	}
 
+	webAppOrigin := os.Getenv("WEB_APP_ORIGIN")
+	secure := strings.HasPrefix(webAppOrigin, "https")
+
 	for _, cookieName := range cookies {
 		c.Cookie(&fiber.Cookie{
 			Name:     cookieName,
 			Value:    "",
 			MaxAge:   -1, // Expire immediately
 			HTTPOnly: true,
-			Secure:   true,
+			Secure:   secure,
 			SameSite: fiber.CookieSameSiteLaxMode,
 			Path:     "/",
 		})
