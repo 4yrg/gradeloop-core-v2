@@ -1,6 +1,7 @@
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from "axios";
 import { z } from "zod";
 import { CSRFTokenManager } from "./jwt";
+import { toast } from "sonner";
 import { ClientCookieManager, COOKIE_NAMES } from "./cookies";
 import { useAuthStore } from "@/store/auth.store";
 import type { User } from "@/schemas/auth.schema";
@@ -19,6 +20,10 @@ const API_BASE_URL = IAM_SERVICE_URL
 const REQUEST_TIMEOUT = 30000; // 30 seconds
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY = 1000; // 1 second
+// Client-side rate limiting to avoid spamming the API (requests per second)
+const CLIENT_MAX_RPS = 100;
+const clientRequestTimestamps: number[] = [];
+let lastRateLimitToastAt = 0;
 
 // Response schemas for validation based on IAM service
 const IAMAuthResponseSchema = z.object({
@@ -323,6 +328,31 @@ export const api = axios.create({
 // Request interceptor for authentication and CSRF
 api.interceptors.request.use(
   async (config) => {
+    // Client-side simple rate limiter: allow up to CLIENT_MAX_RPS requests per rolling second
+    try {
+      const now = Date.now();
+      // Remove timestamps older than 1 second
+      while (clientRequestTimestamps.length && clientRequestTimestamps[0] <= now - 1000) {
+        clientRequestTimestamps.shift();
+      }
+
+      if (clientRequestTimestamps.length >= CLIENT_MAX_RPS) {
+        // Too many requests locally — reject early to avoid hitting server
+        const retryAfter = 1; // seconds
+        const err = new RateLimitError("Client-side rate limit exceeded", retryAfter);
+        // Show a single toast per short interval to avoid spamming the UI
+        if (Date.now() - lastRateLimitToastAt > 3000) {
+          lastRateLimitToastAt = Date.now();
+          toast.error(`Too many requests — try again in ${retryAfter}s`);
+        }
+        return Promise.reject(err);
+      }
+
+      clientRequestTimestamps.push(now);
+    } catch (e) {
+      // Non-fatal — continue with request
+      console.warn("Client rate limiter check failed:", e);
+    }
     // Skip token refresh for auth endpoints that don't need tokens
     const noTokenEndpoints = [
       "/auth/login",
@@ -450,14 +480,28 @@ api.interceptors.response.use(
         return Promise.reject(new AuthorizationError(errorMessage));
       case 422:
         return Promise.reject(new ValidationError(errorMessage, errorData));
-      case 429:
+      case 429: {
         const retryAfter = error.response.headers["retry-after"];
+        const retryAfterSec = retryAfter ? parseInt(retryAfter) : undefined;
+
+        // Show a single toast to the user about rate limiting
+        try {
+          if (Date.now() - lastRateLimitToastAt > 3000) {
+            lastRateLimitToastAt = Date.now();
+            const humanWait = retryAfterSec ? `${retryAfterSec}s` : "a short while";
+            toast.error(`Too many requests — try again in ${humanWait}`);
+          }
+        } catch (e) {
+          // ignore toast errors
+        }
+
         return Promise.reject(
           new RateLimitError(
             errorMessage,
-            retryAfter ? parseInt(retryAfter) : undefined,
+            retryAfterSec,
           ),
         );
+      }
       case 500:
       case 502:
       case 503:
