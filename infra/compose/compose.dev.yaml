@@ -8,14 +8,6 @@ services:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
-      # Metrics
-      - "--metrics.prometheus=true"
-      - "--metrics.prometheus.addEntryPointsLabels=true"
-      - "--metrics.prometheus.addServicesLabels=true"
-      # Tracing
-      - "--tracing.otlp=true"
-      - "--tracing.otlp.grpc.endpoint=jaeger:4317"
-      - "--tracing.otlp.grpc.insecure=true"
       # Retry configuration for resilience
       - "--providers.docker.watch=true"
     ports:
