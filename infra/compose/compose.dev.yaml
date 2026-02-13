@@ -67,6 +67,10 @@ services:
         condition: service_healthy
     networks:
       - gradeloop-network
+    develop:
+      watch:
+        - action: rebuild
+          path: ../../apps/services/email-notify-service
     restart: unless-stopped
 
   # IAM Service - Identity and Access Management
@@ -143,6 +147,16 @@ services:
     depends_on:
       iam-service:
         condition: service_healthy
+    develop:
+      watch:
+        - action: rebuild
+          path: ../../apps/services/academics-service
+        - action: rebuild
+          path: ../../shared/libs/go/secrets
+        - action: rebuild
+          path: ../../shared/libs/go/middleware
+        - action: rebuild
+          path: ../../shared/libs/go/logger
     networks:
       - gradeloop-network
 
