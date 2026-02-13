@@ -10,13 +10,11 @@ import (
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academics-service/internal/infrastructure/http/handlers"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academics-service/internal/infrastructure/http/router"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academics-service/internal/infrastructure/repositories"
+	"github.com/google/uuid"
 
 	gl_logger "github.com/4yrg/gradeloop-core-v2/shared/libs/go/logger"
 	"github.com/4yrg/gradeloop-core-v2/shared/libs/go/secrets"
-	gl_tracing "github.com/4yrg/gradeloop-core-v2/shared/libs/go/tracing"
 	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
-	"github.com/uptrace/opentelemetry-go-extra/otelgorm"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -28,17 +26,7 @@ func main() {
 
 	l.Info("Starting Academics Service...")
 
-	// Initialize Tracer
-	tp, err := gl_tracing.InitTracer("academics-service")
-	if err != nil {
-		l.Error("failed to initialize tracer", "error", err)
-		os.Exit(1)
-	}
-	defer func() {
-		if err := tp.Shutdown(context.Background()); err != nil {
-			l.Error("failed to shutdown tracer provider", "error", err)
-		}
-	}()
+	l.Info("Starting Academics Service...")
 
 	startupCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -73,11 +61,6 @@ func main() {
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		l.Error("failed to connect to database", "error", err)
-		os.Exit(1)
-	}
-
-	if err := db.Use(otelgorm.NewPlugin()); err != nil {
-		l.Error("failed to use otelgorm plugin", "error", err)
 		os.Exit(1)
 	}
 

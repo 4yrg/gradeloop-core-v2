@@ -19,9 +19,7 @@ import (
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/repositories"
 	gl_logger "github.com/4yrg/gradeloop-core-v2/shared/libs/go/logger"
 	"github.com/4yrg/gradeloop-core-v2/shared/libs/go/secrets"
-	gl_tracing "github.com/4yrg/gradeloop-core-v2/shared/libs/go/tracing"
 	"github.com/redis/go-redis/v9"
-	"github.com/uptrace/opentelemetry-go-extra/otelgorm"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -34,18 +32,6 @@ func main() {
 	ctx := context.WithValue(context.Background(), gl_logger.TraceIDKey, startupTraceID)
 
 	l.Info("Starting IAM Service...")
-
-	// Initialize Tracer
-	tp, err := gl_tracing.InitTracer("iam-service")
-	if err != nil {
-		l.Error("failed to initialize tracer", "error", err)
-		os.Exit(1)
-	}
-	defer func() {
-		if err := tp.Shutdown(context.Background()); err != nil {
-			l.Error("failed to shutdown tracer provider", "error", err)
-		}
-	}()
 
 	// Initialize context for startup operations
 	startupCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -95,11 +81,6 @@ func main() {
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		l.Error("failed to connect to database", "error", err)
-		os.Exit(1)
-	}
-
-	if err := db.Use(otelgorm.NewPlugin()); err != nil {
-		l.Error("failed to use otelgorm plugin", "error", err)
 		os.Exit(1)
 	}
 
