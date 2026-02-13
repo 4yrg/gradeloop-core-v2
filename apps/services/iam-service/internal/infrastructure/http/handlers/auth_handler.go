@@ -85,24 +85,34 @@ func (h *AuthHandler) Login(c fiber.Ctx) error {
 
 // Refresh handles POST /refresh
 func (h *AuthHandler) Refresh(c fiber.Ctx) error {
-	// Get refresh token from HTTPOnly cookie instead of request body
-	refreshTokenCookie := c.Cookies("__Secure-gl-refresh-token")
-	if refreshTokenCookie == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "no refresh token found"})
+	// Prefer refresh token from HTTPOnly cookie (browser flow).
+	// Fall back to JSON body `refresh_token` for tests and API callers.
+	refreshToken := c.Cookies("__Secure-gl-refresh-token")
+
+	if refreshToken == "" {
+		var req refreshRequest
+		body := c.Body()
+		if len(body) == 0 {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "no refresh token found"})
+		}
+		if err := json.Unmarshal(body, &req); err != nil || req.RefreshToken == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body or missing refresh_token"})
+		}
+		refreshToken = req.RefreshToken
 	}
 
-	accessToken, refreshToken, user, err := h.usecase.Refresh(c.Context(), refreshTokenCookie)
+	accessToken, newRefreshToken, user, err := h.usecase.Refresh(c.Context(), refreshToken)
 	if err != nil {
 		// Specification: Return 401 Unauthorized for tokens that are expired, revoked, or non-matching
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	// Set secure HTTPOnly cookies for refreshed authentication
-	h.setAuthCookies(c, accessToken, refreshToken, user.ID.String())
+	// Set secure HTTPOnly cookies for refreshed authentication (use rotated token)
+	h.setAuthCookies(c, accessToken, newRefreshToken, user.ID.String())
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"access_token":  accessToken,
-		"refresh_token": refreshToken,
+		"refresh_token": newRefreshToken,
 		"user":          user,
 	})
 }
