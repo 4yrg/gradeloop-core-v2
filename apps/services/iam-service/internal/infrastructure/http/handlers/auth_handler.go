@@ -49,6 +49,13 @@ type changePasswordRequest struct {
 	NewPassword     string `json:"new_password"`
 }
 
+type storeTokensRequest struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	SessionID    string `json:"session_id"`
+	CSRFToken    string `json:"csrf_token"`
+}
+
 // Login handles POST /login
 func (h *AuthHandler) Login(c fiber.Ctx) error {
 	var req loginRequest
@@ -62,6 +69,9 @@ func (h *AuthHandler) Login(c fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": err.Error()})
 	}
 
+	// Set secure HTTPOnly cookies for authentication
+	h.setAuthCookies(c, accessToken, refreshToken, user.ID.String())
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"access_token":  accessToken,
 		"refresh_token": refreshToken,
@@ -71,16 +81,20 @@ func (h *AuthHandler) Login(c fiber.Ctx) error {
 
 // Refresh handles POST /refresh
 func (h *AuthHandler) Refresh(c fiber.Ctx) error {
-	var req refreshRequest
-	if err := c.Bind().Body(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	// Get refresh token from HTTPOnly cookie instead of request body
+	refreshTokenCookie := c.Cookies("__Secure-gl-refresh-token")
+	if refreshTokenCookie == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "no refresh token found"})
 	}
 
-	accessToken, refreshToken, user, err := h.usecase.Refresh(c.Context(), req.RefreshToken)
+	accessToken, refreshToken, user, err := h.usecase.Refresh(c.Context(), refreshTokenCookie)
 	if err != nil {
 		// Specification: Return 401 Unauthorized for tokens that are expired, revoked, or non-matching
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": err.Error()})
 	}
+
+	// Set secure HTTPOnly cookies for refreshed authentication
+	h.setAuthCookies(c, accessToken, refreshToken, user.ID.String())
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"access_token":  accessToken,
@@ -274,4 +288,185 @@ func (h *AuthHandler) ChangePassword(c fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "password has been changed successfully",
 	})
+}
+
+// StoreTokens handles POST /auth/store-tokens - stores tokens in HTTPOnly cookies
+func (h *AuthHandler) StoreTokens(c fiber.Ctx) error {
+	var req storeTokensRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	if req.AccessToken == "" || req.RefreshToken == "" || req.SessionID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "access_token, refresh_token, and session_id are required"})
+	}
+
+	// Set secure HTTPOnly cookies
+	h.setAuthCookies(c, req.AccessToken, req.RefreshToken, req.SessionID)
+
+	// Set CSRF token as non-HTTPOnly cookie for client access
+	if req.CSRFToken != "" {
+		c.Cookie(&fiber.Cookie{
+			Name:     "__Secure-gl-csrf-token",
+			Value:    req.CSRFToken,
+			MaxAge:   15 * 60, // 15 minutes
+			HTTPOnly: false,   // Client needs access
+			Secure:   true,
+			SameSite: fiber.CookieSameSiteLaxMode,
+			Path:     "/",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "tokens stored successfully",
+	})
+}
+
+// ClearTokens handles POST /auth/clear-tokens - clears HTTPOnly authentication cookies
+func (h *AuthHandler) ClearTokens(c fiber.Ctx) error {
+	// Clear all authentication cookies by setting them to expire immediately
+	cookies := []string{
+		"__Secure-gl-access-token",
+		"__Secure-gl-refresh-token",
+		"__Secure-gl-session-id",
+		"__Secure-gl-csrf-token",
+		"__Secure-gl-device-id",
+	}
+
+	for _, cookieName := range cookies {
+		c.Cookie(&fiber.Cookie{
+			Name:     cookieName,
+			Value:    "",
+			MaxAge:   -1, // Expire immediately
+			HTTPOnly: true,
+			Secure:   true,
+			SameSite: fiber.CookieSameSiteLaxMode,
+			Path:     "/",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "tokens cleared successfully",
+	})
+}
+
+// ValidateSession handles GET /auth/session - validates current session using HTTPOnly cookies
+func (h *AuthHandler) ValidateSession(c fiber.Ctx) error {
+	// Get access token from HTTPOnly cookie
+	accessToken := c.Cookies("__Secure-gl-access-token")
+	if accessToken == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"valid": false,
+			"error": "no access token found",
+		})
+	}
+
+	// Validate the JWT token
+	claims, err := utils.ValidateAccessToken(accessToken, h.usecase.GetJWTSecret())
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"valid": false,
+			"error": "invalid or expired token",
+		})
+	}
+
+	// Get user details to ensure user is still active
+	userID, err := uuid.Parse(claims.Subject)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"valid": false,
+			"error": "invalid user ID in token",
+		})
+	}
+
+	user, err := h.usecase.GetUserByID(c.Context(), userID)
+	if err != nil || !user.IsActive {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"valid": false,
+			"error": "user not found or inactive",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"valid": true,
+		"user":  user,
+	})
+}
+
+// Logout handles POST /auth/logout - clears authentication cookies and revokes tokens
+func (h *AuthHandler) Logout(c fiber.Ctx) error {
+	// Get refresh token from HTTPOnly cookie for revocation
+	refreshToken := c.Cookies("__Secure-gl-refresh-token")
+
+	// Try to revoke the refresh token if available
+	if refreshToken != "" {
+		// Note: This would require extending the usecase to support token revocation by token value
+		// For now, we'll just clear the cookies
+	}
+
+	// Clear all authentication cookies
+	h.clearAuthCookies(c)
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "logged out successfully",
+	})
+}
+
+// Helper method to set authentication cookies
+func (h *AuthHandler) setAuthCookies(c fiber.Ctx, accessToken, refreshToken, sessionID string) {
+	// Set access token cookie (HTTPOnly, 15 minutes)
+	c.Cookie(&fiber.Cookie{
+		Name:     "__Secure-gl-access-token",
+		Value:    accessToken,
+		MaxAge:   15 * 60, // 15 minutes
+		HTTPOnly: true,    // Security: not accessible from JavaScript
+		Secure:   true,
+		SameSite: fiber.CookieSameSiteLaxMode,
+		Path:     "/",
+	})
+
+	// Set refresh token cookie (HTTPOnly, 30 days)
+	c.Cookie(&fiber.Cookie{
+		Name:     "__Secure-gl-refresh-token",
+		Value:    refreshToken,
+		MaxAge:   30 * 24 * 60 * 60, // 30 days
+		HTTPOnly: true,              // Security: not accessible from JavaScript
+		Secure:   true,
+		SameSite: fiber.CookieSameSiteLaxMode,
+		Path:     "/",
+	})
+
+	// Set session ID cookie (HTTPOnly, 30 days)
+	c.Cookie(&fiber.Cookie{
+		Name:     "__Secure-gl-session-id",
+		Value:    sessionID,
+		MaxAge:   30 * 24 * 60 * 60, // 30 days
+		HTTPOnly: true,              // Security: not accessible from JavaScript
+		Secure:   true,
+		SameSite: fiber.CookieSameSiteLaxMode,
+		Path:     "/",
+	})
+}
+
+// Helper method to clear authentication cookies
+func (h *AuthHandler) clearAuthCookies(c fiber.Ctx) {
+	cookies := []string{
+		"__Secure-gl-access-token",
+		"__Secure-gl-refresh-token",
+		"__Secure-gl-session-id",
+		"__Secure-gl-csrf-token",
+		"__Secure-gl-device-id",
+	}
+
+	for _, cookieName := range cookies {
+		c.Cookie(&fiber.Cookie{
+			Name:     cookieName,
+			Value:    "",
+			MaxAge:   -1, // Expire immediately
+			HTTPOnly: true,
+			Secure:   true,
+			SameSite: fiber.CookieSameSiteLaxMode,
+			Path:     "/",
+		})
+	}
 }

@@ -236,7 +236,6 @@ async function getAuthenticationStatus(request: NextRequest): Promise<{
   sessionId: string | null;
   shouldRefresh: boolean;
 }> {
-  const cookieManager = new ServerCookieManager();
   const accessToken = request.cookies.get(COOKIE_NAMES.ACCESS_TOKEN)?.value;
   const refreshToken = request.cookies.get(COOKIE_NAMES.REFRESH_TOKEN)?.value;
   const sessionId = request.cookies.get(COOKIE_NAMES.SESSION_ID)?.value;

@@ -1,13 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
-import type {
-  User,
-  Session,
-  ActiveSession,
-  ClientAuthState,
-  AccessTokenPayload,
-} from "@/schemas/auth.schema";
+import type { User, Session, ActiveSession } from "@/schemas/auth.schema";
 
 // Enhanced authentication state interface
 interface AuthState {
@@ -196,7 +190,7 @@ export const useAuthStore = create<AuthState>()(
           state.currentSessionId = sessionId;
         }),
 
-      removeSession: (sessionId) =>
+      removeSession: (sessionId: string) =>
         set((state) => {
           state.activeSessions = state.activeSessions.filter(
             (session) => session.session_id !== sessionId,
@@ -470,13 +464,14 @@ export const useAuthStore = create<AuthState>()(
       }),
 
       // Migration for store updates
-      migrate: (persistedState: any, version: number) => {
+      migrate: (persistedState: unknown, version: number) => {
         if (version === 0) {
           // Migrate from old auth store structure
+          const oldState = persistedState as Record<string, unknown>;
           return {
             ...initialState,
-            isAuthenticated: persistedState.isAuthenticated || false,
-            lastActivity: persistedState.lastActivity || Date.now(),
+            isAuthenticated: oldState?.isAuthenticated || false,
+            lastActivity: oldState?.lastActivity || Date.now(),
           };
         }
         return persistedState;

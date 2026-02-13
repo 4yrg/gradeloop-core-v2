@@ -6,7 +6,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import { useAuthStore } from "@/store/auth.store";
-import { TokenManager } from "@/lib/api";
+import { apiClient } from "@/lib/api";
 
 // Create a client
 const queryClient = new QueryClient({
@@ -15,9 +15,13 @@ const queryClient = new QueryClient({
       // Stale time for auth-related queries
       staleTime: 5 * 60 * 1000, // 5 minutes
       // Retry configuration
-      retry: (failureCount, error: any) => {
+      retry: (failureCount, error: unknown) => {
         // Don't retry auth errors
-        if (error?.status === 401 || error?.status === 403) {
+        const errorWithStatus = error as { status?: number };
+        if (
+          errorWithStatus?.status === 401 ||
+          errorWithStatus?.status === 403
+        ) {
           return false;
         }
         return failureCount < 3;
@@ -36,37 +40,43 @@ const queryClient = new QueryClient({
 function AuthProvider({ children }: { children: React.ReactNode }) {
   const authStore = useAuthStore();
 
-  // Initialize auth state on mount
+  // Initialize auth state on mount by validating session
   React.useEffect(() => {
-    const initializeAuth = () => {
-      // Check if we have tokens in cookies
-      const accessToken = TokenManager.getAccessToken();
-      const sessionId = TokenManager.getSessionId();
+    const initializeAuth = async () => {
+      // Skip if already authenticated or loading
+      if (authStore.isAuthenticated || authStore.isLoading) {
+        return;
+      }
 
-      if (accessToken && sessionId && !authStore.isAuthenticated) {
-        // We have tokens but store shows not authenticated
-        // This can happen on page refresh
-        try {
-          // Validate the token by making a request to get current user
-          // This will trigger the auth flow if token is valid
-          authStore.setLoading(true);
+      authStore.setLoading(true);
 
-          // Set a minimal authenticated state to enable API calls
+      try {
+        // Validate current session using HTTPOnly cookies
+        const sessionResult = await apiClient.validateSession();
+
+        if (sessionResult.valid && sessionResult.user) {
+          // Session is valid, update auth state
           authStore.setAuthenticated(true);
-          authStore.setSessionId(sessionId);
-
-          // The API will handle token validation and refresh if needed
-        } catch (error) {
-          console.error("Auth initialization error:", error);
-          // Clear invalid tokens
-          TokenManager.clearTokens();
+          authStore.setUser(
+            sessionResult.user as {
+              id: string;
+              email: string;
+              full_name: string;
+              is_active: boolean;
+              user_type: "student" | "employee";
+              roles: { id: string; name: string; permissions: string[] }[];
+            },
+          );
+          authStore.updateLastActivity();
+        } else {
+          // No valid session, ensure we're logged out
           authStore.logout();
-        } finally {
-          authStore.setLoading(false);
         }
-      } else if (!accessToken && authStore.isAuthenticated) {
-        // No tokens but store shows authenticated - clear state
+      } catch (error) {
+        console.error("Auth initialization error:", error);
         authStore.logout();
+      } finally {
+        authStore.setLoading(false);
       }
     };
 
@@ -81,7 +91,9 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
       if (authStore.shouldRefresh() && !authStore.refreshing) {
         try {
           authStore.setRefreshing(true);
-          await TokenManager.refreshAccessToken();
+          // Use apiClient.refresh which handles HTTPOnly cookies
+          await apiClient.refresh();
+          authStore.updateLastActivity();
         } catch (error) {
           console.error("Auto-refresh failed:", error);
           authStore.logout();
@@ -98,7 +110,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     checkTokenExpiry();
 
     return () => clearInterval(interval);
-  }, [authStore.isAuthenticated, authStore.shouldRefresh, authStore.refreshing]);
+  }, [authStore]);
 
   // Update activity on user interactions
   React.useEffect(() => {
@@ -109,18 +121,25 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     // Track user activity
-    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    const events = [
+      "mousedown",
+      "mousemove",
+      "keypress",
+      "scroll",
+      "touchstart",
+      "click",
+    ];
 
-    events.forEach(event => {
+    events.forEach((event) => {
       document.addEventListener(event, updateActivity, true);
     });
 
     return () => {
-      events.forEach(event => {
+      events.forEach((event) => {
         document.removeEventListener(event, updateActivity, true);
       });
     };
-  }, [authStore.isAuthenticated]);
+  }, [authStore]);
 
   return <>{children}</>;
 }
@@ -159,7 +178,7 @@ function SessionMonitor({ children }: { children: React.ReactNode }) {
     checkSession();
 
     return () => clearInterval(interval);
-  }, [authStore.isAuthenticated, authStore.lastActivity, authStore.isSessionExpired]);
+  }, [authStore]);
 
   return <>{children}</>;
 }
@@ -185,10 +204,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
             />
           </SessionMonitor>
         </AuthProvider>
-        <ReactQueryDevtools
-          initialIsOpen={false}
-          position="bottom-right"
-        />
+        <ReactQueryDevtools initialIsOpen={false} />
       </ThemeProvider>
     </QueryClientProvider>
   );

@@ -1,23 +1,13 @@
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from "axios";
 import { z } from "zod";
-import { JWTManager, TokenExpiredError, CSRFTokenManager } from "./jwt";
+import { CSRFTokenManager } from "./jwt";
 import { ClientCookieManager, COOKIE_NAMES } from "./cookies";
 import { useAuthStore } from "@/store/auth.store";
-import type {
-  LoginRequest,
-  LoginResponse,
-  RefreshResponse,
-  LogoutResponse,
-  ChangePasswordRequest,
-  ForgotPasswordRequest,
-  ResetPasswordRequest,
-  SessionValidationResponse,
-  AuthError,
-} from "@/schemas/auth.schema";
+// Auth schema types available but not all currently used
 
 // API Configuration - Direct to IAM service
 const IAM_SERVICE_URL =
-  process.env.NEXT_PUBLIC_IAM_SERVICE_URL || "http://localhost:3001";
+  process.env.NEXT_PUBLIC_IAM_SERVICE_URL || "http://localhost:3000";
 const API_BASE_URL = `${IAM_SERVICE_URL}/api/v1`;
 const REQUEST_TIMEOUT = 30000; // 30 seconds
 const MAX_RETRY_ATTEMPTS = 3;
@@ -62,12 +52,13 @@ const IAMRefreshResponseSchema = z.object({
   }),
 });
 
-const ErrorResponseSchema = z.object({
-  error: z.string(),
-  error_description: z.string().optional(),
-  error_code: z.string().optional(),
-  timestamp: z.string().datetime().optional(),
-});
+// Error response schema (kept for future use)
+// const ErrorResponseSchema = z.object({
+//   error: z.string(),
+//   error_description: z.string().optional(),
+//   error_code: z.string().optional(),
+//   timestamp: z.string().optional(),
+// });
 
 // Enhanced API Error classes
 export class APIError extends Error {
@@ -75,7 +66,7 @@ export class APIError extends Error {
     message: string,
     public status: number,
     public code?: string,
-    public data?: any,
+    public data?: unknown,
   ) {
     super(message);
     this.name = "APIError";
@@ -104,7 +95,7 @@ export class AuthorizationError extends APIError {
 }
 
 export class ValidationError extends APIError {
-  constructor(message = "Request validation failed", data?: any) {
+  constructor(message = "Request validation failed", data?: unknown) {
     super(message, 422, "VALIDATION_ERROR", data);
     this.name = "ValidationError";
   }
@@ -117,96 +108,101 @@ export class RateLimitError extends APIError {
   }
 }
 
-// Token Management for cookie-based auth
+// Token Management for secure cookie-based auth
 class TokenManager {
   private static refreshPromise: Promise<void> | null = null;
   private static refreshing = false;
 
   /**
-   * Store tokens in secure HTTP-only cookies via document.cookie
-   * This is a fallback for client-side token storage
+   * Store tokens securely via server-side API call
+   * Tokens will be stored in HTTPOnly cookies on the server
    */
-  static storeTokens(
+  static async storeTokens(
     accessToken: string,
     refreshToken: string,
     sessionId: string,
-  ): void {
+  ): Promise<void> {
     // Generate CSRF token for double-submit cookie pattern
     const csrfToken = CSRFTokenManager.generateToken();
 
-    // Store access token (shorter expiry)
-    ClientCookieManager.setCookie(COOKIE_NAMES.ACCESS_TOKEN, accessToken, {
-      secure: process.env.NODE_ENV === "production",
-      httpOnly: false, // Client needs access for Authorization header
-      sameSite: "lax",
-      maxAge: 15 * 60, // 15 minutes
-      path: "/",
-    });
+    try {
+      // Call IAM service to set HTTPOnly cookies
+      await api.post("/auth/store-tokens", {
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        session_id: sessionId,
+        csrf_token: csrfToken,
+      });
 
-    // Store refresh token (longer expiry)
-    ClientCookieManager.setCookie(COOKIE_NAMES.REFRESH_TOKEN, refreshToken, {
-      secure: process.env.NODE_ENV === "production",
-      httpOnly: false, // Client needs access for refresh requests
-      sameSite: "lax",
-      maxAge: 30 * 24 * 60 * 60, // 30 days
-      path: "/",
-    });
-
-    // Store session ID
-    ClientCookieManager.setCookie(COOKIE_NAMES.SESSION_ID, sessionId, {
-      secure: process.env.NODE_ENV === "production",
-      httpOnly: false,
-      sameSite: "lax",
-      maxAge: 30 * 24 * 60 * 60, // 30 days
-      path: "/",
-    });
-
-    // Store CSRF token (client accessible for headers)
-    ClientCookieManager.setCookie(COOKIE_NAMES.CSRF_TOKEN, csrfToken, {
-      secure: process.env.NODE_ENV === "production",
-      httpOnly: false, // Must be accessible for CSRF protection
-      sameSite: "lax",
-      maxAge: 15 * 60, // Same as access token
-      path: "/",
-    });
+      // Store only CSRF token client-side (non-HTTPOnly)
+      ClientCookieManager.setCookie(COOKIE_NAMES.CSRF_TOKEN, csrfToken, {
+        secure: process.env.NODE_ENV === "production",
+        httpOnly: false, // Must be accessible for CSRF protection
+        sameSite: "lax",
+        maxAge: 15 * 60, // Same as access token
+        path: "/",
+      });
+    } catch (error) {
+      console.error("Failed to store tokens securely:", error);
+      throw new Error("Authentication storage failed");
+    }
   }
 
   /**
-   * Get stored access token
+   * Access token is HTTPOnly and sent automatically with requests
+   * This method is kept for compatibility but cannot access HTTPOnly cookies
    */
   static getAccessToken(): string | null {
-    return ClientCookieManager.getCookie(COOKIE_NAMES.ACCESS_TOKEN);
+    console.warn(
+      "Access token is HTTPOnly and cannot be accessed from client-side JavaScript",
+    );
+    return null;
   }
 
   /**
-   * Get stored refresh token
+   * Refresh token is HTTPOnly and sent automatically with requests
+   * This method is kept for compatibility but cannot access HTTPOnly cookies
    */
   static getRefreshToken(): string | null {
-    return ClientCookieManager.getCookie(COOKIE_NAMES.REFRESH_TOKEN);
+    console.warn(
+      "Refresh token is HTTPOnly and cannot be accessed from client-side JavaScript",
+    );
+    return null;
   }
 
   /**
-   * Get stored session ID
+   * Session ID is HTTPOnly and sent automatically with requests
+   * This method is kept for compatibility but cannot access HTTPOnly cookies
    */
   static getSessionId(): string | null {
-    return ClientCookieManager.getCookie(COOKIE_NAMES.SESSION_ID);
+    console.warn(
+      "Session ID is HTTPOnly and cannot be accessed from client-side JavaScript",
+    );
+    return null;
   }
 
   /**
    * Get CSRF token for headers
    */
   static getCSRFToken(): string | null {
-    return ClientCookieManager.getCookie(COOKIE_NAMES.CSRF_TOKEN);
+    return ClientCookieManager.getCsrfToken();
   }
 
   /**
-   * Clear all stored tokens
+   * Clear all authentication tokens via server-side API call
    */
-  static clearTokens(): void {
-    ClientCookieManager.deleteCookie(COOKIE_NAMES.ACCESS_TOKEN);
-    ClientCookieManager.deleteCookie(COOKIE_NAMES.REFRESH_TOKEN);
-    ClientCookieManager.deleteCookie(COOKIE_NAMES.SESSION_ID);
-    ClientCookieManager.deleteCookie(COOKIE_NAMES.CSRF_TOKEN);
+  static async clearTokens(): Promise<void> {
+    try {
+      // Call IAM service to clear HTTPOnly cookies
+      await api.post("/auth/clear-tokens");
+
+      // Clear client-side CSRF token
+      ClientCookieManager.deleteCookie(COOKIE_NAMES.CSRF_TOKEN);
+    } catch (error) {
+      console.error("Failed to clear tokens:", error);
+      // Fallback: clear what we can client-side
+      ClientCookieManager.deleteCookie(COOKIE_NAMES.CSRF_TOKEN);
+    }
   }
 
   /**
@@ -311,6 +307,7 @@ class TokenManager {
 export const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: REQUEST_TIMEOUT,
+  withCredentials: true, // Always send cookies
   headers: {
     "Content-Type": "application/json",
   },
@@ -319,7 +316,7 @@ export const api = axios.create({
 // Request interceptor for authentication and CSRF
 api.interceptors.request.use(
   async (config) => {
-    // Skip token injection for auth endpoints that don't need tokens
+    // Skip token refresh for auth endpoints that don't need tokens
     const noTokenEndpoints = [
       "/auth/login",
       "/auth/forgot-password",
@@ -339,11 +336,9 @@ api.interceptors.request.use(
         }
       }
 
-      // Get and inject access token
-      const token = TokenManager.getAccessToken();
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+      // HTTPOnly cookies (access token, refresh token, session ID)
+      // are automatically sent by the browser with each request
+      // No manual Authorization header injection needed
     }
 
     // Add CSRF protection for state-changing operations
@@ -358,6 +353,9 @@ api.interceptors.request.use(
     // Add request timestamp for debugging
     config.headers["X-Request-Time"] = new Date().toISOString();
 
+    // Ensure cookies are sent with the request
+    config.withCredentials = true;
+
     // Update activity timestamp
     const authStore = useAuthStore.getState();
     if (authStore.isAuthenticated) {
@@ -366,7 +364,7 @@ api.interceptors.request.use(
 
     return config;
   },
-  (error) => {
+  () => {
     return Promise.reject(new NetworkError("Request configuration failed"));
   },
 );
@@ -469,21 +467,25 @@ api.interceptors.response.use(
 export const apiClient = {
   // Authentication methods
   async login(credentials: { email: string; password: string }): Promise<{
-    user: any;
+    user: unknown;
     access_token: string;
     token_type: "Bearer";
     expires_in: number;
     session_id: string;
   }> {
+    // Login via IAM service - cookies are set automatically by the service
     const response = await api.post("/auth/login", credentials);
     const authData = IAMAuthResponseSchema.parse(response.data);
 
-    // Store tokens in cookies
-    TokenManager.storeTokens(
-      authData.access_token,
-      authData.refresh_token,
-      authData.user.id, // Use user ID as session ID for now
-    );
+    // Generate and store CSRF token client-side
+    const csrfToken = CSRFTokenManager.generateToken();
+    ClientCookieManager.setCookie(COOKIE_NAMES.CSRF_TOKEN, csrfToken, {
+      secure: process.env.NODE_ENV === "production",
+      httpOnly: false, // Must be accessible for CSRF protection
+      sameSite: "lax",
+      maxAge: 15 * 60, // Same as access token
+      path: "/",
+    });
 
     return {
       user: authData.user,
@@ -500,23 +502,20 @@ export const apiClient = {
     expires_in: number;
     session_id: string;
   }> {
-    const refreshToken = TokenManager.getRefreshToken();
-    if (!refreshToken) {
-      throw new AuthenticationError("No refresh token available");
-    }
-
-    const response = await api.post("/auth/refresh", {
-      refresh_token: refreshToken,
-    });
+    // Refresh via IAM service - refresh token is sent automatically via HTTPOnly cookie
+    const response = await api.post("/auth/refresh", {});
 
     const refreshData = IAMRefreshResponseSchema.parse(response.data);
 
-    // Store new tokens
-    TokenManager.storeTokens(
-      refreshData.access_token,
-      refreshData.refresh_token,
-      refreshData.user.id,
-    );
+    // Update CSRF token
+    const csrfToken = CSRFTokenManager.generateToken();
+    ClientCookieManager.setCookie(COOKIE_NAMES.CSRF_TOKEN, csrfToken, {
+      secure: process.env.NODE_ENV === "production",
+      httpOnly: false, // Must be accessible for CSRF protection
+      sameSite: "lax",
+      maxAge: 15 * 60, // Same as access token
+      path: "/",
+    });
 
     return {
       access_token: refreshData.access_token,
@@ -527,8 +526,16 @@ export const apiClient = {
   },
 
   async logout(): Promise<{ message: string }> {
-    // Clear tokens locally
-    TokenManager.clearTokens();
+    try {
+      // Call IAM service logout endpoint to clear cookies and revoke tokens
+      await api.post("/auth/logout");
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Continue with local cleanup even if server logout fails
+    }
+
+    // Clear any remaining client-side tokens
+    await TokenManager.clearTokens();
 
     // Clear auth store
     const authStore = useAuthStore.getState();
@@ -539,15 +546,17 @@ export const apiClient = {
 
   async validateSession(): Promise<{
     valid: boolean;
-    user?: any;
+    user?: unknown;
   }> {
     try {
-      const response = await api.get("/auth/validate");
+      // Validate session via IAM service - cookies are sent automatically
+      const response = await api.get("/auth/session");
       return {
-        valid: response.status === 200,
-        user: response.data?.user,
+        valid: response.data.valid,
+        user: response.data.user,
       };
-    } catch {
+    } catch (error) {
+      console.error("Session validation error:", error);
       return { valid: false };
     }
   },
@@ -574,13 +583,12 @@ export const apiClient = {
     return response.data;
   },
 
-  // User methods
-  async getCurrentUser() {
+  async getCurrentUser(): Promise<unknown> {
     const response = await api.get("/users/me");
     return response.data;
   },
 
-  async updateProfile(data: any) {
+  async updateProfile(data: Record<string, unknown>): Promise<unknown> {
     const response = await api.patch("/users/me", data);
     return response.data;
   },
@@ -591,17 +599,29 @@ export const apiClient = {
     return schema ? schema.parse(response.data) : response.data;
   },
 
-  async post<T>(url: string, data?: any, schema?: z.ZodSchema<T>): Promise<T> {
+  async post<T>(
+    url: string,
+    data?: unknown,
+    schema?: z.ZodSchema<T>,
+  ): Promise<T> {
     const response = await api.post(url, data);
     return schema ? schema.parse(response.data) : response.data;
   },
 
-  async put<T>(url: string, data?: any, schema?: z.ZodSchema<T>): Promise<T> {
+  async put<T>(
+    url: string,
+    data?: unknown,
+    schema?: z.ZodSchema<T>,
+  ): Promise<T> {
     const response = await api.put(url, data);
     return schema ? schema.parse(response.data) : response.data;
   },
 
-  async patch<T>(url: string, data?: any, schema?: z.ZodSchema<T>): Promise<T> {
+  async patch<T>(
+    url: string,
+    data?: unknown,
+    schema?: z.ZodSchema<T>,
+  ): Promise<T> {
     const response = await api.patch(url, data);
     return schema ? schema.parse(response.data) : response.data;
   },
@@ -670,18 +690,17 @@ export function handleApiError(error: unknown): string {
 }
 
 // Type-safe request wrapper
-export const createTypedRequest = <TResponse, TRequest = any>(
+export function createTypedRequest<TRequest, TResponse>(
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
   url: string,
-  responseSchema: z.ZodSchema<TResponse>,
   requestSchema?: z.ZodSchema<TRequest>,
-) => {
+  responseSchema?: z.ZodSchema<TResponse>,
+) {
   return async (data?: TRequest): Promise<TResponse> => {
     // Validate request data if schema provided
     const validatedData = requestSchema ? requestSchema.parse(data) : data;
 
     let response: AxiosResponse;
-
     switch (method) {
       case "GET":
         response = await api.get(url);
@@ -702,9 +721,12 @@ export const createTypedRequest = <TResponse, TRequest = any>(
         throw new Error(`Unsupported HTTP method: ${method}`);
     }
 
-    return responseSchema.parse(response.data);
+    // Validate response if schema provided
+    return responseSchema
+      ? responseSchema.parse(response.data)
+      : (response.data as TResponse);
   };
-};
+}
 
 // Export the token manager for use in other parts of the app
 export { TokenManager };
