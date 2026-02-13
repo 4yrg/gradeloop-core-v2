@@ -41,28 +41,33 @@ async function proxy(req: Request, path: string) {
   });
 }
 
-export async function GET(request: Request, { params }: { params: { path: string[] } }) {
-  const path = (params.path || []).join("/") || "";
+export async function GET(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
+  const resolvedParams = await params;
+  const path = (resolvedParams.path || []).join("/") || "";
   return proxy(request, path);
 }
 
-export async function POST(request: Request, { params }: { params: { path: string[] } }) {
-  const path = (params.path || []).join("/") || "";
+export async function POST(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
+  const resolvedParams = await params;
+  const path = (resolvedParams.path || []).join("/") || "";
   return proxy(request, path);
 }
 
-export async function PUT(request: Request, { params }: { params: { path: string[] } }) {
-  const path = (params.path || []).join("/") || "";
+export async function PUT(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
+  const resolvedParams = await params;
+  const path = (resolvedParams.path || []).join("/") || "";
   return proxy(request, path);
 }
 
-export async function PATCH(request: Request, { params }: { params: { path: string[] } }) {
-  const path = (params.path || []).join("/") || "";
+export async function PATCH(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
+  const resolvedParams = await params;
+  const path = (resolvedParams.path || []).join("/") || "";
   return proxy(request, path);
 }
 
-export async function DELETE(request: Request, { params }: { params: { path: string[] } }) {
-  const path = (params.path || []).join("/") || "";
+export async function DELETE(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
+  const resolvedParams = await params;
+  const path = (resolvedParams.path || []).join("/") || "";
   return proxy(request, path);
 }
 
