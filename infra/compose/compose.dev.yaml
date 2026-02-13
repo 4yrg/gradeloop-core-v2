@@ -164,7 +164,7 @@ services:
     image: oven/bun:latest
     container_name: gradeloop-frontend-dev
     working_dir: /app
-    command: ["bun", "dev", "--port", "3001"]
+    command: sh -c "bun install && bun run dev --port 3001"
     ports:
       - "3001:3001"
     labels:
