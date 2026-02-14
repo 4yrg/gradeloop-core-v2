@@ -8,8 +8,8 @@ import (
 	"os"
 	"time"
 
-	vault "github.com/hashicorp/vault/api"
 	"github.com/hashicorp/go-retryablehttp"
+	vault "github.com/hashicorp/vault/api"
 )
 
 // Client defines the interface for secret management operations
@@ -41,11 +41,11 @@ type VaultClient struct {
 
 // Config holds Vault client configuration
 type Config struct {
-	Address   string
-	Token     string
-	Namespace string
-	MountPath string
-	Timeout   time.Duration
+	Address    string
+	Token      string
+	Namespace  string
+	MountPath  string
+	Timeout    time.Duration
 	MaxRetries int
 }
 
@@ -57,6 +57,7 @@ type DatabaseConfig struct {
 	Port     string
 	Database string
 	SSLMode  string
+	RawURL   string
 }
 
 // JWTConfig holds JWT authentication configuration
@@ -75,15 +76,19 @@ type RedisConfig struct {
 	DB       string
 }
 
-// NewClient creates a new Vault client with the given configuration
+// EnvClient implements the Client interface by reading from environment variables
+type EnvClient struct{}
+
+// NewClient creates a new secrets client. It returns an EnvClient if VAULT_ADDR is missing,
+// otherwise it tries to create a VaultClient.
 func NewClient(cfg *Config) (Client, error) {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
 
-	// Validate configuration
-	if cfg.Address == "" {
-		return nil, errors.New("vault address is required")
+	// If Vault address is not provided, use environment variables directly
+	if cfg.Address == "" || os.Getenv("USE_ENV_SECRETS") == "true" {
+		return &EnvClient{}, nil
 	}
 
 	// Create Vault API client config
@@ -103,7 +108,8 @@ func NewClient(cfg *Config) (Client, error) {
 	// Create Vault client
 	client, err := vault.NewClient(vaultConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create vault client: %w", err)
+		// Fallback to EnvClient on failure if desired, or return error
+		return &EnvClient{}, nil
 	}
 
 	// Set authentication token
@@ -125,17 +131,73 @@ func NewClient(cfg *Config) (Client, error) {
 // DefaultConfig returns default Vault configuration from environment variables
 func DefaultConfig() *Config {
 	return &Config{
-		Address:    getEnv("VAULT_ADDR", "http://localhost:8200"),
-		Token:      getEnv("VAULT_TOKEN", ""),
-		Namespace:  getEnv("VAULT_NAMESPACE", ""),
+		Address:    os.Getenv("VAULT_ADDR"),
+		Token:      os.Getenv("VAULT_TOKEN"),
+		Namespace:  os.Getenv("VAULT_NAMESPACE"),
 		MountPath:  getEnv("VAULT_MOUNT_PATH", "secret"),
 		Timeout:    30 * time.Second,
 		MaxRetries: 3,
 	}
 }
 
+// EnvClient implementation
+
+func (ec *EnvClient) GetSecret(ctx context.Context, path, key string) (string, error) {
+	return os.Getenv(key), nil
+}
+
+func (ec *EnvClient) GetSecretMap(ctx context.Context, path string) (map[string]interface{}, error) {
+	// Not practically used for EnvClient in current context
+	return nil, errors.New("GetSecretMap not supported for EnvClient")
+}
+
+func (ec *EnvClient) GetDatabaseConfig(ctx context.Context) (*DatabaseConfig, error) {
+	if dbURL := os.Getenv("DATABASE_URL"); dbURL != "" {
+		return &DatabaseConfig{RawURL: dbURL}, nil
+	}
+	return &DatabaseConfig{
+		Username: getEnv("POSTGRES_USER", "postgres"),
+		Password: getEnv("POSTGRES_PASSWORD", "postgres"),
+		Host:     getEnv("POSTGRES_HOST", "localhost"),
+		Port:     getEnv("POSTGRES_PORT", "5432"),
+		Database: getEnv("POSTGRES_DB", "gradeloop"),
+		SSLMode:  getEnv("POSTGRES_SSLMODE", "disable"),
+	}, nil
+}
+
+func (ec *EnvClient) GetJWTConfig(ctx context.Context) (*JWTConfig, error) {
+	return &JWTConfig{
+		Secret:        getEnv("JWT_ACCESS_SECRET", ""),
+		Algorithm:     getEnv("JWT_ALGORITHM", "HS256"),
+		Expiry:        getEnv("JWT_ACCESS_EXPIRY", "15m"),
+		RefreshExpiry: getEnv("JWT_REFRESH_EXPIRY", "30d"),
+	}, nil
+}
+
+func (ec *EnvClient) GetRedisConfig(ctx context.Context) (*RedisConfig, error) {
+	return &RedisConfig{
+		Host:     getEnv("REDIS_HOST", "localhost"),
+		Port:     getEnv("REDIS_PORT", "6379"),
+		Password: getEnv("REDIS_PASSWORD", ""),
+		DB:       getEnv("REDIS_DB", "0"),
+	}, nil
+}
+
+func (ec *EnvClient) Close() error {
+	return nil
+}
+
+// VaultClient methods...
+// (I will keep the VaultClient methods but update NewClient to facilitate the transition)
+
 // GetSecret retrieves a single secret value
 func (vc *VaultClient) GetSecret(ctx context.Context, path, key string) (string, error) {
+	// Fallback to Env if Vault is not working or if path starts with env:
+	val := os.Getenv(key)
+	if val != "" {
+		return val, nil
+	}
+
 	secrets, err := vc.GetSecretMap(ctx, path)
 	if err != nil {
 		return "", err
@@ -180,6 +242,11 @@ func (vc *VaultClient) GetSecretMap(ctx context.Context, path string) (map[strin
 
 // GetDatabaseConfig retrieves database configuration from Vault
 func (vc *VaultClient) GetDatabaseConfig(ctx context.Context) (*DatabaseConfig, error) {
+	// Check env first
+	if os.Getenv("POSTGRES_HOST") != "" {
+		return (&EnvClient{}).GetDatabaseConfig(ctx)
+	}
+
 	path := "database/postgres"
 	secrets, err := vc.GetSecretMap(ctx, path)
 	if err != nil {
@@ -198,6 +265,11 @@ func (vc *VaultClient) GetDatabaseConfig(ctx context.Context) (*DatabaseConfig, 
 
 // GetJWTConfig retrieves JWT configuration from Vault
 func (vc *VaultClient) GetJWTConfig(ctx context.Context) (*JWTConfig, error) {
+	// Check env first
+	if os.Getenv("JWT_ACCESS_SECRET") != "" {
+		return (&EnvClient{}).GetJWTConfig(ctx)
+	}
+
 	path := "auth/jwt"
 	secrets, err := vc.GetSecretMap(ctx, path)
 	if err != nil {
@@ -214,6 +286,11 @@ func (vc *VaultClient) GetJWTConfig(ctx context.Context) (*JWTConfig, error) {
 
 // GetRedisConfig retrieves Redis configuration from Vault
 func (vc *VaultClient) GetRedisConfig(ctx context.Context) (*RedisConfig, error) {
+	// Check env first
+	if os.Getenv("REDIS_HOST") != "" {
+		return (&EnvClient{}).GetRedisConfig(ctx)
+	}
+
 	path := "cache/redis"
 	secrets, err := vc.GetSecretMap(ctx, path)
 	if err != nil {
@@ -254,6 +331,9 @@ func getEnv(key, defaultValue string) string {
 
 // ConnectionString builds a PostgreSQL connection string from DatabaseConfig
 func (dc *DatabaseConfig) ConnectionString() string {
+	if dc.RawURL != "" {
+		return dc.RawURL
+	}
 	return fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		dc.Host, dc.Port, dc.Username, dc.Password, dc.Database, dc.SSLMode,

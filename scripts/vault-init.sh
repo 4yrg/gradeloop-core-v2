@@ -84,13 +84,14 @@ write_secret() {
     shift
     local args=""
     while [ "$#" -gt 0 ]; do
-        # Build the command arguments key=value
-        args="$args $1=$2"
+        # Properly quote key=value pairs to handle spaces
+        # We use a temporary variable to hold the escaped value
+        args="$args $1=\"$2\""
         shift 2
     done
     log_info "Writing secret to $path..."
-    # shellcheck disable=SC2086
-    if ! vault kv put "$path" $args > /dev/null; then
+    # Use eval to properly expand the quoted arguments
+    if ! eval "vault kv put \"$path\" $args" > /dev/null; then
         log_error "Failed to write secret to $path"
         return 1
     fi
@@ -120,13 +121,20 @@ seed_database_secrets() {
     write_secret "secret/gradeloop/postgres" \
         password "postgres"
 
-    # secret/gradeloop/iam -> initial_admin_password
+    # secret/gradeloop/iam -> initial admin credentials
     write_secret "secret/gradeloop/iam" \
-        initial_admin_password "admin_dev_password_123"
+        initial_admin_email "admin@gradeloop.com" \
+        initial_admin_password "Admin@123"
 
     # secret/gradeloop/vault -> token (Local dev access)
     write_secret "secret/gradeloop/vault" \
         token "$VAULT_TOKEN"
+
+    # secret/gradeloop/auth -> JWT secrets for session management
+    write_secret "secret/gradeloop/auth" \
+        jwt_access_secret "gradeloop_access_secret_32_chars_!!" \
+        jwt_refresh_secret "gradeloop_refresh_secret_32_chars!" \
+        csrf_secret "gradeloop_csrf_secret_32_chars_!!!"
 
     log_success "GradeLoop Core secrets seeded"
 }
@@ -152,14 +160,16 @@ seed_jwt_secrets() {
 
     local jwt_mount="secret/auth"
 
-    # Use a fixed JWT secret for development consistency
-    JWT_SECRET="${JWT_SECRET:-gradeloop_dev_secret_32_chars_long_!!}"
+    # Use separate JWT secrets for access and refresh tokens (matching auth system requirements)
+    JWT_ACCESS_SECRET="${JWT_ACCESS_SECRET:-gradeloop_access_secret_32_chars_!!}"
+    JWT_REFRESH_SECRET="${JWT_REFRESH_SECRET:-gradeloop_refresh_secret_32_chars!}"
 
     write_secret "$jwt_mount/jwt" \
-        secret "$JWT_SECRET" \
+        access_secret "$JWT_ACCESS_SECRET" \
+        refresh_secret "$JWT_REFRESH_SECRET" \
         algorithm "HS256" \
-        expiry "24h" \
-        refresh_expiry "168h"
+        access_expiry "15m" \
+        refresh_expiry "30d"
 
     log_success "JWT secrets seeded"
 }
@@ -252,7 +262,9 @@ seed_service_secrets() {
         service_name "iam-service" \
         log_level "debug" \
         port "3000" \
-        database_url "host=postgres user=postgres password=postgres dbname=gradeloop port=5432 sslmode=disable"
+        database_url "host=postgres user=postgres password=postgres dbname=gradeloop port=5432 sslmode=disable" \
+        initial_admin_email "admin@gradeloop.com" \
+        initial_admin_password "Admin@123"
 
     log_success "Service secrets seeded"
 }
@@ -431,15 +443,23 @@ interactive_mode() {
     read -r redis_pass
     redis_pass="${redis_pass:-gradeloop_redis_dev}"
 
-    # JWT secret
-    printf "Enter JWT secret (leave empty to auto-generate): "
-    read -r jwt_secret
-    if [ -z "$jwt_secret" ]; then
-        jwt_secret=$(head -c 32 /dev/urandom | base64)
-        log_info "Generated JWT secret: ${jwt_secret:0:20}..."
+    # JWT secrets for access and refresh tokens
+    printf "Enter JWT access token secret (leave empty to auto-generate): "
+    read -r jwt_access_secret
+    if [ -z "$jwt_access_secret" ]; then
+        jwt_access_secret=$(head -c 32 /dev/urandom | base64)
+        log_info "Generated JWT access secret: ${jwt_access_secret:0:20}..."
     fi
 
-    export JWT_SECRET="$jwt_secret"
+    printf "Enter JWT refresh token secret (leave empty to auto-generate): "
+    read -r jwt_refresh_secret
+    if [ -z "$jwt_refresh_secret" ]; then
+        jwt_refresh_secret=$(head -c 32 /dev/urandom | base64)
+        log_info "Generated JWT refresh secret: ${jwt_refresh_secret:0:20}..."
+    fi
+
+    export JWT_ACCESS_SECRET="$jwt_access_secret"
+    export JWT_REFRESH_SECRET="$jwt_refresh_secret"
 
     # Continue with seeding
     seed_all_secrets
