@@ -8,91 +8,21 @@ services:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
-      # Metrics
-      - "--metrics.prometheus=true"
-      - "--metrics.prometheus.addEntryPointsLabels=true"
-      - "--metrics.prometheus.addServicesLabels=true"
-      # Tracing
-      - "--tracing.otlp=true"
-      - "--tracing.otlp.grpc.endpoint=jaeger:4317"
-      - "--tracing.otlp.grpc.insecure=true"
-      # Enable JWT Validator Plugin
-      # - "--experimental.plugins.jwt-validator.moduleName=github.com/Luka-S/traefik-jwt-validator"
-      # - "--experimental.plugins.jwt-validator.version=v1.1.0"
       # Retry configuration for resilience
       - "--providers.docker.watch=true"
     ports:
       - "80:80"
-      - "8080:8080" # Dashboard
+      - "8082:8080" # Dashboard
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
     networks:
       - gradeloop-network
     healthcheck:
-      test: [ "CMD", "traefik", "healthcheck" ]
+      test: ["CMD", "traefik", "healthcheck"]
       interval: 10s
       timeout: 5s
       retries: 3
 
-  # HashiCorp Vault - Secrets Management (Dev Mode)
-  vault:
-    image: hashicorp/vault:1.15
-    container_name: gradeloop-vault-dev
-    hostname: vault
-    ports:
-      - "8200:8200"
-    environment:
-      VAULT_DEV_ROOT_TOKEN_ID: "dev-root-token"
-      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
-      VAULT_ADDR: "http://127.0.0.1:8200"
-      VAULT_LOG_LEVEL: "info"
-    cap_add:
-      - IPC_LOCK
-    volumes:
-      - vault-audit-logs:/vault/logs
-    command: server -dev -dev-root-token-id="dev-root-token"
-    healthcheck:
-      test: [ "CMD", "vault", "status" ]
-      interval: 2s
-      timeout: 5s
-      retries: 15
-    networks:
-      - gradeloop-network
-
-  # Vault Initializer - Seeds initial secrets on startup
-  vault-init:
-    image: hashicorp/vault:1.15
-    container_name: gradeloop-vault-init
-    depends_on:
-      vault:
-        condition: service_healthy
-    environment:
-      VAULT_ADDR: "http://vault:8200"
-      VAULT_TOKEN: "dev-root-token"
-    volumes:
-      - ../../scripts/vault-init.sh:/vault-init.sh:ro
-      - ./vault/secrets:/vault/secrets:rw
-    command: /bin/sh /vault-init.sh
-    networks:
-      - gradeloop-network
-    restart: "no"
-
-  # Redis - In-Memory Cache for Rate Limiting
-  redis:
-    image: redis:7-alpine
-    container_name: gradeloop-redis-dev
-    ports:
-      - "6379:6379"
-    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
-    healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
-      interval: 2s
-      timeout: 5s
-      retries: 15
-    networks:
-      - gradeloop-network
-
-  # PostgreSQL - Database
   # RabbitMQ - Message Broker
   rabbitmq:
     image: rabbitmq:3.12-management
@@ -108,30 +38,10 @@ services:
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     healthcheck:
-      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 30s
       timeout: 10s
       retries: 5
-    networks:
-      - gradeloop-network
-
-  # PostgreSQL - Database
-  postgres:
-    image: postgres:16-alpine
-    container_name: gradeloop-postgres-dev
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: gradeloop
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
-      interval: 2s
-      timeout: 5s
-      retries: 15
     networks:
       - gradeloop-network
 
@@ -144,26 +54,23 @@ services:
     hostname: email-notify-service
     ports:
       - "8083:8080"
+    env_file:
+      - ../../.env
     environment:
       SERVER_HOST: "0.0.0.0"
       SERVER_PORT: "8080"
       RABBITMQ_URL: "amqp://admin:admin123@rabbitmq:5672/gradeloop"
       RABBITMQ_EXCHANGE: "gradeloop.events"
       RABBITMQ_QUEUE: "email.notifications"
-      VAULT_ADDR: "http://vault:8200"
-      VAULT_TOKEN: "dev-root-token"
-      VAULT_NAMESPACE: ""
-      VAULT_MOUNT_PATH: "secret"
-      SMTP_SECRET_PATH: "secret/data/smtp"
     depends_on:
-      vault:
-        condition: service_healthy
       rabbitmq:
         condition: service_healthy
-      vault-init:
-        condition: service_completed_successfully
     networks:
       - gradeloop-network
+    develop:
+      watch:
+        - action: rebuild
+          path: ../../apps/services/email-notify-service
     restart: unless-stopped
 
   # IAM Service - Identity and Access Management
@@ -173,49 +80,29 @@ services:
       dockerfile: apps/services/iam-service/Dockerfile
     container_name: gradeloop-iam-service-dev
     ports:
-      - "3000:3000"
+      - "8080:8080"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.services.iam.loadbalancer.server.port=3000"
-
-      # Public IAM Routes (Auth endpoints that don't require JWT)
+      - "traefik.http.services.iam.loadbalancer.server.port=8080"
       - "traefik.http.routers.iam-public.rule=PathPrefix(`/api/iam/v1/auth/login`) || PathPrefix(`/api/iam/v1/auth/refresh`) || PathPrefix(`/api/iam/v1/auth/activate`) || PathPrefix(`/api/iam/v1/auth/request-activation`) || PathPrefix(`/api/iam/v1/auth/validate`) || PathPrefix(`/api/iam/health`) || PathPrefix(`/api/iam/metrics`)"
       - "traefik.http.routers.iam-public.entrypoints=web"
       - "traefik.http.routers.iam-public.middlewares=iam-replacepath"
-
-      # Protected IAM Routes (Requires JWT Validation at the Edge)
       - "traefik.http.routers.iam-protected.rule=PathPrefix(`/api/iam`) && !(PathPrefix(`/api/iam/v1/auth/login`) || PathPrefix(`/api/iam/v1/auth/refresh`) || PathPrefix(`/api/iam/v1/auth/activate`) || PathPrefix(`/api/iam/v1/auth/request-activation`) || PathPrefix(`/api/iam/v1/auth/validate`) || PathPrefix(`/api/iam/health`) || PathPrefix(`/api/iam/metrics`))"
       - "traefik.http.routers.iam-protected.entrypoints=web"
       - "traefik.http.routers.iam-protected.middlewares=iam-replacepath"
-
-      # Middlewares
       - "traefik.http.middlewares.iam-replacepath.replacepathregex.regex=^/api/iam(.*)"
-      - "traefik.http.middlewares.iam-replacepath.replacepathregex.replacement=/api$$1"
-
-      # JWT Validation via ForwardAuth - Zero Trust Architecture
-      - "traefik.http.middlewares.iam-jwt-auth.forwardauth.address=http://iam-service:3000/api/v1/auth/validate"
+      - "traefik.http.middlewares.iam-replacepath.replacepathregex.replacement=/$1"
+      - "traefik.http.middlewares.iam-jwt-auth.forwardauth.address=http://iam-service:8080/api/v1/auth/validate"
       - "traefik.http.middlewares.iam-jwt-auth.forwardauth.trustForwardHeader=true"
       - "traefik.http.middlewares.iam-jwt-auth.forwardauth.authResponseHeaders=X-User-Id,X-User-Roles,X-User-Permissions,X-User-Email,X-User-Name"
-
-      # Retry mechanism with backoff for IAM service connection resilience
       - "traefik.http.middlewares.iam-retry.retry.attempts=3"
       - "traefik.http.middlewares.iam-retry.retry.initialInterval=100ms"
+    env_file:
+      - ../../.env
     environment:
-      VAULT_ADDR: "http://vault:8200"
-      VAULT_TOKEN: "dev-root-token"
-      REDIS_ADDR: "redis:6379"
-      INITIAL_ADMIN_USERNAME: "admin@gradeloop.com"
-      INITIAL_ADMIN_PASSWORD: "admin_dev_password_123"
-      JAEGER_ENDPOINT: "jaeger:4317"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      vault:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      DATABASE_URL: "${POSTGRES_URL_BASE}iam_db?sslmode=${POSTGRES_SSLMODE}"
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:3000/api/iam/health" ]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/iam/health"]
       interval: 10s
       timeout: 5s
       retries: 15
@@ -228,6 +115,8 @@ services:
           path: ../../shared/libs/go/secrets
         - action: rebuild
           path: ../../shared/libs/go/middleware
+        - action: rebuild
+          path: ../../shared/libs/go/logger
     networks:
       - gradeloop-network
 
@@ -238,140 +127,38 @@ services:
       dockerfile: apps/services/academics-service/Dockerfile
     container_name: gradeloop-academics-service-dev
     ports:
-      - "3002:3001"
+      - "8081:8081"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.services.academics.loadbalancer.server.port=3001"
-
-      # All academics routes require JWT validation
+      - "traefik.http.services.academics.loadbalancer.server.port=8081"
       - "traefik.http.routers.academics.rule=PathPrefix(`/api/academics`)"
       - "traefik.http.routers.academics.entrypoints=web"
       - "traefik.http.routers.academics.middlewares=academics-jwt-auth,academics-replacepath"
-
-      # Middlewares
       - "traefik.http.middlewares.academics-replacepath.replacepathregex.regex=^/api/academics(.*)"
       - "traefik.http.middlewares.academics-replacepath.replacepathregex.replacement=/api$$1"
-
-      # JWT Validation via ForwardAuth
-      - "traefik.http.middlewares.academics-jwt-auth.forwardauth.address=http://iam-service:3000/api/v1/auth/validate"
+      - "traefik.http.middlewares.academics-jwt-auth.forwardauth.address=http://iam-service:8080/api/v1/auth/validate"
       - "traefik.http.middlewares.academics-jwt-auth.forwardauth.trustForwardHeader=true"
       - "traefik.http.middlewares.academics-jwt-auth.forwardauth.authResponseHeaders=X-User-Id,X-User-Roles,X-User-Permissions,X-User-Email,X-User-Name"
+    env_file:
+      - ../../.env
     environment:
-      VAULT_ADDR: "http://vault:8200"
-      VAULT_TOKEN: "dev-root-token"
-      JAEGER_ENDPOINT: "jaeger:4317"
+      DATABASE_URL: "${POSTGRES_URL_BASE}academics_db?sslmode=${POSTGRES_SSLMODE}"
     depends_on:
-      postgres:
-        condition: service_healthy
-      vault:
-        condition: service_healthy
       iam-service:
         condition: service_healthy
+    develop:
+      watch:
+        - action: rebuild
+          path: ../../apps/services/academics-service
+        - action: rebuild
+          path: ../../shared/libs/go/secrets
+        - action: rebuild
+          path: ../../shared/libs/go/middleware
+        - action: rebuild
+          path: ../../shared/libs/go/logger
     networks:
       - gradeloop-network
 
-  # Prometheus - Metrics Collection
-  prometheus:
-    image: prom/prometheus:v2.51.0
-    container_name: gradeloop-prometheus-dev
-    volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus-data:/prometheus
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
-    ports:
-      - "9090:9090"
-    networks:
-      - gradeloop-network
-
-  # Grafana - Visualization
-  grafana:
-    image: grafana/grafana:10.4.0
-    container_name: gradeloop-grafana-dev
-    ports:
-      - "3001:3000"
-    environment:
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
-    volumes:
-      - ./grafana/provisioning:/etc/grafana/provisioning
-      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
-      - grafana-data:/var/lib/grafana
-    depends_on:
-      - prometheus
-    networks:
-      - gradeloop-network
-
-  # Jaeger - Distributed Tracing
-  jaeger:
-    image: jaegertracing/all-in-one:1.53
-    container_name: gradeloop-jaeger-dev
-    ports:
-      - "16686:16686" # UI
-      - "4317:4317" # OTLP gRPC
-      - "4318:4318" # OTLP HTTP
-      - "14250:14250" # Jaeger gRPC
-      - "14268:14268" # Jaeger HTTP
-    environment:
-      - COLLECTOR_OTLP_ENABLED=true
-    networks:
-      - gradeloop-network
-
-  # Elasticsearch - Log Storage
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
-    container_name: gradeloop-elasticsearch-dev
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    ports:
-      - "9200:9200"
-    volumes:
-      - elasticsearch-data:/usr/share/elasticsearch/data
-    networks:
-      - gradeloop-network
-
-  # Logstash - Log Processing
-  logstash:
-    image: docker.elastic.co/logstash/logstash:8.11.1
-    container_name: gradeloop-logstash-dev
-    ports:
-      - "5044:5044"
-      - "5000:5000"
-    volumes:
-      - ./elk/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
-    depends_on:
-      - elasticsearch
-    networks:
-      - gradeloop-network
-
-  # Kibana - Log Visualization
-  kibana:
-    image: docker.elastic.co/kibana/kibana:8.11.1
-    container_name: gradeloop-kibana-dev
-    ports:
-      - "5601:5601"
-    depends_on:
-      - elasticsearch
-    networks:
-      - gradeloop-network
-
-  # Filebeat - Log Shipper
-  filebeat:
-    image: docker.elastic.co/beats/filebeat:8.11.1
-    container_name: gradeloop-filebeat-dev
-    user: root
-    volumes:
-      - ./elk/filebeat.yaml:/usr/share/filebeat/filebeat.yml:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-    command: filebeat -e -strict.perms=false
-    depends_on:
-      - logstash
-    networks:
-      - gradeloop-network
 
 networks:
   gradeloop-network:
@@ -379,15 +166,5 @@ networks:
     driver: bridge
 
 volumes:
-  vault-audit-logs:
-    name: gradeloop-vault-audit-logs
-  postgres-data:
-    name: gradeloop-postgres-data
-  postgres-secrets:
-    name: gradeloop-postgres-secrets
   rabbitmq-data:
     name: gradeloop-rabbitmq-data
-  prometheus-data:
-  grafana-data:
-  jaeger-data:
-  elasticsearch-data:

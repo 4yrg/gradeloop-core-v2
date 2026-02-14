@@ -199,15 +199,37 @@ routes:
   # ==========================================
   # IAM Service Routes
   # ==========================================
-  # Public / Auth Routes (handled by gateway for routing, potentially public)
-  # NOTE: Public routes might need a special "public" permission or middleware bypass.
-  # For now, we will assign a "public" permission and handle it in middleware or assume tokens have it?
-  # Better approach: If permission is empty or "public", skip check?
-  # Or mapping public routes to a "public" permission that everyone claims?
-  # Let's assume for now we expose non-public routes here or use a specific bypass.
-  # Using "auth:public" for public routes which we might check or skip.
-
+  # Public / Auth Routes (handled by gateway for routing, no JWT required)
+  # These routes are accessible without authentication
   - path: "/api/iam/health"
+    method: "GET"
+    permission: "public"
+    service: "iam"
+  - path: "/api/iam/v1/auth/login"
+    method: "POST"
+    permission: "public"
+    service: "iam"
+  - path: "/api/iam/v1/auth/refresh"
+    method: "POST"
+    permission: "public"
+    service: "iam"
+  - path: "/api/iam/v1/auth/forgot-password"
+    method: "POST"
+    permission: "public"
+    service: "iam"
+  - path: "/api/iam/v1/auth/reset-password"
+    method: "POST"
+    permission: "public"
+    service: "iam"
+  - path: "/api/iam/v1/auth/activate"
+    method: "POST"
+    permission: "public"
+    service: "iam"
+  - path: "/api/iam/v1/auth/logout"
+    method: "POST"
+    permission: "public"
+    service: "iam"
+  - path: "/api/iam/v1/auth/session"
     method: "GET"
     permission: "public"
     service: "iam"
