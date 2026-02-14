@@ -130,6 +130,8 @@ services:
       DB_USER: postgres
       DB_PASSWORD: postgres
       DB_SSLMODE: disable
+      # JWT Configuration
+      JWT_SECRET: gradeloop_dev_secret_32_chars_long_!!
       # Server Configuration
       SERVER_PORT: 8080
       # JWT Configuration (RSA keys should be base64 encoded)

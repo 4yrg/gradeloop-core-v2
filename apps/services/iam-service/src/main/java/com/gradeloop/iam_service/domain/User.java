@@ -3,7 +3,8 @@ package com.gradeloop.iam_service.domain;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.Where;
+import org.hibernate.annotations.SQLRestriction;
+
 import java.time.Instant;
 
 @Entity
@@ -13,7 +14,7 @@ import java.time.Instant;
 @AllArgsConstructor
 @Builder
 @SQLDelete(sql = "UPDATE users SET deleted_at = now() WHERE id = ?")
-@Where(clause = "deleted_at IS NULL")
+@SQLRestriction("deleted_at IS NULL")
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
