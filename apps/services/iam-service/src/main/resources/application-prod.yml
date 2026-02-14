@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://<AIVEN_HOST>:15200/iam_db?sslmode=require
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSLMODE}
     username: ${DB_USER}
     password: ${DB_PASSWORD}
     hikari:
@@ -38,3 +38,7 @@ management:
     export:
       prometheus:
         enabled: true
+
+# JWT secret - read from environment (no fallback for prod)
+jwt:
+  secret: ${JWT_SECRET}
