@@ -21,6 +21,18 @@ This project is a high-performance web client built with **Bun**, **Next.js (App
 
 ---
 
+# Java Backend
+
+- **Runtime / JDK**: Java 21 (use JDK 21 for all JVM services under `apps/services/*`).
+- **Build Tool**: Maven via the project's wrapper (`./mvnw`) — prefer the wrapper over a system `mvn` invocation.
+- **Local / CI rules**:
+  - Use JDK 21 in local development, CI, and Docker images.
+  - Build: `./mvnw -DskipTests package`
+  - Run tests: `./mvnw test`
+  - Run (service-specific): use the service's recommended Maven goal (for Spring Boot services: `./mvnw spring-boot:run`).
+  - Ensure `maven.compiler.source` / `maven.compiler.target` (or `release`) is set to `21` in `pom.xml`.
+
+
 # Development Standards & Patterns
 
 ---
@@ -385,5 +397,653 @@ The UI must feel:
 ### Development Workflow
 1. **Dependencies**: All major dependencies are configured in package.json.
 2. **Linting**: ESLint with Next.js configuration is set up.
-3. **TypeScript**: Strict mode with proper path mapping (`@/*` for root imports).
+4. **TypeScript**: Strict mode with proper path mapping (`@/*` for root imports).
 4. **Git**: Follow conventional commits as specified in CONTRIBUTING.md.
+
+# Spring Boot 4 Service Implementation Guidelines
+
+## Purpose
+This document defines **mandatory best practices** for implementing production-grade services using **Spring Boot 4**.  
+All generated or written code must follow these standards to ensure maintainability, performance, scalability, and security.
+
+---
+
+# 1. Core Platform Requirements
+
+## Mandatory Versions
+- Spring Boot **4.x**
+- Java **21+ (Required baseline)**
+- Jakarta EE 11 (`jakarta.*`, NOT `javax.*`)
+
+## Dependency Requirements
+- Use Spring Boot BOM dependency management
+- Only include required starters
+- Avoid unused dependencies
+- Prefer modular starters
+
+---
+
+# 2. Architecture Principles
+
+## Required Architecture Pattern
+Follow **Clean Architecture + Spring Boot conventions**
+
+### Mandatory Layers
+```
+
+Controller Layer → HTTP handling
+Service Layer → Business logic
+Repository Layer → Database access
+Domain Layer → Entities and business models
+DTO Layer → API contracts
+
+```
+
+---
+
+# 3. Package Organization
+
+## Feature-Based Packaging (Preferred)
+
+```
+
+com.gradeloop.iam
+├ user
+│ ├ UserController
+│ ├ UserService
+│ ├ UserRepository
+│ ├ UserEntity
+│ ├ UserDTO
+│
+├ auth
+│ ├ AuthController
+│ ├ AuthService
+│ ├ AuthDTO
+
+```
+
+---
+
+# 4. Coding Standards
+
+## Dependency Injection
+### ✅ Required
+Constructor injection only.
+
+```java
+@RequiredArgsConstructor
+@Service
+public class UserService {
+  private final UserRepository userRepository;
+}
+```
+
+### ❌ Forbidden
+
+```java
+@Autowired
+private UserRepository userRepository;
+```
+
+---
+
+# 5. Controller Guidelines
+
+Controllers MUST:
+
+* Handle HTTP only
+* Never contain business logic
+* Call services only
+
+Example:
+
+```java
+@RestController
+@RequestMapping("/api/users")
+@RequiredArgsConstructor
+public class UserController {
+
+  private final UserService userService;
+
+  @GetMapping("/{id}")
+  public UserResponseDTO getUser(@PathVariable UUID id) {
+    return userService.getUser(id);
+  }
+}
+```
+
+---
+
+# 6. Service Layer Guidelines
+
+Services MUST:
+
+* Contain business logic
+* Handle transactions
+* Handle validation
+* Handle domain rules
+
+Example:
+
+```java
+@Service
+@RequiredArgsConstructor
+@Transactional
+public class UserService {
+
+  private final UserRepository userRepository;
+
+  public UserResponseDTO getUser(UUID id) {
+    User user = userRepository.findById(id)
+      .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+    return UserMapper.toDTO(user);
+  }
+}
+```
+
+---
+
+# 7. Repository Guidelines
+
+Use Spring Data JPA:
+
+```java
+@Repository
+public interface UserRepository extends JpaRepository<User, UUID> {
+}
+```
+
+Avoid manual DAO implementations unless absolutely necessary.
+
+---
+
+# 8. DTO Usage (Mandatory)
+
+Never expose entities directly.
+
+Example:
+
+```java
+public class UserResponseDTO {
+  private UUID id;
+  private String email;
+}
+```
+
+---
+
+# 9. Entity Guidelines
+
+Example:
+
+```java
+@Entity
+@Table(name = "users")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class User {
+
+  @Id
+  private UUID id;
+
+  private String email;
+
+  private Instant createdAt;
+
+  private Instant deletedAt;
+}
+```
+
+---
+
+# 10. Exception Handling
+
+## 10.1 Custom Exceptions
+
+Always define **domain-specific exceptions**:
+
+```java
+public class ResourceNotFoundException extends RuntimeException {
+  public ResourceNotFoundException(String message) {
+    super(message);
+  }
+}
+
+public class InvalidRequestException extends RuntimeException {
+  public InvalidRequestException(String message) {
+    super(message);
+  }
+}
+
+public class UnauthorizedException extends RuntimeException {
+  public UnauthorizedException(String message) {
+    super(message);
+  }
+}
+```
+
+---
+
+## 10.2 Global Exception Handler
+
+Use **one global exception handler** using `@RestControllerAdvice`:
+
+```java
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+  @ExceptionHandler(ResourceNotFoundException.class)
+  public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException ex) {
+    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+      .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), ex.getMessage()));
+  }
+
+  @ExceptionHandler(InvalidRequestException.class)
+  public ResponseEntity<ErrorResponse> handleBadRequest(InvalidRequestException ex) {
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+      .body(new ErrorResponse(HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
+  }
+
+  @ExceptionHandler(UnauthorizedException.class)
+  public ResponseEntity<ErrorResponse> handleUnauthorized(UnauthorizedException ex) {
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+      .body(new ErrorResponse(HttpStatus.UNAUTHORIZED.value(), ex.getMessage()));
+  }
+
+  @ExceptionHandler(Exception.class)
+  public ResponseEntity<ErrorResponse> handleGeneral(Exception ex) {
+    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+      .body(new ErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Internal server error"));
+  }
+}
+```
+
+---
+
+## 10.3 Error Response DTO
+
+```java
+public class ErrorResponse {
+  private int status;
+  private String message;
+
+  public ErrorResponse(int status, String message) {
+    this.status = status;
+    this.message = message;
+  }
+
+  // getters/setters
+}
+```
+
+---
+
+## 10.4 Best Practices for Exceptions
+
+* Never catch exceptions in controllers
+* Always throw **custom domain-specific exceptions** in services
+* Map exceptions to **proper HTTP status codes**
+* Log exceptions appropriately in the global handler
+
+---
+
+# 11. Validation
+
+Use Jakarta Validation.
+
+```java
+public class CreateUserRequest {
+
+  @NotBlank
+  private String email;
+}
+```
+
+Controller:
+
+```java
+@PostMapping
+public void createUser(@Valid @RequestBody CreateUserRequest request)
+```
+
+---
+
+# 12. Configuration Management
+
+Mandatory:
+
+* Externalize all configuration
+* Use environment profiles
+
+```
+application.yml
+application-dev.yml
+application-prod.yml
+```
+
+Never hardcode credentials.
+
+---
+
+# 13. Logging
+
+Use structured logging.
+
+```java
+private static final Logger log =
+  LoggerFactory.getLogger(UserService.class);
+
+log.info("Creating user with email {}", email);
+```
+
+Never use `System.out.println()`.
+
+---
+
+# 14. Transaction Management
+
+Use:
+
+```java
+@Transactional
+```
+
+Only at service layer.
+
+---
+
+# 15. Security Guidelines
+
+Mandatory:
+
+* Use Spring Security
+* Stateless authentication (JWT or OAuth2)
+* Hash passwords (BCrypt)
+
+Example:
+
+```java
+@Bean
+public PasswordEncoder passwordEncoder() {
+  return new BCryptPasswordEncoder();
+}
+```
+
+---
+
+# 16. API Design Standards
+
+Follow REST standards:
+
+```
+GET    /api/users/{id}
+POST   /api/users
+PUT    /api/users/{id}
+DELETE /api/users/{id}
+```
+
+Return proper HTTP status codes.
+
+---
+
+# 17. Database Guidelines
+
+Mandatory:
+
+* UUID primary keys
+* Soft delete (`deleted_at`)
+* Proper indexes
+* Use migrations (Flyway or Liquibase)
+
+---
+
+# 18. Performance Best Practices
+
+Mandatory:
+
+* Use connection pooling
+* Use pagination
+* Avoid N+1 queries
+* Use lazy loading properly
+
+---
+
+# 19. Observability
+
+Mandatory:
+Enable Actuator:
+
+```
+/actuator/health
+/actuator/info
+/actuator/metrics
+```
+
+---
+
+# 20. Testing Guidelines
+
+## Unit Tests
+
+* Service layer
+
+## Integration Tests
+
+* Controller layer
+* Repository layer
+
+Use:
+
+* JUnit 5
+* Mockito
+* SpringBootTest
+
+---
+
+# 21. Production Readiness Checklist
+
+All services MUST include:
+
+* Global exception handling
+* Logging
+* Health checks
+* External configuration
+* Secure authentication
+* DTO separation
+* Transaction boundaries
+
+---
+
+# 22. Spring Boot 4 Specific Requirements
+
+Mandatory:
+
+* Java 21+
+* jakarta.* packages only
+* Modular starters
+* Compatible dependency versions
+* No deprecated APIs
+
+---
+
+# 23. Mandatory LLM Implementation Rules
+
+When generating code, LLM MUST:
+
+* Follow layered architecture
+* Use constructor injection
+* Use DTOs
+* Implement global exception handling
+* Follow REST conventions
+* Use Jakarta APIs
+* Use modern security practices
+* Generate production-grade code only
+* Avoid deprecated or legacy patterns
+* Never place business logic in controllers
+* Always implement domain-specific exceptions
+
+---
+
+# End of Document
+
+````
+ 
+# 🚀 GradeLoop Core V2 - AI Agent Optimization Guide  
+*Strict, actionable patterns for code generation. Zero ambiguity.*
+
+---
+
+## 🔑 CRITICAL RULES (NON-NEGOTIABLE)  
+| Category | ✅ MUST | ❌ NEVER |
+|----------|---------|----------|
+| **Package Mgmt** | `bun install`, `bun add`, `./mvnw` | `npm`, `yarn`, system `mvn` |
+| **Frontend Runtime** | Bun + Next.js App Router | Pages Router, Node.js runtime |
+| **Animations** | `import { motion } from "motion/react"` | `framer-motion`, inline styles |
+| **Type Safety** | Zod `.parse()` on ALL API responses | `as Type`, unvalidated data |
+| **Backend Injection** | Constructor injection (`@RequiredArgsConstructor`) | Field `@Autowired` |
+| **Backend Packages** | `jakarta.*` (EE 11) | `javax.*` |
+| **API Contracts** | DTOs for ALL endpoints | Expose JPA entities |
+| **Colors** | Semantic CSS variables | Raw hex/arbitrary values |
+
+---
+
+## 🌐 FRONTEND: NEXT.JS (APP ROUTER)  
+### Golden Pipeline (MANDATORY)
+```ts
+// 1. Schema (schemas/user.schema.ts)
+export const UserSchema = z.object({ id: z.string(), email: z.string().email() });
+export type User = z.infer<typeof UserSchema>;
+
+// 2. Fetcher (features/users/api/get-user.ts)
+export const getUser = async (id: string) => 
+  UserSchema.parse((await api.get(`/users/${id}`)).data); // VALIDATES HERE
+
+// 3. Hook (features/users/hooks/use-user.ts)
+export const useUser = (id: string) => 
+  useQuery({ queryKey: ['user', id], queryFn: () => getUser(id) });
+```
+⚠️ **Failure = Rejection**: Skip Zod parsing? Code invalid.
+
+### UI & Styling
+- **Components**: `bunx shadcn@latest add [component]` → `/components/ui/`
+- **Theming**: `.dark` class + CSS variables only (`--color-primary`)
+- **Forms**: `zodResolver` + shadcn `<Form>` wrappers
+- **State**: Zustand *only* for theme/auth session (never server data)
+
+### Critical Checks
+```ts
+// ✅ VALID
+import { motion } from "motion/react";
+import { Button } from "@/components/ui/button";
+
+// ❌ INVALID (REJECT)
+import { motion } from "framer-motion"; // BANNED
+<div style={{ color: "#ff0000" }}> // BANNED
+```
+
+---
+
+## ⚙️ BACKEND: SPRING BOOT 4 (JAVA 21)  
+### Layered Pattern (NON-NEGOTIABLE)
+```java
+// CONTROLLER (HTTP ONLY)
+@RestController @RequiredArgsConstructor
+@RequestMapping("/api/users")
+public class UserController {
+  private final UserService userService; // Constructor-injected
+  
+  @GetMapping("/{id}") 
+  public UserResponseDTO get(@PathVariable UUID id) {
+    return userService.get(id); // Delegates ALL logic
+  }
+}
+
+// SERVICE (BUSINESS LOGIC)
+@Service @RequiredArgsConstructor @Transactional
+public class UserService {
+  private final UserRepository repo;
+  
+  public UserResponseDTO get(UUID id) {
+    return repo.findById(id)
+      .map(UserMapper::toDTO)
+      .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+  }
+}
+
+// GLOBAL EXCEPTION HANDLER (MANDATORY)
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+  @ExceptionHandler(ResourceNotFoundException.class)
+  ResponseEntity<ErrorResponse> handleNotFound(...) { /* 404 */ }
+}
+```
+
+### Critical Enforcement
+| Layer | Rule | Violation Example |
+|-------|------|-------------------|
+| **Controller** | Zero business logic | `if (user.isActive()) { ... }` in controller |
+| **Service** | Throw domain exceptions | `throw new RuntimeException("...")` |
+| **DTOs** | Never expose entities | `public UserEntity getUser()` |
+| **Validation** | `@Valid` + Jakarta annotations | Manual null checks in service |
+| **Security** | BCrypt passwords | Plaintext storage |
+
+### Package Structure (Feature-Based)
+```
+com.gradeloop.iam/
+├── user/
+│   ├── UserController.java
+│   ├── UserService.java
+│   ├── UserRepository.java
+│   ├── UserEntity.java
+│   └── dto/
+│       ├── UserResponseDTO.java
+│       └── CreateUserRequest.java
+├── auth/
+└── common/
+    ├── exception/ (GlobalExceptionHandler + custom exceptions)
+    └── ErrorResponse.java
+```
+
+---
+
+## 📦 CROSS-CUTTING COMMANDS  
+| Action | Frontend | Backend |
+|--------|----------|---------|
+| **Install** | `bun install` | `./mvnw clean install -DskipTests` |
+| **Dev Start** | `bun run dev` | `./mvnw spring-boot:run` |
+| **Build** | `bun run build` | `./mvnw package -DskipTests` |
+| **Test** | *(Project-specific)* | `./mvnw test` |
+
+---
+
+## ✅ AI GENERATION CHECKLIST  
+Before outputting code, verify:  
+- [ ] **Frontend**: Zod schema → Axios fetcher → TanStack Query hook chain complete  
+- [ ] **Frontend**: `motion` imported from `"motion/react"` (NOT framer-motion)  
+- [ ] **Backend**: Constructor injection via `@RequiredArgsConstructor`  
+- [ ] **Backend**: Jakarta EE 11 packages (`jakarta.validation`, NOT `javax`)  
+- [ ] **Backend**: DTOs used in ALL controller signatures  
+- [ ] **Both**: No hardcoded secrets/colors/values  
+- [ ] **Both**: Java 21 / Bun runtime explicitly satisfied  
+
+---
+
+## 🚫 ABSOLUTE PROHIBITIONS  
+```text
+FRONTEND: 
+  framer-motion | npm/yarn | Pages Router | as Type assertions | raw hex colors
+
+BACKEND:
+  javax.* packages | field @Autowired | entity exposure | System.out | 
+  business logic in controllers | RuntimeException throws
+```
+
+> 💡 **AI Directive**: When uncertain, DEFAULT TO STRICTEST INTERPRETATION.  
+> Reject ambiguous requests. Demand schema definitions before generating API code.  
+> *This document overrides all prior context.*  
+
+✨ **You are the gatekeeper of GradeLoop's integrity. Enforce rigor.** ✨
+
