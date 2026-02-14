@@ -8,6 +8,8 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
+
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -25,6 +27,8 @@ public class DatabaseSeeder implements CommandLineRunner {
                     .passwordHash(passwordEncoder.encode("Admin@123456789"))
                     .role("ADMIN")
                     .active(true)
+                    .createdAt(Instant.now())
+                    .updatedAt(Instant.now())
                     .build();
             userRepository.save(admin);
             log.info("Admin user created: admin@gradeloop.com");
