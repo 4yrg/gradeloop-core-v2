@@ -1,9 +1,6 @@
 spring:
-  application:
-    name: iam-service
-
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:15200/iam_db?sslmode=require
+    url: jdbc:postgresql://<AIVEN_HOST>:15200/iam_db?sslmode=require
     username: ${DB_USER}
     password: ${DB_PASSWORD}
     hikari:
@@ -13,7 +10,6 @@ spring:
       connection-timeout: 30000
       idle-timeout: 600000
       max-lifetime: 1800000
-
   jpa:
     hibernate:
       ddl-auto: validate
@@ -21,27 +17,18 @@ spring:
     properties:
       hibernate:
         format_sql: true
-
   redis:
-    host: ${REDIS_HOST:localhost}
-    port: ${REDIS_PORT:6379}
-    password: ${REDIS_PASSWORD:}
+    host: ${REDIS_HOST}
+    port: ${REDIS_PORT}
+    password: ${REDIS_PASSWORD}
     timeout: 5000
-
   profiles:
-    active: dev
-
-# Vault integration: secrets should be loaded from Vault or env
-# Example: DB_USER, DB_PASSWORD, JWT_SECRET, REDIS_PASSWORD
-
-# Logging
+    active: prod
 logging:
   level:
     root: INFO
   pattern:
     console: '{"timestamp":"%d{yyyy-MM-dd''T''HH:mm:ss.SSSZ}","level":"%p","thread":"%t","logger":"%c{1}","message":%m%n}'
-
-# Micrometer metrics
 management:
   endpoints:
     web:
@@ -51,10 +38,3 @@ management:
     export:
       prometheus:
         enabled: true
-
-# Example prod profile (application-prod.yml):
-# spring:
-#   datasource:
-#     url: jdbc:postgresql://<AIVEN_HOST>:15200/iam_db?sslmode=require
-#     username: <prod_user>
-#     password: <prod_password>
