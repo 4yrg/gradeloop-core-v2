@@ -37,14 +37,16 @@ type User struct {
 
 // RefreshToken stores refresh tokens for user sessions
 type RefreshToken struct {
-	ID        uuid.UUID `gorm:"column:id;type:uuid;primaryKey" json:"id"`
-	UserID    uuid.UUID `gorm:"column:user_id;type:uuid;not null" json:"user_id"`
-	Token     string    `gorm:"column:token;not null" json:"-"` // Don't expose token in JSON
-	Expiry    time.Time `gorm:"column:expires_at;not null" json:"expires_at"`
-	IsActive  bool      `gorm:"column:is_active;default:true" json:"is_active"`
-	IsUsed    bool      `gorm:"column:is_used;default:false" json:"is_used"` // For replay attack detection
-	CreatedAt time.Time `gorm:"column:created_at" json:"created_at"`
-	UpdatedAt time.Time `gorm:"column:updated_at" json:"updated_at"`
+	ID         uuid.UUID  `gorm:"column:id;type:uuid;primaryKey" json:"id"`
+	UserID     uuid.UUID  `gorm:"column:user_id;type:uuid;not null;index" json:"user_id"`
+	TokenHash  string     `gorm:"column:token_hash;not null;uniqueIndex" json:"-"` // Hashed token for lookup
+	Expiry     time.Time  `gorm:"column:expires_at;not null;index" json:"expires_at"`
+	RevokedAt  *time.Time `gorm:"column:revoked_at;index" json:"revoked_at,omitempty"`
+	IsActive   bool       `gorm:"column:is_active;default:true;index" json:"is_active"`
+	IsUsed     bool       `gorm:"column:is_used;default:false" json:"is_used"` // For replay attack detection
+	CreatedAt  time.Time  `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt  time.Time  `gorm:"column:updated_at" json:"updated_at"`
+	LastUsedAt *time.Time `gorm:"column:last_used_at" json:"last_used_at,omitempty"`
 }
 
 func (u *User) BeforeCreate(tx *gorm.DB) (err error) {

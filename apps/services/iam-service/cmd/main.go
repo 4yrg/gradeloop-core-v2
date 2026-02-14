@@ -93,11 +93,11 @@ func main() {
 		l.Error("failed to migrate database", "error", err)
 		os.Exit(1)
 	}
-	// Skip RefreshToken migration for now due to schema conflicts
-	// if err := db.AutoMigrate(&models.RefreshToken{}); err != nil {
-	// 	l.Error("failed to migrate refresh tokens", "error", err)
-	// 	os.Exit(1)
-	// }
+	// Enable RefreshToken migration now that we have proper migrations
+	if err := db.AutoMigrate(&models.RefreshToken{}); err != nil {
+		l.Error("failed to migrate refresh tokens", "error", err)
+		os.Exit(1)
+	}
 
 	l.Info("Auto-migrations completed. Seeding initial data...")
 

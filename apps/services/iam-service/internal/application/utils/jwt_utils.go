@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"time"
 
@@ -99,3 +101,8 @@ func ValidateAccessToken(tokenStr string, secret string) (*AccessTokenClaims, er
 	return nil, errors.New("invalid token claims")
 }
 
+// HashToken takes a token string and returns its SHA-256 hash as a hex string
+func HashToken(token string) string {
+	h := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(h[:])
+}

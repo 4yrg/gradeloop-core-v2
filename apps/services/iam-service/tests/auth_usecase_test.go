@@ -22,7 +22,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("failed to open in-memory db: %v", err)
 	}
-	if err := db.AutoMigrate(&models.User{}, &models.PasswordResetToken{}, &models.Role{}, &models.Permission{}, &models.AuditLog{}); err != nil {
+	if err := db.AutoMigrate(&models.User{}, &models.RefreshToken{}, &models.PasswordResetToken{}, &models.Role{}, &models.Permission{}, &models.AuditLog{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	return db
@@ -51,8 +51,8 @@ func TestLoginAndResetFlow(t *testing.T) {
 	auth := usecases.NewAuthUsecase(userRepo, prRepo, notifier, "test-secret", 15*time.Minute, nil)
 
 	// Successful login
-	token, user, err := auth.Login(context.Background(), "test@example.com", pwd)
-	if err != nil || token == "" || user == nil {
+	accessToken, _, user, err := auth.Login(context.Background(), "test@example.com", pwd)
+	if err != nil || accessToken == "" || user == nil {
 		t.Fatalf("login failed: %v", err)
 	}
 
