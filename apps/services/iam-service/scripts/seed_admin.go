@@ -97,7 +97,19 @@ func getEnvOrDefault(key, defaultValue string) string {
 func initializeDatabase(ctx context.Context, logger *slog.Logger) (*gorm.DB, error) {
 	logger.Info("Initializing secrets client...")
 
-	// Initialize Secrets Client (Vault)
+	// Check if DATABASE_URL is set in environment (for Aiven)
+	if dbURL := os.Getenv("DATABASE_URL"); dbURL != "" {
+		logger.Info("Using DATABASE_URL from environment", "url", dbURL)
+		db, err := gorm.Open(postgres.Open(dbURL), &gorm.Config{
+			DisableForeignKeyConstraintWhenMigrating: false,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to connect to database: %w", err)
+		}
+		return db, nil
+	}
+
+	// Initialize Secrets Client (Vault) - fallback for local development
 	secretsClient, err := secrets.NewClient(nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize secrets client: %w", err)
@@ -137,26 +149,13 @@ func initializeDatabase(ctx context.Context, logger *slog.Logger) (*gorm.DB, err
 }
 
 func runMigrations(db *gorm.DB, logger *slog.Logger) error {
-	logger.Info("Running database migrations...")
+	logger.Info("Skipping auto-migrations (tables already created via SQL scripts)")
 
 	// Pre-migration cleanup for dev environments
 	db.Exec("DELETE FROM permissions WHERE name = '' OR name IS NULL")
 	db.Exec("DELETE FROM roles WHERE role_name = '' OR role_name IS NULL")
 
-	// Auto Migration
-	err := db.AutoMigrate(
-		&models.User{},
-		&models.Student{},
-		&models.Employee{},
-		&models.Role{},
-		&models.Permission{},
-		&models.AuditLog{},
-	)
-	if err != nil {
-		return fmt.Errorf("failed to migrate database: %w", err)
-	}
-
-	logger.Info("Database migrations completed successfully")
+	logger.Info("Database setup completed successfully")
 	return nil
 }
 

@@ -10,9 +10,9 @@ const IAM_SERVICE_URL =
 const API_BASE = IAM_SERVICE_URL;
 
 async function proxy(req: Request, path: string) {
-  // Remove the "v1/" prefix from the path since API_BASE already includes /v1
-  const cleanPath = path.startsWith("v1/") ? path.slice(3) : path;
-  const url = `${API_BASE}/${cleanPath}`.replace(/([^:]:)\/\//g, "$1/");
+  // Forward the path as-is to the IAM service, adding /api prefix
+  const cleanPath = path;
+  const url = `${API_BASE}/api/${cleanPath}`;
   
   console.log("[PROXY] Incoming path:", path);
   console.log("[PROXY] Clean path:", cleanPath);
@@ -31,13 +31,15 @@ async function proxy(req: Request, path: string) {
   const cookie = req.headers.get("cookie");
   if (cookie) outHeaders["cookie"] = cookie;
 
-  const init: RequestInit = {
+  const init = {
     method: req.method,
     headers: outHeaders,
     // Forward body if present
     body: req.method === "GET" || req.method === "HEAD" ? undefined : req.body,
     redirect: "manual",
-  };
+    // Required when sending a body with fetch
+    duplex: req.method !== "GET" && req.method !== "HEAD" ? "half" : undefined,
+  } as RequestInit & { duplex?: string };
 
   console.log("[PROXY] Making request to:", url);
   console.log("[PROXY] Request method:", req.method);

@@ -78,6 +78,35 @@ func (m *MockUserRepository) RestoreUser(id uuid.UUID) error {
 	return args.Error(0)
 }
 
+// Refresh token methods
+func (m *MockUserRepository) StoreRefreshToken(ctx context.Context, token *models.RefreshToken) error {
+	args := m.Called(ctx, token)
+	return args.Error(0)
+}
+
+func (m *MockUserRepository) GetRefreshToken(token string) (*models.RefreshToken, error) {
+	args := m.Called(token)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.RefreshToken), args.Error(1)
+}
+
+func (m *MockUserRepository) InvalidateRefreshToken(token string) error {
+	args := m.Called(token)
+	return args.Error(0)
+}
+
+func (m *MockUserRepository) MarkRefreshTokenAsUsed(token string) error {
+	args := m.Called(token)
+	return args.Error(0)
+}
+
+func (m *MockUserRepository) RevokeAllUserRefreshTokens(ctx context.Context, userID uuid.UUID) error {
+	args := m.Called(ctx, userID)
+	return args.Error(0)
+}
+
 // MockRoleRepository is a mock implementation of ports.RoleRepository
 type MockRoleRepository struct {
 	mock.Mock

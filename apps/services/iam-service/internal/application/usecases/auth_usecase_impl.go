@@ -18,12 +18,12 @@ import (
 )
 
 type authUsecase struct {
-	userRepo         ports.UserRepository
+	userRepo          ports.UserRepository
 	passwordResetRepo ports.PasswordResetRepository
-	notificationPort ports.NotificationPort
-	jwtSecret        string
-	jwtExpiry        time.Duration
-	auditRepo        ports.AuditRepository
+	notificationPort  ports.NotificationPort
+	jwtSecret         string
+	jwtExpiry         time.Duration
+	auditRepo         ports.AuditRepository
 }
 
 func NewAuthUsecase(
@@ -35,12 +35,12 @@ func NewAuthUsecase(
 	auditRepo ports.AuditRepository,
 ) AuthUsecase {
 	return &authUsecase{
-		userRepo:         userRepo,
+		userRepo:          userRepo,
 		passwordResetRepo: passwordResetRepo,
 		notificationPort:  notificationPort,
-		jwtSecret:        jwtSecret,
-		jwtExpiry:        jwtExpiry,
-		auditRepo:        auditRepo,
+		jwtSecret:         jwtSecret,
+		jwtExpiry:         jwtExpiry,
+		auditRepo:         auditRepo,
 	}
 }
 
@@ -100,12 +100,12 @@ func (a *authUsecase) Login(ctx context.Context, email, password string) (string
 
 	// Store refresh token in database with user association
 	refreshTokenRecord := &models.RefreshToken{
-		ID:       uuid.New(),
-		UserID:   user.ID,
-		Token:    refreshToken,
-		Expiry:   time.Now().Add(30 * 24 * time.Hour), // 30 days
-		IsActive: true,
-		IsUsed:   false,
+		ID:        uuid.New(), // Use user ID as session ID for now
+		UserID:    user.ID,
+		TokenHash: utils.HashToken(refreshToken),       // Hash the token before storing
+		Expiry:    time.Now().Add(30 * 24 * time.Hour), // 30 days
+		IsActive:  true,
+		IsUsed:    false,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -195,12 +195,12 @@ func (a *authUsecase) Refresh(ctx context.Context, refreshToken string) (string,
 
 	// Store new refresh token and invalidate old one
 	newTokenRecord := &models.RefreshToken{
-		ID:       uuid.New(),
-		UserID:   user.ID,
-		Token:    newRefreshToken,
-		Expiry:   time.Now().Add(30 * 24 * time.Hour), // 30 days
-		IsActive: true,
-		IsUsed:   false,
+		ID:        uuid.New(),
+		UserID:    user.ID,
+		TokenHash: utils.HashToken(newRefreshToken),
+		Expiry:    time.Now().Add(30 * 24 * time.Hour), // 30 days
+		IsActive:  true,
+		IsUsed:    false,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -339,7 +339,7 @@ func (a *authUsecase) ForgotPassword(ctx context.Context, email string) error {
 	rawHex := hex.EncodeToString(raw)
 	h := sha256.Sum256([]byte(rawHex))
 	hashHex := hex.EncodeToString(h[:])
-	
+
 	resetToken := &models.PasswordResetToken{
 		UserID:    user.ID,
 		TokenHash: hashHex,
