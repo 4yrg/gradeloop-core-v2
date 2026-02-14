@@ -16,7 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
-import { apiClient } from "@/lib/api";
+import { useAuthActions } from "../hooks/use-auth-actions";
 import { useAuth } from "@/store/auth.store";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -25,6 +25,7 @@ function LoginFormComponent() {
   const [showPassword, setShowPassword] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
   const { login } = useAuth();
+  const { login: loginAction, isLoggingIn } = useAuthActions();
   const router = useRouter();
 
   const form = useForm({
@@ -56,45 +57,32 @@ function LoginFormComponent() {
     
     try {
       console.log("[LOGIN] Attempting login with email:", email);
-      // Call the login API
-      const result = await apiClient.login({
+      
+      // Use the auth hook for login
+      const result = await loginAction({
         email,
         password
       });
       
-      // Update auth state
-      login(
-        result.user,
-        {
-          id: result.session_id,
-          user_id: result.user.id,
-          device_name: "Web Browser",
-          is_active: true,
-          last_activity: new Date().toISOString(),
-          expires_at: new Date(Date.now() + (result.expires_in * 1000)).toISOString(),
-          created_at: new Date().toISOString()
-        },
-        Date.now() + (result.expires_in * 1000),
-        result.session_id
-      );
+      // The hook handles auth state updates and redirects
+      // Success message and redirect are handled in the hook
       
-      toast.success("Login successful!");
-      
-      // Redirect to dashboard
-      router.push("/");
     } catch (error: any) {
       console.error("Login error:", error);
       
       // Extract error message
       let errorMessage = "Login failed. Please try again.";
-      if (error.response?.data?.error) {
+      if (error?.response?.data?.error) {
         errorMessage = error.response.data.error;
-      } else if (error.message) {
+      } else if (error?.message) {
         errorMessage = error.message;
       }
       
-      toast.error(errorMessage);
-      form.setError("root", { message: errorMessage });
+      // Set form error for display
+      form.setError("email", { message: errorMessage });
+      form.setError("password", { message: " " }); // Empty space to trigger error display
+      
+      // Toast is handled by the hook
     } finally {
       setIsLoading(false);
     }
@@ -206,9 +194,9 @@ function LoginFormComponent() {
           <Button
             type="submit"
             className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-semibold rounded-lg shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
-            disabled={isLoading}
+            disabled={isLoading || isLoggingIn}
           >
-            {isLoading ? (
+            {(isLoading || isLoggingIn) ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Signing In...

@@ -20,6 +20,8 @@ import {
   type ForgotPasswordValues,
 } from "../schemas/auth.schema";
 import { cn } from "@/lib/utils";
+import { apiClient } from "@/lib/api";
+import { toast } from "sonner";
 
 function ForgotPasswordFormComponent() {
   const [isLoading, setIsLoading] = React.useState(false);
@@ -35,17 +37,18 @@ function ForgotPasswordFormComponent() {
   async function onSubmit(data: ForgotPasswordValues) {
     setIsLoading(true);
     try {
-      const base = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3000";
-      await fetch(`${base}/api/v1/auth/forgot-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: data.email }),
-      });
+      // Use the API client through the auth hook
+      await apiClient.forgotPassword({ email: data.email });
+      
       // Always show neutral message to avoid user enumeration
       setIsSubmitted(true);
-    } catch (err) {
-      // Network error -> still show neutral message to avoid revealing existence
+      toast.success("If an account exists with that email, you'll receive password reset instructions.");
+    } catch (err: any) {
+      console.error("Forgot password error:", err);
+      
+      // Still show success message for security (don't reveal if email exists)
       setIsSubmitted(true);
+      toast.success("If an account exists with that email, you'll receive password reset instructions.");
     } finally {
       setIsLoading(false);
     }

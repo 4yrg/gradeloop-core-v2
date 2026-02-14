@@ -62,19 +62,22 @@ export const useLogin = () => {
       // Handle specific error cases
       let errorMessage = "Login failed";
 
-      if (error.status === 401) {
+      if (error?.status === 401) {
         errorMessage = "Invalid email or password";
-      } else if (error.status === 429) {
+      } else if (error?.status === 429) {
         errorMessage = "Too many login attempts. Please try again later.";
-      } else if (error.status === 403) {
+      } else if (error?.status === 403) {
         errorMessage = "Account is locked or inactive";
-      } else if (error.message) {
+      } else if (error?.message) {
         errorMessage = error.message;
       }
 
       toast.error("Login Failed", {
         description: errorMessage,
       });
+
+      // Re-throw error so form can handle it
+      throw error;
     },
   });
 };
@@ -171,6 +174,9 @@ export const useForgotPassword = () => {
       toast.success("Reset Email Sent", {
         description: "If the email exists, you'll receive reset instructions",
       });
+      
+      // Still throw error for form handling
+      throw error;
     },
   });
 };
@@ -197,17 +203,20 @@ export const useResetPassword = () => {
 
       let errorMessage = "Failed to reset password";
 
-      if (error.status === 400) {
+      if (error?.status === 400) {
         errorMessage = "Invalid or expired reset token";
-      } else if (error.status === 422) {
+      } else if (error?.status === 422) {
         errorMessage = "Password does not meet requirements";
-      } else if (error.message) {
+      } else if (error?.message) {
         errorMessage = error.message;
       }
 
       toast.error("Password Reset Failed", {
         description: errorMessage,
       });
+      
+      // Throw error for form handling
+      throw error;
     },
   });
 };
@@ -226,8 +235,17 @@ export const useValidateSession = () => {
         authStore.logout();
       }
     },
-    onError: () => {
-      // Session validation failed, logout user
+    onError: (error: any) => {
+      console.error("Session validation error:", error);
+      
+      // Handle rate limiting specifically
+      if (error?.status === 429) {
+        // Rate limited - don't logout, just wait
+        console.warn("Session validation rate limited, will retry");
+        return;
+      }
+      
+      // For other errors, logout user
       authStore.logout();
     },
   });
@@ -267,15 +285,15 @@ export const useAuthActions = () => {
 
   return {
     // Login/Logout
-    login: login.mutate,
+    login: login.mutateAsync,
     logout: logout.mutate,
     isLoggingIn: login.isPending,
     isLoggingOut: logout.isPending,
 
     // Password management
     changePassword: changePassword.mutate,
-    forgotPassword: forgotPassword.mutate,
-    resetPassword: resetPassword.mutate,
+    forgotPassword: forgotPassword.mutateAsync,
+    resetPassword: resetPassword.mutateAsync,
     isChangingPassword: changePassword.isPending,
     isSendingResetEmail: forgotPassword.isPending,
     isResettingPassword: resetPassword.isPending,

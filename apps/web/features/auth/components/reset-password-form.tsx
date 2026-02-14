@@ -22,6 +22,8 @@ import {
 import { PasswordStrengthIndicator } from "./password-strength-indicator";
 import { useSearchParams, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { apiClient } from "@/lib/api";
+import { toast } from "sonner";
 
 function ResetPasswordFormComponent() {
   const [errorMsg, setErrorMsg] = React.useState("");
@@ -71,23 +73,30 @@ function ResetPasswordFormComponent() {
     setErrorMsg("");
     try {
       const token = search.get("token") || "";
-      const base = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3000";
-      const res = await fetch(`${base}/api/v1/auth/reset-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, new_password: data.password }),
+      
+      // Use the API client through the auth hook
+      await apiClient.resetPassword({
+        token,
+        password: data.password
       });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        setErrorMsg((j && (j.error || j.message)) || "Failed to reset password");
-        setIsLoading(false);
-        return;
-      }
+      
       setIsSubmitted(true);
-      // optionally redirect to login after short delay
-      setTimeout(() => router.push("/login"), 1200);
-    } catch (err) {
-      setErrorMsg("Network error, please try again");
+      toast.success("Password reset successfully!");
+      
+      // Optionally redirect to login after short delay
+      setTimeout(() => router.push("/login"), 1500);
+    } catch (err: any) {
+      console.error("Reset password error:", err);
+      
+      let errorMessage = "Failed to reset password. Please try again.";
+      if (err?.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
+      
+      setErrorMsg(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }

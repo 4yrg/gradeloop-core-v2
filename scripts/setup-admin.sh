@@ -218,19 +218,44 @@ seed_iam_database() {
     export VAULT_ADDR
     export VAULT_TOKEN
 
-    # Run seeding script in IAM service container
-    if docker exec gradeloop-iam-service-dev test -f /app/scripts/seed_admin.go; then
-        print_info "Running IAM service seeding..."
-        docker exec -e SEED_ADMIN_EMAIL -e SEED_ADMIN_PASSWORD -e SEED_ADMIN_NAME -e SEED_FORCE -e VAULT_ADDR -e VAULT_TOKEN \
-            gradeloop-iam-service-dev go run scripts/seed_admin.go
-        print_success "IAM database seeded successfully"
+    # Run the new seeding script
+    print_info "Running super admin seeding script..."
+        
+    # Get database URL from environment or Vault
+    local db_url=""
+        
+    # Try to get from environment first
+    if [[ -n "${DATABASE_URL:-}" ]]; then
+        db_url="$DATABASE_URL"
     else
-        print_warning "IAM seeding script not found in container, trying manual approach..."
-
-        # Alternative: seed via API call
-        print_info "Attempting to create admin user via API..."
-        # This would require the IAM service to have a bootstrap endpoint
-        print_warning "Manual API seeding not implemented yet - please run seeding manually"
+        # Try to get from Vault
+        if command -v vault >/dev/null 2>&1; then
+            db_url=$(vault kv get -field=database_url secret/services/iam 2>/dev/null || echo "")
+        fi
+            
+        # Fallback: do NOT hardcode credentials in the repo. Require explicit DATABASE_URL.
+        if [[ -z "$db_url" ]]; then
+            print_warning "No DATABASE_URL found in environment or Vault."
+            print_warning "Set the DATABASE_URL environment variable with your DB connection string before running this script."
+            db_url=""
+        fi
+    fi
+        
+    # Export database URL for the seeding script
+    export DATABASE_URL="$db_url"
+        
+    # Run the seeding script from project root
+    cd "$ROOT_DIR"
+    if [[ -f "scripts/seed-super-admin.sh" ]]; then
+        ./scripts/seed-super-admin.sh \
+            --email "$ADMIN_EMAIL" \
+            --password "$ADMIN_PASSWORD" \
+            --name "$ADMIN_NAME" \
+            $( [[ "$FORCE_SETUP" == "true" ]] && echo "--force" )
+        print_success "Super admin seeded successfully"
+    else
+        print_error "Seeding script not found!"
+        return 1
     fi
 }
 
