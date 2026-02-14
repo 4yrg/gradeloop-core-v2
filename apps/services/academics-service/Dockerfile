@@ -30,7 +30,7 @@ WORKDIR /app/apps/services/academics-service
 RUN CGO_ENABLED=0 GOOS=linux go build -o academics-service ./cmd/main.go
 
 # Final stage
-FROM alpine:3.21
+FROM alpine:3.19
 
 # Create a non-root user and group for security
 RUN addgroup -S gradeloop && adduser -S gradeloop -G gradeloop

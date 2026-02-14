@@ -91,7 +91,7 @@ services:
       - "traefik.http.routers.iam-protected.entrypoints=web"
       - "traefik.http.routers.iam-protected.middlewares=iam-replacepath"
       - "traefik.http.middlewares.iam-replacepath.replacepathregex.regex=^/api/iam(.*)"
-      - "traefik.http.middlewares.iam-replacepath.replacepathregex.replacement=/api$$1"
+      - "traefik.http.middlewares.iam-replacepath.replacepathregex.replacement=/$1"
       - "traefik.http.middlewares.iam-jwt-auth.forwardauth.address=http://iam-service:8080/api/v1/auth/validate"
       - "traefik.http.middlewares.iam-jwt-auth.forwardauth.trustForwardHeader=true"
       - "traefik.http.middlewares.iam-jwt-auth.forwardauth.authResponseHeaders=X-User-Id,X-User-Roles,X-User-Permissions,X-User-Email,X-User-Name"
