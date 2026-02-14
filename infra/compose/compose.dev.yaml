@@ -45,119 +45,122 @@ services:
     networks:
       - gradeloop-network
 
-  # Email Notify Service
-  email-notify-service:
-    build:
-      context: ../../apps/services/email-notify-service
-      dockerfile: Dockerfile
-    container_name: gradeloop-email-service
-    hostname: email-notify-service
-    ports:
-      - "8083:8080"
+
+
+  # JWT Key Generator - Generates RSA keys for JWT signing
+  jwt-key-generator:
+    image: alpine:latest
+    container_name: gradeloop-jwt-keygen
+    volumes:
+      - ../../.env:/workspace/.env
+      - ../../scripts/generate-jwt-keys.sh:/workspace/generate-jwt-keys.sh
+    working_dir: /workspace
+    command: >
+      sh -c "
+        if [ -z \"$${JWT_PRIVATE_KEY_BASE64}\" ] || [ -z \"$${JWT_PUBLIC_KEY_BASE64}\" ]; then
+          echo 'JWT keys not found in .env, generating new keys...'
+          chmod +x generate-jwt-keys.sh
+          ./generate-jwt-keys.sh
+        else
+          echo 'JWT keys already exist in .env, skipping generation'
+        fi
+      "
+    environment:
+      - JWT_PRIVATE_KEY_BASE64
+      - JWT_PUBLIC_KEY_BASE64
     env_file:
       - ../../.env
-    environment:
-      SERVER_HOST: "0.0.0.0"
-      SERVER_PORT: "8080"
-      RABBITMQ_URL: "amqp://admin:admin123@rabbitmq:5672/gradeloop"
-      RABBITMQ_EXCHANGE: "gradeloop.events"
-      RABBITMQ_QUEUE: "email.notifications"
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
     networks:
       - gradeloop-network
-    develop:
-      watch:
-        - action: rebuild
-          path: ../../apps/services/email-notify-service
-    restart: unless-stopped
 
-  # IAM Service - Identity and Access Management
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: gradeloop-postgres-dev
+    environment:
+      POSTGRES_DB: iam_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gradeloop-network
+
+  # IAM Service - Identity and Access Management (Spring Boot 4)
   iam-service:
     build:
-      context: ../../
-      dockerfile: apps/services/iam-service/Dockerfile
+      context: ../../apps/services/iam-service
+      dockerfile: Dockerfile
     container_name: gradeloop-iam-service-dev
     ports:
       - "8080:8080"
     labels:
       - "traefik.enable=true"
       - "traefik.http.services.iam.loadbalancer.server.port=8080"
-      - "traefik.http.routers.iam-public.rule=PathPrefix(`/api/iam/v1/auth/login`) || PathPrefix(`/api/iam/v1/auth/refresh`) || PathPrefix(`/api/iam/v1/auth/activate`) || PathPrefix(`/api/iam/v1/auth/request-activation`) || PathPrefix(`/api/iam/v1/auth/validate`) || PathPrefix(`/api/iam/health`) || PathPrefix(`/api/iam/metrics`)"
+      # Public endpoints (no authentication required)
+      - "traefik.http.routers.iam-public.rule=PathPrefix(`/api/v1/auth`) || PathPrefix(`/health`) || PathPrefix(`/actuator`)"
       - "traefik.http.routers.iam-public.entrypoints=web"
-      - "traefik.http.routers.iam-public.middlewares=iam-replacepath"
-      - "traefik.http.routers.iam-protected.rule=PathPrefix(`/api/iam`) && !(PathPrefix(`/api/iam/v1/auth/login`) || PathPrefix(`/api/iam/v1/auth/refresh`) || PathPrefix(`/api/iam/v1/auth/activate`) || PathPrefix(`/api/iam/v1/auth/request-activation`) || PathPrefix(`/api/iam/v1/auth/validate`) || PathPrefix(`/api/iam/health`) || PathPrefix(`/api/iam/metrics`))"
+      - "traefik.http.routers.iam-public.service=iam"
+      # Protected endpoints (require authentication)
+      - "traefik.http.routers.iam-protected.rule=PathPrefix(`/api/v1`) && !PathPrefix(`/api/v1/auth`)"
       - "traefik.http.routers.iam-protected.entrypoints=web"
-      - "traefik.http.routers.iam-protected.middlewares=iam-replacepath"
-      - "traefik.http.middlewares.iam-replacepath.replacepathregex.regex=^/api/iam(.*)"
-      - "traefik.http.middlewares.iam-replacepath.replacepathregex.replacement=/$1"
-      - "traefik.http.middlewares.iam-jwt-auth.forwardauth.address=http://iam-service:8080/api/v1/auth/validate"
-      - "traefik.http.middlewares.iam-jwt-auth.forwardauth.trustForwardHeader=true"
-      - "traefik.http.middlewares.iam-jwt-auth.forwardauth.authResponseHeaders=X-User-Id,X-User-Roles,X-User-Permissions,X-User-Email,X-User-Name"
+      - "traefik.http.routers.iam-protected.service=iam"
+      - "traefik.http.routers.iam-protected.middlewares=iam-auth"
+      # Authentication middleware
+      - "traefik.http.middlewares.iam-auth.forwardauth.address=http://iam-service:8080/actuator/health"
+      - "traefik.http.middlewares.iam-auth.forwardauth.trustForwardHeader=true"
+      # Retry middleware for resilience
       - "traefik.http.middlewares.iam-retry.retry.attempts=3"
       - "traefik.http.middlewares.iam-retry.retry.initialInterval=100ms"
     env_file:
       - ../../.env
     environment:
-      DATABASE_URL: "${POSTGRES_URL_BASE}iam_db?sslmode=${POSTGRES_SSLMODE}"
+      # Database Configuration
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: iam_db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_SSLMODE: disable
+      # Server Configuration
+      SERVER_PORT: 8080
+      # JWT Configuration (RSA keys should be base64 encoded)
+      JWT_PRIVATE_KEY_BASE64: ${JWT_PRIVATE_KEY_BASE64:-}
+      JWT_PUBLIC_KEY_BASE64: ${JWT_PUBLIC_KEY_BASE64:-}
+      # Initial Admin Configuration
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@example.com}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-Admin@123}
+      # Logging
+      LOGGING_LEVEL_ROOT: INFO
+      LOGGING_LEVEL_COM_GRADELOOP_IAM_SERVICE: DEBUG
+    depends_on:
+      jwt-key-generator:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/iam/health"]
-      interval: 10s
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 15s
       timeout: 5s
-      retries: 15
-      start_period: 30s
+      retries: 5
+      start_period: 60s
     develop:
       watch:
         - action: rebuild
           path: ../../apps/services/iam-service
-        - action: rebuild
-          path: ../../shared/libs/go/secrets
-        - action: rebuild
-          path: ../../shared/libs/go/middleware
-        - action: rebuild
-          path: ../../shared/libs/go/logger
     networks:
       - gradeloop-network
+    restart: unless-stopped
 
-  # Academics Service - Academic Management
-  academics-service:
-    build:
-      context: ../../
-      dockerfile: apps/services/academics-service/Dockerfile
-    container_name: gradeloop-academics-service-dev
-    ports:
-      - "8081:8081"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.services.academics.loadbalancer.server.port=8081"
-      - "traefik.http.routers.academics.rule=PathPrefix(`/api/academics`)"
-      - "traefik.http.routers.academics.entrypoints=web"
-      - "traefik.http.routers.academics.middlewares=academics-jwt-auth,academics-replacepath"
-      - "traefik.http.middlewares.academics-replacepath.replacepathregex.regex=^/api/academics(.*)"
-      - "traefik.http.middlewares.academics-replacepath.replacepathregex.replacement=/api$$1"
-      - "traefik.http.middlewares.academics-jwt-auth.forwardauth.address=http://iam-service:8080/api/v1/auth/validate"
-      - "traefik.http.middlewares.academics-jwt-auth.forwardauth.trustForwardHeader=true"
-      - "traefik.http.middlewares.academics-jwt-auth.forwardauth.authResponseHeaders=X-User-Id,X-User-Roles,X-User-Permissions,X-User-Email,X-User-Name"
-    env_file:
-      - ../../.env
-    environment:
-      DATABASE_URL: "${POSTGRES_URL_BASE}academics_db?sslmode=${POSTGRES_SSLMODE}"
-    depends_on:
-      iam-service:
-        condition: service_healthy
-    develop:
-      watch:
-        - action: rebuild
-          path: ../../apps/services/academics-service
-        - action: rebuild
-          path: ../../shared/libs/go/secrets
-        - action: rebuild
-          path: ../../shared/libs/go/middleware
-        - action: rebuild
-          path: ../../shared/libs/go/logger
-    networks:
-      - gradeloop-network
+
 
 
 networks:
@@ -168,3 +171,5 @@ networks:
 volumes:
   rabbitmq-data:
     name: gradeloop-rabbitmq-data
+  postgres-data:
+    name: gradeloop-postgres-data

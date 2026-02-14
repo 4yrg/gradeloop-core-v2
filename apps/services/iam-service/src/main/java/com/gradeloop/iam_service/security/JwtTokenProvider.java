@@ -21,25 +21,25 @@ public class JwtTokenProvider {
     public String generateToken(String subject) {
         Instant now = Instant.now();
         return Jwts.builder()
-                .setSubject(subject)
-                .setIssuedAt(Date.from(now))
-                .setExpiration(Date.from(now.plusMillis(jwtExpirationMs)))
-                .signWith(secretKey, SignatureAlgorithm.HS256)
+                .subject(subject)
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(now.plusMillis(jwtExpirationMs)))
+                .signWith(secretKey)
                 .compact();
     }
 
     public String getSubject(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(secretKey)
+        return Jwts.parser()
+                .verifyWith(secretKey)
                 .build()
-                .parseClaimsJws(token)
-                .getBody()
+                .parseSignedClaims(token)
+                .getPayload()
                 .getSubject();
     }
 
     public boolean validateToken(String token) {
         try {
-            Jwts.parserBuilder().setSigningKey(secretKey).build().parseClaimsJws(token);
+            Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token);
             return true;
         } catch (JwtException | IllegalArgumentException e) {
             return false;

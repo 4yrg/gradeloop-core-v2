@@ -28,7 +28,7 @@ public class AuthController {
                             "refresh_token", refreshToken.getToken()
                     ));
                 })
-                .orElseGet(() -> ResponseEntity.status(401).body("Invalid credentials"));
+                .orElseGet(() -> ResponseEntity.status(401).body(Map.of("error", "Invalid credentials")));
     }
 
     // TODO: Implement /refresh, /activate, /forgot-password endpoints
