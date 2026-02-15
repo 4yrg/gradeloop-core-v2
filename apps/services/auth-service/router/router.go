@@ -1,9 +1,8 @@
 package router
 
 import (
-	"app/handler"
-	"app/middleware"
-
+	"github.com/4yrg/gradeloop-core-v2/apps/services/auth-service/handler"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/auth-service/middleware"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/logger"
 )
