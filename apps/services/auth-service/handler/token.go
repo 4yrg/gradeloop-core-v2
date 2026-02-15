@@ -2,13 +2,7 @@ package handler
 
 import (
 	"crypto/rand"
-	"crypto/rsa"
-	"crypto/sha256"
-	"crypto/x509"
 	"encoding/hex"
-	"encoding/pem"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/4yrg/gradeloop-core-v2/apps/services/auth-service/config"
@@ -17,6 +11,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // helper: generate cryptographically secure random token (hex)
@@ -29,56 +24,26 @@ func generateRandomToken(nBytes int) (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
-// helper: SHA256 hex hash of token (used for lookup/storage)
+// helper: bcrypt hash of token (used for storage). We use bcrypt so stored hashes must be
+// compared via bcrypt.CompareHashAndPassword when verifying incoming tokens.
 func hashToken(t string) string {
-	h := sha256.Sum256([]byte(t))
-	return hex.EncodeToString(h[:])
+	b, err := bcrypt.GenerateFromPassword([]byte(t), 12)
+	if err != nil {
+		// on error return empty string (caller should handle failure when persisting)
+		return ""
+	}
+	return string(b)
 }
 
 // createAccessToken issues a JWT access token valid for provided duration (minutes).
-// Supports RS256 when an RSA private key is available (preferred). Falls back to HS256 using SECRET.
+// Standardized on HS256 using SECRET.
 func createAccessToken(username string, userID uint, minutes int) (string, error) {
 	claims := jwt.MapClaims{}
 	claims["username"] = username
 	claims["user_id"] = userID
 	claims["exp"] = time.Now().Add(time.Duration(minutes) * time.Minute).Unix()
 
-	// Try to obtain RSA private key PEM from environment or mounted file.
-	// Priority:
-	// 1) RSA_PRIVATE_KEY (env containing full PEM)
-	// 2) RSA_PRIVATE_KEY_PATH (path to PEM file)
-	pkPEM := config.Config("RSA_PRIVATE_KEY")
-	if strings.TrimSpace(pkPEM) == "" {
-		if path := config.Config("RSA_PRIVATE_KEY_PATH"); strings.TrimSpace(path) != "" {
-			if b, err := os.ReadFile(path); err == nil {
-				pkPEM = string(b)
-			}
-		}
-	}
-
-	// If we have a PEM, attempt to parse and sign with RS256
-	if strings.TrimSpace(pkPEM) != "" {
-		block, _ := pem.Decode([]byte(pkPEM))
-		if block != nil {
-			// Try PKCS#1 first, then PKCS#8
-			var parsedKey interface{}
-			if rsaPriv, err := x509.ParsePKCS1PrivateKey(block.Bytes); err == nil {
-				parsedKey = rsaPriv
-			} else if pkcs8Key, err2 := x509.ParsePKCS8PrivateKey(block.Bytes); err2 == nil {
-				parsedKey = pkcs8Key
-			}
-
-			if parsedKey != nil {
-				if rsaKey, ok := parsedKey.(*rsa.PrivateKey); ok {
-					token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
-					return token.SignedString(rsaKey)
-				}
-			}
-		}
-		// If parsing failed, fall through to HS256 below
-	}
-
-	// Fallback to HS256 using SECRET
+	// Use HS256 with SECRET
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	secret := config.Config("SECRET")
 	return token.SignedString([]byte(secret))
@@ -107,10 +72,21 @@ func Refresh(c fiber.Ctx) error {
 	}
 
 	db := database.DB
-	hashed := hashToken(in.RefreshToken)
 
 	var stored model.RefreshToken
-	if err := db.Where(&model.RefreshToken{TokenHash: hashed}).First(&stored).Error; err != nil {
+	var candidates []model.RefreshToken
+	if err := db.Where("revoked = ? AND expires_at > ?", false, time.Now()).Find(&candidates).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": "internal error", "data": nil})
+	}
+	found := false
+	for _, rt := range candidates {
+		if bcrypt.CompareHashAndPassword([]byte(rt.TokenHash), []byte(in.RefreshToken)) == nil {
+			stored = rt
+			found = true
+			break
+		}
+	}
+	if !found {
 		// Do not leak which case; return unauthorized
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "error", "message": "invalid refresh token", "data": nil})
 	}
@@ -130,7 +106,11 @@ func Refresh(c fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": "couldn't generate token", "data": nil})
 	}
-	newHash := hashToken(newToken)
+	newHashBytes, herr := bcrypt.GenerateFromPassword([]byte(newToken), 12)
+	if herr != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": "couldn't hash token", "data": nil})
+	}
+	newHash := string(newHashBytes)
 	rtTTLdays := 30
 	expiresAt := time.Now().Add(time.Duration(rtTTLdays) * 24 * time.Hour)
 
@@ -226,9 +206,21 @@ func Logout(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "refresh token required", "data": nil})
 	}
 
-	hashed := hashToken(in.RefreshToken)
 	var rt model.RefreshToken
-	if err := db.Where(&model.RefreshToken{TokenHash: hashed}).First(&rt).Error; err != nil {
+	var candidates []model.RefreshToken
+	if err := db.Where("revoked = ? AND expires_at > ?", false, time.Now()).Find(&candidates).Error; err != nil {
+		// Even if not found, return success to avoid token probing
+		return c.JSON(fiber.Map{"status": "success", "message": "logged out", "data": nil})
+	}
+	found := false
+	for _, cand := range candidates {
+		if bcrypt.CompareHashAndPassword([]byte(cand.TokenHash), []byte(in.RefreshToken)) == nil {
+			rt = cand
+			found = true
+			break
+		}
+	}
+	if !found {
 		// Even if not found, return success to avoid token probing
 		return c.JSON(fiber.Map{"status": "success", "message": "logged out", "data": nil})
 	}
@@ -271,7 +263,11 @@ func ForgotPassword(c fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": "couldn't generate token", "data": nil})
 	}
-	hashed := hashToken(rawToken)
+	hashedBytes, herr := bcrypt.GenerateFromPassword([]byte(rawToken), 12)
+	if herr != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": "couldn't hash reset token", "data": nil})
+	}
+	hashed := string(hashedBytes)
 	prTTLMinutes := 15
 	pr := model.PasswordReset{
 		TokenHash:    hashed,
@@ -311,9 +307,20 @@ func ResetPassword(c fiber.Ctx) error {
 	}
 
 	db := database.DB
-	hashed := hashToken(in.Token)
+	var candidates []model.PasswordReset
+	if err := db.Where("used = ? AND expires_at > ?", false, time.Now()).Find(&candidates).Error; err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "invalid or expired token", "data": nil})
+	}
 	var pr model.PasswordReset
-	if err := db.Where(&model.PasswordReset{TokenHash: hashed}).First(&pr).Error; err != nil {
+	found := false
+	for _, p := range candidates {
+		if bcrypt.CompareHashAndPassword([]byte(p.TokenHash), []byte(in.Token)) == nil {
+			pr = p
+			found = true
+			break
+		}
+	}
+	if !found {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "invalid or expired token", "data": nil})
 	}
 

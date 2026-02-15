@@ -4,16 +4,13 @@ import (
 	"errors"
 	"log"
 	"net/mail"
-	"time"
 
-	"github.com/4yrg/gradeloop-core-v2/apps/services/auth-service/config"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/auth-service/database"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/auth-service/model"
 
 	"gorm.io/gorm"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -95,13 +92,7 @@ func Login(c fiber.Ctx) error {
 	}
 
 	// Create JWT access token
-	token := jwt.New(jwt.SigningMethodHS256)
-	claims := token.Claims.(jwt.MapClaims)
-	claims["email"] = userModel.Email
-	claims["user_id"] = userModel.ID
-	claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
-
-	t, err := token.SignedString([]byte(config.Config("SECRET")))
+	t, err := createAccessToken(userModel.Username, userModel.ID, 72*60) // 72 hours
 	if err != nil {
 		return c.SendStatus(fiber.StatusInternalServerError)
 	}
