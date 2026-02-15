@@ -77,6 +77,8 @@ services:
     hostname: auth-service
     ports:
       - "3000:3000"
+    env_file:
+      - ../../.env
     environment:
       - SERVER_HOST=0.0.0.0
       - SERVER_PORT=3000
@@ -85,8 +87,9 @@ services:
       - DB_NAME=${AUTH_SVC_DB_NAME:-auth_db}
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-postgres}
-    env_file:
-      - ../../.env
+      # Aiven support: if using Aiven, set POSTGRES_URL_BASE and POSTGRES_SSLMODE in ../../.env
+      - POSTGRES_URL_BASE=${POSTGRES_URL_BASE:-}
+      - POSTGRES_SSLMODE=${POSTGRES_SSLMODE:-}
     depends_on:
       postgres:
         condition: service_healthy
