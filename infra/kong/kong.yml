@@ -1,3 +1,18 @@
+# Kong declarative configuration (templated)
+# This file is now a template that expects the RS256 public key to be injected at startup.
+# Key generation:
+# - A companion `keygen` service (in your compose) should generate an RSA keypair on first run
+#   and write:
+#     infra/kong/keys/private.pem   (private key, used by auth-service)
+#     infra/kong/keys/public.pem    (public key, used by Kong)
+# - The `keygen` service should also render or replace the placeholder `{{RSA_PUBLIC_KEY}}`
+#   below with the contents of infra/kong/keys/public.pem (PEM body, base64-safe).
+# Example startup flow (compose):
+#   1) keygen generates keys and writes infra/kong/keys/*.pem
+#   2) keygen replaces {{RSA_PUBLIC_KEY}} in this file with the actual PEM body
+#   3) Kong starts and loads the rendered kong.yml
+#
+# NOTE: Do NOT commit private keys. Keep keys in a secure volume or use a secret manager for prod.
 _format_version: "2.1"
 
 # Kong declarative configuration (DB-less)
@@ -48,21 +63,18 @@ services:
 #    to IAM `/api/v1/auth/validate` and rejects unauthorized requests. This mirrors Traefik's ForwardAuth.
 
 plugins:
-  # Example: Attach OIDC/JWKS plugin to the api-service (preferred)
-  - name: oidc                # replace with the installed plugin name (e.g., kong-oidc)
+  # JWT plugin (RS256) attached to api-service.
+  # Kong will validate RS256-signed tokens using jwt_secrets (rsa_public_key) you define in the declarative config.
+  # Ensure a matching `jwt_secrets` entry exists with the `key` that will be referenced by tokens via the `kid` claim.
+  - name: jwt
     service: api-service
     enabled: true
     config:
-      # Replace with your IAM's issuer and JWKS URL
-      issuer: "http://iam-service"
-      jwks_uri: "http://iam-service:3000/.well-known/jwks.json"
-      client_id: "gradeloop-gateway"
-      # client_secret may not be necessary for bearer-only setups; include if required by plugin
-      client_secret: ""
-      discovery: false
-      bearer_only: true
-      # Optional: enforce audience and other claim checks if plugin supports it
-      # Example: accepted_audiences: ["gradeloop-api"]
+      # The claim containing the key id used to look up the rsa_public_key (kid -> jwt_secrets.key)
+      key_claim_name: kid
+      # Verify token expiry
+      claims_to_verify:
+        - exp
 
   # Example: Rate limiting on api-service (optional)
   - name: rate-limiting

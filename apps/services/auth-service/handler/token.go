@@ -2,8 +2,13 @@ package handler
 
 import (
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/hex"
+	"encoding/pem"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/4yrg/gradeloop-core-v2/apps/services/auth-service/config"
@@ -30,14 +35,53 @@ func hashToken(t string) string {
 	return hex.EncodeToString(h[:])
 }
 
-// createAccessToken issues a JWT access token valid for provided duration (minutes)
+// createAccessToken issues a JWT access token valid for provided duration (minutes).
+// Supports RS256 when an RSA private key is available (preferred). Falls back to HS256 using SECRET.
 func createAccessToken(username string, userID uint, minutes int) (string, error) {
-	token := jwt.New(jwt.SigningMethodHS256)
-	claims := token.Claims.(jwt.MapClaims)
+	claims := jwt.MapClaims{}
 	claims["username"] = username
 	claims["user_id"] = userID
 	claims["exp"] = time.Now().Add(time.Duration(minutes) * time.Minute).Unix()
-	return token.SignedString([]byte(config.Config("SECRET")))
+
+	// Try to obtain RSA private key PEM from environment or mounted file.
+	// Priority:
+	// 1) RSA_PRIVATE_KEY (env containing full PEM)
+	// 2) RSA_PRIVATE_KEY_PATH (path to PEM file)
+	pkPEM := config.Config("RSA_PRIVATE_KEY")
+	if strings.TrimSpace(pkPEM) == "" {
+		if path := config.Config("RSA_PRIVATE_KEY_PATH"); strings.TrimSpace(path) != "" {
+			if b, err := os.ReadFile(path); err == nil {
+				pkPEM = string(b)
+			}
+		}
+	}
+
+	// If we have a PEM, attempt to parse and sign with RS256
+	if strings.TrimSpace(pkPEM) != "" {
+		block, _ := pem.Decode([]byte(pkPEM))
+		if block != nil {
+			// Try PKCS#1 first, then PKCS#8
+			var parsedKey interface{}
+			if rsaPriv, err := x509.ParsePKCS1PrivateKey(block.Bytes); err == nil {
+				parsedKey = rsaPriv
+			} else if pkcs8Key, err2 := x509.ParsePKCS8PrivateKey(block.Bytes); err2 == nil {
+				parsedKey = pkcs8Key
+			}
+
+			if parsedKey != nil {
+				if rsaKey, ok := parsedKey.(*rsa.PrivateKey); ok {
+					token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+					return token.SignedString(rsaKey)
+				}
+			}
+		}
+		// If parsing failed, fall through to HS256 below
+	}
+
+	// Fallback to HS256 using SECRET
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	secret := config.Config("SECRET")
+	return token.SignedString([]byte(secret))
 }
 
 // Refresh handler - rotate refresh token and return new access + refresh tokens.

@@ -14,32 +14,55 @@
 # - If you prefer to pull an image instead of building locally, replace the auth-service `build:` block with `image: my-registry/auth-service:latest`
 
 services:
-  traefik:
-    image: "traefik:v3.0" # Traefik v3.0
-    container_name: traefik
-    restart: unless-stopped
-    command:
-      # Static configuration (CLI flags). Comments below explain each flag.
-      - --providers.docker=true # Enable Docker provider
-      - --providers.docker.exposedbydefault=false # Only pick containers with traefik.enable=true
-      - --providers.docker.endpoint=unix:///var/run/docker.sock
-      - --entrypoints.web.address=:80 # Public HTTP entrypoint (port 80)
-      - --entrypoints.traefik.address=:8080 # Traefik Dashboard entrypoint (port 8080)
-      - --api=true # Enable API (required to expose dashboard)
-      - --api.dashboard=true # Enable Dashboard UI
-      - --log.level=INFO
-      # Optional: add file provider or other static config flags if needed.
-    ports:
-      - "80:80" # Exposes the `web` entrypoint on host port 80 (HTTP)
-      - "8080:8080" # Exposes the Traefik dashboard on host port 8080 (DEV ONLY - secure in prod)
+  keygen:
+    image: alpine:3.18
+    container_name: kong-keygen
+    restart: "no"
+    # Bind the infra/kong directory so keygen can write keys and the rendered kong.yml
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro # Docker socket for service discovery (read-only)
-      # - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro  # Optional file provider
+      - ../../infra/kong:/work
+    entrypoint: ["/bin/sh", "/work/keygen/generate_keys.sh"]
+    command: []
+
+  kong:
+    image: kong:latest
+    container_name: kong
+    restart: unless-stopped
+    depends_on:
+      - keygen
+      - auth-service
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
+      KONG_PROXY_LISTEN: "0.0.0.0:8000, 0.0.0.0:8443 ssl"
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+    ports:
+      - "8000:8000" # Kong proxy (HTTP)
+      - "8443:8443" # Kong proxy (HTTPS) - optional for local dev
+      - "8001:8001" # Kong Admin API (DO NOT expose in production without securing it)
+    # Mount the rendered kong directory and the generated keys directory.
+    # Use a small wait entrypoint so Kong does not start until /kong/kong.yml exists
+    # (prevents the common case where a missing host file is created as a directory).
+    entrypoint:
+      [
+        "/bin/sh",
+        "-c",
+        "until [ -f /kong/kong.yml ]; do echo 'waiting for /kong/kong.yml'; sleep 0.3; done; exec /docker-entrypoint.sh kong docker-start",
+      ]
+    volumes:
+      - ../../infra/kong/rendered:/kong:ro
+      - ../../infra/kong/keys:/kong/keys:ro
     networks:
       - gateway_network
-    environment:
-      DOCKER_API_VERSION: "1.44"
-    labels: {}
+    healthcheck:
+      test: ["CMD-SHELL", "kong health --cacert /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   auth-service:
     # Build locally from the repo's auth-service folder (keeps infra self-contained)
@@ -52,14 +75,15 @@ services:
     env_file:
       - ../../.env # keep reading Aiven / DB env vars from repo-level .env (do not commit secrets)
     environment:
-      # Ensure the service listens on the internal port expected by Traefik (3000).
-      # The auth-service implementation in this repo expects port 3000 internally.
+      # Ensure the service listens on the internal port expected by upstream (3000).
       - SERVER_HOST=0.0.0.0
       - SERVER_PORT=3000
       # Optional DB fallback vars left available (prefer Aiven vars in ../../.env)
       - DB_USER=${DB_USER:-}
       - DB_PASSWORD=${DB_PASSWORD:-}
-    # Do NOT publish host ports for services intended to be reached only via Traefik.
+      # Provide path to private key for the auth service to sign tokens (auth-service should read this)
+      - RSA_PRIVATE_KEY_PATH=/kong/keys/private.pem
+    # Do NOT publish host ports for services intended to be reached only via the gateway.
     # Expose the internal port to other containers (optional) so Docker knows it's reachable.
     expose:
       - "3000"
@@ -74,42 +98,9 @@ services:
       retries: 3
       start_period: 10s
 
-    labels:
-      # Explicitly opt-in to Traefik (required because exposedByDefault=false)
-      "traefik.enable": "true"
-
-      # Router: map requests for /api/auth -> this service
-      # Rule: Host(`localhost`) && PathPrefix(`/api/auth`)
-      # - You may remove Host(...) if you want the rule to match any Host
-      "traefik.http.routers.auth-router.rule": "Host(`localhost`) && PathPrefix(`/api/auth`)"
-      "traefik.http.routers.auth-router.entrypoints": "web"
-
-      # Apply middleware chain: strip prefix then rate limit
-      # The `@docker` suffix indicates the middleware is defined via Docker provider labels
-      "traefik.http.routers.auth-router.middlewares": "auth-stripprefix@docker,auth-ratelimit@docker"
-
-      # Associate the router with a service name (Traefik will forward to the container's internal port)
-      "traefik.http.routers.auth-router.service": "auth-service"
-
-      # Internal port the auth service listens on
-      "traefik.http.services.auth-service.loadbalancer.server.port": "3000"
-
-      # ------------------------
-      # Middleware: StripPrefix
-      # ------------------------
-      # Remove `/api/auth` so the upstream sees `/login`, `/register`, etc.
-      "traefik.http.middlewares.auth-stripprefix.stripprefix.prefixes": "/api/auth"
-
-      # ------------------------
-      # Middleware: RateLimit
-      # ------------------------
-      # Protect auth endpoints from brute-force attacks
-      # average = allowed requests per second, burst = additional burst capacity
-      "traefik.http.middlewares.auth-ratelimit.ratelimit.average": "10"
-      "traefik.http.middlewares.auth-ratelimit.ratelimit.burst": "0"
-
-      # Ensure Traefik uses the correct Docker network when connecting to this service
-      "traefik.docker.network": "gateway_network"
+    # Kong handles routing via the declarative manifest at infra/kong/rendered/kong.yml.
+    # The keygen service ensures infra/kong/keys and infra/kong/rendered/kong.yml are created before Kong starts.
+    # Auth service will be able to read /work/keys/private.pem via the bind mount (path provided in env).
 
 # ------------------------
 # Future Service Template (commented)
