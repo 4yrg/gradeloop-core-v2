@@ -38,10 +38,9 @@ export function RouteGuard({
       setIsChecking(false);
 
       // If authentication is required but user is not authenticated
+      // Do not automatically redirect to the login page; allow the
+      // component to render the unauthorized fallback instead.
       if (requireAuth && !auth.isAuthenticated) {
-        const currentPath = window.location.pathname;
-        const returnUrl = currentPath !== "/" ? `?returnTo=${encodeURIComponent(currentPath)}` : "";
-        router.replace(`${redirectTo}${returnUrl}`);
         return;
       }
 

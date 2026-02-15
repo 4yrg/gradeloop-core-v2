@@ -1,0 +1,259 @@
+version: '3.8'
+
+services:
+  # ==================== INFRASTRUCTURE ====================
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: gradeloop-postgres
+    hostname: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+      - POSTGRES_MULTIPLE_DATABASES=iam_db
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ../../ops/local/postgres/init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: gradeloop-redis
+    hostname: redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # RabbitMQ - Message Broker
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: gradeloop-rabbitmq
+    hostname: rabbitmq
+    ports:
+      - "5672:5672" # AMQP port
+      - "15672:15672" # Management UI port
+    environment:
+      RABBITMQ_DEFAULT_USER: "admin"
+      RABBITMQ_DEFAULT_PASS: "admin123"
+      RABBITMQ_DEFAULT_VHOST: "gradeloop"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # ==================== SERVICE REGISTRY ====================
+
+  # Eureka Service Registry
+  eureka-server:
+    build:
+      context: ../../apps/services/eureka-server
+      dockerfile: Dockerfile
+    container_name: gradeloop-eureka-server
+    hostname: eureka-server
+    ports:
+      - "8761:8761"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-dev}
+      - SERVER_PORT=8761
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  # ==================== API GATEWAY ====================
+
+  # Spring Cloud API Gateway
+  api-gateway:
+    build:
+      context: ../../apps/services/gateway
+      dockerfile: Dockerfile
+    container_name: gradeloop-api-gateway
+    hostname: api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-dev}
+      - SERVER_PORT=8080
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    env_file:
+      - ../../.env
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    restart: unless-stopped
+
+  # ==================== MICROSERVICES ====================
+
+  # IAM Service - Identity and Access Management
+  iam-service:
+    build:
+      context: ../../apps/services/iam-service
+      dockerfile: Dockerfile
+    container_name: gradeloop-iam-service
+    hostname: iam-service
+    ports:
+      - "8081:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-dev}
+      - SERVER_PORT=8080
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=iam_db
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    env_file:
+      - ../../.env
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    restart: unless-stopped
+
+  # Email Notify Service
+  # email-notify-service:
+  #   build:
+  #     context: ../../apps/services/email-notify-service
+  #     dockerfile: Dockerfile
+  #   container_name: gradeloop-email-service
+  #   hostname: email-notify-service
+  #   ports:
+  #     - "8083:8080"
+  #   env_file:
+  #     - ../../.env
+  #   environment:
+  #     SERVER_HOST: "0.0.0.0"
+  #     SERVER_PORT: "8080"
+  #     RABBITMQ_URL: "amqp://admin:admin123@rabbitmq:5672/gradeloop"
+  #     RABBITMQ_EXCHANGE: "gradeloop.events"
+  #     RABBITMQ_QUEUE: "email.notifications"
+  #   depends_on:
+  #     rabbitmq:
+  #       condition: service_healthy
+  #   networks:
+  #     - gradeloop-network
+  #   restart: unless-stopped
+
+  # # Academics Service - Academic Management
+  # academics-service:
+  #   build:
+  #     context: ../../apps/services/academics-service
+  #     dockerfile: Dockerfile
+  #   container_name: gradeloop-academics-service
+  #   hostname: academics-service
+  #   ports:
+  #     - "8082:8081"
+  #   environment:
+  #     - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-dev}
+  #     - SERVER_PORT=8081
+  #     - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+  #     - DB_HOST=postgres
+  #     - DB_PORT=5432
+  #     - DB_NAME=academics_db
+  #     - DB_USER=${DB_USER:-postgres}
+  #     - DB_PASSWORD=${DB_PASSWORD:-postgres}
+  #   env_file:
+  #     - ../../.env
+  #   depends_on:
+  #     eureka-server:
+  #       condition: service_healthy
+  #     postgres:
+  #       condition: service_healthy
+  #   networks:
+  #     - gradeloop-network
+  #   restart: unless-stopped
+
+  # ==================== EXTERNAL GATEWAY (OPTIONAL) ====================
+
+  # Traefik - Alternative External API Gateway
+  # Note: Use either Traefik OR Spring Cloud Gateway, not both for the same traffic
+  # To enable Traefik: remove comments below and ensure api-gateway is not on port 8080
+  # traefik:
+  #   image: traefik:v3.6.1
+  #   container_name: gradeloop-traefik
+  #   command:
+  #     - "--api.insecure=true"
+  #     - "--providers.docker=true"
+  #     - "--providers.docker.exposedbydefault=false"
+  #     - "--entrypoints.web.address=:80"
+  #     - "--providers.docker.watch=true"
+  #   ports:
+  #     - "80:80"
+  #     - "8082:8080" # Dashboard
+  #   volumes:
+  #     - "/var/run/docker.sock:/var/run/docker.sock:ro"
+  #   networks:
+  #     - gradeloop-network
+  #   healthcheck:
+  #     test: ["CMD", "traefik", "healthcheck"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 3
+  #   restart: unless-stopped
+
+networks:
+  gradeloop-network:
+    name: gradeloop-network
+    driver: bridge
+
+volumes:
+  postgres-data:
+    name: gradeloop-postgres-data
+  redis-data:
+    name: gradeloop-redis-data
+  rabbitmq-data:
+    name: gradeloop-rabbitmq-data
