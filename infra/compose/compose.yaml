@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # ==================== INFRASTRUCTURE ====================
@@ -162,6 +162,43 @@ services:
       timeout: 5s
       retries: 10
       start_period: 60s
+    restart: unless-stopped
+
+  # Auth Service - Authentication
+  # Merged from apps/services/auth-service/docker-compose.yml.
+  # Uses the infra postgres instance (no standalone DB container here).
+  auth-service:
+    build:
+      context: ../../apps/services/auth-service
+      dockerfile: Dockerfile
+    container_name: gradeloop-auth-service
+    hostname: auth-service
+    ports:
+      - "3000:3000"
+    environment:
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=3000
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=${AUTH_SVC_DB_NAME:-auth_db}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+    env_file:
+      - ../../.env
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - gradeloop-network
+    healthcheck:
+      # Simple check — adjust to the actual health endpoint if different
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     restart: unless-stopped
 
   # Email Notify Service
