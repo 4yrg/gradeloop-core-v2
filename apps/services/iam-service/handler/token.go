@@ -7,9 +7,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/4yrg/gradeloop-core-v2/apps/services/auth-service/config"
-	"github.com/4yrg/gradeloop-core-v2/apps/services/auth-service/database"
-	"github.com/4yrg/gradeloop-core-v2/apps/services/auth-service/model"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/config"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/database"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/model"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v5"
@@ -384,7 +384,7 @@ func ResetPassword(c fiber.Ctx) error {
 }
 
 // Use package-level helpers (from other files in this package).
-// The auth-service already defines `hashPassword` and `CheckPasswordHash` in other files
+// The iam-service already defines `hashPassword` and `CheckPasswordHash` in other files
 // (see `user.go` and `auth.go`). Rely on those implementations rather than providing
 // duplicate fallback implementations here. This avoids duplicate symbol definitions
 // at link time and keeps the token handlers focused on token logic.

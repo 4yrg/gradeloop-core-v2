@@ -27,13 +27,13 @@ This project is a high-performance web client built with **Bun**, **Next.js (App
 
 ---
 
-# Go Backend — auth-service (new / updated guidance)
+# Go Backend — iam-service (new / updated guidance)
 
-This repo contains a Go-based authentication service at `apps/services/auth-service`. The LLM/context file needs to include the folder structure and notes so AI agents and contributors understand the service layout, conventions, and environment variables.
+This repo contains a Go-based authentication service at `apps/services/iam-service`. The LLM/context file needs to include the folder structure and notes so AI agents and contributors understand the service layout, conventions, and environment variables.
 
-Auth-service folder structure (top-level)
+IAM-service folder structure (top-level)
 ```
-apps/services/auth-service/
+apps/services/iam-service/
 ├── cmd/               # entrypoints (e.g., cmd/main.go)
 ├── config/            # env loader, configuration helpers
 ├── database/          # DB connection and migrations
@@ -58,10 +58,10 @@ Directory responsibilities and notes
 - `database/`:
   - DB connection logic (uses GORM + postgres driver).
   - Connection logic supports both:
-    - Aiven-style connection via `POSTGRES_URL_BASE` + `AUTH_SVC_DB_NAME` (+ `POSTGRES_SSLMODE`)
+    - Aiven-style connection via `POSTGRES_URL_BASE` + `IAM_SVC_DB_NAME` (+ `POSTGRES_SSLMODE`)
     - Traditional env vars `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
-  - For Aiven: set `POSTGRES_URL_BASE=postgres://user:pass@host:port/` and `AUTH_SVC_DB_NAME=<db>` and optionally `POSTGRES_SSLMODE=require`.
-  - If `POSTGRES_URL_BASE` is present, the service will prefer that and append `AUTH_SVC_DB_NAME` as the path; otherwise it uses a formatted `host=... port=... user=...` DSN.
+  - For Aiven: set `POSTGRES_URL_BASE=postgres://user:pass@host:port/` and `IAM_SVC_DB_NAME=<db>` and optionally `POSTGRES_SSLMODE=require`.
+  - If `POSTGRES_URL_BASE` is present, the service will prefer that and append `IAM_SVC_DB_NAME` as the path; otherwise it uses a formatted `host=... port=... user=...` DSN.
 - `handler/`:
   - Route handlers (login/register, token endpoints).
   - Uses `config.Config("SECRET")` or similar for JWT signing.
@@ -76,28 +76,28 @@ Directory responsibilities and notes
 - `README.md`:
   - Service-specific docs and quickstart.
 
-Environment variables (auth-service)
+Environment variables (iam-service)
 - Auth-specific:
   - `SECRET` — JWT secret (required)
-  - `AUTH_SVC_DB_NAME` — DB name for the auth service when using Aiven-style URL (recommended if using Aiven)
+  - `IAM_SVC_DB_NAME` — DB name for the auth service when using Aiven-style URL (recommended if using Aiven)
 - Aiven / remote DB:
   - `POSTGRES_URL_BASE` — base Postgres URL from Aiven (example: `postgres://avnadmin:xxx@<host>:<port>/`)
   - `POSTGRES_SSLMODE` — `require` for Aiven (optional)
-  - When `POSTGRES_URL_BASE` and `AUTH_SVC_DB_NAME` are present, the service builds the full connection string using those values and includes `sslmode` when provided.
+  - When `POSTGRES_URL_BASE` and `IAM_SVC_DB_NAME` are present, the service builds the full connection string using those values and includes `sslmode` when provided.
 - Local DB fallback:
   - `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` — used when `POSTGRES_URL_BASE` is not set.
 - Compose & docker:
-  - The infra compose can set `POSTGRES_URL_BASE` and `AUTH_SVC_DB_NAME` in the `.env` file. If you prefer local Postgres for dev, provide DB credentials instead.
+  - The infra compose can set `POSTGRES_URL_BASE` and `IAM_SVC_DB_NAME` in the `.env` file. If you prefer local Postgres for dev, provide DB credentials instead.
 
 Build & run (Go service)
 - Local development:
   - `go install` / `go build` / `go run ./cmd/main.go`
   - Use `air` or similar for live reload (if included in Dockerfile / dev setup).
 - Docker:
-  - Build: `docker build -t gradeloop-auth-service .` (from `apps/services/auth-service`)
-  - Run: `docker run --env-file ../../.env -p 3000:3000 gradeloop-auth-service`
+  - Build: `docker build -t gradeloop-iam-service .` (from `apps/services/iam-service`)
+  - Run: `docker run --env-file ../../.env -p 3000:3000 gradeloop-iam-service`
 - Compose (infra):
-  - The minimal infra compose kept for auth-service expects external DB or Aiven. Ensure `.env` has the required Aiven vars before `docker compose up`.
+  - The minimal infra compose kept for iam-service expects external DB or Aiven. Ensure `.env` has the required Aiven vars before `docker compose up`.
 - Testing:
   - Add unit tests using Go's `testing` package.
   - Use dependency injection for DB and external dependencies to enable testability.
@@ -138,7 +138,7 @@ Observability & healthchecks
   └── ...
 
 /apps/services/           # microservices
-  ├── auth-service/       # Go service (see structure above)
+  ├── iam-service/       # Go service (see structure above)
   ├── (other services...) # Java services removed from LLMs context unless present locally
 ```
 
@@ -158,7 +158,7 @@ Observability & healthchecks
 # Agent Instructions (for LLMs / automation)
 - When asked to run or build services, verify the required directories exist in the repo before running `docker build` or `go build`.
 - Prefer using prebuilt images for services not present locally (do not attempt to `build` when `context` path is missing).
-- Use `POSTGRES_URL_BASE` + `AUTH_SVC_DB_NAME` for auth-service when available; fall back to `DB_*` env vars only when necessary.
+- Use `POSTGRES_URL_BASE` + `IAM_SVC_DB_NAME` for iam-service when available; fall back to `DB_*` env vars only when necessary.
 - Do not instruct the agent to assume Java-based services are available unless their directories and build files exist.
 
 ---
@@ -170,28 +170,28 @@ Frontend
 - Dev: `bun run dev`
 - Build: `bun run build`
 
-Auth-service (Go)
+IAM-service (Go)
 - Build: `go build ./...` or `go build -o ./bin/auth ./cmd/main.go`
 - Run: `go run ./cmd/main.go`
-- Docker build: `docker build -t gradeloop-auth-service .` (from `apps/services/auth-service`)
+- Docker build: `docker build -t gradeloop-iam-service .` (from `apps/services/iam-service`)
 - Lint & format: `gofmt -w . && goimports -w . && golangci-lint run ./...`
 
 Docker Compose (infra/compose)
 - From `infra/compose/`:
   - `docker compose up --build` (ensure build contexts exist or use images)
-  - If using Aiven, populate `../../.env` with `POSTGRES_URL_BASE`, `AUTH_SVC_DB_NAME`, and `POSTGRES_SSLMODE=require` (and leave local DB vars empty).
+  - If using Aiven, populate `../../.env` with `POSTGRES_URL_BASE`, `IAM_SVC_DB_NAME`, and `POSTGRES_SSLMODE=require` (and leave local DB vars empty).
 
 ---
 
-If you need additional detail for any other service folder structures or want the Go auth-service README expanded with exact commands and examples, let me know and I will add the expanded how-to and examples (DB migration commands, sample `.env`, sample requests, etc.).
+If you need additional detail for any other service folder structures or want the Go iam-service README expanded with exact commands and examples, let me know and I will add the expanded how-to and examples (DB migration commands, sample `.env`, sample requests, etc.).
 
 
 Traefik API Gateway Implementation Guide (v3.0)
 ----------------------------------------------
-This section contains a ready-to-copy Docker Compose example (modular, commented), Traefik label examples for the existing `auth-service`, a reusable "Future Service Template" (commented-out labels you can copy/paste for new services), and verification steps using `curl`. The provided compose and traefik examples are intentionally self-contained for local/dev use and assume Traefik v3.0.
+This section contains a ready-to-copy Docker Compose example (modular, commented), Traefik label examples for the existing `iam-service`, a reusable "Future Service Template" (commented-out labels you can copy/paste for new services), and verification steps using `curl`. The provided compose and traefik examples are intentionally self-contained for local/dev use and assume Traefik v3.0.
 
 Important notes (w.r.t. the repo)
-- The `auth-service` in this repo lives at `apps/services/auth-service` and listens internally on port `3000`. The compose/labels below keep that service unreachable from the host (no published ports) so Traefik is the only entrypoint.
+- The `iam-service` in this repo lives at `apps/services/iam-service` and listens internally on port `3000`. The compose/labels below keep that service unreachable from the host (no published ports) so Traefik is the only entrypoint.
 - The Traefik provider uses the Docker socket for service discovery. The Docker provider is configured with `exposedByDefault=false` so only services with explicit `traefik.enable=true` labels become routable.
 - Network: a dedicated Docker network `gateway_network` is used so Traefik and services discover each other safely.
 
@@ -221,8 +221,8 @@ services:
       - gateway_network
     # Keep Traefik container lightweight; use labels if you want to secure the dashboard with auth.
 
-  auth-service:
-    image: my-registry/auth-service:latest                # placeholder image (replace with your registry)
+  iam-service:
+    image: my-registry/iam-service:latest                # placeholder image (replace with your registry)
     environment:
       - PORT=3000
       # add other ENV variables the service needs (SECRET, DB connection, etc.)
@@ -306,7 +306,7 @@ Future Service Template (copy-paste)
 Verifying routing with curl
 - Basic health check (GET):
   - curl -i http://localhost/api/auth/health
-    - This should reach your auth-service `/health` endpoint (since the `/api/auth` prefix is stripped).
+    - This should reach your iam-service `/health` endpoint (since the `/api/auth` prefix is stripped).
 - Login example (POST JSON):
   - curl -i -X POST http://localhost/api/auth/login \
       -H "Content-Type: application/json" \
@@ -332,9 +332,9 @@ Security & production notes
   - Consider running Traefik outside of Docker socket access or use socket with limited permissions and careful CI/CD practices.
 - Secrets: pass service secrets (e.g., `SECRET`) via environment variables managed by your secret store or CI/CD — do not bake them in images.
 
-How this avoids conflicts with the repo's `auth-service`
-- The compose example uses `my-registry/auth-service:latest` as a placeholder. If you prefer building from local context, set the `build:` context to `./apps/services/auth-service` (but the instructions above were to use images for "plug-and-play" usage).
-- The labels assume the service listens internally on `3000` — which matches the `auth-service` documented in this repo. Because we do NOT publish ports in compose, there is no port collision with the host or other services. Traefik routes to the container's internal port only.
+How this avoids conflicts with the repo's `iam-service`
+- The compose example uses `my-registry/iam-service:latest` as a placeholder. If you prefer building from local context, set the `build:` context to `./apps/services/iam-service` (but the instructions above were to use images for "plug-and-play" usage).
+- The labels assume the service listens internally on `3000` — which matches the `iam-service` documented in this repo. Because we do NOT publish ports in compose, there is no port collision with the host or other services. Traefik routes to the container's internal port only.
 
 Next steps / suggestions
 - Copy the `compose.yaml` into `infra/compose/` or your chosen infra folder and run:
@@ -343,7 +343,7 @@ Next steps / suggestions
 - If you want me to add a real `infra/compose/docker-compose.yaml` file into this repository or a small CONTRIBUTING.md section describing how to run the gateway, I can add that as a follow-up change.
 
 If you'd like, I can:
-- Create the actual `infra/compose/docker-compose.yaml` file in the repo (with the Traefik and auth-service entries).
+- Create the actual `infra/compose/docker-compose.yaml` file in the repo (with the Traefik and iam-service entries).
 - Add a short "How to run the gateway" subsection to `CONTRIBUTING.md` and commit both files.
 - Generate a minimal `traefik` static config file in `infra/traefik/` and wire it into compose.
 

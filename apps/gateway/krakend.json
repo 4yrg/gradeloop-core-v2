@@ -16,7 +16,7 @@
                     "url_pattern": "/api/auth/login",
                     "method": "POST",
                     "host": [
-                        "http://auth-service:8081"
+                        "http://iam-service:8081"
                     ],
                     "disable_host_sanitize": true
                 }
@@ -31,7 +31,7 @@
                     "url_pattern": "/api/auth/logout",
                     "method": "POST",
                     "host": [
-                        "http://auth-service:8081"
+                        "http://iam-service:8081"
                     ],
                     "disable_host_sanitize": true
                 }
@@ -46,7 +46,7 @@
                     "url_pattern": "/api/auth/refresh",
                     "method": "POST",
                     "host": [
-                        "http://auth-service:8081"
+                        "http://iam-service:8081"
                     ],
                     "disable_host_sanitize": true
                 }
@@ -61,7 +61,7 @@
                     "url_pattern": "/api/auth/forgot-password",
                     "method": "POST",
                     "host": [
-                        "http://auth-service:8081"
+                        "http://iam-service:8081"
                     ],
                     "disable_host_sanitize": true
                 }
@@ -76,7 +76,7 @@
                     "url_pattern": "/api/auth/reset-password",
                     "method": "POST",
                     "host": [
-                        "http://auth-service:8081"
+                        "http://iam-service:8081"
                     ],
                     "disable_host_sanitize": true
                 }

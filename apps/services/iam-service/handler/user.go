@@ -3,8 +3,8 @@ package handler
 import (
 	"strconv"
 
-	"github.com/4yrg/gradeloop-core-v2/apps/services/auth-service/database"
-	"github.com/4yrg/gradeloop-core-v2/apps/services/auth-service/model"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/database"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/model"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"

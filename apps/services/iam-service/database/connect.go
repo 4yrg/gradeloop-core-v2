@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/4yrg/gradeloop-core-v2/apps/services/auth-service/config"
-	"github.com/4yrg/gradeloop-core-v2/apps/services/auth-service/model"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/config"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/model"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/postgres"
@@ -29,12 +29,12 @@ func ConnectDB() {
 
 	if aivenBase != "" {
 		// Prefer a service-specific DB name, fall back to DB_NAME.
-		dbName := config.Config("AUTH_SVC_DB_NAME")
+		dbName := config.Config("IAM_SVC_DB_NAME")
 		if dbName == "" {
 			dbName = config.Config("DB_NAME")
 		}
 		if dbName == "" {
-			fmt.Println("Warning: AUTH_SVC_DB_NAME and DB_NAME are empty when using POSTGRES_URL_BASE")
+			fmt.Println("Warning: IAM_SVC_DB_NAME and DB_NAME are empty when using POSTGRES_URL_BASE")
 		}
 
 		u, perr := url.Parse(aivenBase)

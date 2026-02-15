@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"github.com/4yrg/gradeloop-core-v2/apps/services/auth-service/config"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/config"
 
 	jwtware "github.com/gofiber/contrib/v3/jwt"
 	"github.com/gofiber/fiber/v3"

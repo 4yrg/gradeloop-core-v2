@@ -1,9 +1,9 @@
 services:
-  auth-service:
+  iam-service:
     build:
-      context: ./apps/services/auth-service
+      context: ./apps/services/iam-service
       dockerfile: Dockerfile
-    container_name: auth-service
+    container_name: iam-service
     env_file:
       - .env
     environment:
@@ -23,7 +23,7 @@ services:
       - "8080:8080"
     command: [ "run", "-c", "/etc/krakend/krakend.json" ]
     depends_on:
-      - auth-service
+      - iam-service
     networks:
       - gradeloop-network
 
