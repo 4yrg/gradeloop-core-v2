@@ -1,9 +1,4 @@
 import { z } from "zod";
-import {
-  LoginSchema,
-  ForgotPasswordSchema,
-  ResetPasswordSchema,
-} from "../features/auth/schemas/auth.schema";
 
 // Base user schema
 export const UserSchema = z.object({
