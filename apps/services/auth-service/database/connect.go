@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/4yrg/gradeloop-core-v2/apps/services/auth-service/config"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/auth-service/model"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -119,5 +120,13 @@ func ConnectDB() {
 	}
 
 	fmt.Println("Connection Opened to Database")
+
+	// Auto-migrate models used by the auth service.
+	// This ensures the necessary tables/columns exist when the service starts.
+	if err := DB.AutoMigrate(&model.User{}, &model.RefreshToken{}); err != nil {
+		// Include the underlying error to make troubleshooting easier
+		panic(fmt.Sprintf("failed to migrate database: %v", err))
+	}
+
 	fmt.Println("Database Migrated")
 }
