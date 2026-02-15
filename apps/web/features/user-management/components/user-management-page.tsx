@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,6 +16,8 @@ import type { UserManagement, UserRole, UserStatus } from "@/schemas/user-manage
 import Link from "next/link";
 
 export function UserManagementPage() {
+  const router = useRouter();
+  
   // Filter states
   const [searchValue, setSearchValue] = useState("");
   const [roleFilter, setRoleFilter] = useState<UserRole | "all">("all");
@@ -95,6 +98,22 @@ export function UserManagementPage() {
     updateStatusMutation.mutate({ id: user.id, status });
   };
 
+  const handleBulkImport = () => {
+    router.push("/admin/bulk-import/upload");
+  };
+
+  const handleExport = () => {
+    // TODO: Implement export functionality with API call
+    console.log("Exporting users with filters:", queryParams);
+    // Future: Trigger CSV/Excel download
+  };
+
+  const handleAddUser = () => {
+    // TODO: Implement add user modal or navigate to add user page
+    console.log("Add user clicked");
+    // Future: router.push("/admin/users/new") or open modal
+  };
+
   const allSelected = usersData?.data && selectedUsers.size === usersData.data.length && usersData.data.length > 0;
 
   return (
@@ -133,15 +152,15 @@ export function UserManagementPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleBulkImport}>
             <Upload className="mr-2 h-4 w-4" />
             Bulk Import
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExport}>
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
-          <Button>
+          <Button onClick={handleAddUser}>
             <Plus className="mr-2 h-4 w-4" />
             Add User
           </Button>
