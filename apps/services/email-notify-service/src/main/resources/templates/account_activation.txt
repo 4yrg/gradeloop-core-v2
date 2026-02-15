@@ -1,0 +1,4 @@
+Welcome, [(${name})]!
+
+Please activate your account by creating the link below:
+[(${activationLink})]

@@ -57,11 +57,18 @@ services:
     env_file:
       - ../../.env
     environment:
-      SERVER_HOST: "0.0.0.0"
       SERVER_PORT: "8080"
-      RABBITMQ_URL: "amqp://admin:admin123@rabbitmq:5672/gradeloop"
-      RABBITMQ_EXCHANGE: "gradeloop.events"
-      RABBITMQ_QUEUE: "email.notifications"
+      # Map .env variables to application.yml expectations
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USERNAME: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASS}
+      SMTP_AUTH: "true"
+      SMTP_STARTTLS: ${SMTP_USE_TLS}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USERNAME: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASS}
     depends_on:
       rabbitmq:
         condition: service_healthy

@@ -1,0 +1,8 @@
+{
+    "version": "1",
+    "name": "Email Notification Service",
+    "type": "collection",
+    "ignore": [
+        ".git"
+    ]
+}
