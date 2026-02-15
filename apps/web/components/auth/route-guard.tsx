@@ -32,7 +32,16 @@ export function RouteGuard({
   const auth = useAuth();
   const [isChecking, setIsChecking] = React.useState(true);
 
+  // Check if auth is disabled (for development)
+  const isAuthDisabled = process.env.NEXT_PUBLIC_DISABLE_AUTH === "true";
+
   React.useEffect(() => {
+    // Skip all auth checks if disabled
+    if (isAuthDisabled) {
+      setIsChecking(false);
+      return;
+    }
+
     // Initial auth check
     const checkAuth = () => {
       setIsChecking(false);
@@ -74,6 +83,11 @@ export function RouteGuard({
       return <>{fallback}</>;
     }
     return showFallback ? <RouteGuardSkeleton /> : null;
+  }
+
+  // Skip all checks if auth is disabled
+  if (isAuthDisabled) {
+    return <>{children}</>;
   }
 
   // Check authentication requirement
