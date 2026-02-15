@@ -3,6 +3,109 @@ meta {
   seq: 2
 }
 
+# Auth collection requests for auth-service
+# Each request targets the local auth service running on port 8081 by default.
+# You can update host/port as needed when running locally.
+
 auth {
   mode: inherit
+
+  # Login
+  request {
+    name: "Login"
+    seq: 1
+    method: POST
+    url: "http://localhost:8081/api/auth/login"
+    header {
+      "Content-Type": "application/json"
+    }
+    body {
+{
+  "identity": "user@example.com",
+  "password": "password123"
+}
+    }
+  }
+
+  # Refresh tokens (rotate)
+  request {
+    name: "Refresh"
+    seq: 2
+    method: POST
+    url: "http://localhost:8081/api/auth/refresh"
+    header {
+      "Content-Type": "application/json"
+    }
+    body {
+{
+  "refresh_token": "<refresh-token>"
+}
+    }
+  }
+
+  # Logout single refresh token
+  request {
+    name: "Logout"
+    seq: 3
+    method: POST
+    url: "http://localhost:8081/api/auth/logout"
+    header {
+      "Content-Type": "application/json"
+    }
+    body {
+{
+  "refresh_token": "<refresh-token>"
+}
+    }
+  }
+
+  # Logout all sessions for authenticated user
+  # This endpoint requires the Protected() middleware; set an Authorization header with a valid access JWT.
+  request {
+    name: "Logout - All (revoke all sessions)"
+    seq: 4
+    method: POST
+    url: "http://localhost:8081/api/auth/logout/all"
+    header {
+      "Content-Type": "application/json"
+      "Authorization": "Bearer <access-token>"
+    }
+    body {
+{}
+    }
+  }
+
+  # Forgot password (create reset token)
+  request {
+    name: "Forgot Password"
+    seq: 5
+    method: POST
+    url: "http://localhost:8081/api/auth/forgot-password"
+    header {
+      "Content-Type": "application/json"
+    }
+    body {
+{
+  "email": "user@example.com"
+}
+    }
+  }
+
+  # Reset password (consume reset token)
+  request {
+    name: "Reset Password"
+    seq: 6
+    method: POST
+    url: "http://localhost:8081/api/auth/reset-password"
+    header {
+      "Content-Type": "application/json"
+    }
+    body {
+{
+  "token": "<reset-token>",
+  "password": "newpassword123"
+}
+    }
+  }
+
 }
