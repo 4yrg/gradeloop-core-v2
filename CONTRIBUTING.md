@@ -1,6 +1,6 @@
 # Contributing to GradeLoop V2
 
-Thank you for your interest in contributing to GradeLoop V2! This document provides guidelines and best practices for contributing to our monorepo. It also includes new Infrastructure / Traefik Gateway guidance so you can add microservices behind a single API gateway in a consistent, secure, and testable way.
+Thank you for your interest in contributing to GradeLoop V2! This document provides guidelines and best practices for contributing to our monorepo.
 
 ---
 
@@ -14,7 +14,6 @@ Thank you for your interest in contributing to GradeLoop V2! This document provi
 - [Pull Request Process](#pull-request-process)
 - [Testing Requirements](#testing-requirements)
 - [Documentation](#documentation)
-- [Infrastructure / Traefik Gateway](#infrastructure--traefik-gateway)
 - [Getting Help](#getting-help)
 
 ---
@@ -23,19 +22,21 @@ Thank you for your interest in contributing to GradeLoop V2! This document provi
 
 ### Our Pledge
 
-We are committed to providing a welcoming and inclusive environment for all contributors.
+We are committed to providing a welcoming and inclusive environment for all contributors, regardless of background or experience level.
 
 ### Expected Behavior
 
-- Be respectful and constructive.
-- Focus on the best outcome for the project.
-- Give helpful, actionable feedback.
+- Be respectful and considerate in all interactions
+- Provide constructive feedback
+- Focus on what is best for the project and community
+- Show empathy towards other contributors
 
 ### Unacceptable Behavior
 
-- Harassment, discrimination, or abusive language.
-- Publishing private information or doxxing.
-- Any behavior that makes the project unsafe for others.
+- Harassment, discrimination, or offensive comments
+- Trolling, insulting, or derogatory remarks
+- Publishing others' private information without permission
+- Any conduct that would be inappropriate in a professional setting
 
 ---
 
@@ -43,223 +44,662 @@ We are committed to providing a welcoming and inclusive environment for all cont
 
 ### Prerequisites
 
-Make sure you have:
+Before you begin, ensure you have:
 
-- Docker & Docker Compose
-- Go (version as required by `go.mod` in service folders)
-- Node.js / Bun (for frontend work)
-- Git
+1. **Required Software** (see [Local Development Guide](docs/local-dev-guide.md)):
+   - Docker & Docker Compose
+   - Go 1.23+
+   - Python 3.11+
+   - Node.js 20+
+   - Git 2.40+
 
-### Initial Setup (common flow)
+2. **Access**:
+   - GitHub account with repository access
+   - Jira account for issue tracking
+   - Slack access for team communication
+
+### Initial Setup
 
 ```bash
-git clone <your-fork-url>
+# 1. Fork the repository (if external contributor)
+# Click "Fork" on GitHub
+
+# 2. Clone your fork
+git clone https://github.com/YOUR_USERNAME/gradeloop-core-v2.git
 cd gradeloop-core-v2
-# Follow service-specific README files for local environment setup
+
+# 3. Add upstream remote
+git remote add upstream https://github.com/gradeloop/gradeloop-core-v2.git
+
+# 4. Install dependencies
+./scripts/setup-dev.sh
+
+# 5. Install pre-commit hooks
+pip install pre-commit
+pre-commit install
+
+# 6. Verify setup
+docker compose -f infra/compose/docker-compose.yml up
 ```
 
 ---
 
 ## Development Workflow
 
-1. Pick an Issue
-2. Create a branch using the naming convention `feature/`, `fix/`, `chore/`, etc.
-3. Make changes, run tests, and add documentation as needed
-4. Commit with a clear message (see Commit Guidelines)
-5. Push and create a Pull Request (PR)
-6. Address feedback and get approvals
+### 1. Pick an Issue
+
+- Browse [Jira Board](https://yourorg.atlassian.net/browse/GRADLOOP)
+- Look for issues tagged with `good-first-issue` or `help-wanted`
+- Assign the issue to yourself
+- Move to "In Progress" status
+
+### 2. Create a Branch
+
+```bash
+# Update your local main branch
+git checkout main
+git pull upstream main
+
+# Create feature branch
+git checkout -b feature/GRADLOOP-123-add-assignment-feature
+
+# Branch naming convention:
+# - feature/GRADLOOP-XXX-description
+# - bugfix/GRADLOOP-XXX-description
+# - hotfix/GRADLOOP-XXX-description
+# - chore/GRADLOOP-XXX-description
+```
+
+### 3. Make Your Changes
+
+- Follow [Coding Standards](#coding-standards)
+- Write tests for new functionality
+- Update documentation as needed
+- Run tests locally before committing
+
+### 4. Commit Your Changes
+
+Follow the [Commit Guidelines](#commit-guidelines):
+
+```bash
+# Stage changes
+git add .
+
+# Commit with proper message
+git commit -m "feat(assignments): add bulk upload feature [GRADLOOP-123]"
+```
+
+### 5. Push and Create PR
+
+```bash
+# Push to your fork
+git push origin feature/GRADLOOP-123-add-assignment-feature
+
+# Create Pull Request on GitHub
+# Fill out the PR template completely
+```
+
+### 6. Address Review Feedback
+
+- Respond to all comments
+- Make requested changes
+- Push updates to the same branch
+- Request re-review when ready
 
 ---
 
 ## Coding Standards
 
-- Go: follow `gofmt`, `goimports`, idiomatic Go and dependency injection for testability.
-- Frontend (Next.js + Bun): strictly typed, Zod validation, TanStack Query, Tailwind v4.
-- Python: follow PEP 8.
-- Keep code simple, well-tested and documented.
+### General Principles
+
+- **DRY (Don't Repeat Yourself)**: Extract common code into shared libraries
+- **SOLID Principles**: Follow object-oriented design principles
+- **KISS (Keep It Simple)**: Prefer simple solutions over complex ones
+- **YAGNI (You Aren't Gonna Need It)**: Don't add functionality until needed
+
+### Go Code Standards
+
+**Style Guide**: Follow [Effective Go](https://golang.org/doc/effective_go)
+
+```go
+// Good: Clear, idiomatic Go
+func (s *AssignmentService) CreateAssignment(ctx context.Context, req *CreateAssignmentRequest) (*Assignment, error) {
+    if err := validateRequest(req); err != nil {
+        return nil, fmt.Errorf("invalid request: %w", err)
+    }
+
+    assignment := &Assignment{
+        Title:      req.Title,
+        CourseID:   req.CourseID,
+        DueDate:    req.DueDate,
+        CreatedAt:  time.Now(),
+    }
+
+    if err := s.repo.Save(ctx, assignment); err != nil {
+        return nil, fmt.Errorf("failed to save assignment: %w", err)
+    }
+
+    return assignment, nil
+}
+```
+
+**Formatting**:
+```bash
+# Format code
+gofmt -w .
+goimports -w .
+
+# Lint code
+golangci-lint run ./...
+```
+
+**Naming Conventions**:
+- Use `camelCase` for private functions/variables
+- Use `PascalCase` for exported functions/types
+- Use descriptive names (avoid single letters except in loops)
+- Acronyms should be consistent (`userID`, not `userId`)
+
+### Python Code Standards
+
+**Style Guide**: Follow [PEP 8](https://peps.python.org/pep-0008/)
+
+```python
+# Good: Clear, Pythonic code
+class PlagiarismAnalyzer:
+    def __init__(self, threshold: float = 0.8):
+        self.threshold = threshold
+        self.logger = logging.getLogger(__name__)
+
+    def analyze_submission(
+        self,
+        submission_id: int,
+        reference_docs: list[str]
+    ) -> AnalysisResult:
+        """
+        Analyze a submission for plagiarism.
+
+        Args:
+            submission_id: The ID of the submission to analyze
+            reference_docs: List of reference document IDs
+
+        Returns:
+            AnalysisResult containing similarity scores
+
+        Raises:
+            ValueError: If submission_id is invalid
+        """
+        if submission_id <= 0:
+            raise ValueError("submission_id must be positive")
+
+        self.logger.info(
+            "Analyzing submission",
+            submission_id=submission_id,
+            reference_count=len(reference_docs)
+        )
+
+        # Analysis logic here
+        return AnalysisResult(similarity_score=0.45)
+```
+
+**Formatting**:
+```bash
+# Format code
+black .
+isort .
+
+# Lint code
+ruff check .
+mypy .
+```
+
+**Type Hints**: Always use type hints for function parameters and return values
+
+### JavaScript/TypeScript Standards
+
+**Style Guide**: Follow [Airbnb JavaScript Style Guide](https://github.com/airbnb/javascript)
+
+```typescript
+// Good: Clear, typed TypeScript
+interface Assignment {
+  id: number;
+  title: string;
+  courseId: number;
+  dueDate: Date;
+}
+
+export async function createAssignment(
+  data: Omit<Assignment, 'id'>
+): Promise<Assignment> {
+  const response = await fetch('/api/v1/assignments', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to create assignment: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+```
+
+**Formatting**:
+```bash
+# Format code
+npm run format
+
+# Lint code
+npm run lint
+```
+
+### Database Guidelines
+
+**Migrations**:
+- Always use migrations for schema changes
+- Never modify old migrations
+- Test migrations both up and down
+- Include rollback strategy
+
+```sql
+-- Good: Clear, reversible migration
+-- migrations/000005_add_assignments_table.up.sql
+CREATE TABLE assignments (
+    id BIGSERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    course_id BIGINT NOT NULL REFERENCES courses(id),
+    due_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    max_points INTEGER NOT NULL CHECK (max_points > 0),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_assignments_course_id ON assignments(course_id);
+CREATE INDEX idx_assignments_due_date ON assignments(due_date);
+
+-- migrations/000005_add_assignments_table.down.sql
+DROP TABLE IF EXISTS assignments;
+```
+
+### API Design
+
+**RESTful Principles**:
+- Use nouns for resources, not verbs
+- Use HTTP methods correctly (GET, POST, PUT, DELETE)
+- Return appropriate status codes
+- Version your APIs (`/api/v1/`)
+
+**gRPC**:
+- Use meaningful service and method names
+- Version proto packages (`academics.v1`)
+- Document all fields with comments
+- Use standard error codes
 
 ---
 
 ## Commit Guidelines
 
-We follow Conventional Commits. Examples:
+### Commit Message Format
 
-- `feat(auth): add login endpoint [GRADLOOP-123]`
-- `fix(gateway): correct Traefik rule for auth [GRADLOOP-234]`
-- `infra: add traefik gateway and compose [GRADLOOP-345]`
+We follow [Conventional Commits](https://www.conventionalcommits.org/):
 
-For infrastructure changes, use `infra:` as the type and include verification steps in the PR description.
+```
+<type>(<scope>): <subject> [JIRA-XXX]
+
+<optional body>
+
+<optional footer>
+```
+
+### Types
+
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation only changes
+- `style`: Code style changes (formatting, missing semicolons, etc.)
+- `refactor`: Code refactoring (no functional changes)
+- `perf`: Performance improvements
+- `test`: Adding or updating tests
+- `chore`: Maintenance tasks (dependencies, build scripts)
+- `ci`: CI/CD configuration changes
+
+### Scopes
+
+Use the service or component name:
+- `assignments`
+- `academics`
+- `cipas`
+- `gateway`
+- `web`
+- `repo` (for monorepo-wide changes)
+
+### Examples
+
+```bash
+# Feature
+feat(assignments): add bulk upload functionality [GRADELOOP-123]
+
+# Bug fix
+fix(cipas): resolve memory leak in plagiarism analyzer [GRADELOOP-456]
+
+# Documentation
+docs(readme): update installation instructions [GRADELOOP-789]
+
+# Refactoring
+refactor(academics): extract course validation logic [GRADELOOP-234]
+
+# Multiple changes (use git commit multiple times)
+feat(assignments): add due date validation [GRADELOOP-111]
+test(assignments): add due date validation tests [GRADELOOP-111]
+```
+
+### Commit Best Practices
+
+- Keep commits atomic (one logical change per commit)
+- Write clear, descriptive messages
+- Reference Jira ticket in every commit
+- Commit often, push when ready
+- Don't commit secrets, credentials, or large binaries
 
 ---
 
 ## Pull Request Process
 
-- Include a description, related issues, type of change, testing steps, and deployment notes.
-- Automated checks (linting, tests) must pass before merging.
-- At least two reviewers, including a service owner, should approve.
+### Before Creating a PR
+
+- [ ] Code follows style guidelines
+- [ ] All tests pass locally
+- [ ] New tests added for new features
+- [ ] Documentation updated
+- [ ] Pre-commit hooks pass
+- [ ] No merge conflicts with main
+
+### PR Title Format
+
+```
+[GRADLOOP-XXX] Brief description of changes
+```
+
+### PR Description Template
+
+```markdown
+## Description
+Brief summary of what this PR does and why.
+
+## Related Issues
+- Jira: [GRADLOOP-XXX](link-to-jira)
+- Fixes #123
+
+## Type of Change
+- [ ] Bug fix (non-breaking change that fixes an issue)
+- [ ] New feature (non-breaking change that adds functionality)
+- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- [ ] Documentation update
+
+## Changes Made
+- Added X feature to Y service
+- Refactored Z component
+- Updated documentation for A
+
+## Testing
+Describe the tests you ran and how to reproduce:
+
+1. Start local environment: `docker compose up`
+2. Navigate to `http://localhost:5173`
+3. Create new assignment
+4. Verify bulk upload works
+
+## Screenshots (if applicable)
+[Add screenshots here]
+
+## Checklist
+- [ ] My code follows the project's style guidelines
+- [ ] I have performed a self-review of my code
+- [ ] I have commented my code, particularly in hard-to-understand areas
+- [ ] I have made corresponding changes to the documentation
+- [ ] My changes generate no new warnings
+- [ ] I have added tests that prove my fix is effective or that my feature works
+- [ ] New and existing unit tests pass locally with my changes
+- [ ] Any dependent changes have been merged and published
+
+## Database Changes
+- [ ] New migrations added
+- [ ] Migrations tested (up and down)
+- [ ] No breaking schema changes
+- [ ] Seed data updated (if needed)
+
+## Dependencies
+- [ ] No new dependencies
+- [ ] New dependencies documented in README
+- [ ] Dependencies approved by team
+
+## Deployment Notes
+Any special instructions for deployment or configuration changes needed.
+```
+
+### Review Process
+
+1. **Automated Checks**: All CI checks must pass
+   - Linting
+   - Unit tests
+   - Integration tests
+   - Security scans
+
+2. **Code Review**: At least 2 approvals required
+   - 1 from service owner
+   - 1 from another team member
+
+3. **Review Criteria**:
+   - Code quality and readability
+   - Test coverage
+   - Documentation completeness
+   - Performance implications
+   - Security considerations
+
+4. **Addressing Feedback**:
+   - Respond to all comments
+   - Mark resolved threads as resolved
+   - Push new commits (don't force-push)
+   - Request re-review when ready
+
+### Merging
+
+- **Squash and Merge**: For feature branches with many commits
+- **Rebase and Merge**: For clean, logical commit history
+- **Never force-push** to main or shared branches
+- Delete branch after merge
 
 ---
 
 ## Testing Requirements
 
-- Aim for 80% coverage across services.
-- Add unit and integration tests.
-- Provide reproduction steps for E2E tests in the PR description.
+### Minimum Coverage
+
+All services must maintain **80% code coverage**.
+
+### Test Types
+
+#### Unit Tests
+
+Test individual functions/methods in isolation:
+
+```go
+// Go unit test
+func TestCreateAssignment(t *testing.T) {
+    repo := &MockRepository{}
+    service := NewAssignmentService(repo)
+
+    assignment, err := service.CreateAssignment(context.Background(), &CreateAssignmentRequest{
+        Title:    "Test Assignment",
+        CourseID: 123,
+        DueDate:  time.Now().Add(24 * time.Hour),
+    })
+
+    assert.NoError(t, err)
+    assert.NotNil(t, assignment)
+    assert.Equal(t, "Test Assignment", assignment.Title)
+}
+```
+
+```python
+# Python unit test
+def test_analyze_submission():
+    analyzer = PlagiarismAnalyzer(threshold=0.8)
+    result = analyzer.analyze_submission(
+        submission_id=123,
+        reference_docs=["doc1", "doc2"]
+    )
+
+    assert result.similarity_score < 0.8
+    assert len(result.matches) == 0
+```
+
+#### Integration Tests
+
+Test interaction between components:
+
+```go
+func TestAssignmentCreationFlow(t *testing.T) {
+    // Setup test database
+    db := setupTestDB(t)
+    defer teardownTestDB(db)
+
+    // Create assignment
+    assignment := createTestAssignment(t, db)
+
+    // Verify in database
+    retrieved, err := db.GetAssignment(assignment.ID)
+    assert.NoError(t, err)
+    assert.Equal(t, assignment.Title, retrieved.Title)
+}
+```
+
+#### End-to-End Tests
+
+Test complete user workflows:
+
+```typescript
+// Frontend E2E test (Playwright/Cypress)
+test('instructor can create assignment', async ({ page }) => {
+  await page.goto('http://localhost:5173/login');
+  await page.fill('[name="email"]', 'instructor@test.com');
+  await page.fill('[name="password"]', 'password');
+  await page.click('button[type="submit"]');
+
+  await page.goto('/assignments/new');
+  await page.fill('[name="title"]', 'Week 5 Assignment');
+  await page.click('button:has-text("Create")');
+
+  await expect(page.locator('.success-message')).toBeVisible();
+});
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+./scripts/test-all.sh
+
+# Run tests for specific service
+cd apps/services/assignment-service
+go test ./... -v -cover
+
+# Run with coverage report
+go test ./... -coverprofile=coverage.out
+go tool cover -html=coverage.out
+
+# Python tests
+cd apps/services/cipas-service
+pytest --cov=src --cov-report=html
+
+# Frontend tests
+cd apps/web
+npm test
+npm run test:e2e
+```
 
 ---
 
 ## Documentation
 
-- Keep README files in each service up-to-date.
-- Document new infra and deployment procedures in both `CONTRIBUTING.md` and the relevant service README.
-- Document environment variables and required secrets in service README (do not commit secrets).
+### When to Update Documentation
 
----
+Update documentation when you:
+- Add a new service or feature
+- Change API contracts
+- Modify configuration
+- Add new dependencies
+- Change deployment procedures
 
-## Infrastructure / Traefik Gateway
+### Documentation Requirements
 
-This repository uses an API Gateway pattern for local/dev via Traefik (v3.x). The intent is to make microservices plug-and-play: services attach to a shared Docker network and opt-in to Traefik routing using container labels. Below are the guidelines and an example you should follow.
+- **Code Comments**: Explain "why", not "what"
+- **API Documentation**: Document all public APIs
+- **README Files**: Each service must have a README
+- **ADRs**: Document significant architectural decisions
+- **Runbooks**: Create runbooks for operational procedures
 
-Key goals:
-- Centralized routing and middleware handling (strip prefix, rate-limit, TLS).
-- Services are not exposed directly to the host (no published `ports:`), only via Traefik.
-- Safe defaults: `exposedByDefault=false` so services must explicitly opt-in.
+### Documentation Standards
 
-Important notes before you change infra:
-- The existing Auth service lives at `apps/services/auth-service` and listens internally on port `3000`. Ensure any compose or build references match that.
-- Traefik is configured to use the Docker socket (`/var/run/docker.sock`) for service discovery.
-- A dedicated Docker network called `gateway_network` is used for Traefik <> services communication.
-
-Recommended Compose structure and example
-- Keep Traefik and gateway-related compose manifests in a predictable location (for example `infra/compose/` or repo root).
-- Use an image for quick plug-and-play (e.g., `my-registry/auth-service:latest`) or a `build:` block that points to the service folder when you want to build locally.
-
-A minimal excerpt (example) demonstrating labels and the network is included in the repository at:
-```gradeloop-core-v2/compose.yaml#L1-200
-# Example excerpt in compose.yaml (use the repo file as authoritative)
-services:
-  traefik:
-    image: traefik:v3.0
-    command:
-      - --entryPoints.web.address=:80
-      - --entryPoints.traefik.address=:8080
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
-      - --api.dashboard=true
-    ports:
-      - "80:80"
-      - "8080:8080"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - gateway_network
-
-  auth-service:
-    image: my-registry/auth-service:latest
-    networks:
-      - gateway_network
-    labels:
-      "traefik.enable": "true"
-      "traefik.http.routers.auth-router.rule": "Host(`localhost`) && PathPrefix(`/api/auth`)"
-      "traefik.http.routers.auth-router.entrypoints": "web"
-      "traefik.http.routers.auth-router.middlewares": "auth-stripprefix@docker,auth-ratelimit@docker"
-      "traefik.http.services.auth-service.loadbalancer.server.port": "3000"
-      "traefik.http.middlewares.auth-stripprefix.stripprefix.prefixes": "/api/auth"
-      "traefik.http.middlewares.auth-ratelimit.ratelimit.average": "10"
-      "traefik.http.middlewares.auth-ratelimit.ratelimit.burst": "0"
-networks:
-  gateway_network:
-    name: gateway_network
-    driver: bridge
+```go
+// Good: Explains why and edge cases
+// CalculateSimilarityScore computes the similarity between two documents
+// using cosine similarity. Returns a value between 0 (no similarity) and
+// 1 (identical). Empty documents return a score of 0.
+func CalculateSimilarityScore(doc1, doc2 string) float64 {
+    if doc1 == "" || doc2 == "" {
+        return 0.0
+    }
+    // Implementation...
+}
 ```
-
-Labels and their meaning
-- `traefik.enable=true` — opt-in for Traefik when `exposedByDefault=false`.
-- `traefik.http.routers.<name>.rule` — a rule to select requests routed to this service (Host, PathPrefix, etc.).
-- `traefik.http.routers.<name>.entrypoints` — which Traefik entrypoint(s) (e.g., `web`, `traefik`).
-- `traefik.http.routers.<name>.middlewares` — inject middleware chain (strip prefix, rate limiting).
-- `traefik.http.services.<name>.loadbalancer.server.port` — internal container port to forward to (e.g., `3000`).
-- `traefik.http.middlewares.<name>.stripprefix.prefixes` — prefixes to remove before forwarding, useful for a unified API prefix like `/api/auth`.
-- `traefik.http.middlewares.<name>.ratelimit.*` — rate limiting settings to mitigate abuse (e.g., brute-force attempts).
-
-Auth service specifics (must follow these)
-- Internal port: `3000`
-- Desired external path: `http://localhost/api/auth/*` mapped to the service
-- Use a `stripprefix` middleware that removes `/api/auth` before forwarding; this keeps your service routes unchanged (e.g., `/login`).
-- Apply a `ratelimit` middleware to auth endpoints (recommended: average=10 req/s, tune burst as required).
-
-Future Service Template (copy/paste)
-- When you add a new service, use the same pattern: attach to `gateway_network`, do NOT publish host ports, add Traefik labels.
-
-Template (copy/paste — adapt to your service):
-```gradeloop-core-v2/compose.yaml#L200-330
-# Future service template (commented)
-# my-service:
-#   image: my-registry/my-service:latest
-#   container_name: my-service
-#   restart: unless-stopped
-#   networks:
-#     - gateway_network
-#   labels:
-#     "traefik.enable": "true"
-#     "traefik.http.routers.myservice-router.rule": "Host(`localhost`) && PathPrefix(`/api/myservice`)"
-#     "traefik.http.routers.myservice-router.entrypoints": "web"
-#     "traefik.http.routers.myservice-router.middlewares": "myservice-stripprefix@docker,myservice-ratelimit@docker"
-#     "traefik.http.middlewares.myservice-stripprefix.stripprefix.prefixes": "/api/myservice"
-#     "traefik.http.middlewares.myservice-ratelimit.ratelimit.average": "10"
-#     "traefik.http.middlewares.myservice-ratelimit.ratelimit.burst": "0"
-#     "traefik.http.services.myservice.loadbalancer.server.port": "3001"
-```
-
-Verification / Quick checks
-- Start stack:
-  - `docker compose -f compose.yaml up -d`
-- Check Traefik dashboard:
-  - `http://localhost:8080` (for local/dev only; secure it in production)
-- Test routing (examples):
-  - Health: `curl -i http://localhost/api/auth/health` (service should return health)
-  - Login (example):  
-    `curl -i -X POST http://localhost/api/auth/login -H "Content-Type: application/json" -d '{"username":"u","password":"p"}'`  
-    (Traefik will forward as `/login` due to `stripprefix`.)
-- Test rate limiting:
-  - Run a burst of requests and observe HTTP 429 responses if the rate limit triggers.
-
-Security & production notes
-- Do not expose the Traefik dashboard publicly. For production, secure with authentication, IP allowlist, or remove direct host mapping.
-- Use TLS in production. Configure cert resolvers and enable `tls` on routers.
-- Inject secrets via a secret manager or environment variables at runtime — never commit secrets to the repo.
-- Tune rate limits and other security middlewares per service sensitivity (auth endpoints typically require stricter limits).
-
-Commit & PR guidance for infra changes
-- Prefix commits with `infra:` (example `infra: add traefik gateway and auth routing [GRADLOOP-345]`).
-- Include a short verification checklist in the PR (start commands, curl checks).
-- Attach the `compose.yaml` or changes to infra folder in your PR. If you add network or label conventions, document them in the PR description and update this `CONTRIBUTING.md` as needed.
-
-How this avoids conflicts with `auth-service`
-- The gateway pattern keeps services internal to the Docker network — no host port collisions.
-- The `auth-service` in `apps/services/auth-service` documents an internal listening port of `3000`. Make sure any compose/service label uses that same port.
-- If you prefer building locally rather than pulling an image, use a `build:` entry that points to `./apps/services/auth-service` and ensure it exposes the same internal port (no host `ports:` mapping).
-
-Operational suggestions
-- Keep the `exposedByDefault=false` provider setting. This prevents accidental exposure of containers.
-- Name Docker networks explicitly (`gateway_network`) to avoid colliding with other networks.
-- Keep middleware names consistent (e.g., `<svc>-stripprefix`, `<svc>-ratelimit`) to make debugging and automation easier.
-
-If you need me to:
-- Add a ready-to-run `infra/compose/docker-compose.yaml` file within the repo,
-- Add a small `infra/traefik/` folder with a static/dynamic Traefik config,
-- Or generate a PR template snippet for infra changes,
-
-Tell me which one and I will prepare the files and sample PR description.
 
 ---
 
 ## Getting Help
 
-- Check each service README first (e.g., `apps/services/auth-service/README.md`).
-- Ask in `#gradeloop-dev` or open an issue/PR with detailed reproduction steps.
-- Include logs, `docker compose` status, and `curl -v` output for routing issues.
+### Resources
+
+- **Documentation**: Check `docs/` directory first
+- **Slack**: `#gradeloop-dev` for general questions
+- **Team Wiki**: [Confluence](https://yourorg.atlassian.net/wiki/spaces/GRADLOOP)
+- **Office Hours**: Tuesdays 2-3pm PT
+
+### Asking Questions
+
+When asking for help:
+1. Search existing issues/docs first
+2. Provide context and what you've tried
+3. Include error messages and logs
+4. Share relevant code snippets
+5. Specify your environment (OS, versions, etc.)
+
+### Reporting Bugs
+
+Use the bug report template in Jira:
+- Clear description of the issue
+- Steps to reproduce
+- Expected vs actual behavior
+- Screenshots/logs if applicable
+- Environment details
 
 ---
 
-Thank you for contributing to GradeLoop V2! Your infrastructure changes help keep our platform modular, secure, and easy for developers to extend.
+## License
+
+By contributing to GradeLoop V2, you agree that your contributions will be licensed under the same license as the project.
+
+---
+
+## Recognition
+
+We appreciate all contributors! Contributors will be:
+- Listed in release notes
+- Mentioned in team meetings
+- Eligible for contribution awards
+
+---
+
+**Thank you for contributing to GradeLoop V2! 🎉**
+
+Questions? Contact the maintainers or ask in `#gradeloop-dev`.
