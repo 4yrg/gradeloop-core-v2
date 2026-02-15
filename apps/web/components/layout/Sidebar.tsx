@@ -3,7 +3,6 @@
 import React, { useEffect, useRef } from "react";
 import { NAV_ITEMS, type NavItem } from "@/config/navigation";
 import { useMemo } from "react";
-import { useAuth } from "@/lib/auth";
 import Icons from "@/components/ui/icons";
 import Link from "next/link";
 import Image from "next/image";
@@ -15,6 +14,7 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { useAuthStore } from "@/store/auth.store";
 
 type SidebarProps = {
   open: boolean;
@@ -24,7 +24,7 @@ type SidebarProps = {
 };
 
 export function Sidebar({ open, onClose, collapsed, onToggleCollapse }: SidebarProps) {
-  const { user } = useAuth();
+  const user = useAuthStore((state) => state.user);
   const userPermissions = user?.permissions ?? [];
 
   const filtered = useMemo(() => {
