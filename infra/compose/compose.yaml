@@ -37,6 +37,8 @@ services:
       # - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro  # Optional file provider
     networks:
       - gateway_network
+    environment:
+      DOCKER_API_VERSION: "1.44"
     labels: {}
 
   auth-service:
