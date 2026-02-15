@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Lexend } from "next/font/google";
 import "./globals.css";
-import AppShell from "@/components/layout/AppShell";
+import ConditionalAppShell from "@/components/layout/ConditionalAppShell";
 import { Providers } from "@/components/providers";
 
 const lexend = Lexend({
@@ -33,7 +33,7 @@ export default function RootLayout({
       </head>
       <body className={`${lexend.variable} antialiased font-sans`}>
         <Providers>
-          <AppShell>{children}</AppShell>
+          <ConditionalAppShell>{children}</ConditionalAppShell>
         </Providers>
       </body>
     </html>
