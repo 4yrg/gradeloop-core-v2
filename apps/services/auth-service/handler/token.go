@@ -3,6 +3,7 @@ package handler
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"log"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 // helper: generate cryptographically secure random token (hex)
@@ -50,6 +52,54 @@ func createAccessToken(username string, userID uint, minutes int) (string, error
 	return token.SignedString([]byte(secret))
 }
 
+// issueRefreshToken generates, hashes, and persists a new refresh token for a user.
+func issueRefreshToken(db *gorm.DB, userID uint, ip, userAgent string) (string, error) {
+	newToken, err := generateRandomToken(32)
+	if err != nil {
+		return "", err
+	}
+
+	hash := hashToken(newToken)
+	if hash == "" {
+		return "", errors.New("failed to hash refresh token")
+	}
+
+	rtTTLdays := 30
+	expiresAt := time.Now().Add(time.Duration(rtTTLdays) * 24 * time.Hour)
+
+	rt := model.RefreshToken{
+		TokenHash: hash,
+		UserID:    userID,
+		ExpiresAt: expiresAt,
+		IP:        ip,
+		UserAgent: userAgent,
+	}
+
+	if err := db.Create(&rt).Error; err != nil {
+		return "", err
+	}
+
+	return newToken, nil
+}
+
+// findRefreshToken locates an active refresh token in the database by comparing
+// the incoming raw token against stored hashes.
+func findRefreshToken(db *gorm.DB, token string) (*model.RefreshToken, error) {
+	var candidates []model.RefreshToken
+	// Only fetch unrevoked and non-expired tokens
+	if err := db.Where("revoked = ? AND expires_at > ?", false, time.Now()).Find(&candidates).Error; err != nil {
+		return nil, err
+	}
+
+	for _, rt := range candidates {
+		if bcrypt.CompareHashAndPassword([]byte(rt.TokenHash), []byte(token)) == nil {
+			return &rt, nil
+		}
+	}
+
+	return nil, nil // Not found
+}
+
 // Refresh handler - rotate refresh token and return new access + refresh tokens.
 // Accepts refresh token from cookie "refresh_token" or JSON { "refresh_token": "<token>" }.
 func Refresh(c fiber.Ctx) error {
@@ -74,28 +124,14 @@ func Refresh(c fiber.Ctx) error {
 
 	db := database.DB
 
-	var stored model.RefreshToken
-	var candidates []model.RefreshToken
-	if err := db.Where("revoked = ? AND expires_at > ?", false, time.Now()).Find(&candidates).Error; err != nil {
+	stored, err := findRefreshToken(db, in.RefreshToken)
+	if err != nil {
+		log.Printf("Refresh: error searching for token: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": "internal error", "data": nil})
 	}
-	found := false
-	for _, rt := range candidates {
-		if bcrypt.CompareHashAndPassword([]byte(rt.TokenHash), []byte(in.RefreshToken)) == nil {
-			stored = rt
-			found = true
-			break
-		}
-	}
-	if !found {
-		log.Printf("Refresh: incoming token not found in %d unrevoked candidates", len(candidates))
-		// Do not leak which case; return unauthorized
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "error", "message": "invalid refresh token", "data": nil})
-	}
 
-	if stored.Revoked || stored.IsExpired() {
-		log.Printf("Refresh: token found but revoked=%v or expired=%v", stored.Revoked, stored.IsExpired())
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "error", "message": "refresh token revoked or expired", "data": nil})
+	if stored == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "error", "message": "invalid refresh token", "data": nil})
 	}
 
 	// Load user
@@ -104,40 +140,21 @@ func Refresh(c fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": "internal error", "data": nil})
 	}
 
-	// Create new refresh token
-	newToken, err := generateRandomToken(32)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": "couldn't generate token", "data": nil})
-	}
-	newHashBytes, herr := bcrypt.GenerateFromPassword([]byte(newToken), 12)
-	if herr != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": "couldn't hash token", "data": nil})
-	}
-	newHash := string(newHashBytes)
-	rtTTLdays := 30
-	expiresAt := time.Now().Add(time.Duration(rtTTLdays) * 24 * time.Hour)
-
-	newRT := model.RefreshToken{
-		TokenHash: newHash,
-		UserID:    user.ID,
-		ExpiresAt: expiresAt,
-		IP:        c.IP(),
-		UserAgent: c.Get("User-Agent"),
-	}
-
-	// Save new token and revoke old one in a transaction
+	// Create new refresh token using transaction for rotation
 	tx := db.Begin()
 	if tx.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": "internal error", "data": nil})
 	}
 
-	if err := tx.Create(&newRT).Error; err != nil {
+	newToken, err := issueRefreshToken(tx, user.ID, c.IP(), c.Get("User-Agent"))
+	if err != nil {
 		tx.Rollback()
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": "couldn't save refresh token", "data": nil})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": "couldn't issue new token", "data": nil})
 	}
 
-	// mark old token revoked and reference new token hash
-	if err := tx.Model(&stored).Updates(map[string]interface{}{
+	// Revoke old token and link to new one
+	newHash := hashToken(newToken) // Redundant hash for linking, but safe
+	if err := tx.Model(stored).Updates(map[string]interface{}{
 		"revoked":                true,
 		"revoked_at":             time.Now(),
 		"replaced_by_token_hash": newHash,
@@ -158,7 +175,7 @@ func Refresh(c fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": "couldn't create access token", "data": nil})
 	}
 
-	// Return both tokens. In production you'd set refresh token as httpOnly secure cookie.
+	// Return both tokens.
 	return c.JSON(fiber.Map{"status": "success", "message": "tokens refreshed", "data": fiber.Map{
 		"access_token":  at,
 		"refresh_token": newToken,
@@ -205,25 +222,11 @@ func Logout(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "can't revoke all without valid jwt", "data": nil})
 	}
 
-	if in.RefreshToken == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "refresh token required", "data": nil})
-	}
-
-	var rt model.RefreshToken
-	var candidates []model.RefreshToken
-	if err := db.Where("revoked = ? AND expires_at > ?", false, time.Now()).Find(&candidates).Error; err != nil {
-		// Even if not found, return success to avoid token probing
+	rt, err := findRefreshToken(db, in.RefreshToken)
+	if err != nil {
 		return c.JSON(fiber.Map{"status": "success", "message": "logged out", "data": nil})
 	}
-	found := false
-	for _, cand := range candidates {
-		if bcrypt.CompareHashAndPassword([]byte(cand.TokenHash), []byte(in.RefreshToken)) == nil {
-			rt = cand
-			found = true
-			break
-		}
-	}
-	if !found {
+	if rt == nil {
 		// Even if not found, return success to avoid token probing
 		return c.JSON(fiber.Map{"status": "success", "message": "logged out", "data": nil})
 	}

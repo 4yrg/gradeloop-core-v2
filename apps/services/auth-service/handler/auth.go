@@ -2,7 +2,6 @@ package handler
 
 import (
 	"errors"
-	"log"
 	"net/mail"
 
 	"github.com/4yrg/gradeloop-core-v2/apps/services/auth-service/database"
@@ -17,7 +16,6 @@ import (
 // CheckPasswordHash compare password with hash
 func CheckPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-	log.Println(hash, "haaaash")
 	return err == nil
 }
 
@@ -92,10 +90,19 @@ func Login(c fiber.Ctx) error {
 	}
 
 	// Create JWT access token
-	t, err := createAccessToken(userModel.Username, userModel.ID, 72*60) // 72 hours
+	at, err := createAccessToken(userModel.Username, userModel.ID, 72*60) // 72 hours
 	if err != nil {
 		return c.SendStatus(fiber.StatusInternalServerError)
 	}
 
-	return c.JSON(fiber.Map{"status": "success", "message": "Success login", "data": t})
+	// Issue and persist Refresh Token
+	rt, err := issueRefreshToken(database.DB, userModel.ID, c.IP(), c.Get("User-Agent"))
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": "Could not issue refresh token", "data": nil})
+	}
+
+	return c.JSON(fiber.Map{"status": "success", "message": "Success login", "data": fiber.Map{
+		"access_token":  at,
+		"refresh_token": rt,
+	}})
 }
