@@ -2,6 +2,8 @@ package main
 
 import (
 	"log"
+	"os"
+	"strconv"
 
 	"github.com/4yrg/gradeloop-core-v2/apps/services/auth-service/database"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/auth-service/router"
@@ -22,5 +24,18 @@ func main() {
 	database.ConnectDB()
 
 	router.SetupRoutes(app)
-	log.Fatal(app.Listen(":3000", fiber.ListenConfig{EnablePrefork: true}))
+
+	// Use SERVER_PORT environment variable if provided, otherwise default to 3000.
+	// Validate that the port is numeric and fall back to 3000 on error.
+	port := os.Getenv("SERVER_PORT")
+	if port == "" {
+		port = "8081"
+	}
+	if _, err := strconv.Atoi(port); err != nil {
+		log.Printf("Warning: invalid SERVER_PORT %q, falling back to 3000", port)
+		port = "8081"
+	}
+
+	addr := ":" + port
+	log.Fatal(app.Listen(addr, fiber.ListenConfig{EnablePrefork: true}))
 }

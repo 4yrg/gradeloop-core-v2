@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/4yrg/gradeloop-core-v2/apps/services/auth-service/config"
 
@@ -95,10 +96,26 @@ func ConnectDB() {
 		)
 	}
 
-	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	// Attempt to connect with retries and exponential backoff.
+	// This helps transient network/DNS issues when the DB host isn't yet resolvable.
+	maxAttempts := 5
+	delay := 2 * time.Second
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		if err == nil {
+			break
+		}
+		fmt.Printf("Database connection attempt %d/%d failed: %v\n", attempt, maxAttempts, err)
+		if attempt < maxAttempts {
+			time.Sleep(delay)
+			// Exponential backoff for subsequent attempts.
+			delay = delay * 2
+		}
+	}
+
 	if err != nil {
 		// Include the underlying error to make troubleshooting easier
-		panic(fmt.Sprintf("failed to connect database: %v", err))
+		panic(fmt.Sprintf("failed to connect database after %d attempts: %v", maxAttempts, err))
 	}
 
 	fmt.Println("Connection Opened to Database")
