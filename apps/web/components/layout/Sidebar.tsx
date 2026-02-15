@@ -27,12 +27,18 @@ export function Sidebar({ open, onClose, collapsed, onToggleCollapse }: SidebarP
   const user = useAuthStore((state) => state.user);
   const userPermissions = user?.permissions ?? [];
 
+  // For development: show all items when DISABLE_AUTH is true
+  const isAuthDisabled = process.env.NEXT_PUBLIC_DISABLE_AUTH === 'true';
+
   const filtered = useMemo(() => {
+    // If auth is disabled, show all navigation items
+    if (isAuthDisabled) return NAV_ITEMS;
+    
     return NAV_ITEMS.filter((item: NavItem) => {
       if (!item.requiredPermissions || item.requiredPermissions.length === 0) return true;
       return item.requiredPermissions.some((p) => userPermissions.includes(p));
     });
-  }, [userPermissions]);
+  }, [userPermissions, isAuthDisabled]);
 
   const drawerRef = useRef<HTMLDivElement | null>(null);
 
