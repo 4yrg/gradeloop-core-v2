@@ -30,10 +30,10 @@ export function FilterControls({
   onStatusFilterChange,
 }: FilterControlsProps) {
   return (
-    <div className="bg-white rounded-t-xl border border-border p-4 flex flex-col sm:flex-row gap-4 justify-between items-center shadow-sm">
+    <div className="bg-white dark:bg-gray-900 rounded-t-xl border border-border p-4 flex flex-col sm:flex-row gap-4 justify-between items-center shadow-sm">
       <div className="relative w-full sm:w-96">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Search className="h-5 w-5 text-gray-400" />
+          <Search className="h-5 w-5 text-gray-400 dark:text-gray-500" />
         </div>
         <Input
           type="text"
@@ -47,7 +47,7 @@ export function FilterControls({
       <div className="flex items-center gap-3 w-full sm:w-auto">
         <Select value={roleFilter} onValueChange={onRoleFilterChange}>
           <SelectTrigger className="w-[140px]">
-            <Filter className="h-4 w-4 mr-2 text-gray-500" />
+            <Filter className="h-4 w-4 mr-2 text-gray-500 dark:text-gray-400" />
             <SelectValue placeholder="Role" />
           </SelectTrigger>
           <SelectContent>
@@ -61,7 +61,7 @@ export function FilterControls({
 
         <Select value={statusFilter} onValueChange={onStatusFilterChange}>
           <SelectTrigger className="w-[140px]">
-            <Filter className="h-4 w-4 mr-2 text-gray-500" />
+            <Filter className="h-4 w-4 mr-2 text-gray-500 dark:text-gray-400" />
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -72,7 +72,7 @@ export function FilterControls({
           </SelectContent>
         </Select>
 
-        <div className="h-6 w-px bg-gray-300 mx-1"></div>
+        <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-1"></div>
 
         <Button variant="outline" size="sm" className="border-dashed">
           <Columns3 className="h-4 w-4 mr-2" />

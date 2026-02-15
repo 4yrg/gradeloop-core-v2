@@ -192,9 +192,9 @@ export function UserManagementPage() {
       />
 
       {/* Table */}
-      <div className="bg-white border-x border-b border-border rounded-b-xl shadow-sm overflow-hidden flex flex-col">
+      <div className="bg-white dark:bg-gray-900 border-x border-b border-border rounded-b-xl shadow-sm overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <TableHeader
               allSelected={!!allSelected}
               onSelectAll={handleSelectAll}
@@ -202,7 +202,7 @@ export function UserManagementPage() {
               sortDirection={sortDirection}
               onSort={handleSort}
             />
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
               {isLoading ? (
                 Array.from({ length: perPage }).map((_, i) => (
                   <tr key={i}>
