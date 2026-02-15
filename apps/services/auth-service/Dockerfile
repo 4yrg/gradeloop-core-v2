@@ -13,4 +13,5 @@ COPY . .
 # Run and expose the server on port 3000
 EXPOSE 3000
 
-# CMD [ "nodemon", "build/app.js" ]
+# Default command: use air for hot reload if available, otherwise run the Go service directly
+CMD ["sh", "-c", "air cmd/main.go -b 0.0.0.0 || go run ./cmd/main.go"]
