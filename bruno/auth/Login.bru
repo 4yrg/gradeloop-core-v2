@@ -1,0 +1,95 @@
+meta {
+  name: Auth - API tests
+  type: http
+  seq: 1
+}
+
+# Login (email + password)
+post {
+  url: "http://localhost:8081/api/auth/login"
+  headers {
+    "Content-Type": "application/json"
+  }
+  body {
+{
+  "email": "admin@example.com",
+  "password": "changeme123"
+}
+  }
+  auth: inherit
+}
+
+# Refresh (rotate refresh token)
+post {
+  url: "http://localhost:8081/api/auth/refresh"
+  headers {
+    "Content-Type": "application/json"
+  }
+  body {
+{
+  "refresh_token": "<refresh-token>"
+}
+  }
+  auth: inherit
+}
+
+# Logout (revoke single refresh token)
+post {
+  url: "http://localhost:8081/api/auth/logout"
+  headers {
+    "Content-Type": "application/json"
+  }
+  body {
+{
+  "refresh_token": "<refresh-token>"
+}
+  }
+  auth: inherit
+}
+
+# Logout All (revoke all sessions for authenticated user)
+# Requires Authorization header with a valid access JWT
+post {
+  url: "http://localhost:8081/api/auth/logout/all"
+  headers {
+    "Content-Type": "application/json"
+    "Authorization": "Bearer <access-token>"
+  }
+  body {
+{}
+  }
+  auth: inherit
+}
+
+# Forgot Password (request reset token)
+post {
+  url: "http://localhost:8081/api/auth/forgot-password"
+  headers {
+    "Content-Type": "application/json"
+  }
+  body {
+{
+  "email": "user@example.com"
+}
+  }
+  auth: inherit
+}
+
+# Reset Password (consume reset token)
+post {
+  url: "http://localhost:8081/api/auth/reset-password"
+  headers {
+    "Content-Type": "application/json"
+  }
+  body {
+{
+  "token": "<reset-token>",
+  "password": "newpassword123"
+}
+  }
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}

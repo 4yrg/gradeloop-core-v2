@@ -1,0 +1,22 @@
+meta {
+  name: "Logout - All (revoke all sessions)"
+  type: http
+  seq: 4
+}
+
+post {
+  url: "http://localhost:8081/api/auth/logout/all"
+  headers {
+    "Content-Type": "application/json"
+    "Authorization": "Bearer <access-token>"
+  }
+  # Body can be empty for this endpoint; the handler will use the JWT to identify the user.
+  body {
+{}
+  }
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}

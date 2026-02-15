@@ -1,6 +1,7 @@
 package database
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 	"github.com/4yrg/gradeloop-core-v2/apps/services/auth-service/config"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/auth-service/model"
 
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -123,9 +125,42 @@ func ConnectDB() {
 
 	// Auto-migrate models used by the auth service.
 	// This ensures the necessary tables/columns exist when the service starts.
-	if err := DB.AutoMigrate(&model.User{}, &model.RefreshToken{}); err != nil {
+	if err := DB.AutoMigrate(&model.User{}, &model.RefreshToken{}, &model.PasswordReset{}); err != nil {
 		// Include the underlying error to make troubleshooting easier
 		panic(fmt.Sprintf("failed to migrate database: %v", err))
+	}
+
+	// Seed super admin if configured and not already present in the DB.
+	// Provide SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD in the environment to enable seeding.
+	superEmail := config.Config("SUPER_ADMIN_EMAIL")
+	superPass := config.Config("SUPER_ADMIN_PASSWORD")
+	if superEmail != "" && superPass != "" {
+		var u model.User
+		if err := DB.Where(&model.User{Email: superEmail}).First(&u).Error; errors.Is(err, gorm.ErrRecordNotFound) {
+			// Hash password and create super admin
+			hash, herr := bcrypt.GenerateFromPassword([]byte(superPass), 14)
+			if herr != nil {
+				fmt.Println("Warning: couldn't hash super admin password:", herr)
+			} else {
+				admin := model.User{
+					Username: "superadmin",
+					Email:    superEmail,
+					Password: string(hash),
+					UserType: model.SuperAdmin,
+				}
+				if cerr := DB.Create(&admin).Error; cerr != nil {
+					fmt.Println("Warning: failed to create super admin:", cerr)
+				} else {
+					fmt.Println("Super admin seeded:", superEmail)
+				}
+			}
+		} else if err != nil {
+			fmt.Println("Warning checking super admin:", err)
+		} else {
+			fmt.Println("Super admin already exists:", superEmail)
+		}
+	} else {
+		fmt.Println("SUPER_ADMIN_EMAIL or SUPER_ADMIN_PASSWORD not set; skipping super admin seed")
 	}
 
 	fmt.Println("Database Migrated")

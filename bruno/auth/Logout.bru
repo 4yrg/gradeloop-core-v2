@@ -1,0 +1,23 @@
+meta {
+  name: Logout
+  type: http
+  seq: 3
+}
+
+# Logout (revoke a single refresh token)
+post {
+  url: "http://localhost:8081/api/auth/logout"
+  headers {
+    "Content-Type": "application/json"
+  }
+  body {
+{
+  "refresh_token": "<refresh-token>"
+}
+  }
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}
