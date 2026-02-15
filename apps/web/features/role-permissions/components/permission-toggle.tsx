@@ -48,7 +48,7 @@ export function PermissionCell({ enabled, applicable = true }: PermissionCellPro
   if (!applicable) {
     return (
       <div className="flex items-center justify-center">
-        <span className="text-gray-300 text-lg select-none">-</span>
+        <span className="text-gray-300 dark:text-gray-600 text-lg select-none">-</span>
       </div>
     );
   }

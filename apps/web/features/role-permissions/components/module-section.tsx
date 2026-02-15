@@ -32,11 +32,11 @@ export function ModuleSection({ module, onPermissionChange, onSelectAll }: Modul
   };
 
   return (
-    <div className="border-b border-gray-100 last:border-0">
+    <div className="border-b border-gray-100 dark:border-gray-700 last:border-0">
       {/* Module Header */}
-      <div className="bg-gray-50/50 px-6 py-3 flex items-center justify-between">
-        <h3 className="font-bold text-gray-800 flex items-center gap-2">
-          <IconComponent className="h-5 w-5 text-gray-400" />
+      <div className="bg-gray-50/50 dark:bg-gray-800/50 px-6 py-3 flex items-center justify-between">
+        <h3 className="font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+          <IconComponent className="h-5 w-5 text-gray-400 dark:text-gray-500" />
           {module.module_name}
         </h3>
         <Button
@@ -57,15 +57,15 @@ export function ModuleSection({ module, onPermissionChange, onSelectAll }: Modul
           <div
             key={resource.resource_id}
             className={cn(
-              "grid grid-cols-12 items-center px-6 py-4 hover:bg-primary/5 transition-colors",
-              !isLastResource && "border-b border-gray-50"
+              "grid grid-cols-12 items-center px-6 py-4 hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors",
+              !isLastResource && "border-b border-gray-50 dark:border-gray-700/50"
             )}
           >
             {/* Resource Name & Description */}
             <div className="col-span-4 pr-4">
-              <p className="text-sm font-medium text-gray-900">{resource.resource_name}</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{resource.resource_name}</p>
               {resource.resource_description && (
-                <p className="text-xs text-gray-500">{resource.resource_description}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{resource.resource_description}</p>
               )}
             </div>
 
