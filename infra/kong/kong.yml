@@ -1,0 +1,174 @@
+_format_version: "2.1"
+
+# Kong declarative configuration (DB-less)
+# - Define services and routes for auth-service and api-service
+# - Provide plugin placeholders for JWKS/OIDC-based JWT validation (preferred)
+#   and a serverless pre-function example for ForwardAuth-style validation (fallback).
+#
+# Notes:
+# - Replace jwks_uri, issuer, and client_secret values with your IAM values.
+# - If you use a community plugin (e.g., kong-oidc), ensure it's installed in the Kong image.
+# - The serverless Lua example is conceptual; adapt timeouts, error handling and mapping as needed.
+
+services:
+  - name: auth-service
+    url: http://auth-service:3000
+    routes:
+      - name: auth-route
+        # Expose auth endpoints under /api/auth
+        paths:
+          - /api/auth
+        strip_path: false
+        methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+
+  - name: api-service
+    url: http://api-service:3000
+    routes:
+      - name: api-route
+        # Main application API prefix
+        paths:
+          - /api
+        strip_path: false
+        methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+
+# Plugins
+# 1) Preferred: OIDC / JWKS plugin configuration (validate JWTs locally using JWKS)
+#    - Use community plugin `kong-oidc` or enterprise OIDC plugin depending on your Kong distribution.
+#    - The exact plugin name and config keys differ between plugins. Below is a conceptual example.
+#
+# 2) Fallback: serverless-functions (Lua) pre-function that forwards Authorization header
+#    to IAM `/api/v1/auth/validate` and rejects unauthorized requests. This mirrors Traefik's ForwardAuth.
+
+plugins:
+  # Example: Attach OIDC/JWKS plugin to the api-service (preferred)
+  - name: oidc                # replace with the installed plugin name (e.g., kong-oidc)
+    service: api-service
+    enabled: true
+    config:
+      # Replace with your IAM's issuer and JWKS URL
+      issuer: "http://iam-service"
+      jwks_uri: "http://iam-service:3000/.well-known/jwks.json"
+      client_id: "gradeloop-gateway"
+      # client_secret may not be necessary for bearer-only setups; include if required by plugin
+      client_secret: ""
+      discovery: false
+      bearer_only: true
+      # Optional: enforce audience and other claim checks if plugin supports it
+      # Example: accepted_audiences: ["gradeloop-api"]
+
+  # Example: Rate limiting on api-service (optional)
+  - name: rate-limiting
+    service: api-service
+    enabled: true
+    config:
+      minute: 1000
+      policy: local
+      fault_tolerant: true
+
+  # Example: Request transformer to map certain claim headers (if already provided by upstream auth)
+  # This plugin can add headers or remove path prefixes if needed.
+  - name: request-transformer
+    service: api-service
+    enabled: false
+    config:
+      add:
+        headers:
+          - "X-Forwarded-Proto: http"
+      remove:
+        headers:
+          - "X-Internal-Secret"
+
+  # Fallback: Serverless pre-function that acts like ForwardAuth.
+  # Uncomment and adapt this block if your IAM does NOT expose JWKS and you need per-request introspection.
+  # The Lua example below is conceptual and must be hardened for production (timeouts, retries, caching).
+  # - name: serverless-functions
+  #   service: api-service
+  #   enabled: true
+  #   config:
+  #     phase: access   # run before proxying request
+  #     functions:
+  #       - |
+  #         -- Lua pre-function: call IAM validate endpoint and set headers for upstream
+  #         local http = require "resty.http"
+  #         return function(conf)
+  #           local ngx = ngx
+  #           local req_headers = ngx.req.get_headers()
+  #           local auth = req_headers["Authorization"]
+  #           if not auth then
+  #             return ngx.exit(401)
+  #           end
+  #
+  #           local httpc = http.new()
+  #           httpc:set_timeout(2000) -- 2s timeout
+  #
+  #           local res, err = httpc:request_uri("http://iam-service:3000/api/v1/auth/validate", {
+  #             method = "GET",
+  #             headers = {
+  #               ["Authorization"] = auth,
+  #               ["Accept"] = "application/json"
+  #             },
+  #             keepalive = false,
+  #           })
+  #
+  #           if not res then
+  #             ngx.log(ngx.ERR, "error calling IAM validate: ", err)
+  #             return ngx.exit(502)
+  #           end
+  #
+  #           if res.status == 200 then
+  #             -- Example: map JSON body fields to headers (if IAM returns JSON)
+  #             local cjson = require "cjson.safe"
+  #             local body = cjson.decode(res.body) or {}
+  #             if body.sub then
+  #               ngx.req.set_header("X-User-Id", body.sub)
+  #             end
+  #             if body.email then
+  #               ngx.req.set_header("X-User-Email", body.email)
+  #             end
+  #             if body.roles then
+  #               ngx.req.set_header("X-User-Roles", table.concat(body.roles, ","))
+  #             end
+  #             if body.permissions then
+  #               ngx.req.set_header("X-User-Permissions", table.concat(body.permissions, ","))
+  #             end
+  #             -- allow request to continue
+  #             return
+  #           elseif res.status == 401 then
+  #             return ngx.exit(401)
+  #           elseif res.status == 403 then
+  #             return ngx.exit(403)
+  #           else
+  #             ngx.log(ngx.ERR, "unexpected response from IAM validate: ", res.status)
+  #             return ngx.exit(502)
+  #           end
+  #         end
+
+# Consumers & Credentials (optional)
+# If you plan to use Kong's built-in JWT plugin with consumers, define them here.
+# Example (commented):
+# consumers:
+#   - username: api-client
+#     custom_id: client-123
+#     credentials:
+#       - type: jwt
+#         key: "client-key"
+#         secret: ""
+#         algorithm: "RS256"
+
+# Workflows / Additional examples
+# - If using OIDC/JWKS plugin, configure it per the plugin docs (issuer, jwks_uri, accepted_audiences).
+# - If using serverless introspection, consider adding a local cache (shared dict) to avoid calling IAM on every request.
+# - Add TLS settings for upstreams in production (use `tls` block under service definitions if required).
+
+# Admin API configuration is handled by environment variables (KONG_DECLARATIVE_CONFIG).
+# Keep admin API locked down in production; do not expose it publicly.
+
+# End of file
