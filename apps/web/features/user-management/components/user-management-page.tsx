@@ -12,11 +12,19 @@ import { FilterControls } from "../components/filter-controls";
 import { TableHeader } from "../components/table-header";
 import { UserRow } from "../components/user-row";
 import { PaginationControls } from "../components/pagination-controls";
+import { AddUserDialog } from "../components/add-user-dialog";
+import { AddInstructorDialog } from "../components/add-instructor-dialog";
 import type { UserManagement, UserRole, UserStatus } from "@/schemas/user-management.schema";
+import type { BaseUser, InstructorUser } from "@/schemas/user-creation.schema";
 import Link from "next/link";
 
 export function UserManagementPage() {
   const router = useRouter();
+  
+  // Dialog states
+  const [addUserDialogOpen, setAddUserDialogOpen] = useState(false);
+  const [addInstructorDialogOpen, setAddInstructorDialogOpen] = useState(false);
+  const [userTypeSelection, setUserTypeSelection] = useState<"staff" | "instructor" | null>(null);
   
   // Filter states
   const [searchValue, setSearchValue] = useState("");
@@ -109,9 +117,24 @@ export function UserManagementPage() {
   };
 
   const handleAddUser = () => {
-    // TODO: Implement add user modal or navigate to add user page
-    console.log("Add user clicked");
-    // Future: router.push("/admin/users/new") or open modal
+    // Open staff user dialog by default
+    setAddUserDialogOpen(true);
+  };
+
+  const handleAddInstructor = () => {
+    setAddInstructorDialogOpen(true);
+  };
+
+  const handleCreateUser = async (data: BaseUser) => {
+    console.log("Creating user:", data);
+    // TODO: Implement API call to create user
+    // await createUserMutation.mutateAsync(data);
+  };
+
+  const handleCreateInstructor = async (data: InstructorUser) => {
+    console.log("Creating instructor:", data);
+    // TODO: Implement API call to create instructor
+    // await createInstructorMutation.mutateAsync(data);
   };
 
   const allSelected = usersData?.data && selectedUsers.size === usersData.data.length && usersData.data.length > 0;
@@ -274,6 +297,18 @@ export function UserManagementPage() {
           />
         )}
       </div>
+
+      {/* Dialogs */}
+      <AddUserDialog
+        open={addUserDialogOpen}
+        onOpenChange={setAddUserDialogOpen}
+        onSubmit={handleCreateUser}
+      />
+      <AddInstructorDialog
+        open={addInstructorDialogOpen}
+        onOpenChange={setAddInstructorDialogOpen}
+        onSubmit={handleCreateInstructor}
+      />
     </div>
   );
 }
