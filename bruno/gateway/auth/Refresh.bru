@@ -1,0 +1,21 @@
+meta {
+  name: Refresh
+  type: http
+  seq: 3
+}
+
+post {
+  url: http://localhost:8080/v1/auth/refresh
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "refresh_token": "{{refresh_token}}"
+  }
+}
+
+vars:pre-request {
+  refresh_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NzE0NDMzNjMsInVzZXJfaWQiOjEsInVzZXJuYW1lIjoic3VwZXJhZG1pbiJ9.sOcMmxOR001aDAOZQn_uUF99x8CzxUYe_sxkfYQd5m4
+}

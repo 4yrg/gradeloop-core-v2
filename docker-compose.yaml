@@ -1,0 +1,32 @@
+services:
+  auth-service:
+    build:
+      context: ./apps/services/auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    env_file:
+      - .env
+    environment:
+      - SERVER_PORT=8081
+      - ENABLE_PREFORK=false
+    ports:
+      - "8081:8081"
+    networks:
+      - gradeloop-network
+
+  api-gateway:
+    image: krakend:latest
+    container_name: api-gateway
+    volumes:
+      - ./apps/gateway/krakend.json:/etc/krakend/krakend.json
+    ports:
+      - "8080:8080"
+    command: [ "run", "-c", "/etc/krakend/krakend.json" ]
+    depends_on:
+      - auth-service
+    networks:
+      - gradeloop-network
+
+networks:
+  gradeloop-network:
+    driver: bridge

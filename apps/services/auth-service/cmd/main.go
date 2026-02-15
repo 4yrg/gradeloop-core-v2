@@ -36,6 +36,12 @@ func main() {
 		port = "8081"
 	}
 
+	// Enable prefork only if explicitly requested via ENABLE_PREFORK=true
+	enablePrefork := false
+	if ep := os.Getenv("ENABLE_PREFORK"); ep == "true" {
+		enablePrefork = true
+	}
+
 	addr := ":" + port
-	log.Fatal(app.Listen(addr, fiber.ListenConfig{EnablePrefork: true}))
+	log.Fatal(app.Listen(addr, fiber.ListenConfig{EnablePrefork: enablePrefork}))
 }
