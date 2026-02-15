@@ -1,39 +1,153 @@
+version: "3.9"
+
+# Infra compose that merges the root `compose.yaml` Traefik gateway into infra/compose.
+# - Traefik v3.0 configured with two entrypoints: `web` (80) and `traefik` (8080 dashboard)
+# - Docker provider enabled with exposedByDefault=false (services must opt-in with traefik.enable=true)
+# - Auth service built from local context (apps/services/auth-service) and attached to gateway_network
+# - Auth service does NOT publish host ports; it is only reachable via Traefik
+#
+# Usage:
+#   cd infra/compose
+#   docker compose up -d
+#
+# Notes:
+# - The auth service still reads environment variables from ../../.env (keeps parity with existing infra)
+# - Traefik uses the Docker socket for discovery: /var/run/docker.sock (read-only mount)
+# - If you prefer to pull an image instead of building locally, replace the auth-service `build:` block with `image: my-registry/auth-service:latest`
+
 services:
-  # Only keep the auth service. Local infra services and volumes removed.
+  traefik:
+    image: "traefik:v3.0" # Traefik v3.0
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      # Static configuration (CLI flags). Comments below explain each flag.
+      - --providers.docker=true # Enable Docker provider
+      - --providers.docker.exposedbydefault=false # Only pick containers with traefik.enable=true
+      - --providers.docker.endpoint=unix:///var/run/docker.sock
+      - --entrypoints.web.address=:80 # Public HTTP entrypoint (port 80)
+      - --entrypoints.traefik.address=:8080 # Traefik Dashboard entrypoint (port 8080)
+      - --api=true # Enable API (required to expose dashboard)
+      - --api.dashboard=true # Enable Dashboard UI
+      - --log.level=INFO
+      # Optional: add file provider or other static config flags if needed.
+    ports:
+      - "80:80" # Exposes the `web` entrypoint on host port 80 (HTTP)
+      - "8080:8080" # Exposes the Traefik dashboard on host port 8080 (DEV ONLY - secure in prod)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro # Docker socket for service discovery (read-only)
+      # - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro  # Optional file provider
+    networks:
+      - gateway_network
+    labels:
+      # Optional: gate the dashboard behind a router rule if you want (commented example)
+      # "traefik.http.routers.traefik.rule": "Host(`localhost`) && PathPrefix(`/traefik`)"
+      # "traefik.http.routers.traefik.entrypoints": "traefik"
+      # "traefik.http.routers.traefik.service": "api@internal"
+      #
+      # For local development we expose :8080 directly; in production avoid exposing the dashboard or secure it.
+
   auth-service:
+    # Build locally from the repo's auth-service folder (keeps infra self-contained)
     build:
       context: ../../apps/services/auth-service
       dockerfile: Dockerfile
     container_name: gradeloop-auth-service
     hostname: auth-service
-    ports:
-      - "${AUTH_SVC_PORT:-8081}:${AUTH_SVC_PORT:-8081}"
+    restart: unless-stopped
     env_file:
-      - ../../.env
+      - ../../.env # keep reading Aiven / DB env vars from repo-level .env (do not commit secrets)
     environment:
+      # Ensure the service listens on the internal port expected by Traefik (3000).
+      # The auth-service implementation in this repo expects port 3000 internally.
       - SERVER_HOST=0.0.0.0
-      - SERVER_PORT=${AUTH_SVC_PORT:-8081}
-      # Aiven support: POSTGRES_URL_BASE, POSTGRES_SSLMODE, and AUTH_SVC_DB_NAME
-      # are provided via the env_file (../../.env) and should not be defined inline here.
-      # Optional fallback DB credentials (leave empty if relying on Aiven)
+      - SERVER_PORT=3000
+      # Optional DB fallback vars left available (prefer Aiven vars in ../../.env)
       - DB_USER=${DB_USER:-}
       - DB_PASSWORD=${DB_PASSWORD:-}
+    # Do NOT publish host ports for services intended to be reached only via Traefik.
+    # Expose the internal port to other containers (optional) so Docker knows it's reachable.
+    expose:
+      - "3000"
     networks:
-      - gradeloop-network
+      - gateway_network
+      - gradeloop-network # keep the original infra network attached for any existing internal connectivity
     healthcheck:
-      # Simple check — adjust to the actual health endpoint if different
-      test:
-        [
-          "CMD-SHELL",
-          "curl -f http://localhost:${AUTH_SVC_PORT:-8081}/ || exit 1",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      # Simple check — adjusts to the service's actual health endpoint if different
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
       start_period: 10s
-    restart: unless-stopped
+
+    labels:
+      # Explicitly opt-in to Traefik (required because exposedByDefault=false)
+      "traefik.enable": "true"
+
+      # Router: map requests for /api/auth -> this service
+      # Rule: Host(`localhost`) && PathPrefix(`/api/auth`)
+      # - You may remove Host(...) if you want the rule to match any Host
+      "traefik.http.routers.auth-router.rule": "Host(`localhost`) && PathPrefix(`/api/auth`)"
+      "traefik.http.routers.auth-router.entrypoints": "web"
+
+      # Apply middleware chain: strip prefix then rate limit
+      # The `@docker` suffix indicates the middleware is defined via Docker provider labels
+      "traefik.http.routers.auth-router.middlewares": "auth-stripprefix@docker,auth-ratelimit@docker"
+
+      # Associate the router with a service name (Traefik will forward to the container's internal port)
+      "traefik.http.routers.auth-router.service": "auth-service"
+
+      # Internal port the auth service listens on
+      "traefik.http.services.auth-service.loadbalancer.server.port": "3000"
+
+      # ------------------------
+      # Middleware: StripPrefix
+      # ------------------------
+      # Remove `/api/auth` so the upstream sees `/login`, `/register`, etc.
+      "traefik.http.middlewares.auth-stripprefix.stripprefix.prefixes": "/api/auth"
+
+      # ------------------------
+      # Middleware: RateLimit
+      # ------------------------
+      # Protect auth endpoints from brute-force attacks
+      # average = allowed requests per second, burst = additional burst capacity
+      "traefik.http.middlewares.auth-ratelimit.ratelimit.average": "10"
+      "traefik.http.middlewares.auth-ratelimit.ratelimit.burst": "0"
+
+      # Ensure Traefik uses the correct Docker network when connecting to this service
+      "traefik.docker.network": "gateway_network"
+
+# ------------------------
+# Future Service Template (commented)
+# ------------------------
+# Copy-paste this block when adding a new microservice and adapt values.
+#
+# my-service:
+#   image: "my-registry/my-service:latest"   # or use build: { context: ... }
+#   container_name: my-service
+#   restart: unless-stopped
+#   env_file:
+#     - ../../.env
+#   networks:
+#     - gateway_network
+#   labels:
+#     "traefik.enable": "true"
+#     "traefik.http.routers.myservice-router.rule": "Host(`localhost`) && PathPrefix(`/api/myservice`)"
+#     "traefik.http.routers.myservice-router.entrypoints": "web"
+#     "traefik.http.routers.myservice-router.middlewares": "myservice-stripprefix@docker,myservice-ratelimit@docker"
+#     "traefik.http.services.myservice.loadbalancer.server.port": "<INTERNAL_PORT>"
+#     "traefik.http.middlewares.myservice-stripprefix.stripprefix.prefixes": "/api/myservice"
+#     "traefik.http.middlewares.myservice-ratelimit.ratelimit.average": "10"
+#     "traefik.http.middlewares.myservice-ratelimit.ratelimit.burst": "0"
+#     "traefik.docker.network": "gateway_network"
 
 networks:
+  # Gateway network used by Traefik + routed services
+  gateway_network:
+    name: gateway_network
+    driver: bridge
+
+  # Original infra network preserved for other internal services
   gradeloop-network:
     name: gradeloop-network
     driver: bridge
