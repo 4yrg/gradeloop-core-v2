@@ -3,6 +3,7 @@ package handler
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"log"
 	"time"
 
 	"github.com/4yrg/gradeloop-core-v2/apps/services/auth-service/config"
@@ -87,11 +88,13 @@ func Refresh(c fiber.Ctx) error {
 		}
 	}
 	if !found {
+		log.Printf("Refresh: incoming token not found in %d unrevoked candidates", len(candidates))
 		// Do not leak which case; return unauthorized
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "error", "message": "invalid refresh token", "data": nil})
 	}
 
 	if stored.Revoked || stored.IsExpired() {
+		log.Printf("Refresh: token found but revoked=%v or expired=%v", stored.Revoked, stored.IsExpired())
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "error", "message": "refresh token revoked or expired", "data": nil})
 	}
 
