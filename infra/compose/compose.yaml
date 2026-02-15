@@ -7,12 +7,12 @@ services:
     container_name: gradeloop-auth-service
     hostname: auth-service
     ports:
-      - "3000:3000"
+      - "${AUTH_SVC_PORT:-3000}:${AUTH_SVC_PORT:-3000}"
     env_file:
       - ../../.env
     environment:
       - SERVER_HOST=0.0.0.0
-      - SERVER_PORT=3000
+      - SERVER_PORT=${AUTH_SVC_PORT:-3000}
       # Aiven support: if set in ../../.env, the service will use the Aiven URL + DB name.
       - POSTGRES_URL_BASE=${POSTGRES_URL_BASE:-}
       - POSTGRES_SSLMODE=${POSTGRES_SSLMODE:-}
@@ -24,7 +24,11 @@ services:
       - gradeloop-network
     healthcheck:
       # Simple check — adjust to the actual health endpoint if different
-      test: ["CMD-SHELL", "curl -f http://localhost:3000/ || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "curl -f http://localhost:${AUTH_SVC_PORT:-3000}/ || exit 1",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
