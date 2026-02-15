@@ -21,17 +21,17 @@ export function TableHeader({
 }: TableHeaderProps) {
   const getSortIcon = (field: string) => {
     if (sortField !== field) {
-      return <ArrowUpDown className="h-3.5 w-3.5 text-gray-400 opacity-0 group-hover:opacity-100" />;
+      return <ArrowUpDown className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100" />;
     }
     return sortDirection === "asc" ? (
-      <ArrowUp className="h-3.5 w-3.5 text-gray-600" />
+      <ArrowUp className="h-3.5 w-3.5 text-gray-600 dark:text-gray-400" />
     ) : (
-      <ArrowDown className="h-3.5 w-3.5 text-gray-600" />
+      <ArrowDown className="h-3.5 w-3.5 text-gray-600 dark:text-gray-400" />
     );
   };
 
   return (
-    <thead className="bg-gray-50">
+    <thead className="bg-gray-50 dark:bg-gray-800">
       <tr>
         <th scope="col" className="px-6 py-3 w-12 text-left">
           <Checkbox checked={allSelected} onCheckedChange={onSelectAll} />
@@ -41,7 +41,7 @@ export function TableHeader({
             variant="ghost"
             size="sm"
             onClick={() => onSort("full_name")}
-            className="h-auto p-0 text-xs font-semibold text-gray-500 uppercase tracking-wider hover:text-gray-700 group"
+            className="h-auto p-0 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hover:text-gray-700 dark:hover:text-gray-300 group"
           >
             User
             <span className="ml-1">{getSortIcon("full_name")}</span>
@@ -52,7 +52,7 @@ export function TableHeader({
             variant="ghost"
             size="sm"
             onClick={() => onSort("role")}
-            className="h-auto p-0 text-xs font-semibold text-gray-500 uppercase tracking-wider hover:text-gray-700 group"
+            className="h-auto p-0 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hover:text-gray-700 dark:hover:text-gray-300 group"
           >
             Role
             <span className="ml-1">{getSortIcon("role")}</span>
@@ -63,7 +63,7 @@ export function TableHeader({
             variant="ghost"
             size="sm"
             onClick={() => onSort("status")}
-            className="h-auto p-0 text-xs font-semibold text-gray-500 uppercase tracking-wider hover:text-gray-700 group"
+            className="h-auto p-0 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hover:text-gray-700 dark:hover:text-gray-300 group"
           >
             Status
             <span className="ml-1">{getSortIcon("status")}</span>
@@ -74,7 +74,7 @@ export function TableHeader({
             variant="ghost"
             size="sm"
             onClick={() => onSort("last_login")}
-            className="h-auto p-0 text-xs font-semibold text-gray-500 uppercase tracking-wider hover:text-gray-700 group"
+            className="h-auto p-0 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hover:text-gray-700 dark:hover:text-gray-300 group"
           >
             Last Login
             <span className="ml-1">{getSortIcon("last_login")}</span>

@@ -3,7 +3,6 @@
 import React, { useEffect, useRef } from "react";
 import { NAV_ITEMS, type NavItem } from "@/config/navigation";
 import { useMemo } from "react";
-import { useAuth } from "@/lib/auth";
 import Icons from "@/components/ui/icons";
 import Link from "next/link";
 import Image from "next/image";
@@ -15,6 +14,7 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { useAuthStore } from "@/store/auth.store";
 
 type SidebarProps = {
   open: boolean;
@@ -24,15 +24,21 @@ type SidebarProps = {
 };
 
 export function Sidebar({ open, onClose, collapsed, onToggleCollapse }: SidebarProps) {
-  const { user } = useAuth();
+  const user = useAuthStore((state) => state.user);
   const userPermissions = user?.permissions ?? [];
 
+  // For development: show all items when DISABLE_AUTH is true
+  const isAuthDisabled = process.env.NEXT_PUBLIC_DISABLE_AUTH === 'true';
+
   const filtered = useMemo(() => {
+    // If auth is disabled, show all navigation items
+    if (isAuthDisabled) return NAV_ITEMS;
+    
     return NAV_ITEMS.filter((item: NavItem) => {
       if (!item.requiredPermissions || item.requiredPermissions.length === 0) return true;
       return item.requiredPermissions.some((p) => userPermissions.includes(p));
     });
-  }, [userPermissions]);
+  }, [userPermissions, isAuthDisabled]);
 
   const drawerRef = useRef<HTMLDivElement | null>(null);
 

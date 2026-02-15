@@ -33,7 +33,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     label: "User Management",
-    href: "/users",
+    href: "/admin/users",
     icon: <Icons.users size={18} />,
     requiredPermissions: ["iam:users:read"],
   },

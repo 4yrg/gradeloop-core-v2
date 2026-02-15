@@ -23,8 +23,8 @@ export function RoleDetailsSidebar({
   return (
     <aside className="lg:col-span-3 space-y-6">
       {/* Role Details Card */}
-      <Card className="sticky top-28 p-6 border-gray-100 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+      <Card className="sticky top-28 p-6 border-gray-100 dark:border-gray-700 shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
           <Badge className="h-5 w-5 text-primary" />
           Role Details
         </h2>
@@ -32,7 +32,7 @@ export function RoleDetailsSidebar({
         <div className="space-y-4">
           {/* Role Name */}
           <div>
-            <label htmlFor="role_name" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="role_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Role Name
             </label>
             <Input
@@ -41,14 +41,14 @@ export function RoleDetailsSidebar({
               placeholder="e.g. Course Creator"
               value={role.name}
               onChange={(e) => onNameChange(e.target.value)}
-              className="bg-gray-50"
+              className="bg-gray-50 dark:bg-gray-800"
               disabled={role.is_system_role}
             />
           </div>
 
           {/* Description */}
           <div>
-            <label htmlFor="role_desc" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="role_desc" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Description
             </label>
             <Textarea
@@ -57,15 +57,15 @@ export function RoleDetailsSidebar({
               rows={4}
               value={role.description || ""}
               onChange={(e) => onDescriptionChange(e.target.value)}
-              className="bg-gray-50 resize-none"
+              className="bg-gray-50 dark:bg-gray-800 resize-none"
               disabled={role.is_system_role}
             />
           </div>
 
           {/* Status Toggle */}
-          <div className="pt-4 border-t border-gray-100">
+          <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
             <label className="flex items-center justify-between cursor-pointer group">
-              <span className="text-sm font-medium text-gray-700">Role Status</span>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Role Status</span>
               <Switch
                 id="role_status"
                 checked={role.is_active}
@@ -73,7 +73,7 @@ export function RoleDetailsSidebar({
                 disabled={role.is_system_role}
               />
             </label>
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
               Inactive roles cannot be assigned to new users.
             </p>
           </div>
@@ -81,19 +81,19 @@ export function RoleDetailsSidebar({
       </Card>
 
       {/* Stats Card */}
-      <Card className="bg-primary/5 border-primary/10 p-5">
+      <Card className="bg-primary/5 dark:bg-primary/10 border-primary/10 dark:border-primary/20 p-5">
         <div className="flex items-start gap-3">
-          <div className="bg-white p-1.5 rounded-lg shadow-sm">
+          <div className="bg-white dark:bg-gray-800 p-1.5 rounded-lg shadow-sm">
             <Users className="h-5 w-5 text-primary" />
           </div>
           <div>
             <p className="text-xs font-semibold text-primary uppercase tracking-wide">
               Assigned Users
             </p>
-            <p className="text-2xl font-bold text-gray-900 mt-0.5">
+            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">
               {role.assigned_users_count}
             </p>
-            <p className="text-xs text-gray-500 mt-1">Users currently hold this role.</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Users currently hold this role.</p>
           </div>
         </div>
       </Card>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,10 +12,20 @@ import { FilterControls } from "../components/filter-controls";
 import { TableHeader } from "../components/table-header";
 import { UserRow } from "../components/user-row";
 import { PaginationControls } from "../components/pagination-controls";
+import { AddUserDialog } from "../components/add-user-dialog";
+import { AddInstructorDialog } from "../components/add-instructor-dialog";
 import type { UserManagement, UserRole, UserStatus } from "@/schemas/user-management.schema";
+import type { BaseUser, InstructorUser } from "@/schemas/user-creation.schema";
 import Link from "next/link";
 
 export function UserManagementPage() {
+  const router = useRouter();
+  
+  // Dialog states
+  const [addUserDialogOpen, setAddUserDialogOpen] = useState(false);
+  const [addInstructorDialogOpen, setAddInstructorDialogOpen] = useState(false);
+  const [userTypeSelection, setUserTypeSelection] = useState<"staff" | "instructor" | null>(null);
+  
   // Filter states
   const [searchValue, setSearchValue] = useState("");
   const [roleFilter, setRoleFilter] = useState<UserRole | "all">("all");
@@ -95,6 +106,37 @@ export function UserManagementPage() {
     updateStatusMutation.mutate({ id: user.id, status });
   };
 
+  const handleBulkImport = () => {
+    router.push("/admin/bulk-import/upload");
+  };
+
+  const handleExport = () => {
+    // TODO: Implement export functionality with API call
+    console.log("Exporting users with filters:", queryParams);
+    // Future: Trigger CSV/Excel download
+  };
+
+  const handleAddUser = () => {
+    // Open staff user dialog by default
+    setAddUserDialogOpen(true);
+  };
+
+  const handleAddInstructor = () => {
+    setAddInstructorDialogOpen(true);
+  };
+
+  const handleCreateUser = async (data: BaseUser) => {
+    console.log("Creating user:", data);
+    // TODO: Implement API call to create user
+    // await createUserMutation.mutateAsync(data);
+  };
+
+  const handleCreateInstructor = async (data: InstructorUser) => {
+    console.log("Creating instructor:", data);
+    // TODO: Implement API call to create instructor
+    // await createInstructorMutation.mutateAsync(data);
+  };
+
   const allSelected = usersData?.data && selectedUsers.size === usersData.data.length && usersData.data.length > 0;
 
   return (
@@ -133,15 +175,15 @@ export function UserManagementPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleBulkImport}>
             <Upload className="mr-2 h-4 w-4" />
             Bulk Import
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExport}>
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
-          <Button>
+          <Button onClick={handleAddUser}>
             <Plus className="mr-2 h-4 w-4" />
             Add User
           </Button>
@@ -192,9 +234,9 @@ export function UserManagementPage() {
       />
 
       {/* Table */}
-      <div className="bg-white border-x border-b border-border rounded-b-xl shadow-sm overflow-hidden flex flex-col">
+      <div className="bg-white dark:bg-gray-900 border-x border-b border-border rounded-b-xl shadow-sm overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <TableHeader
               allSelected={!!allSelected}
               onSelectAll={handleSelectAll}
@@ -202,7 +244,7 @@ export function UserManagementPage() {
               sortDirection={sortDirection}
               onSort={handleSort}
             />
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
               {isLoading ? (
                 Array.from({ length: perPage }).map((_, i) => (
                   <tr key={i}>
@@ -255,6 +297,18 @@ export function UserManagementPage() {
           />
         )}
       </div>
+
+      {/* Dialogs */}
+      <AddUserDialog
+        open={addUserDialogOpen}
+        onOpenChange={setAddUserDialogOpen}
+        onSubmit={handleCreateUser}
+      />
+      <AddInstructorDialog
+        open={addInstructorDialogOpen}
+        onOpenChange={setAddInstructorDialogOpen}
+        onSubmit={handleCreateInstructor}
+      />
     </div>
   );
 }

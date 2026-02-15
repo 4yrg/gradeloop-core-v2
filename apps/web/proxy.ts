@@ -49,6 +49,15 @@ export async function proxy(request: NextRequest) {
   const response = NextResponse.next();
 
   try {
+    // Check if authentication is disabled for development
+    const isAuthDisabled = process.env.DISABLE_AUTH === "true" || process.env.NEXT_PUBLIC_DISABLE_AUTH === "true";
+    console.log("[Middleware] Auth disabled?", isAuthDisabled, { DISABLE_AUTH: process.env.DISABLE_AUTH, NEXT_PUBLIC_DISABLE_AUTH: process.env.NEXT_PUBLIC_DISABLE_AUTH });
+    
+    if (isAuthDisabled) {
+      console.log("[Middleware] Bypassing auth for", pathname);
+      return addSecurityHeaders(response);
+    }
+
     // Skip middleware for static assets and API routes that don't need auth
     if (shouldSkipMiddleware(pathname)) {
       return response;
@@ -177,6 +186,20 @@ async function getAuthenticationStatus(request: NextRequest): Promise<{
   sessionId: string | null;
   shouldRefresh: boolean;
 }> {
+  // Check if authentication is disabled
+  const isAuthDisabled = process.env.DISABLE_AUTH === "true" || process.env.NEXT_PUBLIC_DISABLE_AUTH === "true";
+  console.log("[getAuthenticationStatus] Auth disabled?", isAuthDisabled);
+  
+  if (isAuthDisabled) {
+    console.log("[getAuthenticationStatus] Returning mock user");
+    return {
+      isAuthenticated: true,
+      user: { id: "dev-user", email: "dev@gradeloop.com", role: "admin" },
+      sessionId: "dev-session",
+      shouldRefresh: false,
+    };
+  }
+
   try {
     // Call IAM service to validate authentication
     // Forward the cookies from the original request to the IAM service
@@ -341,6 +364,9 @@ function getClientIP(request: NextRequest): string {
 }
 
 // cleanupRateLimitStore removed along with proxy rate limiting
+
+// Export proxy as middleware for Next.js
+export { proxy as middleware };
 
 // Configure which paths the middleware should run on
 export const config = {

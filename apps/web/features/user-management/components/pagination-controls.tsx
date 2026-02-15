@@ -64,10 +64,10 @@ export function PaginationControls({
   };
 
   return (
-    <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+    <div className="bg-gray-50 dark:bg-gray-800 px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 sm:px-6">
       <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm text-gray-700">
+          <p className="text-sm text-gray-700 dark:text-gray-300">
             Showing <span className="font-medium">{startItem}</span> to{" "}
             <span className="font-medium">{endItem}</span> of{" "}
             <span className="font-medium">{total}</span> results
@@ -76,7 +76,7 @@ export function PaginationControls({
 
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <label htmlFor="rows-per-page" className="text-sm text-gray-600">
+            <label htmlFor="rows-per-page" className="text-sm text-gray-600 dark:text-gray-400">
               Rows per page:
             </label>
             <Select
@@ -112,7 +112,7 @@ export function PaginationControls({
                 return (
                   <span
                     key={`ellipsis-${index}`}
-                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700"
+                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300"
                   >
                     ...
                   </span>

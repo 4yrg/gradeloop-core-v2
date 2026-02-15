@@ -172,11 +172,11 @@ export function RolePermissionConfigPage({ roleId }: RolePermissionConfigPagePro
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-8 py-4 sticky top-0 z-30">
+      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-8 py-4 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div>
             {/* Breadcrumb */}
-            <nav aria-label="Breadcrumb" className="flex text-sm text-gray-500 mb-1">
+            <nav aria-label="Breadcrumb" className="flex text-sm text-gray-500 dark:text-gray-400 mb-1">
               <ol className="flex items-center space-x-2">
                 <li>
                   <Link href="/admin/settings" className="hover:text-primary transition-colors">
@@ -184,7 +184,7 @@ export function RolePermissionConfigPage({ roleId }: RolePermissionConfigPagePro
                   </Link>
                 </li>
                 <li>
-                  <span className="text-gray-300">/</span>
+                  <span className="text-gray-300 dark:text-gray-600">/</span>
                 </li>
                 <li>
                   <Link href="/admin/roles" className="hover:text-primary transition-colors">
@@ -192,14 +192,14 @@ export function RolePermissionConfigPage({ roleId }: RolePermissionConfigPagePro
                   </Link>
                 </li>
                 <li>
-                  <span className="text-gray-300">/</span>
+                  <span className="text-gray-300 dark:text-gray-600">/</span>
                 </li>
                 <li aria-current="page" className="text-primary font-medium">
                   Configure Role
                 </li>
               </ol>
             </nav>
-            <h1 className="text-2xl font-bold text-gray-900">Configure Role Permissions</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Configure Role Permissions</h1>
           </div>
 
           {/* Actions */}
@@ -230,12 +230,12 @@ export function RolePermissionConfigPage({ roleId }: RolePermissionConfigPagePro
           <div className="lg:col-span-9 space-y-6">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
-              <h2 className="text-xl font-bold text-gray-900">Permissions Matrix</h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Permissions Matrix</h2>
 
               {/* Search */}
               <div className="relative w-full sm:w-64">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="h-4 w-4 text-gray-400" />
+                  <Search className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                 </div>
                 <Input
                   type="text"
@@ -248,9 +248,9 @@ export function RolePermissionConfigPage({ roleId }: RolePermissionConfigPagePro
             </div>
 
             {/* Permission Table */}
-            <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm overflow-hidden">
               {/* Table Header */}
-              <div className="sticky top-0 bg-gray-50 border-b border-gray-200 z-10 grid grid-cols-12 py-3 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <div className="sticky top-0 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 z-10 grid grid-cols-12 py-3 px-6 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 <div className="col-span-4">Module / Resource</div>
                 <div className="col-span-8 grid grid-cols-5 text-center">
                   <span>View</span>
@@ -272,7 +272,7 @@ export function RolePermissionConfigPage({ roleId }: RolePermissionConfigPagePro
                   />
                 ))
               ) : (
-                <div className="px-6 py-12 text-center text-gray-500">
+                <div className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                   No modules found matching your search.
                 </div>
               )}
