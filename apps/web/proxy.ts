@@ -365,6 +365,9 @@ function getClientIP(request: NextRequest): string {
 
 // cleanupRateLimitStore removed along with proxy rate limiting
 
+// Export proxy as middleware for Next.js
+export { proxy as middleware };
+
 // Configure which paths the middleware should run on
 export const config = {
   matcher: [
