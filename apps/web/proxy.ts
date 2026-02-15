@@ -50,7 +50,11 @@ export async function proxy(request: NextRequest) {
 
   try {
     // Check if authentication is disabled for development
-    if (process.env.DISABLE_AUTH === "true") {
+    const isAuthDisabled = process.env.DISABLE_AUTH === "true" || process.env.NEXT_PUBLIC_DISABLE_AUTH === "true";
+    console.log("[Middleware] Auth disabled?", isAuthDisabled, { DISABLE_AUTH: process.env.DISABLE_AUTH, NEXT_PUBLIC_DISABLE_AUTH: process.env.NEXT_PUBLIC_DISABLE_AUTH });
+    
+    if (isAuthDisabled) {
+      console.log("[Middleware] Bypassing auth for", pathname);
       return addSecurityHeaders(response);
     }
 
@@ -183,7 +187,11 @@ async function getAuthenticationStatus(request: NextRequest): Promise<{
   shouldRefresh: boolean;
 }> {
   // Check if authentication is disabled
-  if (process.env.DISABLE_AUTH === "true") {
+  const isAuthDisabled = process.env.DISABLE_AUTH === "true" || process.env.NEXT_PUBLIC_DISABLE_AUTH === "true";
+  console.log("[getAuthenticationStatus] Auth disabled?", isAuthDisabled);
+  
+  if (isAuthDisabled) {
+    console.log("[getAuthenticationStatus] Returning mock user");
     return {
       isAuthenticated: true,
       user: { id: "dev-user", email: "dev@gradeloop.com", role: "admin" },

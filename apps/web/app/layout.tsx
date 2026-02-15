@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Lexend } from "next/font/google";
 import "./globals.css";
 import AppShell from "@/components/layout/AppShell";
+import { Providers } from "@/components/providers";
 
 const lexend = Lexend({
   variable: "--font-lexend",
@@ -31,7 +32,9 @@ export default function RootLayout({
         <meta name="theme-color" content="#000000" />
       </head>
       <body className={`${lexend.variable} antialiased font-sans`}>
-        <AppShell>{children}</AppShell>
+        <Providers>
+          <AppShell>{children}</AppShell>
+        </Providers>
       </body>
     </html>
   );
