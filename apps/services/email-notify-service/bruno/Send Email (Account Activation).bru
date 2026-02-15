@@ -1,0 +1,23 @@
+meta {
+  name: Send Email (Account Activation)
+  type: http
+  seq: 1
+}
+
+post {
+  url: http://localhost:8080/api/v1/email/send
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "to": "test@example.com",
+    "subject": "Welcome to GradeLoop!",
+    "templateName": "account_activation",
+    "variables": {
+      "name": "John Doe",
+      "activationLink": "https://gradeloop.com/activate/12345"
+    }
+  }
+}
