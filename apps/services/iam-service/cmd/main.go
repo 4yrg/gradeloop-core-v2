@@ -2,46 +2,80 @@ package main
 
 import (
 	"log"
-	"os"
-	"strconv"
 
-	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/database"
-	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/router"
-
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/config"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/handler"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/middleware"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/rbac"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/repository"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/router"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/service"
 	"github.com/gofiber/fiber/v3"
-	// "github.com/gofiber/fiber/v3/middleware/cors"
+	"github.com/gofiber/fiber/v3/middleware/cors"
 )
 
 func main() {
+	// Initialize Fiber app
 	app := fiber.New(fiber.Config{
-		CaseSensitive: true,
-		StrictRouting: true,
-		ServerHeader:  "Fiber",
-		AppName:       "Auth Service",
+		AppName:      "IAM Service",
+		ErrorHandler: handler.ErrorHandler,
 	})
-	// app.Use(cors.New())
 
-	database.ConnectDB()
+	app.Use(cors.New())
 
-	router.SetupRoutes(app)
+	// Database Connection
+	postgresRepo, err := repository.NewPostgresRepository()
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
 
-	// Use SERVER_PORT environment variable if provided, otherwise default to 3000.
-	// Validate that the port is numeric and fall back to 3000 on error.
-	port := os.Getenv("SERVER_PORT")
+	// Auto Migration & Seeding
+	if err := postgresRepo.AutoMigrate(); err != nil {
+		log.Fatalf("Failed to migrate database: %v", err)
+	}
+
+	// Repositories
+	userRepo := repository.NewUserRepository(postgresRepo.DB)
+	roleRepo := repository.NewRoleRepository(postgresRepo.DB)
+	permRepo := repository.NewPermissionRepository(postgresRepo.DB)
+	auditRepo := repository.NewAuditRepository(postgresRepo.DB)
+	tokenRepo := repository.NewRefreshTokenRepository(postgresRepo.DB)
+	passwordResetRepo := repository.NewPasswordResetRepository(postgresRepo.DB)
+
+	// Services
+	userService := service.NewUserService(userRepo, roleRepo, auditRepo)
+	roleService := service.NewRoleService(roleRepo, permRepo, auditRepo)
+	authService := service.NewAuthService(userRepo, tokenRepo, passwordResetRepo, auditRepo)
+	auditService := service.NewAuditService(auditRepo)
+
+	// RBAC Manager
+	rbacManager := rbac.NewRBACManager(roleRepo, permRepo)
+
+	// Handlers
+	userHandler := handler.NewUserHandler(userService)
+	roleHandler := handler.NewRoleHandler(roleService)
+	authHandler := handler.NewAuthHandler(authService)
+	auditHandler := handler.NewAuditHandler(auditService)
+
+	// Middleware
+	rbacMiddleware := middleware.NewRBACMiddleware(rbacManager)
+
+	// Setup Routes
+	routerConfig := router.Config{
+		UserHandler:  userHandler,
+		AuthHandler:  authHandler,
+		RoleHandler:  roleHandler,
+		AuditHandler: auditHandler,
+		RBAC:         rbacMiddleware,
+	}
+	router.SetupRoutes(app, routerConfig)
+
+	// Start Server
+	port := config.Config("SERVER_PORT") // Use existing config helper or os.Getenv
 	if port == "" {
-		port = "8081"
-	}
-	if _, err := strconv.Atoi(port); err != nil {
-		log.Printf("Warning: invalid SERVER_PORT %q, falling back to 3000", port)
-		port = "8081"
+		port = "8081" // Default for IAM service
 	}
 
-	// Enable prefork only if explicitly requested via ENABLE_PREFORK=true
-	enablePrefork := false
-	if ep := os.Getenv("ENABLE_PREFORK"); ep == "true" {
-		enablePrefork = true
-	}
-
-	addr := ":" + port
-	log.Fatal(app.Listen(addr, fiber.ListenConfig{EnablePrefork: enablePrefork}))
+	log.Printf("Starting server on port %s", port)
+	log.Fatal(app.Listen(":" + port))
 }
