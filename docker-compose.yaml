@@ -7,16 +7,6 @@ services:
     env_file:
       - .env
     environment:
-<<<<<<< HEAD
-      - SERVER_PORT=8081
-      - ENABLE_PREFORK=false
-      - DB_HOST=gradeloop-gradeloop-project-v2.k.aivencloud.com
-      - DB_PORT=17317
-      - DB_USER=avnadmin
-      - DB_PASSWORD=${GRA_DB_PASSWORD}
-      - DB_NAME=defaultdb
-      - DB_SSLMODE=require
-=======
       - SERVER_PORT=${IAM_SVC_PORT}
       - ENABLE_PREFORK=${IAM_SVC_ENABLE_PREFORK}
       - DB_HOST=${GRA_DB_HOST}
@@ -25,7 +15,6 @@ services:
       - DB_PASSWORD=${GRA_DB_PASSWORD}
       - DB_NAME=${IAM_SVC_DB_NAME}
       - DB_SSLMODE=${GRA_DB_SSLMODE}
->>>>>>> 9985f81 (feat(iam): configure Krakend gateway to allow 401 status for authentication endpoints.)
     ports:
       - "8081:8081"
     networks:
