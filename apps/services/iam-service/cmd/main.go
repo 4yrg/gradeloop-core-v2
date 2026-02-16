@@ -33,6 +33,9 @@ func main() {
 	if err := postgresRepo.AutoMigrate(); err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
+	if err := repository.Seed(postgresRepo.DB); err != nil {
+		log.Fatalf("Failed to seed database: %v", err)
+	}
 
 	// Repositories
 	userRepo := repository.NewUserRepository(postgresRepo.DB)
