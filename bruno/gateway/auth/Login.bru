@@ -5,14 +5,21 @@ meta {
 }
 
 post {
-  url: http://localhost:8080/v1/auth/login
+  url: {{gateway_url}}/api/v1/auth/login
   body: json
   auth: none
 }
 
 body:json {
   {
-    "email": "admin@gradeloop.com",
-    "password": "NewSecretPassword123"
+    "email": "superadmin@gradeloop.com",
+    "password": "superadmin"
+  }
+}
+
+script:post-response {
+  if (res.status === 200) {
+    bru.setEnvVar("access_token", res.body.access_token);
+    bru.setEnvVar("refresh_token", res.body.refresh_token);
   }
 }

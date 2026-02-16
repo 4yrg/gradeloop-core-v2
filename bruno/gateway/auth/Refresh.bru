@@ -1,13 +1,17 @@
 meta {
-  name: Refresh
+  name: Refresh Token
   type: http
-  seq: 3
+  seq: 2
 }
 
 post {
-  url: http://localhost:8080/v1/auth/refresh
+  url: {{gateway_url}}/api/v1/auth/refresh
   body: json
-  auth: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
 }
 
 body:json {
@@ -16,6 +20,9 @@ body:json {
   }
 }
 
-vars:pre-request {
-  refresh_token: 95f2d90e3e1df6a36867c3eb74de23f07449d4b06e3eebc49f36d3033ee3ace4
+script:post-response {
+  if (res.status === 200) {
+    bru.setEnvVar("access_token", res.body.access_token);
+    bru.setEnvVar("refresh_token", res.body.refresh_token);
+  }
 }

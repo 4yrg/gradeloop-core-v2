@@ -1,0 +1,26 @@
+meta {
+  name: Create User
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{gateway_url}}/api/v1/users
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "email": "new.employee@gradeloop.com",
+    "full_name": "New Employee",
+    "user_type": "EMPLOYEE",
+    "employee_id": "EMP001",
+    "designation": "Developer",
+    "employee_type": "Permanent"
+  }
+}
