@@ -34,10 +34,11 @@ type RabbitMQConfig struct {
 }
 
 type SMTPConfig struct {
-	Host     string
-	Port     int
-	Username string
-	Password string
+	Host      string
+	Port      int
+	Username  string
+	Password  string
+	EmailFrom string
 }
 
 func LoadConfig() *Config {
@@ -62,10 +63,11 @@ func LoadConfig() *Config {
 			URL: getEnv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"),
 		},
 		SMTP: SMTPConfig{
-			Host:     getEnv("SMTP_HOST", "localhost"),
-			Port:     getEnvAsInt("SMTP_PORT", 1025),
-			Username: getEnv("SMTP_USERNAME", ""),
-			Password: getEnv("SMTP_PASSWORD", ""),
+			Host:      getEnv("SMTP_HOST", "localhost"),
+			Port:      getEnvAsInt("SMTP_PORT", 1025),
+			Username:  getEnv("SMTP_USER", getEnv("SMTP_USERNAME", "")),
+			Password:  getEnv("SMTP_PASS", getEnv("SMTP_PASSWORD", "")),
+			EmailFrom: getEnv("EMAIL_FROM", "noreply@gradeloop.com"),
 		},
 	}
 }

@@ -12,7 +12,7 @@ post {
 
 body:json {
   {
-    "recipients": ["user@example.com"],
+    "recipients": ["dasun.wickr@gmail.com"],
     "subject": "Hello from Bruno",
     "template_name": "welcome_email",
     "variables": {
@@ -20,6 +20,11 @@ body:json {
     }
   }
 }
+
+vars:pre-request {
+  base_url: http://localhost:8082
+}
+
 vars:post-response {
   email_id: res.body.id
 }
