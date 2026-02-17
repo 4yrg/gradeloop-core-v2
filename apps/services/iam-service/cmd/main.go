@@ -5,6 +5,7 @@ import (
 
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/config"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/handler"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/middleware"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/rbac"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/repository"
@@ -45,10 +46,22 @@ func main() {
 	tokenRepo := repository.NewRefreshTokenRepository(postgresRepo.DB)
 	passwordResetRepo := repository.NewPasswordResetRepository(postgresRepo.DB)
 
+	// Email Client
+	emailServiceURL := config.Config("EMAIL_SERVICE_URL")
+	if emailServiceURL == "" {
+		// Fallback or log warning?
+		// Assuming we run in docker/dev where it's set or we default.
+		// For now default to standard internal URL if not set?
+		// Or just log.
+		log.Println("EMAIL_SERVICE_URL not set, defaulting to http://localhost:8082")
+		emailServiceURL = "http://localhost:8082"
+	}
+	emailClient := http.NewEmailClient(emailServiceURL)
+
 	// Services
-	userService := service.NewUserService(userRepo, roleRepo, auditRepo)
+	userService := service.NewUserService(userRepo, roleRepo, auditRepo, passwordResetRepo, emailClient)
 	roleService := service.NewRoleService(roleRepo, permRepo, auditRepo)
-	authService := service.NewAuthService(userRepo, tokenRepo, passwordResetRepo, auditRepo)
+	authService := service.NewAuthService(userRepo, tokenRepo, passwordResetRepo, auditRepo, emailClient)
 	auditService := service.NewAuditService(auditRepo)
 
 	// RBAC Manager

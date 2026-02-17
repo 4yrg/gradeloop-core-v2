@@ -82,16 +82,13 @@ func (h *AuthHandler) RequestPasswordReset(c fiber.Ctx) error {
 		return errors.New(400, "Invalid request body", err)
 	}
 
-	token, err := h.authService.RequestPasswordReset(c.Context(), req.Email)
+	err := h.authService.RequestPasswordReset(c.Context(), req.Email)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	// In prod, check if token is empty (user not found) and don't return it.
-	// For now returning for simulation.
 	return c.JSON(fiber.Map{
-		"message": "If email exists, reset token generated",
-		"token":   token,
+		"message": "If an account with that email exists, we’ve sent a password reset link.",
 	})
 }
 

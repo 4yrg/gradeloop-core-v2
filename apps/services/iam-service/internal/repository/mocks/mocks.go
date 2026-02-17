@@ -170,12 +170,20 @@ func (m *PasswordResetRepository) FindByTokenHash(ctx context.Context, hash stri
 	return args.Get(0).(*domain.PasswordResetToken), args.Error(1)
 }
 
-func (m *PasswordResetRepository) MarkAsUsed(ctx context.Context, id string) error {
-	args := m.Called(ctx, id)
+func (m *PasswordResetRepository) DeleteByUserID(ctx context.Context, userID string) error {
+	args := m.Called(ctx, userID)
 	return args.Error(0)
 }
 
-func (m *PasswordResetRepository) DeleteByUserID(ctx context.Context, userID string) error {
+func (m *PasswordResetRepository) FindLatestByUserID(ctx context.Context, userID string) (*domain.PasswordResetToken, error) {
 	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.PasswordResetToken), args.Error(1)
+}
+
+func (m *PasswordResetRepository) MarkAsUsed(ctx context.Context, id string) error {
+	args := m.Called(ctx, id)
 	return args.Error(0)
 }

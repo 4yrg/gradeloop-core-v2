@@ -18,6 +18,15 @@ import (
 	"gorm.io/gorm"
 )
 
+type mockEmailClient struct {
+	lastLink string
+}
+
+func (m *mockEmailClient) SendPasswordResetEmail(ctx context.Context, to, link string) error {
+	m.lastLink = link
+	return nil
+}
+
 func TestIntegration_UserFlow(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
@@ -73,8 +82,9 @@ func TestIntegration_UserFlow(t *testing.T) {
 	tokenRepo := repository.NewRefreshTokenRepository(db)
 	passwdRepo := repository.NewPasswordResetRepository(db)
 
-	userService := service.NewUserService(userRepo, roleRepo, auditRepo)
-	authService := service.NewAuthService(userRepo, tokenRepo, passwdRepo, auditRepo)
+	localEmailClient := &mockEmailClient{}
+	userService := service.NewUserService(userRepo, roleRepo, auditRepo, passwdRepo, localEmailClient)
+	authService := service.NewAuthService(userRepo, tokenRepo, passwdRepo, auditRepo, localEmailClient)
 
 	// Test 1: Create User
 	t.Run("CreateUser", func(t *testing.T) {
@@ -87,28 +97,41 @@ func TestIntegration_UserFlow(t *testing.T) {
 			EmployeeType: &[]string{"Bot"}[0],
 		}
 
-		user, tempPass, err := userService.CreateUser(ctx, req)
+		user, err := userService.CreateUser(ctx, req)
 		require.NoError(t, err)
 		assert.NotEmpty(t, user.ID)
-		assert.NotEmpty(t, tempPass)
+		assert.False(t, user.IsActive)
 
-		// Test 2: Login with temp pass
-		t.Run("Login", func(t *testing.T) {
-			loginReq := dto.LoginRequest{
-				Email:    "integration@example.com",
-				Password: tempPass,
-			}
+		// Verify Token Sent
+		assert.NotEmpty(t, localEmailClient.lastLink)
+		// Extract token from link (simple parse)
+		// Link format: https://gradeloop.com/auth/verify-account?token=<token>
+		// We can just take the last part after "token="
+		assert.Contains(t, localEmailClient.lastLink, "token=")
+		token := localEmailClient.lastLink[len("https://gradeloop.com/auth/verify-account?token="):]
 
-			res, err := authService.Login(ctx, loginReq, "127.0.0.1", "test-agent")
+		// Test 2: Reset Password and Activate
+		t.Run("ResetPassword", func(t *testing.T) {
+			newPass := "NewPassword123!"
+			err := authService.ResetPassword(ctx, token, newPass)
 			require.NoError(t, err)
-			assert.NotEmpty(t, res.AccessToken)
-			assert.NotEmpty(t, res.RefreshToken)
 
-			// Test 3: Request Password Reset
-			t.Run("RequestReset", func(t *testing.T) {
-				token, err := authService.RequestPasswordReset(ctx, "integration@example.com")
+			// Verify User Active
+			updatedUser, err := userService.GetUser(ctx, user.ID)
+			require.NoError(t, err)
+			assert.True(t, updatedUser.IsActive)
+
+			// Test 3: Login
+			t.Run("Login", func(t *testing.T) {
+				loginReq := dto.LoginRequest{
+					Email:    "integration@example.com",
+					Password: newPass,
+				}
+
+				res, err := authService.Login(ctx, loginReq, "127.0.0.1", "test-agent")
 				require.NoError(t, err)
-				assert.NotEmpty(t, token)
+				assert.NotEmpty(t, res.AccessToken)
+				assert.NotEmpty(t, res.RefreshToken)
 			})
 		})
 	})

@@ -34,6 +34,15 @@ func (r *passwordResetRepository) MarkAsUsed(ctx context.Context, id string) err
 	return r.db.WithContext(ctx).Model(&domain.PasswordResetToken{}).Where("id = ?", id).Update("used_at", now).Error
 }
 
+func (r *passwordResetRepository) FindLatestByUserID(ctx context.Context, userID string) (*domain.PasswordResetToken, error) {
+	var token domain.PasswordResetToken
+	err := r.db.WithContext(ctx).Order("created_at desc").First(&token, "user_id = ?", userID).Error
+	if err != nil {
+		return nil, err
+	}
+	return &token, nil
+}
+
 func (r *passwordResetRepository) DeleteByUserID(ctx context.Context, userID string) error {
 	// Optional: Delete old tokens for clean up or just mark them invalid?
 	// Requirement says "Invalidate after use", which MarkAsUsed does.

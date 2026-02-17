@@ -15,6 +15,7 @@ services:
       - DB_PASSWORD=${GRA_DB_PASSWORD}
       - DB_NAME=${IAM_SVC_DB_NAME}
       - DB_SSLMODE=${GRA_DB_SSLMODE}
+      - EMAIL_SERVICE_URL=http://email-service:8082
     ports:
       - "8081:8081"
     networks:

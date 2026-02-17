@@ -23,7 +23,7 @@ func (h *UserHandler) CreateUser(c fiber.Ctx) error {
 		return errors.New(400, "Invalid request body", err)
 	}
 
-	user, tempPass, err := h.userService.CreateUser(c.Context(), req)
+	user, err := h.userService.CreateUser(c.Context(), req)
 	if err != nil {
 		if appErr, ok := err.(*errors.AppError); ok {
 			return c.Status(appErr.Code).JSON(fiber.Map{"error": appErr.Message})
@@ -32,8 +32,8 @@ func (h *UserHandler) CreateUser(c fiber.Ctx) error {
 	}
 
 	return c.Status(201).JSON(fiber.Map{
-		"user":      user,
-		"temp_pass": tempPass, // Returning for admin visibility (onboarding)
+		"user":    user,
+		"message": "User created successfully. Verification email sent.",
 	})
 }
 

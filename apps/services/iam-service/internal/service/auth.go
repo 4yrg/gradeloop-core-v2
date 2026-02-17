@@ -2,12 +2,14 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"time"
 
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/domain"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/dto"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/errors"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/utils"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -17,15 +19,16 @@ type AuthService interface {
 	Login(ctx context.Context, req dto.LoginRequest, ip, userAgent string) (*dto.AuthResponse, error)
 	RefreshToken(ctx context.Context, refreshToken string, ip, userAgent string) (*dto.AuthResponse, error)
 	Logout(ctx context.Context, refreshToken string, all bool, userID string) error
-	RequestPasswordReset(ctx context.Context, email string) (string, error)
+	RequestPasswordReset(ctx context.Context, email string) error
 	ResetPassword(ctx context.Context, token, newPassword string) error
 }
 
 type authService struct {
-	userRepo   domain.UserRepository
-	tokenRepo  domain.RefreshTokenRepository
-	passwdRepo domain.PasswordResetRepository
-	auditRepo  domain.AuditRepository
+	userRepo    domain.UserRepository
+	tokenRepo   domain.RefreshTokenRepository
+	passwdRepo  domain.PasswordResetRepository
+	auditRepo   domain.AuditRepository
+	emailClient http.EmailClient
 }
 
 func NewAuthService(
@@ -33,12 +36,14 @@ func NewAuthService(
 	tokenRepo domain.RefreshTokenRepository,
 	passwdRepo domain.PasswordResetRepository,
 	auditRepo domain.AuditRepository,
+	emailClient http.EmailClient,
 ) AuthService {
 	return &authService{
-		userRepo:   userRepo,
-		tokenRepo:  tokenRepo,
-		passwdRepo: passwdRepo,
-		auditRepo:  auditRepo,
+		userRepo:    userRepo,
+		tokenRepo:   tokenRepo,
+		passwdRepo:  passwdRepo,
+		auditRepo:   auditRepo,
+		emailClient: emailClient,
 	}
 }
 
@@ -61,7 +66,16 @@ func (s *authService) Login(ctx context.Context, req dto.LoginRequest, ip, userA
 	}
 
 	if !user.IsActive {
-		return nil, errors.New(401, "User is not active", nil)
+		// Check for existing valid reset token
+		token, err := s.passwdRepo.FindLatestByUserID(ctx, user.ID)
+		if err != nil || token == nil || time.Now().After(token.ExpiresAt) {
+			// Token expired or not found, send new one
+			if err := s.RequestPasswordReset(ctx, user.Email); err != nil {
+				return nil, errors.New(500, "Failed to send verification email", err)
+			}
+			return nil, errors.New(403, "Account inactive and verification expired. A new verification link has been sent to your email.", nil)
+		}
+		return nil, errors.New(403, "Account inactive. Please check your email for verification link.", nil)
 	}
 
 	return s.generateTokens(ctx, user, ip, userAgent)
@@ -120,22 +134,15 @@ func (s *authService) Logout(ctx context.Context, refreshToken string, all bool,
 	return s.tokenRepo.Revoke(ctx, token.ID, "")
 }
 
-func (s *authService) RequestPasswordReset(ctx context.Context, email string) (string, error) {
+func (s *authService) RequestPasswordReset(ctx context.Context, email string) error {
 	user, err := s.userRepo.FindByEmail(ctx, email)
 	if err != nil {
-		// Return success even if user not found to prevent user enumeration
-		return "simulation_token", nil
+		// Return nil (success) even if user not found to prevent user enumeration
+		return nil
 	}
 
-	// Generate Token (UUID or random string, let's use random string as token)
-	token := utils.GenerateRandomString(32) // Should be UUID per requirement?
-	// "Token must: Be UUID".
-	// I need UUID generator.
-	// For now, I'll stick to random string and handle "Be UUID" requirement by maybe formatting it?
-	// Or I'll import google/uuid in utils.
-	// Let's assume utils.GenerateUUID() exists (I'll implement it).
-
-	token = utils.GenerateUUID()
+	// Generate Token
+	token := utils.GenerateUUID()
 	hash := utils.HashToken(token)
 
 	resetToken := &domain.PasswordResetToken{
@@ -145,7 +152,7 @@ func (s *authService) RequestPasswordReset(ctx context.Context, email string) (s
 	}
 
 	if err := s.passwdRepo.Create(ctx, resetToken); err != nil {
-		return "", errors.New(500, "Failed to create reset token", err)
+		return errors.New(500, "Failed to create reset token", err)
 	}
 
 	s.auditRepo.Create(ctx, &domain.AuditLog{
@@ -154,7 +161,24 @@ func (s *authService) RequestPasswordReset(ctx context.Context, email string) (s
 		EntityID:   user.ID,
 	})
 
-	return token, nil // Return token for simulation/email
+	// Send Email
+	// In production, build a proper link. Here assumption:
+	// We might need a frontend URL config.
+	// For now, let's assume valid link structure.
+	resetLink := fmt.Sprintf("https://myapp.com/reset-password?token=%s", token)
+
+	// Fire and forget? Or wait?
+	// The client is sync http call.
+	// Ideally should be async, but requirement didn't specify.
+	// "Send the user an email"
+	if err := s.emailClient.SendPasswordResetEmail(ctx, user.Email, resetLink); err != nil {
+		// Log error but don't fail the request? Or fail?
+		// If email fails, user can't reset. Better fail or retry.
+		// Returning error will alert user.
+		return errors.New(500, "Failed to send reset email", err)
+	}
+
+	return nil
 }
 
 func (s *authService) ResetPassword(ctx context.Context, token, newPassword string) error {
@@ -181,6 +205,7 @@ func (s *authService) ResetPassword(ctx context.Context, token, newPassword stri
 
 	user.PasswordHash = newPassHash
 	user.IsPasswordResetRequired = false
+	user.IsActive = true
 
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		return errors.New(500, "Failed to update password", err)

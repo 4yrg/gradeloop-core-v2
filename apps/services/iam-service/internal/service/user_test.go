@@ -17,7 +17,9 @@ func TestUserService_CreateUser(t *testing.T) {
 	mockUserRepo := new(repoMocks.UserRepository)
 	mockRoleRepo := new(repoMocks.RoleRepository)
 	mockAuditRepo := new(repoMocks.AuditRepository)
-	userService := service.NewUserService(mockUserRepo, mockRoleRepo, mockAuditRepo)
+	mockPasswdRepo := new(repoMocks.PasswordResetRepository)
+	mockEmailClient := new(MockEmailClient)
+	userService := service.NewUserService(mockUserRepo, mockRoleRepo, mockAuditRepo, mockPasswdRepo, mockEmailClient)
 
 	t.Run("Success", func(t *testing.T) {
 		req := dto.CreateUserRequest{
@@ -37,11 +39,15 @@ func TestUserService_CreateUser(t *testing.T) {
 
 		mockAuditRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
 
-		user, tempPass, err := userService.CreateUser(context.Background(), req)
+		mockPasswdRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
+		mockEmailClient.On("SendPasswordResetEmail", mock.Anything, "test@example.com", mock.Anything).Return(nil)
+
+		user, err := userService.CreateUser(context.Background(), req)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, user)
-		assert.NotEmpty(t, tempPass)
+		assert.Equal(t, "test@example.com", user.Email)
+		assert.False(t, user.IsActive)
 		assert.Equal(t, "test@example.com", user.Email)
 		mockUserRepo.AssertExpectations(t)
 	})
@@ -56,7 +62,7 @@ func TestUserService_CreateUser(t *testing.T) {
 		existingUser := &domain.User{Email: "existing@example.com"}
 		mockUserRepo.On("FindByEmail", mock.Anything, "existing@example.com").Return(existingUser, nil)
 
-		user, _, err := userService.CreateUser(context.Background(), req)
+		user, err := userService.CreateUser(context.Background(), req)
 
 		assert.Error(t, err)
 		assert.Nil(t, user)
@@ -66,13 +72,14 @@ func TestUserService_CreateUser(t *testing.T) {
 	t.Run("ValidationError_Student", func(t *testing.T) {
 		req := dto.CreateUserRequest{
 			Email:    "student@example.com",
+			FullName: "Student Name",
 			UserType: "STUDENT",
 			// Missing EnrollmentDate and StudentID
 		}
 
 		mockUserRepo.On("FindByEmail", mock.Anything, "student@example.com").Return(nil, errors.New("not found"))
 
-		user, _, err := userService.CreateUser(context.Background(), req)
+		user, err := userService.CreateUser(context.Background(), req)
 
 		assert.Error(t, err)
 		assert.Nil(t, user)

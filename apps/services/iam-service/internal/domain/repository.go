@@ -34,6 +34,7 @@ type AuditRepository interface {
 type PasswordResetRepository interface {
 	Create(ctx context.Context, token *PasswordResetToken) error
 	FindByTokenHash(ctx context.Context, hash string) (*PasswordResetToken, error)
+	FindLatestByUserID(ctx context.Context, userID string) (*PasswordResetToken, error)
 	MarkAsUsed(ctx context.Context, id string) error
 	DeleteByUserID(ctx context.Context, userID string) error
 }

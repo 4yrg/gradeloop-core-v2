@@ -15,16 +15,26 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+type MockEmailClient struct {
+	mock.Mock
+}
+
+func (m *MockEmailClient) SendPasswordResetEmail(ctx context.Context, to, link string) error {
+	args := m.Called(ctx, to, link)
+	return args.Error(0)
+}
+
 func TestAuthService_Login(t *testing.T) {
 	mockUserRepo := new(repoMocks.UserRepository)
 	mockTokenRepo := new(repoMocks.RefreshTokenRepository)
-	mockPasswdRepo := new(repoMocks.PasswordResetRepository) // Assuming this mock exists
+	mockPasswdRepo := new(repoMocks.PasswordResetRepository)
 	mockAuditRepo := new(repoMocks.AuditRepository)
+	mockEmailClient := new(MockEmailClient)
 
 	// Set secret for JWT
 	// os.Setenv("SECRET", "testsecret") // Ideally handled via config/test setup
 
-	authService := service.NewAuthService(mockUserRepo, mockTokenRepo, mockPasswdRepo, mockAuditRepo)
+	authService := service.NewAuthService(mockUserRepo, mockTokenRepo, mockPasswdRepo, mockAuditRepo, mockEmailClient)
 
 	t.Run("Success", func(t *testing.T) {
 		password := "password123"
@@ -83,8 +93,9 @@ func TestAuthService_RequestPasswordReset(t *testing.T) {
 	mockTokenRepo := new(repoMocks.RefreshTokenRepository)
 	mockPasswdRepo := new(repoMocks.PasswordResetRepository)
 	mockAuditRepo := new(repoMocks.AuditRepository)
+	mockEmailClient := new(MockEmailClient)
 
-	authService := service.NewAuthService(mockUserRepo, mockTokenRepo, mockPasswdRepo, mockAuditRepo)
+	authService := service.NewAuthService(mockUserRepo, mockTokenRepo, mockPasswdRepo, mockAuditRepo, mockEmailClient)
 
 	t.Run("Success", func(t *testing.T) {
 		user := &domain.User{
@@ -97,10 +108,55 @@ func TestAuthService_RequestPasswordReset(t *testing.T) {
 			return p.UserID == "user-123" && p.ExpiresAt.After(time.Now())
 		})).Return(nil)
 		mockAuditRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
+		mockEmailClient.On("SendPasswordResetEmail", mock.Anything, "reset@example.com", mock.Anything).Return(nil)
 
-		token, err := authService.RequestPasswordReset(context.Background(), "reset@example.com")
+		err := authService.RequestPasswordReset(context.Background(), "reset@example.com")
 
 		assert.NoError(t, err)
-		assert.NotEmpty(t, token)
+	})
+}
+func TestAuthService_ResetPassword(t *testing.T) {
+	mockUserRepo := new(repoMocks.UserRepository)
+	mockTokenRepo := new(repoMocks.RefreshTokenRepository)
+	mockPasswdRepo := new(repoMocks.PasswordResetRepository)
+	mockAuditRepo := new(repoMocks.AuditRepository)
+	mockEmailClient := new(MockEmailClient)
+
+	authService := service.NewAuthService(mockUserRepo, mockTokenRepo, mockPasswdRepo, mockAuditRepo, mockEmailClient)
+
+	t.Run("Success", func(t *testing.T) {
+		rawToken := "raw-token"
+		tokenHash := utils.HashToken(rawToken)
+		newPass := "newSecurePassword123!"
+
+		resetToken := &domain.PasswordResetToken{
+			ID:        "token-1",
+			TokenHash: tokenHash,
+			UserID:    "user-123",
+			ExpiresAt: time.Now().Add(1 * time.Hour),
+		}
+
+		user := &domain.User{
+			ID:       "user-123",
+			Email:    "test@example.com",
+			IsActive: false, // Initially inactive
+		}
+
+		mockPasswdRepo.On("FindByTokenHash", mock.Anything, tokenHash).Return(resetToken, nil)
+		mockUserRepo.On("FindByID", mock.Anything, "user-123").Return(user, nil)
+
+		// Expect user update with IsActive=true
+		mockUserRepo.On("Update", mock.Anything, mock.MatchedBy(func(u *domain.User) bool {
+			return u.ID == "user-123" && u.IsActive == true && u.IsPasswordResetRequired == false
+		})).Return(nil)
+
+		mockPasswdRepo.On("MarkAsUsed", mock.Anything, "token-1").Return(nil)
+		mockTokenRepo.On("RevokeAllForUser", mock.Anything, "user-123").Return(nil)
+		mockAuditRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
+
+		err := authService.ResetPassword(context.Background(), rawToken, newPass)
+
+		assert.NoError(t, err)
+		mockUserRepo.AssertExpectations(t)
 	})
 }
