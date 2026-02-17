@@ -2,8 +2,8 @@ package service
 
 import (
 	"context"
-
-	"time"
+	"fmt"
+	"strings"
 
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/domain"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/dto"
@@ -11,6 +11,7 @@ import (
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/utils"
 	"github.com/go-playground/validator/v10"
+	"gorm.io/gorm"
 )
 
 type UserService interface {
@@ -69,14 +70,39 @@ func (s *userService) CreateUser(ctx context.Context, req dto.CreateUserRequest)
 		}
 	}
 
-	// Create Inactive User
+	// Pre-check uniqueness for StudentID / EmployeeID using repository lookups
+	// This uses direct repository methods to check for existing specialized IDs and returns
+	// appropriate errors (409) or propagates DB access errors (500).
+	if req.StudentID != nil {
+		if _, err := s.userRepo.FindByStudentID(ctx, *req.StudentID); err == nil {
+			return nil, errors.New(409, "Student ID already exists", nil)
+		} else if err != nil && err != gorm.ErrRecordNotFound {
+			return nil, errors.New(500, "Failed to check student ID uniqueness", err)
+		}
+	}
+	if req.EmployeeID != nil {
+		if _, err := s.userRepo.FindByEmployeeID(ctx, *req.EmployeeID); err == nil {
+			return nil, errors.New(409, "Employee ID already exists", nil)
+		} else if err != nil && err != gorm.ErrRecordNotFound {
+			return nil, errors.New(500, "Failed to check employee ID uniqueness", err)
+		}
+	}
+
+	// Generate Temp Password
+	tempPassword := utils.GenerateRandomString(12)
+	passwordHash, err := utils.HashPassword(tempPassword)
+	if err != nil {
+		return nil, errors.New(500, "Failed to hash password", err)
+	}
+
+	// Create User
 	user := &domain.User{
 		Email:                   req.Email,
 		FullName:                req.FullName,
-		PasswordHash:            "", // No password initially
+		PasswordHash:            passwordHash,
 		UserType:                domain.UserType(req.UserType),
-		IsActive:                false,
-		IsPasswordResetRequired: true,
+		IsActive:                true, // Active immediately
+		IsPasswordResetRequired: true, // Must reset on first login
 		StudentID:               req.StudentID,
 		EmployeeID:              req.EmployeeID,
 		Designation:             req.Designation,
@@ -92,31 +118,40 @@ func (s *userService) CreateUser(ctx context.Context, req dto.CreateUserRequest)
 		user.EnrollmentDate = &date
 	}
 
-	// Transactional creation ideally, but for now linear
+	// Transactional creation ideally, but for now linear.
+	// Attempt to create and map DB unique-constraint errors to 409 responses.
 	if err := s.userRepo.Create(ctx, user); err != nil {
+		// Try to detect common Postgres unique constraint violation text and return 409 with meaningful message.
+		lower := strings.ToLower(err.Error())
+		if strings.Contains(lower, "duplicate key value") || strings.Contains(lower, "unique constraint") || strings.Contains(lower, "sqlstate 23505") {
+			// Map to specific field if possible
+			if strings.Contains(lower, "idx_users_employee_id") || strings.Contains(lower, "employee_id") {
+				return nil, errors.New(409, "Employee ID already exists", err)
+			}
+			if strings.Contains(lower, "idx_users_student_id") || strings.Contains(lower, "student_id") {
+				return nil, errors.New(409, "Student ID already exists", err)
+			}
+			if strings.Contains(lower, "users_email_key") || strings.Contains(lower, "email") {
+				return nil, errors.New(409, "Email already exists", err)
+			}
+			// Generic unique constraint hit
+			return nil, errors.New(409, "Unique constraint violation", err)
+		}
 		return nil, errors.New(500, "Failed to create user", err)
 	}
 
-	// Generate Password Reset Token
-	token := utils.GenerateUUID()
-	hash := utils.HashToken(token)
-	resetToken := &domain.PasswordResetToken{
-		UserID:    user.ID,
-		TokenHash: hash,
-		ExpiresAt: time.Now().Add(24 * time.Hour), // 24h for initial setup?
-	}
-	if err := s.passwdRepo.Create(ctx, resetToken); err != nil {
-		// Cleanup user? Or just fail?
-		return nil, errors.New(500, "Failed to create reset token", err)
-	}
+	// Send Welcome Email with Temp Password (Async)
+	go func() {
+		// Create a background context or use a detached one if needed.
+		// For simplicity, using context.Background() or similar for independent timeout.
+		emailCtx := context.Background()
+		if err := s.emailClient.SendWelcomeEmail(emailCtx, user.Email, user.FullName, tempPassword); err != nil {
+			fmt.Printf("[ERROR] Failed to send welcome email to %s: %v\n", user.Email, err)
+		}
+	}()
 
-	// Send Email
-	// Assuming frontend URL
-	resetLink := "https://gradeloop.com/auth/verify-account?token=" + token
-	if err := s.emailClient.SendPasswordResetEmail(ctx, user.Email, resetLink); err != nil {
-		// Log error
-		// return nil, errors.New(500, "Failed to send email", err)
-	}
+	// TEMP: Log password for testing
+	fmt.Printf("[DEBUG] Temp Password for %s: %s\n", user.Email, tempPassword)
 
 	// Log Audit
 	s.auditRepo.Create(ctx, &domain.AuditLog{

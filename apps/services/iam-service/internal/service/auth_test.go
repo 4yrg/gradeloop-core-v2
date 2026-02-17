@@ -19,8 +19,13 @@ type MockEmailClient struct {
 	mock.Mock
 }
 
-func (m *MockEmailClient) SendPasswordResetEmail(ctx context.Context, to, link string) error {
-	args := m.Called(ctx, to, link)
+func (m *MockEmailClient) SendPasswordResetEmail(ctx context.Context, to, name, link string) error {
+	args := m.Called(ctx, to, name, link)
+	return args.Error(0)
+}
+
+func (m *MockEmailClient) SendWelcomeEmail(ctx context.Context, to, name, password string) error {
+	args := m.Called(ctx, to, name, password)
 	return args.Error(0)
 }
 
@@ -52,7 +57,7 @@ func TestAuthService_Login(t *testing.T) {
 			Password: password,
 		}
 
-		mockUserRepo.On("FindByEmail", mock.Anything, "test@example.com").Return(user, nil)
+		mockUserRepo.On("FindByEmailForAuth", mock.Anything, "test@example.com").Return(user, nil)
 
 		// Expect token creation
 		mockTokenRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
@@ -80,7 +85,7 @@ func TestAuthService_Login(t *testing.T) {
 			Email:    "test@example.com",
 			Password: "wrongpassword",
 		}
-		mockUserRepo.On("FindByEmail", mock.Anything, "test@example.com").Return(user, nil)
+		mockUserRepo.On("FindByEmailForAuth", mock.Anything, "test@example.com").Return(user, nil)
 
 		res, err := authService.Login(context.Background(), req, "127.0.0.1", "TestAgent")
 		assert.Error(t, err)
@@ -108,7 +113,7 @@ func TestAuthService_RequestPasswordReset(t *testing.T) {
 			return p.UserID == "user-123" && p.ExpiresAt.After(time.Now())
 		})).Return(nil)
 		mockAuditRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
-		mockEmailClient.On("SendPasswordResetEmail", mock.Anything, "reset@example.com", mock.Anything).Return(nil)
+		mockEmailClient.On("SendPasswordResetEmail", mock.Anything, "reset@example.com", mock.Anything, mock.Anything).Return(nil)
 
 		err := authService.RequestPasswordReset(context.Background(), "reset@example.com")
 

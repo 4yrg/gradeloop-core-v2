@@ -21,6 +21,7 @@ type AuthService interface {
 	Logout(ctx context.Context, refreshToken string, all bool, userID string) error
 	RequestPasswordReset(ctx context.Context, email string) error
 	ResetPassword(ctx context.Context, token, newPassword string) error
+	ChangePassword(ctx context.Context, userID, oldPassword, newPassword string) error
 }
 
 type authService struct {
@@ -48,34 +49,19 @@ func NewAuthService(
 }
 
 func (s *authService) Login(ctx context.Context, req dto.LoginRequest, ip, userAgent string) (*dto.AuthResponse, error) {
-	// ... (Same as before)
-	// Need to duplicate logic here because I am overwriting the file?
-	// replace_file_content would be better if I could append.
-	// I already wrote it in previous step.
-	// I should use replace_file_content to ADD methods or overwrite the file with ALL methods.
-	// Overwriting with ALL methods including the ones I wrote before.
-
-	// Copying previous Login logic...
-	user, err := s.userRepo.FindByEmail(ctx, req.Email)
+	// Use optimized query without role/permission preloading for authentication
+	user, err := s.userRepo.FindByEmailForAuth(ctx, req.Email)
 	if err != nil {
 		return nil, errors.New(401, "Invalid email or password", nil)
 	}
 
+	// Check password
 	if !utils.CheckPasswordHash(req.Password, user.PasswordHash) {
 		return nil, errors.New(401, "Invalid email or password", nil)
 	}
 
 	if !user.IsActive {
-		// Check for existing valid reset token
-		token, err := s.passwdRepo.FindLatestByUserID(ctx, user.ID)
-		if err != nil || token == nil || time.Now().After(token.ExpiresAt) {
-			// Token expired or not found, send new one
-			if err := s.RequestPasswordReset(ctx, user.Email); err != nil {
-				return nil, errors.New(500, "Failed to send verification email", err)
-			}
-			return nil, errors.New(403, "Account inactive and verification expired. A new verification link has been sent to your email.", nil)
-		}
-		return nil, errors.New(403, "Account inactive. Please check your email for verification link.", nil)
+		return nil, errors.New(403, "Account inactive.", nil)
 	}
 
 	return s.generateTokens(ctx, user, ip, userAgent)
@@ -115,8 +101,9 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string, ip,
 	}
 
 	return &dto.AuthResponse{
-		AccessToken:  accessToken,
-		RefreshToken: newToken,
+		AccessToken:             accessToken,
+		RefreshToken:            newToken,
+		IsPasswordResetRequired: user.IsPasswordResetRequired,
 	}, nil
 }
 
@@ -132,6 +119,40 @@ func (s *authService) Logout(ctx context.Context, refreshToken string, all bool,
 	}
 
 	return s.tokenRepo.Revoke(ctx, token.ID, "")
+}
+
+func (s *authService) ChangePassword(ctx context.Context, userID, oldPassword, newPassword string) error {
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return errors.New(404, "User not found", err)
+	}
+
+	if !utils.CheckPasswordHash(oldPassword, user.PasswordHash) {
+		return errors.New(401, "Invalid old password", nil)
+	}
+
+	newPassHash, err := utils.HashPassword(newPassword)
+	if err != nil {
+		return errors.New(500, "Failed to hash password", err)
+	}
+
+	user.PasswordHash = newPassHash
+	user.IsPasswordResetRequired = false
+
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return errors.New(500, "Failed to update password", err)
+	}
+
+	// Revoke all sessions (optional but good security practice)
+	// s.tokenRepo.RevokeAllForUser(ctx, user.ID)
+
+	s.auditRepo.Create(ctx, &domain.AuditLog{
+		Action:     "PASSWORD_CHANGE",
+		EntityName: "users",
+		EntityID:   user.ID,
+	})
+
+	return nil
 }
 
 func (s *authService) RequestPasswordReset(ctx context.Context, email string) error {
@@ -162,16 +183,13 @@ func (s *authService) RequestPasswordReset(ctx context.Context, email string) er
 	})
 
 	// Send Email
-	// In production, build a proper link. Here assumption:
-	// We might need a frontend URL config.
-	// For now, let's assume valid link structure.
-	resetLink := fmt.Sprintf("https://myapp.com/reset-password?token=%s", token)
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:3000"
+	}
+	resetLink := fmt.Sprintf("%s/auth/reset-password?token=%s", frontendURL, token)
 
-	// Fire and forget? Or wait?
-	// The client is sync http call.
-	// Ideally should be async, but requirement didn't specify.
-	// "Send the user an email"
-	if err := s.emailClient.SendPasswordResetEmail(ctx, user.Email, resetLink); err != nil {
+	if err := s.emailClient.SendPasswordResetEmail(ctx, user.Email, user.FullName, resetLink); err != nil {
 		// Log error but don't fail the request? Or fail?
 		// If email fails, user can't reset. Better fail or retry.
 		// Returning error will alert user.
@@ -247,8 +265,9 @@ func (s *authService) generateTokens(ctx context.Context, user *domain.User, ip,
 	}
 
 	return &dto.AuthResponse{
-		AccessToken:  at,
-		RefreshToken: rawRT,
+		AccessToken:             at,
+		RefreshToken:            rawRT,
+		IsPasswordResetRequired: user.IsPasswordResetRequired,
 	}, nil
 }
 
