@@ -13,7 +13,12 @@ func Seed(db *gorm.DB) error {
 	log.Println("Seeding database...")
 
 	// 1. Seed Permissions
+	// We seed both the legacy constant-style permissions and the new
+	// canonical IAM permission strings (service:feature:access) so that
+	// the database contains both formats for compatibility while UI and
+	// services move to the canonical form.
 	permissions := []string{
+		// Legacy (existing DB constants)
 		domain.PermissionUserCreate,
 		domain.PermissionUserRead,
 		domain.PermissionUserUpdate,
@@ -24,6 +29,18 @@ func Seed(db *gorm.DB) error {
 		domain.PermissionRoleDelete,
 		domain.PermissionRoleAssign,
 		domain.PermissionAuditRead,
+
+		// Canonical IAM permissions (service:feature:access)
+		"iam:users:create",
+		"iam:users:read",
+		"iam:users:update",
+		"iam:users:delete",
+		"iam:roles:create",
+		"iam:roles:read",
+		"iam:roles:update",
+		"iam:roles:delete",
+		"iam:roles:assign",
+		"iam:audit:read",
 	}
 
 	permMap := make(map[string]domain.Permission)
@@ -46,19 +63,32 @@ func Seed(db *gorm.DB) error {
 
 	// 2. Seed Roles and Assign Permissions
 	roles := map[string][]string{
-		domain.RoleSuperAdmin: permissions, // Super Admin gets all permissions
+		domain.RoleSuperAdmin: permissions, // Super Admin gets all permissions (legacy + canonical)
 		domain.RoleAdmin: {
+			// Keep legacy constants for compatibility
 			domain.PermissionUserCreate,
 			domain.PermissionUserRead,
 			domain.PermissionUserUpdate,
 			domain.PermissionRoleRead,
 			domain.PermissionRoleAssign,
 			domain.PermissionAuditRead,
+			// Also ensure canonical permissions are present for the role
+			"iam:users:create",
+			"iam:users:read",
+			"iam:users:update",
+			"iam:roles:read",
+			"iam:roles:assign",
+			"iam:audit:read",
 		},
 		domain.RoleInstructor: {
+			// instructors should at least be able to read users
 			domain.PermissionUserRead,
+			"iam:users:read",
 		},
 		domain.RoleStudent: {
+			// Students: minimal read capability expressed in canonical form
+			"iam:users:read",
+			// keep legacy empty set comment for future additions
 			// Students might have limited read permissions or specific ones
 		},
 	}
@@ -114,7 +144,7 @@ func Seed(db *gorm.DB) error {
 				existingUser.PasswordHash = hashedPassword
 				existingUser.FullName = "Super Admin"
 				existingUser.IsActive = true
-				
+
 				if err := db.Save(&existingUser).Error; err != nil {
 					return err
 				}
