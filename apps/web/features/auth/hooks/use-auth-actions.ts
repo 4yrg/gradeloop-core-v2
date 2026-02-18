@@ -4,15 +4,14 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
 import { useAuthStore } from "@/store/auth.store";
-import type {
-  LoginRequest,
-  ChangePasswordRequest,
-  ForgotPasswordRequest,
-  ResetPasswordRequest,
-  LoginResponse,
-  User,
-  Session,
-} from "@/schemas/auth.schema";
+import type { User, Session } from "@/schemas/auth.schema";
+import type { APIError } from "@/lib/api";
+
+// Type for error objects with optional status
+interface ApiErrorWithStatus extends Partial<APIError> {
+  status?: number;
+  message?: string;
+}
 
 // Login hook
 export const useLogin = () => {
@@ -24,8 +23,8 @@ export const useLogin = () => {
     mutationFn: async (credentials: { email: string; password: string }) => {
       return apiClient.login(credentials);
     },
-    onSuccess: (data: LoginResponse) => {
-      // Update auth store
+    onSuccess: (data) => {
+      // Update auth store (data no longer contains access_token)
       authStore.login(
         data.user as User,
         {
@@ -52,15 +51,17 @@ export const useLogin = () => {
       });
 
       // Redirect to dashboard, admin dashboard, or return URL
+      // Note: No need to validate session here - login success already proves session is valid
+      // Cookies will be sent with subsequent requests automatically
       const urlParams = new URLSearchParams(window.location.search);
       const returnTo = urlParams.get("returnTo");
 
       const user = data.user as User;
       const roles = user?.roles ?? [];
       const isAdmin = roles.some(
-        (r: any) =>
-          (r?.name || "").toLowerCase() === "admin" ||
-          (r?.name || "").toLowerCase().includes("admin"),
+        (role: { name?: string }) =>
+          (role?.name || "").toLowerCase() === "admin" ||
+          (role?.name || "").toLowerCase().includes("admin"),
       );
 
       if (returnTo) {
@@ -71,7 +72,7 @@ export const useLogin = () => {
         router.push("/dashboard");
       }
     },
-    onError: (error: any) => {
+    onError: (error: ApiErrorWithStatus) => {
       console.error("Login error:", error);
 
       // Handle specific error cases
@@ -120,7 +121,7 @@ export const useLogout = () => {
       // Redirect to login
       router.push("/login");
     },
-    onError: (error: any) => {
+    onError: (error: ApiErrorWithStatus) => {
       console.error("Logout error:", error);
 
       // Even if logout fails on server, clear local state
@@ -144,13 +145,13 @@ export const useChangePassword = () => {
     }) => {
       return apiClient.changePassword(data);
     },
-    onSuccess: (data) => {
+    onSuccess: (data: { message?: string }) => {
       toast.success("Password Changed", {
         description:
           data.message || "Your password has been updated successfully",
       });
     },
-    onError: (error: any) => {
+    onError: (error: ApiErrorWithStatus) => {
       console.error("Change password error:", error);
 
       let errorMessage = "Failed to change password";
@@ -176,13 +177,13 @@ export const useForgotPassword = () => {
     mutationFn: async (data: { email: string }) => {
       return apiClient.forgotPassword(data);
     },
-    onSuccess: (data) => {
+    onSuccess: (data: { message?: string }) => {
       toast.success("Reset Email Sent", {
         description:
           data.message || "Check your email for password reset instructions",
       });
     },
-    onError: (error: any) => {
+    onError: (error: ApiErrorWithStatus) => {
       console.error("Forgot password error:", error);
 
       // Don't reveal whether email exists for security
@@ -204,7 +205,7 @@ export const useResetPassword = () => {
     mutationFn: async (data: { token: string; password: string }) => {
       return apiClient.resetPassword(data);
     },
-    onSuccess: (data) => {
+    onSuccess: (data: { message?: string }) => {
       toast.success("Password Reset Complete", {
         description:
           data.message || "Your password has been reset successfully",
@@ -213,7 +214,7 @@ export const useResetPassword = () => {
       // Redirect to login
       router.push("/login");
     },
-    onError: (error: any) => {
+    onError: (error: ApiErrorWithStatus) => {
       console.error("Reset password error:", error);
 
       let errorMessage = "Failed to reset password";
@@ -244,13 +245,13 @@ export const useValidateSession = () => {
     mutationFn: async () => {
       return apiClient.validateSession();
     },
-    onSuccess: (data) => {
+    onSuccess: (data: { valid: boolean; user?: unknown }) => {
       if (!data.valid) {
         // Session invalid, logout user
         authStore.logout();
       }
     },
-    onError: (error: any) => {
+    onError: (error: ApiErrorWithStatus) => {
       console.error("Session validation error:", error);
 
       // Handle rate limiting specifically
@@ -274,12 +275,12 @@ export const useRefreshToken = () => {
     mutationFn: async () => {
       return apiClient.refresh();
     },
-    onSuccess: (data) => {
+    onSuccess: (data: { expires_in: number }) => {
       // Update auth store with new token expiration
       authStore.refresh(Date.now() + data.expires_in * 1000);
       authStore.updateLastActivity();
     },
-    onError: (error: any) => {
+    onError: (error: ApiErrorWithStatus) => {
       console.error("Token refresh error:", error);
 
       // Refresh failed, logout user

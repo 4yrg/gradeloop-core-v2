@@ -5,11 +5,15 @@ type LoginRequest struct {
 	Password string `json:"password" validate:"required"`
 }
 
+// AuthResponse is the response for login/refresh endpoints.
+// Note: access_token and refresh_token are now delivered via HttpOnly cookies.
+// Only user data and csrf_token are returned in the JSON body.
 type AuthResponse struct {
-	AccessToken             string           `json:"access_token"`
-	RefreshToken            string           `json:"refresh_token"`
+	AccessToken             string           `json:"access_token,omitempty"` // Omitted when using cookies
+	RefreshToken            string           `json:"refresh_token,omitempty"` // Omitted when using cookies
 	IsPasswordResetRequired bool             `json:"is_password_reset_required"`
 	User                    AuthUserResponse `json:"user"`
+	CSRFToken               string           `json:"csrf_token,omitempty"` // Optional: helpful for immediate first request
 }
 
 type AuthUserResponse struct {

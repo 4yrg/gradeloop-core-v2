@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef } from "react";
 import { NAV_ITEMS, ADMIN_NAV_ITEMS, type NavItem } from "@/config/navigation";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/store/auth.store";
 import { usePathname } from "next/navigation";
 import Icons from "@/components/ui/icons";
 import Link from "next/link";
@@ -23,41 +23,66 @@ type SidebarProps = {
   onToggleCollapse: () => void;
 };
 
-// Helper: allow frontend-required permissions in `iam:resource:action` form to match
-// backend permissions like `RESOURCE_ACTION` (e.g. `iam:users:read` -> `USER_READ`).
-function permissionMatches(required: string, userPermissions: string[]) {
+/**
+ * Check if a user has a required permission.
+ * Supports canonical format: iam:resource:action (e.g., iam:users:read)
+ */
+function hasPermission(required: string, userPermissions: string[]): boolean {
+  // Direct match
   if (userPermissions.includes(required)) return true;
 
-  // If required is in the iam:resource:action form, try to convert
-  const parts = required.split(":");
-  if (parts.length >= 3) {
-    const resource = parts[1];
-    const action = parts[2];
-    // naive singularize: drop trailing 's' if present
-    let res = resource.toUpperCase();
-    if (res.endsWith("S")) res = res.slice(0, -1);
-    // replace any non-alpha with underscore
-    res = res.replace(/[^A-Z]/g, "_");
-    const converted = `${res}_${action.toUpperCase()}`;
-    if (userPermissions.includes(converted)) return true;
-  }
+  // Normalize required permission for comparison
+  const normalizedRequired = normalizeToCanonical(required);
+  if (userPermissions.includes(normalizedRequired)) return true;
 
-  // Also try the reverse: required might be BACKEND style and userPermissions may contain iam: format
-  for (const up of userPermissions) {
-    if (up === required) return true;
-    const upParts = up.split(":");
-    if (upParts.length >= 3) {
-      // convert user perm iam:resource:action -> RESOURCE_ACTION and compare
-      const r = upParts[1].toUpperCase().endsWith("S")
-        ? upParts[1].toUpperCase().slice(0, -1)
-        : upParts[1].toUpperCase();
-      const a = upParts[2].toUpperCase();
-      const conv = `${r}_${a}`;
-      if (conv === required) return true;
+  // Check if any user permission matches after normalization
+  for (const userPerm of userPermissions) {
+    if (normalizeToCanonical(userPerm) === normalizedRequired) {
+      return true;
     }
   }
 
   return false;
+}
+
+/**
+ * Normalize a permission to canonical format (iam:resource:action)
+ */
+function normalizeToCanonical(permission: string): string {
+  // Already canonical
+  if ((permission.match(/:/g) || []).length === 2) {
+    return permission;
+  }
+
+  // Handle legacy constant format: USER_READ -> iam:users:read
+  const legacyConstantMap: Record<string, string> = {
+    USER_CREATE: "iam:users:create",
+    USER_READ: "iam:users:read",
+    USER_UPDATE: "iam:users:update",
+    USER_DELETE: "iam:users:delete",
+    ROLE_CREATE: "iam:roles:create",
+    ROLE_READ: "iam:roles:read",
+    ROLE_UPDATE: "iam:roles:update",
+    ROLE_DELETE: "iam:roles:delete",
+    ROLE_ASSIGN: "iam:roles:assign",
+    AUDIT_READ: "iam:audit:read",
+  };
+
+  if (legacyConstantMap[permission]) {
+    return legacyConstantMap[permission];
+  }
+
+  // Handle two-part format: users:read -> iam:users:read
+  const parts = permission
+    .split(":")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (parts.length === 2) {
+    return `iam:${parts[0]}:${parts[1]}`;
+  }
+
+  // Fallback
+  return permission;
 }
 
 export function Sidebar({
@@ -80,10 +105,10 @@ export function Sidebar({
   }, [pathname]);
 
   // Build a stable string key for permissions so we can use it safely in deps
-  const permissionsKey = useMemo(
-    () => (user?.permissions ?? []).join("|"),
-    [user?.permissions],
-  );
+  const permissionsKey = useMemo(() => {
+    const userPerms = user?.roles?.flatMap((r) => r.permissions ?? []) ?? [];
+    return userPerms.join("|");
+  }, [user?.roles]);
 
   // Compute the visible navigation items based on route and permissions
   const filtered = useMemo<NavItem[]>(() => {
@@ -95,21 +120,21 @@ export function Sidebar({
       // Use the dedicated admin navigation items
       // Check permissions for each item
       return ADMIN_NAV_ITEMS.filter((item) => {
-        if (!item.requiredPermissions || item.requiredPermissions.length === 0)
-          return true;
-        return item.requiredPermissions.some((p) =>
-          permissionMatches(p, userPermissions),
-        );
+        if (!item.permission) return true;
+        if (Array.isArray(item.permission)) {
+          return item.permission.some((p) => hasPermission(p, userPermissions));
+        }
+        return hasPermission(item.permission, userPermissions);
       });
     }
 
     // Default: show all NAV_ITEMS that the user has permission to see
     return NAV_ITEMS.filter((item) => {
-      if (!item.requiredPermissions || item.requiredPermissions.length === 0)
-        return true;
-      return item.requiredPermissions.some((p) =>
-        permissionMatches(p, userPermissions),
-      );
+      if (!item.permission) return true;
+      if (Array.isArray(item.permission)) {
+        return item.permission.some((p) => hasPermission(p, userPermissions));
+      }
+      return hasPermission(item.permission, userPermissions);
     });
   }, [permissionsKey, isAdminRoute]);
 
@@ -138,8 +163,9 @@ export function Sidebar({
   return (
     <ShellSidebar
       ref={drawerRef}
-      className={`fixed inset-y-0 left-0 z-30 transform lg:transform-none transition-all duration-200 ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        } ${collapsed ? "w-[72px] lg:w-[72px]" : "w-[280px] lg:w-[280px]"}`}
+      className={`fixed inset-y-0 left-0 z-30 transform lg:transform-none transition-all duration-200 ${
+        open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+      } ${collapsed ? "w-[72px] lg:w-[72px]" : "w-[280px] lg:w-[280px]"}`}
     >
       <SidebarHeader>
         <div className="flex items-center gap-3">
@@ -179,7 +205,11 @@ export function Sidebar({
               <SidebarMenuButton key={item.href} asChild>
                 <Link href={item.href} className={linkClass}>
                   <span className="shrink-0 text-lg">
-                    {item.icon ?? <Icons.dashboard size={18} />}
+                    {item.icon && Icons[item.icon] ? (
+                      React.createElement(Icons[item.icon], { size: 18 })
+                    ) : (
+                      <Icons.dashboard size={18} />
+                    )}
                   </span>
                   <span className={labelClass}>{item.label}</span>
                 </Link>

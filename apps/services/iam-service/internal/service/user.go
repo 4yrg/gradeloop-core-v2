@@ -155,7 +155,7 @@ func (s *userService) CreateUser(ctx context.Context, req dto.CreateUserRequest)
 
 	// Log Audit
 	s.auditRepo.Create(ctx, &domain.AuditLog{
-		Action:     "USER_CREATE",
+		Action:     "iam:users:create",
 		EntityName: "users",
 		EntityID:   user.ID,
 	})
@@ -193,7 +193,7 @@ func (s *userService) UpdateUser(ctx context.Context, id string, req dto.UpdateU
 	}
 
 	s.auditRepo.Create(ctx, &domain.AuditLog{
-		Action:     "USER_UPDATE",
+		Action:     "iam:users:update",
 		EntityName: "users",
 		EntityID:   user.ID,
 	})
@@ -207,7 +207,7 @@ func (s *userService) DeleteUser(ctx context.Context, id string) error {
 	}
 
 	s.auditRepo.Create(ctx, &domain.AuditLog{
-		Action:     "USER_DELETE",
+		Action:     "iam:users:delete",
 		EntityName: "users",
 		EntityID:   id,
 	})
@@ -220,7 +220,7 @@ func (s *userService) AssignRole(ctx context.Context, userID, roleID string) err
 	}
 
 	s.auditRepo.Create(ctx, &domain.AuditLog{
-		Action:     "ROLE_ASSIGN",
+		Action:     "iam:roles:assign",
 		EntityName: "users",
 		EntityID:   userID,
 	})

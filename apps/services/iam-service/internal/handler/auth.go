@@ -4,6 +4,7 @@ import (
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/dto"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/errors"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/service"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam-service/internal/utils"
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -28,7 +29,50 @@ func (h *AuthHandler) Login(c fiber.Ctx) error {
 		}
 		return c.Status(401).JSON(fiber.Map{"error": err.Error()})
 	}
-	return c.JSON(res)
+
+	// Generate CSRF token
+	csrfToken := utils.GenerateRandomString(32)
+
+	// Set access_token cookie (15 minutes)
+	c.Cookie(&fiber.Cookie{
+		Name:     "access_token",
+		Value:    res.AccessToken,
+		Path:     "/",
+		MaxAge:   900, // 15 min
+		HTTPOnly: true,
+		Secure:   false, // Set to true in production with HTTPS
+		SameSite: "lax",
+	})
+
+	// Set refresh_token cookie (30 days)
+	c.Cookie(&fiber.Cookie{
+		Name:     "refresh_token",
+		Value:    res.RefreshToken,
+		Path:     "/",
+		MaxAge:   2592000, // 30 days
+		HTTPOnly: true,
+		Secure:   false, // Set to true in production with HTTPS
+		SameSite: "lax",
+	})
+
+	// Set csrf_token cookie (15 minutes, readable by JS)
+	c.Cookie(&fiber.Cookie{
+		Name:     "csrf_token",
+		Value:    csrfToken,
+		Path:     "/",
+		MaxAge:   900,   // 15 min
+		HTTPOnly: false, // Must be readable by JavaScript
+		Secure:   false, // Set to true in production with HTTPS
+		SameSite: "lax",
+	})
+
+	// Return response without tokens (they're in cookies)
+	// Include csrf_token in response for convenience
+	return c.JSON(dto.AuthResponse{
+		IsPasswordResetRequired: res.IsPasswordResetRequired,
+		User:                    res.User,
+		CSRFToken:               csrfToken,
+	})
 }
 
 func (h *AuthHandler) Refresh(c fiber.Ctx) error {
@@ -50,7 +94,49 @@ func (h *AuthHandler) Refresh(c fiber.Ctx) error {
 	if err != nil {
 		return c.Status(401).JSON(fiber.Map{"error": err.Error()})
 	}
-	return c.JSON(res)
+
+	// Generate new CSRF token on refresh (optional but recommended for security)
+	csrfToken := utils.GenerateRandomString(32)
+
+	// Set new access_token cookie (15 minutes)
+	c.Cookie(&fiber.Cookie{
+		Name:     "access_token",
+		Value:    res.AccessToken,
+		Path:     "/",
+		MaxAge:   900, // 15 min
+		HTTPOnly: true,
+		Secure:   false, // Set to true in production with HTTPS
+		SameSite: "lax",
+	})
+
+	// Set new refresh_token cookie (30 days)
+	c.Cookie(&fiber.Cookie{
+		Name:     "refresh_token",
+		Value:    res.RefreshToken,
+		Path:     "/",
+		MaxAge:   2592000, // 30 days
+		HTTPOnly: true,
+		Secure:   false, // Set to true in production with HTTPS
+		SameSite: "lax",
+	})
+
+	// Set new csrf_token cookie (15 minutes, readable by JS)
+	c.Cookie(&fiber.Cookie{
+		Name:     "csrf_token",
+		Value:    csrfToken,
+		Path:     "/",
+		MaxAge:   900,   // 15 min
+		HTTPOnly: false, // Must be readable by JavaScript
+		Secure:   false, // Set to true in production with HTTPS
+		SameSite: "lax",
+	})
+
+	// Return response without tokens (they're in cookies)
+	return c.JSON(dto.AuthResponse{
+		IsPasswordResetRequired: res.IsPasswordResetRequired,
+		User:                    res.User,
+		CSRFToken:               csrfToken,
+	})
 }
 
 func (h *AuthHandler) Logout(c fiber.Ctx) error {
@@ -70,6 +156,38 @@ func (h *AuthHandler) Logout(c fiber.Ctx) error {
 	if err := h.authService.Logout(c.Context(), req.RefreshToken, req.All, userID); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
+
+	// Clear auth cookies on logout
+	c.Cookie(&fiber.Cookie{
+		Name:     "access_token",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1, // Delete immediately
+		HTTPOnly: true,
+		Secure:   false,
+		SameSite: "lax",
+	})
+
+	c.Cookie(&fiber.Cookie{
+		Name:     "refresh_token",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1, // Delete immediately
+		HTTPOnly: true,
+		Secure:   false,
+		SameSite: "lax",
+	})
+
+	c.Cookie(&fiber.Cookie{
+		Name:     "csrf_token",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1, // Delete immediately
+		HTTPOnly: false,
+		Secure:   false,
+		SameSite: "lax",
+	})
+
 	return c.SendStatus(200)
 }
 

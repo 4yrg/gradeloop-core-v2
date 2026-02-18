@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import type { LucideIcon } from "lucide-react";
 import {
   Menu,
   LayoutDashboard,
@@ -13,20 +14,66 @@ import {
   User,
   Sun,
   Moon,
+  GraduationCap,
+  BarChart3,
+  Download,
+  Shield,
+  FileCheck,
+  Settings,
+  Building,
+  HelpCircle,
+  LogOut,
+  ChevronDown,
 } from "lucide-react";
 
-export const Icons = {
-  menu: (props: any) => <Menu {...props} />,
-  dashboard: (props: any) => <LayoutDashboard {...props} />,
-  book: (props: any) => <BookOpen {...props} />,
-  assignment: (props: any) => <FileText {...props} />,
-  users: (props: any) => <Users {...props} />,
-  chevronLeft: (props: any) => <ChevronLeft {...props} />,
-  x: (props: any) => <X {...props} />,
-  bell: (props: any) => <Bell {...props} />,
-  user: (props: any) => <User {...props} />,
-  sun: (props: any) => <Sun {...props} />,
-  moon: (props: any) => <Moon {...props} />,
+interface IconsType {
+  menu: LucideIcon;
+  dashboard: LucideIcon;
+  book: LucideIcon;
+  assignment: LucideIcon;
+  users: LucideIcon;
+  chevronLeft: LucideIcon;
+  x: LucideIcon;
+  bell: LucideIcon;
+  user: LucideIcon;
+  sun: LucideIcon;
+  moon: LucideIcon;
+  grade: LucideIcon;
+  analytics: LucideIcon;
+  import: LucideIcon;
+  roles: LucideIcon;
+  audit: LucideIcon;
+  settings: LucideIcon;
+  institution: LucideIcon;
+  help: LucideIcon;
+  logout: LucideIcon;
+  chevronDown: LucideIcon;
+  profile: LucideIcon;
+}
+
+export const Icons: IconsType = {
+  menu: Menu,
+  dashboard: LayoutDashboard,
+  book: BookOpen,
+  assignment: FileText,
+  users: Users,
+  chevronLeft: ChevronLeft,
+  x: X,
+  bell: Bell,
+  user: User,
+  sun: Sun,
+  moon: Moon,
+  grade: GraduationCap,
+  analytics: BarChart3,
+  import: Download,
+  roles: Shield,
+  audit: FileCheck,
+  settings: Settings,
+  institution: Building,
+  help: HelpCircle,
+  logout: LogOut,
+  chevronDown: ChevronDown,
+  profile: User,
 };
 
 export default Icons;

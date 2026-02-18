@@ -4,10 +4,9 @@ import { immer } from "zustand/middleware/immer";
 import type { User, Session, ActiveSession } from "@/schemas/auth.schema";
 
 /**
- * Permission normalization & session-cookie helpers
+ * Permission handling for canonical IAM format
  *
- * - Normalizes legacy permissions (e.g. "users:manage") and new canonical
- *   permissions of the form "service:feature:access" (e.g. "iam:users:read").
+ * - Uses canonical permissions of the form "service:resource:action" (e.g. "iam:users:read")
  * - Writes a minimal session cookie on `login`/`setSession` and clears it on `logout`.
  *
  * Notes:
@@ -17,31 +16,23 @@ import type { User, Session, ActiveSession } from "@/schemas/auth.schema";
  *   remains the server session; always rely on server-side checks for security.
  */
 
-// Map of legacy actions to canonical access types
-const LEGACY_ACTION_MAP: Record<string, string[]> = {
-  manage: ["create", "read", "update", "delete"],
-  view: ["read"],
-  read: ["read"],
-  create: ["create"],
-  update: ["update"],
-  delete: ["delete"],
-  grade: ["grade"],
-  // add more mappings as needed
-};
-
-function isCanonicalPermission(p: string) {
-  // canonical = service:feature:access (two colons)
+/**
+ * Validate if a permission is in canonical format (service:resource:action)
+ */
+function isCanonicalPermission(p: string): boolean {
+  // canonical = service:resource:access (two colons)
   return (p.match(/:/g) || []).length === 2;
 }
 
 /**
- * Normalize a single permission to canonical forms.
+ * Normalize a single permission to canonical form.
  *
  * Input may be:
  * - canonical: "iam:users:read" => returns ["iam:users:read"]
  * - legacy two-part: "users:read" => treats as "iam:users:read"
  * - legacy action like "users:manage" => expands to multiple canonical perms:
  *     ["iam:users:create","iam:users:read","iam:users:update","iam:users:delete"]
+ * - legacy constant: "USER_READ" => converts to "iam:users:read"
  *
  * If the service is not provided, default to "iam".
  */
@@ -56,15 +47,50 @@ function normalizePermission(
     return [permission];
   }
 
+  // Handle legacy constant format: USER_READ, USER_CREATE, etc.
+  const legacyConstantMap: Record<string, string> = {
+    USER_CREATE: "iam:users:create",
+    USER_READ: "iam:users:read",
+    USER_UPDATE: "iam:users:update",
+    USER_DELETE: "iam:users:delete",
+    ROLE_CREATE: "iam:roles:create",
+    ROLE_READ: "iam:roles:read",
+    ROLE_UPDATE: "iam:roles:update",
+    ROLE_DELETE: "iam:roles:delete",
+    ROLE_ASSIGN: "iam:roles:assign",
+    AUDIT_READ: "iam:audit:read",
+  };
+
+  if (legacyConstantMap[permission]) {
+    return [legacyConstantMap[permission]];
+  }
+
   const parts = permission
     .split(":")
     .map((s) => s.trim())
     .filter(Boolean);
+
+  // Legacy two-part: users:read => iam:users:read
   if (parts.length === 2) {
-    const [feature, action] = parts;
-    // If action maps to multiple (manage -> create,read,...)
+    const [resource, action] = parts;
+    return [`${defaultService}:${resource}:${action}`];
+  }
+
+  // Handle legacy action-only format with resource prefix (e.g., "users:manage")
+  const LEGACY_ACTION_MAP: Record<string, string[]> = {
+    manage: ["create", "read", "update", "delete"],
+    view: ["read"],
+    read: ["read"],
+    create: ["create"],
+    update: ["update"],
+    delete: ["delete"],
+    grade: ["grade"],
+  };
+
+  if (parts.length === 2 && LEGACY_ACTION_MAP[parts[1]]) {
+    const [resource, action] = parts;
     const mapped = LEGACY_ACTION_MAP[action] ?? [action];
-    return mapped.map((a) => `${defaultService}:${feature}:${a}`);
+    return mapped.map((a) => `${defaultService}:${resource}:${a}`);
   }
 
   // If only one token provided (e.g., "users"), treat as read access
@@ -292,7 +318,9 @@ export const useAuthStore = create<AuthState>()(
                 user_id: user?.id ?? null,
                 permissions: normalizePermissions(
                   // collect permissions from user object if present
-                  user?.roles?.flatMap((r: any) => r.permissions ?? []) ?? [],
+                  user?.roles?.flatMap(
+                    (r: { permissions?: string[] }) => r.permissions ?? [],
+                  ) ?? [],
                 ),
               });
             } catch {
@@ -312,10 +340,10 @@ export const useAuthStore = create<AuthState>()(
             try {
               const permissions = state.user
                 ? normalizePermissions(
-                  state.user?.roles?.flatMap(
-                    (r: any) => r.permissions ?? [],
-                  ) ?? [],
-                )
+                    state.user?.roles?.flatMap(
+                      (r: { permissions?: string[] }) => r.permissions ?? [],
+                    ) ?? [],
+                  )
                 : [];
               setSessionCookie({
                 session_id: session.id ?? null,
@@ -411,7 +439,9 @@ export const useAuthStore = create<AuthState>()(
           // write minimal session cookie for UI usage (permissions normalized)
           try {
             const permissions = normalizePermissions(
-              user?.roles?.flatMap((r: any) => r.permissions ?? []) ?? [],
+              user?.roles?.flatMap(
+                (r: { permissions?: string[] }) => r.permissions ?? [],
+              ) ?? [],
             );
             setSessionCookie({
               session_id: sessionId ?? session?.id ?? null,
@@ -454,7 +484,9 @@ export const useAuthStore = create<AuthState>()(
         const { user } = get();
         // Collect raw permissions from roles, then normalize to canonical form
         const rawPermissions: string[] =
-          user?.roles?.flatMap((role: any) => role.permissions ?? []) ?? [];
+          user?.roles?.flatMap(
+            (role: { permissions?: string[] }) => role.permissions ?? [],
+          ) ?? [];
         return normalizePermissions(rawPermissions);
       },
 
@@ -476,7 +508,9 @@ export const useAuthStore = create<AuthState>()(
       // Authorization Getters
       hasRole: (role) => {
         const { getUserRoles } = get();
-        return getUserRoles().some((r) => r.toLowerCase() === role.toLowerCase());
+        return getUserRoles().some(
+          (r) => r.toLowerCase() === role.toLowerCase(),
+        );
       },
 
       hasPermission: (permission) => {

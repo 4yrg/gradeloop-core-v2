@@ -9,37 +9,25 @@ import (
 	"gorm.io/gorm"
 )
 
+// Seed initializes the database with default permissions, roles, and super admin user.
+// Uses canonical permission format: iam:resource:action (e.g., iam:users:create)
 func Seed(db *gorm.DB) error {
 	log.Println("Seeding database...")
 
-	// 1. Seed Permissions
-	// We seed both the legacy constant-style permissions and the new
-	// canonical IAM permission strings (service:feature:access) so that
-	// the database contains both formats for compatibility while UI and
-	// services move to the canonical form.
+	// 1. Seed Permissions - Canonical IAM format only
 	permissions := []string{
-		// Legacy (existing DB constants)
-		domain.PermissionUserCreate,
-		domain.PermissionUserRead,
-		domain.PermissionUserUpdate,
-		domain.PermissionUserDelete,
-		domain.PermissionRoleCreate,
-		domain.PermissionRoleRead,
-		domain.PermissionRoleUpdate,
-		domain.PermissionRoleDelete,
-		domain.PermissionRoleAssign,
-		domain.PermissionAuditRead,
-
-		// Canonical IAM permissions (service:feature:access)
+		// Users module
 		"iam:users:create",
 		"iam:users:read",
 		"iam:users:update",
 		"iam:users:delete",
+		// Roles module
 		"iam:roles:create",
 		"iam:roles:read",
 		"iam:roles:update",
 		"iam:roles:delete",
 		"iam:roles:assign",
+		// Audit module
 		"iam:audit:read",
 	}
 
@@ -62,17 +50,10 @@ func Seed(db *gorm.DB) error {
 	}
 
 	// 2. Seed Roles and Assign Permissions
+	// All permissions now use canonical format: iam:resource:action
 	roles := map[string][]string{
-		domain.RoleSuperAdmin: permissions, // Super Admin gets all permissions (legacy + canonical)
+		domain.RoleSuperAdmin: permissions, // Super Admin gets all permissions
 		domain.RoleAdmin: {
-			// Keep legacy constants for compatibility
-			domain.PermissionUserCreate,
-			domain.PermissionUserRead,
-			domain.PermissionUserUpdate,
-			domain.PermissionRoleRead,
-			domain.PermissionRoleAssign,
-			domain.PermissionAuditRead,
-			// Also ensure canonical permissions are present for the role
 			"iam:users:create",
 			"iam:users:read",
 			"iam:users:update",
@@ -81,15 +62,10 @@ func Seed(db *gorm.DB) error {
 			"iam:audit:read",
 		},
 		domain.RoleInstructor: {
-			// instructors should at least be able to read users
-			domain.PermissionUserRead,
 			"iam:users:read",
 		},
 		domain.RoleStudent: {
-			// Students: minimal read capability expressed in canonical form
 			"iam:users:read",
-			// keep legacy empty set comment for future additions
-			// Students might have limited read permissions or specific ones
 		},
 	}
 
@@ -179,10 +155,7 @@ func Seed(db *gorm.DB) error {
 	// Always ensure Super Admin Role is assigned
 	var saRole domain.Role
 	if err := db.Where("name = ?", domain.RoleSuperAdmin).First(&saRole).Error; err == nil {
-		// Check if user already has this role to avoid duplicates if specific DB constraints exist (though GORM handles association append well usually)
-		// Better to just Append which GORM handles (if not exists) or Replace if we want to enforce ONLY this role?
-		// For Super Admin, we probably just want to ensure they HAVE it.
-		// Using Append with a check or just Append. GORM's Append shouldn't duplicate if set up correctly, but let's be safe.
+		// Check if user already has this role to avoid duplicates
 		var existingRoles []domain.Role
 		if err := db.Model(&superAdmin).Association("Roles").Find(&existingRoles, "id = ?", saRole.ID); err != nil {
 			return err

@@ -17,7 +17,9 @@ import type { User } from "@/schemas/auth.schema";
 // Client-side: Use NEXT_PUBLIC_IAM_SERVICE_URL (relative path)
 const IAM_SERVICE_URL =
   typeof window === "undefined"
-    ? process.env.IAM_SERVICE_URL || process.env.NEXT_PUBLIC_IAM_SERVICE_URL || "http://localhost:8080"
+    ? process.env.IAM_SERVICE_URL ||
+      process.env.NEXT_PUBLIC_IAM_SERVICE_URL ||
+      "http://localhost:8080"
     : process.env.NEXT_PUBLIC_IAM_SERVICE_URL || "";
 const API_BASE_URL = IAM_SERVICE_URL
   ? `${IAM_SERVICE_URL.replace(/\/+$/g, "")}/api/v1`
@@ -28,16 +30,22 @@ const RETRY_DELAY = 1000; // 1 second
 let lastRateLimitToastAt = 0;
 
 // Response schemas for validation based on IAM service
+// Note: access_token and refresh_token are now delivered via HTTPOnly cookies
+// They are optional in the response schema for backward compatibility
 const IAMAuthResponseSchema = z.object({
-  access_token: z.string(),
-  refresh_token: z.string(),
+  access_token: z.string().optional(), // Now delivered via cookie
+  refresh_token: z.string().optional(), // Now delivered via cookie
   is_password_reset_required: z.boolean().optional(),
+  csrf_token: z.string().optional(), // Optional CSRF token for immediate use
   user: z.object({
     id: z.string().uuid(),
     email: z.string().email(),
     full_name: z.string(),
     is_active: z.boolean(),
-    user_type: z.preprocess((val) => typeof val === 'string' ? val.toLowerCase() : val, z.enum(["student", "employee"])),
+    user_type: z.preprocess(
+      (val) => (typeof val === "string" ? val.toLowerCase() : val),
+      z.enum(["student", "employee"]),
+    ),
     roles: z.array(
       z.object({
         id: z.string().uuid(),
@@ -49,15 +57,19 @@ const IAMAuthResponseSchema = z.object({
 });
 
 const IAMRefreshResponseSchema = z.object({
-  access_token: z.string(),
-  refresh_token: z.string(),
+  access_token: z.string().optional(), // Now delivered via cookie
+  refresh_token: z.string().optional(), // Now delivered via cookie
   is_password_reset_required: z.boolean().optional(),
+  csrf_token: z.string().optional(), // Optional CSRF token for immediate use
   user: z.object({
     id: z.string().uuid(),
     email: z.string().email(),
     full_name: z.string(),
     is_active: z.boolean(),
-    user_type: z.preprocess((val) => typeof val === 'string' ? val.toLowerCase() : val, z.enum(["student", "employee"])),
+    user_type: z.preprocess(
+      (val) => (typeof val === "string" ? val.toLowerCase() : val),
+      z.enum(["student", "employee"]),
+    ),
     roles: z.array(
       z.object({
         id: z.string().uuid(),
@@ -131,37 +143,17 @@ class TokenManager {
 
   /**
    * Store tokens securely via server-side API call
-   * Tokens will be stored in HTTPOnly cookies on the server
+   * NOTE: With HTTPOnly cookie-based auth, the server sets cookies directly.
+   * This method is now a no-op - tokens are managed server-side.
    */
   static async storeTokens(
-    accessToken: string,
-    refreshToken: string,
-    sessionId: string,
+    _accessToken: string,
+    _refreshToken: string,
+    _sessionId: string,
   ): Promise<void> {
-    // Generate CSRF token for double-submit cookie pattern
-    const csrfToken = CSRFTokenManager.generateToken();
-
-    try {
-      // Call IAM service to set HTTPOnly cookies
-      await api.post("/auth/store-tokens", {
-        access_token: accessToken,
-        refresh_token: refreshToken,
-        session_id: sessionId,
-        csrf_token: csrfToken,
-      });
-
-      // Store only CSRF token client-side (non-HTTPOnly)
-      ClientCookieManager.setCookie(COOKIE_NAMES.CSRF_TOKEN, csrfToken, {
-        secure: process.env.NODE_ENV === "production",
-        httpOnly: false, // Must be accessible for CSRF protection
-        sameSite: "lax",
-        maxAge: 15 * 60, // Same as access token
-        path: "/",
-      });
-    } catch (error) {
-      console.error("Failed to store tokens securely:", error);
-      throw new Error("Authentication storage failed");
-    }
+    // No-op: tokens are now server-managed via HTTPOnly cookies
+    // CSRF token is set separately from the response
+    return Promise.resolve();
   }
 
   /**
@@ -205,13 +197,11 @@ class TokenManager {
   }
 
   /**
-   * Clear all authentication tokens via server-side API call
+   * Clear all authentication tokens
+   * Note: Cookies are cleared by the server on logout, this just clears client-side state
    */
   static async clearTokens(): Promise<void> {
     try {
-      // Call IAM service to clear HTTPOnly cookies
-      await api.post("/auth/clear-tokens");
-
       // Clear client-side CSRF token
       ClientCookieManager.deleteCookie(COOKIE_NAMES.CSRF_TOKEN);
     } catch (error) {
@@ -255,24 +245,41 @@ class TokenManager {
 
       // Call IAM service refresh endpoint
       // Note: refresh token is sent automatically via HTTPOnly cookie
-      const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {});
+      const response = await axios.post(
+        `${API_BASE_URL}/auth/refresh`,
+        {},
+        {
+          withCredentials: true,
+        },
+      );
 
       // Check if the response indicates refresh is not implemented
-      if (response.data?.error && response.data.error.includes('Not implemented')) {
+      if (
+        response.data?.error &&
+        response.data.error.includes("Not implemented")
+      ) {
         // If refresh is not implemented, treat as session expired
-        throw new AuthenticationError('Session expired');
+        throw new AuthenticationError("Session expired");
       }
 
       const refreshData = IAMRefreshResponseSchema.parse(response.data);
 
-      // Store new tokens
-      this.storeTokens(
-        refreshData.access_token,
-        refreshData.refresh_token,
-        refreshData.user.id, // Use user ID as session ID for now
-      );
+      // Update CSRF token from response if present
+      if (response.data.csrf_token) {
+        ClientCookieManager.setCookie(
+          COOKIE_NAMES.CSRF_TOKEN,
+          response.data.csrf_token,
+          {
+            secure: process.env.NODE_ENV === "production",
+            httpOnly: false,
+            sameSite: "lax",
+            maxAge: 15 * 60,
+            path: "/",
+          },
+        );
+      }
 
-      // Update auth store
+      // Update auth store with user data (tokens are in cookies)
       const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes from now
       authStore.refresh(expiresAt);
       authStore.setUser(refreshData.user);
@@ -282,6 +289,15 @@ class TokenManager {
 
       if (axios.isAxiosError(error) && error.response?.status === 401) {
         // Refresh token expired - logout user
+        await this.handleRefreshFailure();
+        throw new AuthenticationError("Session expired");
+      }
+
+      // Handle 400 - refresh token not found in cookie
+      if (axios.isAxiosError(error) && error.response?.status === 400) {
+        console.warn(
+          "Refresh token not found in cookies - user may not be logged in",
+        );
         await this.handleRefreshFailure();
         throw new AuthenticationError("Session expired");
       }
@@ -343,15 +359,9 @@ api.interceptors.request.use(
     );
 
     if (!isNoTokenEndpoint) {
-      // Check if token should be refreshed before request
-      if (TokenManager.shouldRefreshToken()) {
-        try {
-          await TokenManager.refreshAccessToken();
-        } catch (error) {
-          console.error("Pre-request refresh failed:", error);
-        }
-      }
-
+      // Pre-request token refresh disabled - refresh will happen on 401 response
+      // This prevents issues with refresh being called before cookies are set
+      // TokenManager.shouldRefreshToken() check removed to avoid premature refresh attempts
       // HTTPOnly cookies (access token, refresh token, session ID)
       // are automatically sent by the browser with each request
       // No manual Authorization header injection needed
@@ -405,10 +415,15 @@ api.interceptors.response.use(
     if (!error.response) {
       // Log helpful debug info: request URL and axios message
       try {
-        const reqUrl = (originalRequest && (originalRequest as any).url) || api.defaults.baseURL;
+        const reqUrl =
+          (originalRequest && (originalRequest as any).url) ||
+          api.defaults.baseURL;
         console.error("Network error contacting:", reqUrl, error.message);
       } catch (e) {
-        console.error("Network error (unable to determine request URL)", error.message);
+        console.error(
+          "Network error (unable to determine request URL)",
+          error.message,
+        );
       }
 
       return Promise.reject(new NetworkError("Network request failed"));
@@ -463,19 +478,16 @@ api.interceptors.response.use(
         try {
           if (Date.now() - lastRateLimitToastAt > 3000) {
             lastRateLimitToastAt = Date.now();
-            const humanWait = retryAfterSec ? `${retryAfterSec}s` : "a short while";
+            const humanWait = retryAfterSec
+              ? `${retryAfterSec}s`
+              : "a short while";
             toast.error(`Too many requests — try again in ${humanWait}`);
           }
         } catch (e) {
           // ignore toast errors
         }
 
-        return Promise.reject(
-          new RateLimitError(
-            errorMessage,
-            retryAfterSec,
-          ),
-        );
+        return Promise.reject(new RateLimitError(errorMessage, retryAfterSec));
       }
       case 500:
       case 502:
@@ -502,7 +514,6 @@ export const apiClient = {
   // Authentication methods
   async login(credentials: { email: string; password: string }): Promise<{
     user: User;
-    access_token: string;
     token_type: "Bearer";
     expires_in: number;
     session_id: string;
@@ -512,19 +523,25 @@ export const apiClient = {
     const response = await api.post("/auth/login", credentials);
     const authData = IAMAuthResponseSchema.parse(response.data);
 
-    // Generate and store CSRF token client-side
-    const csrfToken = CSRFTokenManager.generateToken();
-    ClientCookieManager.setCookie(COOKIE_NAMES.CSRF_TOKEN, csrfToken, {
-      secure: process.env.NODE_ENV === "production",
-      httpOnly: false, // Must be accessible for CSRF protection
-      sameSite: "lax",
-      maxAge: 15 * 60, // Same as access token
-      path: "/",
-    });
+    // Update CSRF token from response (server sets it in cookie too)
+    if (response.data.csrf_token) {
+      ClientCookieManager.setCookie(
+        COOKIE_NAMES.CSRF_TOKEN,
+        response.data.csrf_token,
+        {
+          secure: process.env.NODE_ENV === "production",
+          httpOnly: false,
+          sameSite: "lax",
+          maxAge: 15 * 60,
+          path: "/",
+        },
+      );
+    }
 
+    // Note: access_token and refresh_token are now in HTTPOnly cookies
+    // They are not returned in the JSON response anymore
     return {
       user: authData.user,
-      access_token: authData.access_token,
       token_type: "Bearer" as const,
       expires_in: 900, // 15 minutes in seconds
       session_id: authData.user.id,
@@ -533,7 +550,6 @@ export const apiClient = {
   },
 
   async refresh(): Promise<{
-    access_token: string;
     token_type: "Bearer";
     expires_in: number;
     session_id: string;
@@ -542,24 +558,32 @@ export const apiClient = {
     const response = await api.post("/auth/refresh", {});
 
     // Check if refresh is not implemented
-    if (response.data.error && response.data.error.includes('Not implemented')) {
-      throw new AuthenticationError('Session expired');
+    if (
+      response.data.error &&
+      response.data.error.includes("Not implemented")
+    ) {
+      throw new AuthenticationError("Session expired");
     }
 
     const refreshData = IAMRefreshResponseSchema.parse(response.data);
 
-    // Update CSRF token
-    const csrfToken = CSRFTokenManager.generateToken();
-    ClientCookieManager.setCookie(COOKIE_NAMES.CSRF_TOKEN, csrfToken, {
-      secure: process.env.NODE_ENV === "production",
-      httpOnly: false, // Must be accessible for CSRF protection
-      sameSite: "lax",
-      maxAge: 15 * 60, // Same as access token
-      path: "/",
-    });
+    // Update CSRF token from response (server sets it in cookie too)
+    if (response.data.csrf_token) {
+      ClientCookieManager.setCookie(
+        COOKIE_NAMES.CSRF_TOKEN,
+        response.data.csrf_token,
+        {
+          secure: process.env.NODE_ENV === "production",
+          httpOnly: false,
+          sameSite: "lax",
+          maxAge: 15 * 60,
+          path: "/",
+        },
+      );
+    }
 
+    // Note: access_token and refresh_token are now in HTTPOnly cookies
     return {
-      access_token: refreshData.access_token,
       token_type: "Bearer" as const,
       expires_in: 900, // 15 minutes in seconds
       session_id: refreshData.user.id,
@@ -621,10 +645,13 @@ export const apiClient = {
 
       if (isRateLimited) {
         try {
-          const waitMs = retryAfterSeconds && Number.isFinite(retryAfterSeconds)
-            ? retryAfterSeconds * 1000
-            : 1000;
-          console.warn(`Session validation rate limited, retrying after ${waitMs}ms`);
+          const waitMs =
+            retryAfterSeconds && Number.isFinite(retryAfterSeconds)
+              ? retryAfterSeconds * 1000
+              : 1000;
+          console.warn(
+            `Session validation rate limited, retrying after ${waitMs}ms`,
+          );
           await new Promise((resolve) => setTimeout(resolve, waitMs));
           const retryResponse = await api.get("/auth/session");
           return {
