@@ -177,10 +177,118 @@ Created from environment variables at application startup:
 
 ## API Endpoints
 
+### Authentication
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/auth/login` | User login with username/password | No |
+| POST | `/auth/refresh` | Refresh access token | No |
+| POST | `/auth/logout` | Revoke refresh token (logout) | No |
+
+### System
+
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
 | GET | `/` | Service info | No |
 | GET | `/health` | Health check | No |
+
+---
+
+### POST `/auth/login`
+
+Authenticate user and return token pair.
+
+**Request:**
+```json
+{
+  "username": "user@example.com",
+  "password": "SecurePassword123!"
+}
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_token": "dGhpcy1pcy1hLXJhbmRvbS0yNTYtYml0LXRva2Vu",
+  "expires_in": 900
+}
+```
+
+**Validation Rules:**
+- Username and password are required
+- Soft-deleted users are rejected
+- Inactive users (`is_active = false`) are rejected
+- Users with `is_password_reset_required = true` are denied access
+
+**Error Responses:**
+
+| Status | Code | Message |
+|--------|------|---------|
+| 400 | - | Invalid request body |
+| 401 | - | Invalid username or password |
+| 403 | - | User account is inactive |
+| 403 | - | Password reset required |
+
+---
+
+### POST `/auth/refresh`
+
+Exchange a valid refresh token for a new access token and refresh token pair.
+
+**Request:**
+```json
+{
+  "refresh_token": "dGhpcy1pcy1hLXJhbmRvbS0yNTYtYml0LXRva2Vu"
+}
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_token": "bmV3LXJhbmRvbS0yNTYtYml0LXRva2VuLWhlcmU",
+  "expires_in": 900
+}
+```
+
+**Notes:**
+- Old refresh token is revoked automatically (token rotation)
+- New refresh token is issued with each request
+- User status is re-validated on each refresh
+
+**Error Responses:**
+
+| Status | Code | Message |
+|--------|------|---------|
+| 400 | - | Invalid request body |
+| 401 | - | Invalid or expired refresh token |
+| 403 | - | User account is inactive |
+
+---
+
+### POST `/auth/logout`
+
+Revoke a refresh token, effectively logging out the user.
+
+**Request:**
+```json
+{
+  "refresh_token": "dGhpcy1pcy1hLXJhbmRvbS0yNTYtYml0LXRva2Vu"
+}
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "message": "logged out successfully"
+}
+```
+
+**Notes:**
+- Idempotent: calling with already-revoked token returns success
+- Only invalidates the specified refresh token
+- Access tokens remain valid until expiration
 
 ## Environment Variables
 
@@ -396,9 +504,71 @@ type TokenPair struct {
 - **Signing Method**: HMAC-SHA256 (`HS256`)
 - **Token Validation**: Verifies signature, expiration, and claims structure
 - **Refresh Token Storage**: Always stored as SHA-256 hash in database
-- **Error Handling**: 
+- **Token Rotation**: New refresh token issued on each refresh request
+- **Error Handling**:
   - `ErrInvalidToken` - Token structure or signature invalid
   - `ErrExpiredToken` - Token has expired
+  - `ErrInvalidCredentials` - Invalid username or password
+  - `ErrUserInactive` - User account is deactivated
+  - `ErrPasswordResetRequired` - User must reset password before login
+  - `ErrRefreshTokenNotFound` - Refresh token not found in database
+  - `ErrRefreshTokenExpired` - Refresh token has expired
+  - `ErrRefreshTokenRevoked` - Refresh token was revoked (logout)
+
+### Authentication Service
+
+Located in `internal/service/auth.go`:
+
+```go
+// Authenticate user and return token pair
+func (s *authService) Login(
+    ctx context.Context,
+    username, password string,
+) (*dto.LoginResponse, error)
+
+// Exchange refresh token for new token pair
+func (s *authService) RefreshToken(
+    ctx context.Context,
+    refreshToken string,
+) (*dto.RefreshTokenResponse, error)
+
+// Revoke refresh token (logout)
+func (s *authService) Logout(
+    ctx context.Context,
+    refreshToken string,
+) error
+```
+
+### DTOs
+
+Located in `internal/dto/auth.go`:
+
+```go
+// Login request
+type LoginRequest struct {
+    Username string `json:"username"`
+    Password string `json:"password"`
+}
+
+// Login response
+type LoginResponse struct {
+    AccessToken  string `json:"access_token"`
+    RefreshToken string `json:"refresh_token"`
+    ExpiresIn    int64  `json:"expires_in"` // seconds
+}
+
+// Refresh token request
+type RefreshTokenRequest struct {
+    RefreshToken string `json:"refresh_token"`
+}
+
+// Refresh token response
+type RefreshTokenResponse struct {
+    AccessToken  string `json:"access_token"`
+    RefreshToken string `json:"refresh_token"`
+    ExpiresIn    int64  `json:"expires_in"` // seconds
+}
+```
 
 ## Migrations
 
