@@ -138,6 +138,8 @@ Apply the theme colors consistently across shadcn-svelte components:
 
 This project uses **Go** with **Fiber v3** for high-performance microservices (e.g., `apps/services/iam-service`).
 
+Use go version 1.25.6
+
 ## Standard Directory Structure
 All Go services MUST follow this internal package layout:
 
