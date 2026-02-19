@@ -17,6 +17,8 @@ services:
       - DB_SSLMODE=${GRA_DB_SSLMODE}
       - EMAIL_SERVICE_URL=http://email-service:8082
       - FRONTEND_URL=${FRONTEND_URL}
+      - SUPER_ADMIN_USERNAME=${SUPER_ADMIN_USERNAME}
+      - SUPER_ADMIN_PASSWORD=${SUPER_ADMIN_PASSWORD}
     ports:
       - "8081:8081"
     networks:

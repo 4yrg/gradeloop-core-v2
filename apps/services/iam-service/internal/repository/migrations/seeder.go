@@ -123,17 +123,30 @@ func (s *Seeder) seedRolePermissions() error {
 }
 
 func (s *Seeder) seedSuperAdmin() error {
-	email := os.Getenv("SUPER_ADMIN_EMAIL")
+	username := os.Getenv("SUPER_ADMIN_USERNAME")
 	password := os.Getenv("SUPER_ADMIN_PASSWORD")
 
-	if email == "" || password == "" {
-		s.logger.Info("skipping super admin seeding (SUPER_ADMIN_EMAIL or SUPER_ADMIN_PASSWORD not set)")
+	if username == "" || password == "" {
+		s.logger.Info("skipping super admin seeding (SUPER_ADMIN_USERNAME or SUPER_ADMIN_PASSWORD not set)")
 		return nil
+	}
+
+	if password == "Admin@1234" || password == "password" || password == "changeme" {
+		s.logger.Warn("refusing to seed super admin with default/weak password")
+		return fmt.Errorf("password cannot be a default value")
 	}
 
 	var superAdminRole domain.Role
 	if err := s.db.Where("name = ?", "super_admin").First(&superAdminRole).Error; err != nil {
 		return err
+	}
+
+	var existingUser domain.User
+	if err := s.db.Where("username = ? OR email = ?", username, username).First(&existingUser).Error; err == nil {
+		s.logger.Info("super admin user already exists", zap.String("username", existingUser.Username))
+		return nil
+	} else if err != gorm.ErrRecordNotFound {
+		return fmt.Errorf("checking for existing user: %w", err)
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -142,18 +155,19 @@ func (s *Seeder) seedSuperAdmin() error {
 	}
 
 	user := domain.User{
-		ID:           uuid.New(),
-		Username:     "superadmin",
-		Email:        email,
-		PasswordHash: string(hashedPassword),
-		RoleID:       &superAdminRole.ID,
-		IsActive:     true,
+		ID:                      uuid.New(),
+		Username:                username,
+		Email:                   username,
+		PasswordHash:            string(hashedPassword),
+		RoleID:                  &superAdminRole.ID,
+		IsActive:                true,
+		IsPasswordResetRequired: false,
 	}
 
-	if err := s.db.Where(domain.User{Email: email}).FirstOrCreate(&user).Error; err != nil {
-		return err
+	if err := s.db.Create(&user).Error; err != nil {
+		return fmt.Errorf("creating super admin user: %w", err)
 	}
 
-	s.logger.Info("seeded super admin user", zap.String("email", email))
+	s.logger.Info("seeded super admin user", zap.String("username", username))
 	return nil
 }

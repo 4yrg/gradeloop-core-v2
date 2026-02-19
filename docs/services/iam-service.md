@@ -164,9 +164,15 @@ CREATE INDEX idx_role_permissions_permission_id ON role_permissions(permission_i
 | `employees:write` | Manage employee profiles |
 
 ### Default Super Admin
-Created from environment variables:
-- `SUPER_ADMIN_EMAIL` - Super admin email
+Created from environment variables at application startup:
+- `SUPER_ADMIN_USERNAME` - Super admin username (also used as email)
 - `SUPER_ADMIN_PASSWORD` - Super admin password (hashed with bcrypt)
+
+**Security Notes:**
+- Super admin user is created only if it doesn't already exist
+- Password cannot be a default value (`Admin@1234`, `password`, `changeme`)
+- Password is hashed using bcrypt before storage
+- Seeder runs automatically on every application startup
 
 ## API Endpoints
 
@@ -187,8 +193,8 @@ Created from environment variables:
 | `DB_PASSWORD` | PostgreSQL password | - | Yes |
 | `DB_NAME` | Database name | `iam_db` | Yes |
 | `DB_SSLMODE` | SSL mode (`disable`, `require`, etc.) | `disable` | Yes |
-| `SUPER_ADMIN_EMAIL` | Super admin email | - | For seeding |
-| `SUPER_ADMIN_PASSWORD` | Super admin password | - | For seeding |
+| `SUPER_ADMIN_USERNAME` | Super admin username (also email) | - | For seeding |
+| `SUPER_ADMIN_PASSWORD` | Super admin password (no defaults allowed) | - | For seeding |
 
 ## Getting Started
 
@@ -212,8 +218,8 @@ Created from environment variables:
    DB_USER=postgres
    DB_PASSWORD=your_password
    DB_NAME=iam_db
-   SUPER_ADMIN_EMAIL=superadmin@gradeloop.com
-   SUPER_ADMIN_PASSWORD=Admin@1234
+   SUPER_ADMIN_USERNAME=superadmin@gradeloop.com
+   SUPER_ADMIN_PASSWORD=YourSecurePassword123!
    ```
 
 3. Install dependencies:
