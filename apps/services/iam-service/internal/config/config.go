@@ -11,6 +11,7 @@ import (
 type Config struct {
 	Server   ServerConfig
 	Database DatabaseConfig
+	JWT      JWTConfig
 }
 
 type ServerConfig struct {
@@ -25,6 +26,12 @@ type DatabaseConfig struct {
 	Password string
 	Name     string
 	SSLMode  string
+}
+
+type JWTConfig struct {
+	SecretKey          string
+	AccessTokenExpiry  int64 // in minutes
+	RefreshTokenExpiry int64 // in days
 }
 
 func Load() (*Config, error) {
@@ -49,6 +56,11 @@ func Load() (*Config, error) {
 			Password: getEnv("DB_PASSWORD", ""),
 			Name:     getEnv("DB_NAME", "iam_db"),
 			SSLMode:  dbSSLMode,
+		},
+		JWT: JWTConfig{
+			SecretKey:          getEnv("JWT_SECRET_KEY", ""),
+			AccessTokenExpiry:  getEnvAsInt64("JWT_ACCESS_TOKEN_EXPIRY", 15), // 15 minutes
+			RefreshTokenExpiry: getEnvAsInt64("JWT_REFRESH_TOKEN_EXPIRY", 7), // 7 days
 		},
 	}, nil
 }
@@ -78,6 +90,18 @@ func getEnvAsBool(key string, defaultValue bool) bool {
 		return defaultValue
 	}
 	result, err := strconv.ParseBool(value)
+	if err != nil {
+		return defaultValue
+	}
+	return result
+}
+
+func getEnvAsInt64(key string, defaultValue int64) int64 {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	result, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
 		return defaultValue
 	}

@@ -195,6 +195,9 @@ Created from environment variables at application startup:
 | `DB_SSLMODE` | SSL mode (`disable`, `require`, etc.) | `disable` | Yes |
 | `SUPER_ADMIN_USERNAME` | Super admin username (also email) | - | For seeding |
 | `SUPER_ADMIN_PASSWORD` | Super admin password (no defaults allowed) | - | For seeding |
+| `JWT_SECRET_KEY` | JWT signing secret (min 32 chars) | - | Yes |
+| `JWT_ACCESS_TOKEN_EXPIRY` | Access token expiry (minutes) | `15` | No |
+| `JWT_REFRESH_TOKEN_EXPIRY` | Refresh token expiry (days) | `7` | No |
 
 ## Getting Started
 
@@ -308,6 +311,93 @@ Error helpers:
 - `ErrBadRequest(message)` - 400
 - `ErrUnauthorized(message)` - 401
 - `ErrInternal(message, err)` - 500
+
+## JWT Authentication
+
+### Token Structure
+
+**Access Token (JWT):**
+- Short-lived: 15 minutes (configurable)
+- Signed with HMAC-SHA256
+- Claims:
+  - `user_id` (UUID)
+  - `username` (string)
+  - `role_name` (string)
+  - `permissions` ([]string)
+  - `exp` (expiration time)
+  - `iat` (issued at)
+  - `iss` (issuer: "iam-service")
+  - `sub` (subject: user ID)
+  - `jti` (JWT ID: unique identifier)
+
+**Refresh Token:**
+- Random 256-bit cryptographically secure string
+- Stored as SHA-256 hash in database
+- Expiry: 7 days (configurable)
+- Used to obtain new access tokens
+
+### Utility Functions
+
+Located in `internal/jwt/jwt.go`:
+
+```go
+// Generate access token with user claims
+func GenerateAccessToken(
+    userID uuid.UUID,
+    username, roleName string,
+    permissions []string,
+    secretKey []byte,
+    expiry time.Duration,
+) (string, time.Time, error)
+
+// Generate cryptographically secure refresh token
+func GenerateRefreshToken() (string, error)
+
+// Validate and parse access token
+func ValidateAccessToken(
+    tokenString string,
+    secretKey []byte,
+) (*Claims, error)
+
+// Hash refresh token for storage
+func HashToken(token string) string
+```
+
+### JWT Manager
+
+```go
+// Create new JWT manager with configuration
+jwt := jwt.NewJWT(secretKey, accessTokenExpiryMinutes, refreshTokenExpiryDays)
+
+// Generate token pair (access + refresh)
+tokenPair, err := jwt.GenerateTokenPair(userID, username, roleName, permissions)
+
+// Validate token
+claims, err := jwt.ValidateToken(tokenString)
+
+// Get refresh token expiry
+expiresAt := jwt.GetRefreshTokenExpiry()
+```
+
+### Token Response
+
+```go
+type TokenPair struct {
+    AccessToken  string    // JWT access token
+    RefreshToken string    // Plain refresh token (store client-side)
+    ExpiresAt    time.Time // Access token expiration
+}
+```
+
+### Security Features
+
+- **Secret Key**: Loaded from `JWT_SECRET_KEY` environment variable (min 32 characters recommended)
+- **Signing Method**: HMAC-SHA256 (`HS256`)
+- **Token Validation**: Verifies signature, expiration, and claims structure
+- **Refresh Token Storage**: Always stored as SHA-256 hash in database
+- **Error Handling**: 
+  - `ErrInvalidToken` - Token structure or signature invalid
+  - `ErrExpiredToken` - Token has expired
 
 ## Migrations
 
