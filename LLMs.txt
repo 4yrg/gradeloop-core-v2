@@ -22,29 +22,53 @@ This project uses **Svelte v5** with **SvelteKit** for a high-performance, type-
 
 ## shadcn-svelte Theme Configuration
 
-Use the following color palette in your CSS variables (`app.css`):
+The theme uses the **Crevasse Color Palette** with full dark mode support.
 
-| Token | Value | Usage |
+### Crevasse Color Palette
+
+| Token | Hex | Usage |
+|-------|-----|-------|
+| `crevasse-100` / `gray` | `#B4BEC9` | Gray-Blue (Borders, Muted elements) |
+| `crevasse-200` / `teal` | `#159A9C` | Teal (Primary actions, Brand) |
+| `crevasse-300` / `navy` | `#002333` | Dark Navy (Foreground text, Dark backgrounds) |
+| `crevasse-400` / `mint` | `#DEEFE7` | Light Mint (Secondary, Accent, Light backgrounds) |
+| `crevasse-500` / `white` | `#FFFFFF` | Pure White (Backgrounds, Light text) |
+
+### CSS Variable Mapping (shadcn)
+
+#### Light Mode
+| Token | Value | Color |
 |-------|-------|-------|
-| `--background` | `#F8FAFB` | Very faint blue-grey base |
-| `--foreground` | `#002333` | Primary text color |
-| `--card` | `#FFFFFF` | Card/popover surfaces |
-| `--card-foreground` | `#002333` | Card text color |
-| `--popover` | `#FFFFFF` | Popover surfaces |
-| `--popover-foreground` | `#002333` | Popover text color |
-| `--primary` | `#159A9C` | Brand teal for actions |
-| `--primary-foreground` | `#FFFFFF` | Text on primary |
-| `--secondary` | `#DEEFE7` | Soft region for badges/buttons |
-| `--secondary-foreground` | `#002333` | Text on secondary |
-| `--muted` | `#F1F5F9` | Inactive states |
-| `--muted-foreground` | `#64748B` | Muted text |
-| `--accent` | `#DEEFE7` | Accent highlights |
-| `--accent-foreground` | `#002333` | Text on accent |
-| `--destructive` | `#EF4444` | Error/destructive actions |
-| `--destructive-foreground` | `#FFFFFF` | Text on destructive |
-| `--border` | `#B4BEC9` | Borders and dividers |
-| `--input` | `#B4BEC9` | Input borders |
-| `--ring` | `#159A9C` | Focus ring color |
+| `--background` | `0 0% 100%` | `#FFFFFF` |
+| `--foreground` | `195 100% 10%` | `#002333` |
+| `--primary` | `181 76% 35%` | `#159A9C` |
+| `--primary-foreground` | `0 0% 100%` | `#FFFFFF` |
+| `--secondary` | `145 47% 90%` | `#DEEFE7` |
+| `--secondary-foreground` | `195 100% 10%` | `#002333` |
+| `--muted` | `210 24% 75%` | `#B4BEC9` |
+| `--muted-foreground` | `210 24% 45%` | Darker gray-blue |
+| `--accent` | `145 47% 90%` | `#DEEFE7` |
+| `--accent-foreground` | `195 100% 10%` | `#002333` |
+| `--border` | `210 24% 75%` | `#B4BEC9` |
+| `--input` | `210 24% 75%` | `#B4BEC9` |
+| `--ring` | `181 76% 35%` | `#159A9C` |
+
+#### Dark Mode
+| Token | Value | Color |
+|-------|-------|-------|
+| `--background` | `195 100% 7%` | `#002333` |
+| `--foreground` | `0 0% 100%` | `#FFFFFF` |
+| `--primary` | `181 76% 40%` | `#159A9C` (brighter) |
+| `--primary-foreground` | `0 0% 100%` | `#FFFFFF` |
+| `--secondary` | `145 47% 20%` | Dark mint |
+| `--secondary-foreground` | `145 47% 90%` | Light mint |
+| `--muted` | `195 15% 20%` | Dark gray-blue |
+| `--muted-foreground` | `210 24% 65%` | Light gray-blue |
+| `--accent` | `145 47% 20%` | Dark mint |
+| `--accent-foreground` | `145 47% 90%` | Light mint |
+| `--border` | `195 15% 25%` | Dark gray-blue |
+| `--input` | `195 15% 25%` | Dark gray-blue |
+| `--ring` | `181 76% 45%` | Brighter teal |
 
 ## Component Styling Guidelines
 

@@ -4,48 +4,75 @@
 
 @layer base {
 	:root {
-		--background: 210 40% 98%;
-		--foreground: 195 100% 10%;
-		--card: 0 0% 100%;
-		--card-foreground: 195 100% 10%;
-		--popover: 0 0% 100%;
-		--popover-foreground: 195 100% 10%;
-		--primary: 181 76% 35%;
-		--primary-foreground: 0 0% 100%;
-		--secondary: 145 47% 90%;
-		--secondary-foreground: 195 100% 10%;
-		--muted: 210 40% 96%;
-		--muted-foreground: 215 16% 47%;
-		--accent: 145 47% 90%;
-		--accent-foreground: 195 100% 10%;
+		/* Crevasse Color Palette - Light Mode */
+		/* #FFFFFF - White (Background) */
+		/* #DEEFE7 - Light Mint (Secondary/Accent) */
+		/* #B4BEC9 - Gray-Blue (Border/Muted) */
+		/* #159A9C - Teal (Primary) */
+		/* #002333 - Dark Navy (Foreground) */
+
+		--background: 0 0% 100%; /* #FFFFFF */
+		--foreground: 195 100% 10%; /* #002333 */
+
+		--card: 0 0% 100%; /* #FFFFFF */
+		--card-foreground: 195 100% 10%; /* #002333 */
+
+		--popover: 0 0% 100%; /* #FFFFFF */
+		--popover-foreground: 195 100% 10%; /* #002333 */
+
+		--primary: 181 76% 35%; /* #159A9C */
+		--primary-foreground: 0 0% 100%; /* #FFFFFF */
+
+		--secondary: 145 47% 90%; /* #DEEFE7 */
+		--secondary-foreground: 195 100% 10%; /* #002333 */
+
+		--muted: 210 24% 75%; /* #B4BEC9 at lower saturation */
+		--muted-foreground: 210 24% 45%; /* Darker version of border */
+
+		--accent: 145 47% 90%; /* #DEEFE7 */
+		--accent-foreground: 195 100% 10%; /* #002333 */
+
 		--destructive: 0 84% 60%;
 		--destructive-foreground: 0 0% 100%;
-		--border: 210 24% 75%;
-		--input: 210 24% 75%;
-		--ring: 181 76% 35%;
+
+		--border: 210 24% 75%; /* #B4BEC9 */
+		--input: 210 24% 75%; /* #B4BEC9 */
+		--ring: 181 76% 35%; /* #159A9C */
+
 		--radius: 0.5rem;
 	}
 
 	.dark {
-		--background: 195 100% 10%;
-		--foreground: 210 40% 98%;
-		--card: 195 100% 10%;
-		--card-foreground: 210 40% 98%;
-		--popover: 195 100% 10%;
-		--popover-foreground: 210 40% 98%;
-		--primary: 181 76% 35%;
-		--primary-foreground: 0 0% 100%;
-		--secondary: 145 47% 20%;
-		--secondary-foreground: 210 40% 98%;
-		--muted: 217 33% 17%;
-		--muted-foreground: 215 20% 65%;
-		--accent: 145 47% 20%;
-		--accent-foreground: 210 40% 98%;
-		--destructive: 0 63% 31%;
-		--destructive-foreground: 210 40% 98%;
-		--border: 217 33% 17%;
-		--input: 217 33% 17%;
-		--ring: 181 76% 55%;
+		/* Crevasse Color Palette - Dark Mode */
+		/* Inverted for dark mode compatibility */
+
+		--background: 195 100% 7%; /* #002333 - Dark Navy */
+		--foreground: 0 0% 100%; /* #FFFFFF */
+
+		--card: 195 100% 7%; /* #002333 */
+		--card-foreground: 0 0% 100%; /* #FFFFFF */
+
+		--popover: 195 100% 7%; /* #002333 */
+		--popover-foreground: 0 0% 100%; /* #FFFFFF */
+
+		--primary: 181 76% 40%; /* #159A9C - Slightly brighter for dark mode */
+		--primary-foreground: 0 0% 100%; /* #FFFFFF */
+
+		--secondary: 145 47% 20%; /* Darker version of #DEEFE7 */
+		--secondary-foreground: 145 47% 90%; /* Light mint text */
+
+		--muted: 195 15% 20%; /* Dark version of #B4BEC9 */
+		--muted-foreground: 210 24% 65%; /* Lighter muted text */
+
+		--accent: 145 47% 20%; /* Dark version of #DEEFE7 */
+		--accent-foreground: 145 47% 90%; /* Light mint text */
+
+		--destructive: 0 63% 31%; /* Darker destructive for dark mode */
+		--destructive-foreground: 0 0% 100%;
+
+		--border: 195 15% 25%; /* Dark version of #B4BEC9 */
+		--input: 195 15% 25%; /* Dark version of #B4BEC9 */
+		--ring: 181 76% 45%; /* Brighter ring for dark mode */
 	}
 }
 

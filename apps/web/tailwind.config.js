@@ -5,6 +5,7 @@ export default {
 	theme: {
 		extend: {
 			colors: {
+				// shadcn semantic colors (CSS variables)
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',
@@ -37,6 +38,24 @@ export default {
 				card: {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
+				},
+
+				// Crevasse Color Palette - Direct hex values
+				// From the Crevasse design system
+				crevasse: {
+					// Light mode colors
+					100: '#B4BEC9', // Gray-Blue (Border/Muted)
+					200: '#159A9C', // Teal (Primary)
+					300: '#002333', // Dark Navy (Foreground/Dark BG)
+					400: '#DEEFE7', // Light Mint (Secondary/Accent)
+					500: '#FFFFFF', // Pure White (Background)
+
+					// Aliases for common usage
+					gray: '#B4BEC9',
+					teal: '#159A9C',
+					navy: '#002333',
+					mint: '#DEEFE7',
+					white: '#FFFFFF'
 				}
 			},
 			borderRadius: {
