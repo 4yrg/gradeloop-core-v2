@@ -1,5 +1,8 @@
 import { create } from "zustand";
 import axios from "axios";
+import apiClient from "@/lib/api/client";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
 // --- JWT Decoder ---
 function parseJwt(token: string) {
@@ -72,7 +75,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     logout: async () => {
         try {
-            await axios.post("/api/v1/auth/logout", {}, { withCredentials: true });
+            await axios.post(`${API_URL}/auth/logout`, {}, { withCredentials: true });
         } catch (error) {
             console.error("Logout error", error);
         } finally {
@@ -87,7 +90,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     refresh: async () => {
         try {
             // No body needed, refresh token is in cookie
-            const response = await axios.post("/api/v1/auth/refresh", {}, { withCredentials: true });
+            const response = await axios.post(`${API_URL}/auth/refresh`, {}, { withCredentials: true });
             const { accessToken: newToken } = response.data;
             if (newToken) {
                 get().setUserFromToken(newToken);
@@ -103,7 +106,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     login: async (username, password) => {
         try {
-            const response = await axios.post("/api/v1/auth/login", { username, password }, { withCredentials: true });
+            const response = await apiClient.post("/auth/login", { username, password });
             const { accessToken: token } = response.data;
             if (token) {
                 get().setUserFromToken(token);
@@ -115,10 +118,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     changePassword: async (currentPassword, newPassword) => {
         try {
-            const response = await axios.post("/api/v1/auth/change-password", {
+            const response = await apiClient.post("/auth/change-password", {
                 currentPassword,
                 newPassword,
-            }, { withCredentials: true });
+            });
 
             const { accessToken: token } = response.data;
             if (token) {

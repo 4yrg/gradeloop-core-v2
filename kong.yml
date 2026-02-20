@@ -46,7 +46,22 @@ routes:
   - name: auth-login
     service: iam-service
     paths:
-      - /auth/login
+      - /api/v1/auth/login
+    methods:
+      - POST
+    strip_path: false
+    preserve_host: true
+    tags:
+      - public
+      - auth
+
+      - auth
+
+  # Logout endpoint
+  - name: auth-logout
+    service: iam-service
+    paths:
+      - /api/v1/auth/logout
     methods:
       - POST
     strip_path: false
@@ -59,7 +74,7 @@ routes:
   - name: auth-refresh
     service: iam-service
     paths:
-      - /auth/refresh
+      - /api/v1/auth/refresh
     methods:
       - POST
     strip_path: false
@@ -72,7 +87,7 @@ routes:
   - name: auth-activate
     service: iam-service
     paths:
-      - /auth/activate
+      - /api/v1/auth/activate
     methods:
       - POST
     strip_path: false
@@ -85,7 +100,7 @@ routes:
   - name: auth-forgot-password
     service: iam-service
     paths:
-      - /auth/forgot-password
+      - /api/v1/auth/forgot-password
     methods:
       - POST
     strip_path: false
@@ -98,7 +113,7 @@ routes:
   - name: auth-reset-password
     service: iam-service
     paths:
-      - /auth/reset-password
+      - /api/v1/auth/reset-password
     methods:
       - POST
     strip_path: false
@@ -115,7 +130,7 @@ routes:
   - name: auth-change-password
     service: iam-service
     paths:
-      - /auth/change-password
+      - /api/v1/auth/change-password
     methods:
       - POST
     strip_path: false
@@ -128,7 +143,7 @@ routes:
   - name: users
     service: iam-service
     paths:
-      - /users
+      - /api/v1/users
     methods:
       - GET
       - POST
@@ -144,7 +159,7 @@ routes:
   - name: roles
     service: iam-service
     paths:
-      - /roles
+      - /api/v1/roles
     methods:
       - GET
       - POST
@@ -160,7 +175,7 @@ routes:
   - name: permissions
     service: iam-service
     paths:
-      - /permissions
+      - /api/v1/permissions
     methods:
       - GET
       - POST
