@@ -2,6 +2,7 @@ package repository
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/gradeloop/iam-service/internal/config"
 	"go.uber.org/zap"
@@ -21,14 +22,16 @@ func NewPostgresDatabase(cfg *config.Config, log *zap.Logger) (*Database, error)
 		&gormLoggerWrapper{log: log},
 		logger.Config{
 			SlowThreshold:             0,
-			LogLevel:                  logger.Info,
+			LogLevel:                  logger.Warn,
 			IgnoreRecordNotFoundError: true,
 			Colorful:                  true,
 		},
 	)
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: gormLogger,
+		Logger:                 gormLogger,
+		SkipDefaultTransaction: true,
+		PrepareStmt:            true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("connecting to postgres: %w", err)
@@ -39,8 +42,9 @@ func NewPostgresDatabase(cfg *config.Config, log *zap.Logger) (*Database, error)
 		return nil, fmt.Errorf("getting underlying sql.DB: %w", err)
 	}
 
-	sqlDB.SetMaxIdleConns(10)
-	sqlDB.SetMaxOpenConns(100)
+	sqlDB.SetMaxIdleConns(25)
+	sqlDB.SetMaxOpenConns(200)
+	sqlDB.SetConnMaxLifetime(5 * time.Minute)
 
 	return &Database{DB: db}, nil
 }
