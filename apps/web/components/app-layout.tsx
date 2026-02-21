@@ -1,76 +1,191 @@
 "use client";
 
 import * as React from "react";
-import {
-  Sidebar,
-  SidebarBody,
-  SidebarLink,
-  useSidebar,
-} from "@/components/ui/sidebar";
 import { TopNavbar } from "./top-navbar";
 import { useAuth } from "@/hooks/use-auth";
-import { getNavItemsForRole } from "@/lib/nav-config";
-import { GraduationCap } from "lucide-react";
-import { motion } from "motion/react";
+import { getNavItemsForRole, NavItem } from "@/lib/nav-config";
+import { GraduationCap, ChevronLeft, ChevronRight, LogOut } from "lucide-react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useAuthStore } from "@/store/auth-store";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { role } = useAuth();
-  const [open, setOpen] = React.useState(false);
+  const [collapsed, setCollapsed] = React.useState(false);
+  const pathname = usePathname();
+  const router = useRouter();
+  const { user, logout } = useAuthStore();
 
   const navItems = React.useMemo(() => getNavItemsForRole(role), [role]);
 
+  const handleLogout = async () => {
+    await logout();
+    router.push("/auth/login");
+  };
+
   return (
-    <div className="flex h-screen w-full bg-zinc-50 dark:bg-zinc-900 overflow-hidden">
-      {/* Aceternity Sidebar */}
-      <Sidebar open={open} setOpen={setOpen}>
-        <SidebarBody className="justify-between gap-10 bg-white dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800">
-          <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
-            <Logo />
-            <div className="mt-8 flex flex-col gap-2">
-              {navItems.map((link, idx) => (
-                <SidebarLink
-                  key={idx}
-                  link={{
-                    label: link.label,
-                    href: link.href,
-                    icon: link.icon,
-                  }}
+    <div className="flex h-screen w-full bg-background overflow-hidden">
+      {/* Collapsible Sidebar */}
+      <TooltipProvider delayDuration={0}>
+        <aside
+          className={cn(
+            "fixed inset-y-0 left-0 z-50 hidden md:flex flex-col border-r bg-primary transition-all duration-300 ease-in-out",
+            collapsed ? "w-[70px]" : "w-64",
+          )}
+        >
+          {/* Header */}
+          <div
+            className={cn(
+              "flex h-16 items-center border-b border-white/10 transition-all duration-300",
+              collapsed ? "justify-center px-3" : "gap-3 px-6",
+            )}
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/20 text-white">
+              <GraduationCap className="h-5 w-5" />
+            </div>
+            {!collapsed && (
+              <span className="text-xl font-bold tracking-tight text-white">
+                Gradeloop
+              </span>
+            )}
+          </div>
+
+          {/* Navigation */}
+          <nav
+            className={cn(
+              "flex-1 overflow-y-auto py-4 space-y-1 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent",
+              collapsed ? "px-2" : "px-4",
+            )}
+          >
+            {navItems
+              .filter((item): item is Required<NavItem> => !!item.icon)
+              .map((item) => (
+                <SidebarItem
+                  key={item.href}
+                  item={item}
+                  pathname={pathname}
+                  collapsed={collapsed}
                 />
               ))}
-            </div>
+          </nav>
+
+          {/* Collapse Button */}
+          <div
+            className={cn(
+              "border-t border-white/10 p-2",
+              collapsed ? "flex justify-center" : "flex justify-end",
+            )}
+          >
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setCollapsed(!collapsed)}
+              className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8 p-0"
+            >
+              {collapsed ? (
+                <ChevronRight className="h-4 w-4" />
+              ) : (
+                <ChevronLeft className="h-4 w-4" />
+              )}
+            </Button>
           </div>
-          <div>
-            <SidebarLink
-              link={{
-                label: "Settings",
-                href: "/settings",
-                icon: (
-                  <div className="h-5 w-5 flex-shrink-0 text-neutral-600 dark:text-neutral-400 group-hover/sidebar:text-primary dark:group-hover/sidebar:text-white transition-colors">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="24"
-                      height="24"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
+
+          {/* User Section */}
+          <div className="border-t border-white/10 p-4 space-y-2">
+            <div
+              className={cn(
+                "flex items-center rounded-lg bg-white/5 transition-all duration-300",
+                collapsed ? "justify-center p-2" : "gap-3 p-3",
+              )}
+            >
+              {collapsed ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="h-9 w-9 rounded-full bg-white/90 flex items-center justify-center shrink-0 border border-white/20 font-semibold text-sm text-primary cursor-pointer">
+                      {user?.name
+                        ?.split(" ")
+                        .map((n) => n[0])
+                        .join("") || "U"}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="right"
+                    className="bg-slate-900 text-white"
+                  >
+                    <div className="text-sm font-medium">
+                      {user?.name || "User"}
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      {user?.email || ""}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <>
+                  <div className="h-10 w-10 rounded-full bg-white/90 flex items-center justify-center shrink-0 border border-white/20 font-semibold text-sm text-primary">
+                    {user?.name
+                      ?.split(" ")
+                      .map((n) => n[0])
+                      .join("") || "U"}
                   </div>
-                ),
-              }}
-            />
+                  <div className="flex flex-col truncate min-w-0">
+                    <span className="text-sm font-semibold text-white truncate">
+                      {user?.name || "User"}
+                    </span>
+                    <span className="text-xs text-white/60 truncate">
+                      {user?.email || ""}
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Logout Button */}
+            {collapsed ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={handleLogout}
+                    className="flex w-full items-center justify-center rounded-lg p-2 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                  >
+                    <LogOut className="h-5 w-5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="right"
+                  className="bg-slate-900 text-white"
+                >
+                  Logout
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <button
+                onClick={handleLogout}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <LogOut className="h-5 w-5" />
+                <span>Logout</span>
+              </button>
+            )}
           </div>
-        </SidebarBody>
-      </Sidebar>
+        </aside>
+      </TooltipProvider>
 
       {/* Main Content Area */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div
+        className={cn(
+          "flex flex-1 flex-col overflow-hidden transition-all duration-300",
+          collapsed ? "md:ml-[70px]" : "md:ml-64",
+        )}
+      >
         {/* Header Area with Navbar */}
         <header className="sticky top-0 z-30 flex h-16 items-center border-b border-neutral-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/80 px-4 backdrop-blur-md sm:px-6">
           <div className="mx-auto w-full max-w-7xl">
@@ -87,37 +202,61 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
-export const Logo = () => {
-  const { open } = useSidebar();
-  return (
-    <Link
-      href="/"
-      className="flex items-center gap-3 overflow-hidden text-neutral-800 dark:text-neutral-200 py-1 relative z-20"
-    >
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary shadow-lg shadow-primary/20">
-        <GraduationCap className="h-5 w-5 text-white" />
-      </div>
-      <motion.span
-        initial={{ opacity: 0 }}
-        animate={{
-          opacity: open ? 1 : 0,
-          display: open ? "inline-block" : "none",
-        }}
-        className="text-xl font-bold tracking-tight whitespace-nowrap"
-      >
-        Gradeloop
-      </motion.span>
-    </Link>
-  );
-};
+interface SidebarItemProps {
+  item: {
+    label: string;
+    href: string;
+    icon?: React.ReactNode;
+  };
+  pathname: string;
+  collapsed: boolean;
+}
 
-export const LogoIcon = () => {
+function SidebarItem({ item, pathname, collapsed }: SidebarItemProps) {
+  const isActive =
+    pathname === item.href || pathname.startsWith(item.href + "/");
+
+  if (collapsed) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Link
+            href={item.href}
+            className={cn(
+              "flex items-center justify-center rounded-lg p-2.5 transition-colors group",
+              isActive
+                ? "bg-white/10 text-white"
+                : "text-white/70 hover:text-white hover:bg-white/5",
+            )}
+          >
+            <span className="h-5 w-5 flex items-center justify-center">
+              {item.icon}
+            </span>
+          </Link>
+        </TooltipTrigger>
+        <TooltipContent side="right" className="bg-slate-900 text-white">
+          {item.label}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
   return (
     <Link
-      href="/"
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary shadow-lg shadow-primary/20"
+      href={item.href}
+      className={cn(
+        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors group",
+        isActive
+          ? "bg-white/10 text-white"
+          : "text-white/70 hover:text-white hover:bg-white/5",
+      )}
     >
-      <GraduationCap className="h-5 w-5 text-white" />
+      {item.icon && (
+        <span className="h-5 w-5 flex items-center justify-center shrink-0">
+          {item.icon}
+        </span>
+      )}
+      <span>{item.label}</span>
     </Link>
   );
-};
+}
