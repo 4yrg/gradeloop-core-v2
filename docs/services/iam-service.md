@@ -1392,3 +1392,178 @@ curl http://localhost:8081/
 #   "status": "running"
 # }
 ```
+
+---
+
+## Frontend-to-Backend Integration
+
+This section documents how the Next.js frontend (`apps/web`) integrates with the IAM service, covering the token strategy, cookie flow, and how to test the password-reset flow locally.
+
+### Token Strategy
+
+| Token | Where stored | Lifetime | How sent to backend |
+|-------|-------------|----------|---------------------|
+| `access_token` (JWT) | **In-memory** only — Zustand `auth-store` | 15 min (configurable) | `Authorization: Bearer <token>` header, attached by the Axios request interceptor |
+| `refresh_token` (opaque string) | **HttpOnly Secure cookie** set by the backend | 7 days (configurable) | Sent automatically by the browser on every `withCredentials: true` request to the same origin |
+
+> **Why in-memory for the access token?**  
+> Storing JWTs in `localStorage` exposes them to XSS attacks. Keeping them only in JavaScript memory means they are never accessible to third-party scripts and are automatically discarded on tab close.
+
+---
+
+### Axios Client (`lib/api/client.ts`)
+
+The shared Axios instance is configured with:
+
+```ts
+axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1",
+  withCredentials: true,   // sends the HttpOnly refresh_token cookie on every call
+});
+```
+
+**Request interceptor** — attaches the in-memory access token:
+```ts
+config.headers.Authorization = `Bearer ${accessToken}`;
+```
+
+**Response interceptor** — handles 401s automatically:
+1. Marks the request with `_retry = true` (prevents infinite loops).
+2. Calls `POST /api/v1/auth/refresh` — the browser sends the cookie automatically.
+3. Stores the new `access_token` in Zustand, then retries the original request.
+4. If the refresh call also returns 401, clears the Zustand store and redirects to `/auth/login`.
+
+Concurrent 401s are queued and all resolved (or rejected) once the single refresh call completes.
+
+---
+
+### Refresh Token Cookie Flow
+
+```
+Browser                          IAM Service
+  │                                   │
+  │── POST /auth/login ───────────────►│
+  │   { username, password }           │  validates credentials
+  │                                   │
+  │◄── 200 OK ────────────────────────│
+  │   body: { access_token, expires_in}│
+  │   Set-Cookie: refresh_token=...    │  HttpOnly; Secure; SameSite=Lax; Path=/
+  │                                   │
+  │   (store access_token in memory)  │
+  │                                   │
+  │── GET /api/v1/users (with Bearer) ─►│  works fine while access_token is valid
+  │                                   │
+  │── (access_token expires) ─────────►│  returns 401
+  │                                   │
+  │   [interceptor fires]             │
+  │── POST /auth/refresh ─────────────►│
+  │   Cookie: refresh_token=... ←──── │  browser sends cookie automatically
+  │                                   │  validates refresh token, issues new pair
+  │◄── 200 OK ────────────────────────│
+  │   body: { access_token }           │
+  │   Set-Cookie: refresh_token=...    │  rotated — old token is now revoked
+  │                                   │
+  │   [interceptor retries original]  │
+  │── GET /api/v1/users (new Bearer) ──►│  succeeds
+```
+
+---
+
+### Auth Store Actions (`store/auth-store.ts`)
+
+| Action | Description |
+|--------|-------------|
+| `login(username, password)` | Calls `POST /auth/login`, stores `access_token` in memory, decodes JWT claims into `user` |
+| `logout()` | Calls `POST /auth/logout` (backend revokes refresh token and clears cookie), then wipes Zustand state |
+| `refresh()` | Calls `POST /auth/refresh` (cookie-driven), updates in-memory `access_token`, returns new token or `null` |
+| `changePassword(current, new)` | Calls `POST /auth/change-password` (requires Bearer token). Backend revokes all sessions. |
+| `forgotPassword(email)` | Calls `POST /auth/forgot-password`. Always returns 200 (anti-enumeration). |
+| `resetPassword(token, newPassword)` | Calls `POST /auth/reset-password` with `{ token, new_password }`. Token comes from URL query param. |
+| `setUserFromToken(token)` | Decodes a JWT and hydrates the Zustand `user` object without a network call |
+
+---
+
+### Auth Pages (`app/auth/`)
+
+All auth pages live under `app/auth/` and share the two-panel layout defined in `app/auth/layout.tsx`:
+
+| Route | File | Description |
+|-------|------|-------------|
+| `/auth/login` | `app/auth/login/page.tsx` | Email + password form. Handles 401 (bad credentials) and 429 (rate-limited) errors distinctly. |
+| `/auth/forgot-password` | `app/auth/forgot-password/page.tsx` | Email entry form. Calls `POST /auth/forgot-password`. Shows confirmation state after submit. |
+| `/auth/reset-password?token=...` | `app/auth/reset-password/page.tsx` | New password + confirm fields. Extracts `token` from URL query via `useSearchParams` (wrapped in `<Suspense>`). |
+
+---
+
+### Testing the Reset Password Flow Locally
+
+**Prerequisites:** IAM service running on `http://localhost:8000`, frontend on `http://localhost:3000`.
+
+**Step 1 — Request a reset link**
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com"}'
+# → 200 {"message": "If an account exists ..."}
+```
+
+**Step 2 — Get the raw token from IAM service logs**
+
+The IAM service currently logs the reset token to the console (email sending is not yet wired). Look for a line similar to:
+
+```
+[IAM] Password reset token for user@example.com: <TOKEN>
+```
+
+**Step 3 — Open the reset page in the browser**
+
+```
+http://localhost:3000/auth/reset-password?token=<TOKEN>
+```
+
+The page reads the `token` query parameter, fills the form, and calls `POST /auth/reset-password` with `{ token, new_password }` on submit.
+
+**Step 4 — Verify via curl**
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{"token": "<TOKEN>", "new_password": "NewSecure@123"}'
+# → 200 {"message": "Password reset successfully..."}
+```
+
+**Step 5 — Login with new password**
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -c cookies.txt \
+  -d '{"username": "user@example.com", "password": "NewSecure@123"}'
+# → 200 {"access_token": "eyJ...", "expires_in": 900}
+# The refresh_token is stored in cookies.txt (HttpOnly cookie)
+```
+
+---
+
+### Local CORS & Cookie Notes
+
+When running frontend and backend on different ports locally (e.g. `:3000` and `:8000`), cookies are **cross-origin**. Ensure:
+
+1. **IAM CORS config** (`cmd/main.go`) includes `http://localhost:3000` in `AllowOrigins` and has `AllowCredentials: true`.
+2. **Cookie `Secure` flag** — Set `JWT_COOKIE_SECURE=false` in your local `.env` since `localhost` does not use HTTPS.
+3. **Cookie `SameSite`** — `JWT_COOKIE_SAMESITE=Lax` is appropriate for localhost development.
+4. **Axios `withCredentials: true`** — Already configured in `lib/api/client.ts`. This is what instructs the browser to send the cookie cross-origin.
+5. **`NEXT_PUBLIC_API_URL`** — Set this to `http://localhost:8000/api/v1` in `apps/web/.env.local`.
+
+Sample `apps/web/.env.local`:
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+```
+
+Sample IAM `.env` fragment:
+```env
+JWT_COOKIE_SECURE=false
+JWT_COOKIE_SAMESITE=Lax
+FRONTEND_URL=http://localhost:3000
+```

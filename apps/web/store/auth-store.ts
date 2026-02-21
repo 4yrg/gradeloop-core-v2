@@ -13,7 +13,7 @@ function parseJwt(token: string) {
         .join(""),
     );
     return JSON.parse(jsonPayload);
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -46,6 +46,8 @@ interface AuthState {
     currentPassword: string,
     newPassword: string,
   ) => Promise<void>;
+  forgotPassword: (email: string) => Promise<void>;
+  resetPassword: (token: string, newPassword: string) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -81,19 +83,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    // Clear local state first
+    set({
+      user: null,
+      accessToken: null,
+      isAuthenticated: false,
+    });
+
     try {
-      // Use apiClient which has proper interceptors and cookie handling
+      // Only call backend if we're likely to have a valid session
+      // This prevents unnecessary 400 errors when there's no refresh_token cookie
       await apiClient.post("/auth/logout", {});
     } catch (error) {
-      // Ignore errors during logout - this can happen if the refresh token
-      // is missing or already expired. We still want to clear local state.
-      console.debug("Logout completed (backend call may have failed)", error);
-    } finally {
-      set({
-        user: null,
-        accessToken: null,
-        isAuthenticated: false,
-      });
+      // Silently ignore logout errors - this is expected when:
+      // - No refresh token cookie exists (first-time users, expired sessions)
+      // - Token is already revoked
+      // Local state is already cleared above, so we're good either way
+      console.debug(
+        "Logout backend call failed (this is usually normal)",
+        error,
+      );
     }
   },
 
@@ -113,10 +122,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return newToken;
       }
       return null;
-    } catch (error) {
+    } catch {
       // Refresh failure is expected when no valid session exists
       // Don't log as error - this is normal behavior for expired/missing sessions
-      await get().logout();
+      // Clear local state without calling backend logout (which would also fail)
+      set({
+        user: null,
+        accessToken: null,
+        isAuthenticated: false,
+      });
       return null;
     } finally {
       set({ isRefreshing: false });
@@ -160,5 +174,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (error) {
       throw error;
     }
+  },
+
+  forgotPassword: async (email) => {
+    // Sends a reset link to the given email.
+    // Backend returns 200 regardless of whether the email exists (anti-enumeration).
+    await apiClient.post("/auth/forgot-password", { email });
+  },
+
+  resetPassword: async (token, newPassword) => {
+    // Resets password with the token extracted from the reset-link URL.
+    // Backend expects: { token, new_password }
+    await apiClient.post("/auth/reset-password", {
+      token,
+      new_password: newPassword,
+    });
   },
 }));

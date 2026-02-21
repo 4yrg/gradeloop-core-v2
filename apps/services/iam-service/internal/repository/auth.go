@@ -47,7 +47,7 @@ func (r *authRepository) GetUserByUsername(ctx context.Context, username string)
 			users.is_password_reset_required
 		`).
 		Joins("LEFT JOIN roles ON roles.id = users.role_id AND roles.deleted_at IS NULL").
-		Where("users.username = ? AND users.deleted_at IS NULL", username).
+		Where("(users.username = ? OR users.email = ?) AND users.deleted_at IS NULL", username, username).
 		First(&user)
 
 	if query.Error != nil {

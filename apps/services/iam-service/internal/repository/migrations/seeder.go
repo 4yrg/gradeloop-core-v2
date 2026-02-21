@@ -24,8 +24,6 @@ func NewSeeder(db *gorm.DB, logger *zap.Logger) *Seeder {
 }
 
 func (s *Seeder) Seed() error {
-	s.logger.Info("seeding database")
-
 	if err := s.seedRoles(); err != nil {
 		return fmt.Errorf("seeding roles: %w", err)
 	}
@@ -61,7 +59,6 @@ func (s *Seeder) seedRoles() error {
 			FirstOrCreate(&role).Error; err != nil {
 			return err
 		}
-		s.logger.Info("seeded role", zap.String("name", role.Name))
 	}
 
 	return nil
@@ -90,7 +87,6 @@ func (s *Seeder) seedPermissions() error {
 			FirstOrCreate(&perm).Error; err != nil {
 			return err
 		}
-		s.logger.Info("seeded permission", zap.String("name", perm.Name))
 	}
 
 	return nil
@@ -122,15 +118,14 @@ func (s *Seeder) seedRolePermissions() error {
 		}
 	}
 
-	s.logger.Info("seeded role_permissions for super_admin")
 	return nil
 }
 
 func (s *Seeder) seedSuperAdmin() error {
-	username := os.Getenv("SUPER_ADMIN_USERNAME")
+	email := os.Getenv("SUPER_ADMIN_USERNAME")
 	password := os.Getenv("SUPER_ADMIN_PASSWORD")
 
-	if username == "" || password == "" {
+	if email == "" || password == "" {
 		s.logger.Info("skipping super admin seeding (SUPER_ADMIN_USERNAME or SUPER_ADMIN_PASSWORD not set)")
 		return nil
 	}
@@ -145,23 +140,39 @@ func (s *Seeder) seedSuperAdmin() error {
 		return err
 	}
 
-	var existingUser domain.User
-	if err := s.db.Where("username = ? OR email = ?", username, username).First(&existingUser).Error; err == nil {
-		s.logger.Info("super admin user already exists", zap.String("username", existingUser.Username))
-		return nil
-	} else if err != gorm.ErrRecordNotFound {
-		return fmt.Errorf("checking for existing user: %w", err)
-	}
-
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return fmt.Errorf("hashing password: %w", err)
 	}
 
+	var existingUser domain.User
+	if err := s.db.Where("email = ?", email).First(&existingUser).Error; err == nil {
+		// User exists, update password and ensure it's active
+		updates := map[string]interface{}{
+			"password_hash":              string(hashedPassword),
+			"is_active":                  true,
+			"is_password_reset_required": false,
+			"role_id":                    superAdminRole.ID,
+		}
+
+		// Update username and email to match the email
+		updates["username"] = email
+		updates["email"] = email
+
+		if err := s.db.Model(&existingUser).Updates(updates).Error; err != nil {
+			return fmt.Errorf("updating super admin user: %w", err)
+		}
+
+		return nil
+	} else if err != gorm.ErrRecordNotFound {
+		return fmt.Errorf("checking for existing user: %w", err)
+	}
+
+	// User doesn't exist, create new one
 	user := domain.User{
 		ID:                      uuid.New(),
-		Username:                username,
-		Email:                   username,
+		Username:                email,
+		Email:                   email,
 		PasswordHash:            string(hashedPassword),
 		RoleID:                  &superAdminRole.ID,
 		IsActive:                true,
@@ -172,6 +183,5 @@ func (s *Seeder) seedSuperAdmin() error {
 		return fmt.Errorf("creating super admin user: %w", err)
 	}
 
-	s.logger.Info("seeded super admin user", zap.String("username", username))
 	return nil
 }

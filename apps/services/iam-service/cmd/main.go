@@ -53,6 +53,12 @@ func run() error {
 		return fmt.Errorf("running migrations: %w", err)
 	}
 
+	// Run seeder to create initial data (roles, permissions, super admin)
+	seeder := migrations.NewSeeder(db.DB, logger)
+	if err := seeder.Seed(); err != nil {
+		return fmt.Errorf("running seeder: %w", err)
+	}
+
 	baseRepo := repository.NewBaseRepository(db.DB)
 	defer baseRepo.Close()
 
