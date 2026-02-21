@@ -274,10 +274,10 @@ jobs:
               [ -e "$svc" ] || continue
               if [ -f "$svc/Dockerfile" ]; then
                 echo "Building $svc" >> ci_summary.txt
-                docker build -t gradeloop/${svc//\//-}:pr-${PR_NUM} -f "$svc/Dockerfile" .
+                docker build -t gradeloop/${svc//\//-}:pr-${PR_NUM} -f "$svc/Dockerfile" "$svc"
               elif [ -f "$svc/docker/Dockerfile" ]; then
                 echo "Building $svc" >> ci_summary.txt
-                docker build -t gradeloop/${svc//\//-}:pr-${PR_NUM} -f "$svc/docker/Dockerfile" .
+                docker build -t gradeloop/${svc//\//-}:pr-${PR_NUM} -f "$svc/docker/Dockerfile" "$svc"
               fi
             done
           else
@@ -286,7 +286,7 @@ jobs:
               # If Dockerfile is in a 'docker' subdirectory, use the parent for the tag name
               tag_dir="${svc_dir%/docker}"
               echo "Building $svc_dir" >> ci_summary.txt
-              docker build -t gradeloop/${tag_dir//\//-}:pr-${PR_NUM} -f "$df" .
+              docker build -t gradeloop/${tag_dir//\//-}:pr-${PR_NUM} -f "$df" "$svc_dir"
             done
           fi
 

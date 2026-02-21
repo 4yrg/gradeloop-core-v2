@@ -2,186 +2,173 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"log"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
-	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/application/usecases"
-	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/domain/models"
-	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http"
-	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/http/handlers"
-	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/notifications"
-	"github.com/4YRG/gradeloop-core-v2/apps/services/iam-service/internal/infrastructure/repositories"
-	"github.com/4YRG/gradeloop-core-v2/shared/libs/go/secrets"
-	"golang.org/x/crypto/bcrypt"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/cors"
+	"github.com/gradeloop/iam-service/internal/config"
+	"github.com/gradeloop/iam-service/internal/handler"
+	"github.com/gradeloop/iam-service/internal/jwt"
+	"github.com/gradeloop/iam-service/internal/middleware"
+	"github.com/gradeloop/iam-service/internal/repository"
+	"github.com/gradeloop/iam-service/internal/repository/migrations"
+	"github.com/gradeloop/iam-service/internal/router"
+	"github.com/gradeloop/iam-service/internal/service"
+	"github.com/gradeloop/iam-service/internal/utils"
+	"go.uber.org/zap"
 )
 
 func main() {
-	log.Println("Starting IAM Service...")
-
-	// Initialize context for startup operations
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	log.Println("Initializing secrets client...")
-	// Initialize Secrets Client (Vault)
-	// NewClient(nil) uses default configuration from environment variables:
-	// VAULT_ADDR, VAULT_TOKEN, VAULT_MOUNT_PATH, etc.
-	secretsClient, err := secrets.NewClient(nil)
-	if err != nil {
-		log.Fatalf("failed to initialize secrets client: %v", err)
+	if err := run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error starting application: %v\n", err)
+		os.Exit(1)
 	}
-	defer secretsClient.Close()
-
-	log.Println("Retrieving database configuration from Vault...")
-	// Retrieve Database Configuration from Vault with retry logic
-	var dbConfig *secrets.DatabaseConfig
-	maxRetries := 10
-	for i := 0; i < maxRetries; i++ {
-		dbConfig, err = secretsClient.GetDatabaseConfig(ctx)
-		if err == nil {
-			break
-		}
-		log.Printf("Waiting for secrets to be seeded (attempt %d/%d)...", i+1, maxRetries)
-		time.Sleep(2 * time.Second)
-	}
-
-	if err != nil {
-		log.Fatalf("failed to retrieve database configuration from vault after retries: %v", err)
-	}
-
-	log.Println("Retrieving JWT configuration from Vault...")
-	jwtConfig, err := secretsClient.GetJWTConfig(ctx)
-	if err != nil {
-		log.Fatalf("failed to retrieve JWT configuration: %v", err)
-	}
-
-	log.Println("Database configuration retrieved successfully")
-	dsn := dbConfig.ConnectionString()
-
-	log.Println("Connecting to database...")
-	// Initialize Database Connection using GORM
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		log.Fatalf("failed to connect to database: %v", err)
-	}
-
-	log.Println("Connected to database. Running auto-migrations...")
-
-	// Pre-migration cleanup for dev environments (handles corrupted unique index data)
-	// This removes rows with empty or null names that block unique index creation during development
-	db.Exec("DELETE FROM permissions WHERE name = '' OR name IS NULL")
-	db.Exec("DELETE FROM roles WHERE role_name = '' OR role_name IS NULL")
-
-	// Auto Migration
-	if err := db.AutoMigrate(&models.User{}, &models.Student{}, &models.Employee{}, &models.Role{}, &models.Permission{}, &models.AuditLog{}, &models.RefreshToken{}); err != nil {
-		log.Fatalf("failed to migrate database: %v", err)
-	}
-
-	log.Println("Auto-migrations completed. Seeding initial data...")
-	// Seed Permissions
-	initialPermissions := []models.Permission{
-		{Name: "iam:users:create", Description: "Create users", Category: "IAM", IsCustom: false},
-		{Name: "iam:users:read", Description: "Read users", Category: "IAM", IsCustom: false},
-		{Name: "iam:users:update", Description: "Update users", Category: "IAM", IsCustom: false},
-		{Name: "iam:users:delete", Description: "Delete users", Category: "IAM", IsCustom: false},
-		{Name: "iam:roles:manage", Description: "Manage roles and permissions", Category: "IAM", IsCustom: false},
-		{Name: "academics:courses:read", Description: "Read courses", Category: "Academics", IsCustom: false},
-	}
-
-	for _, p := range initialPermissions {
-		if err := db.Where(models.Permission{Name: p.Name}).FirstOrCreate(&p).Error; err != nil {
-			log.Printf("failed to seed permission %s: %v", p.Name, err)
-		}
-	}
-
-	// Seed Reserved Roles
-	for roleName := range models.ReservedRoles {
-		role := models.Role{RoleName: roleName, IsCustom: false}
-		if err := db.Where(models.Role{RoleName: roleName}).FirstOrCreate(&role).Error; err != nil {
-			log.Printf("failed to seed reserved role %s: %v", roleName, err)
-		}
-	}
-
-	log.Println("Seeding completed. Bootstrapping Super Admin...")
-	if err := bootstrapSuperAdmin(db); err != nil {
-		log.Fatalf("failed to bootstrap super admin: %v", err)
-	}
-
-	log.Println("Bootstrapping completed. Initializing dependencies...")
-	// Dependency Injection
-	auditRepo := repositories.NewAuditRepository(db)
-	userRepo := repositories.NewUserRepository(db)
-	roleRepo := repositories.NewRoleRepository(db)
-	permissionRepo := repositories.NewPermissionRepository(db)
-	refreshTokenRepo := repositories.NewRefreshTokenRepository(db)
-	notificationStub := notifications.NewNotificationStub()
-
-	userUsecase := usecases.NewUserUsecase(userRepo, auditRepo)
-	roleUsecase := usecases.NewRoleUsecase(roleRepo, auditRepo)
-	permissionUsecase := usecases.NewPermissionUsecase(permissionRepo)
-	authUsecase := usecases.NewAuthUsecase(userRepo, refreshTokenRepo, auditRepo, notificationStub, jwtConfig.Secret)
-
-	userHandler := handlers.NewUserHandler(userUsecase)
-	roleHandler := handlers.NewRoleHandler(roleUsecase)
-	permissionHandler := handlers.NewPermissionHandler(permissionUsecase)
-	authHandler := handlers.NewAuthHandler(authUsecase)
-
-	// Start Server
-	http.Start(userHandler, roleHandler, permissionHandler, authHandler)
 }
 
-func bootstrapSuperAdmin(db *gorm.DB) error {
-	var count int64
-	if err := db.Model(&models.User{}).Count(&count).Error; err != nil {
-		return err
-	}
-
-	if count > 0 {
-		log.Println("User table not empty, skipping bootstrapping")
-		return nil
-	}
-
-	username := os.Getenv("INITIAL_ADMIN_USERNAME")
-	password := os.Getenv("INITIAL_ADMIN_PASSWORD")
-
-	if username == "" || password == "" {
-		return errors.New("INITIAL_ADMIN_USERNAME and INITIAL_ADMIN_PASSWORD must be set")
-	}
-
-	if len(password) < 12 {
-		return errors.New("initial admin password must be at least 12 characters long")
-	}
-
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
+func run() error {
+	cfg, err := config.Load()
 	if err != nil {
-		return err
+		return fmt.Errorf("loading config: %w", err)
 	}
 
-	// Find the Admin role
-	var adminRole models.Role
-	if err := db.Where("role_name = ?", models.RoleAdmin).First(&adminRole).Error; err != nil {
-		return fmt.Errorf("failed to find admin role: %w", err)
+	if err := utils.InitLogger(); err != nil {
+		return fmt.Errorf("initializing logger: %w", err)
+	}
+	defer utils.Sync()
+
+	logger := utils.GetLogger()
+
+	db, err := repository.NewPostgresDatabase(cfg, logger)
+	if err != nil {
+		return fmt.Errorf("connecting to database: %w", err)
+	}
+	defer db.Close()
+
+	migrator := migrations.NewMigrator(db.DB, logger)
+	if err := migrator.Run(); err != nil {
+		return fmt.Errorf("running migrations: %w", err)
 	}
 
-	adminUser := &models.User{
-		Email:         username,
-		FullName:      "Super Admin",
-		PasswordHash:  string(hash),
-		UserType:      models.UserTypeEmployee,
-		Roles:         []models.Role{adminRole},
-		IsActive:      true,
-		PasswordSetAt: func() *time.Time { t := time.Now(); return &t }(),
+	// Run seeder to create initial data (roles, permissions, super admin)
+	seeder := migrations.NewSeeder(db.DB, logger)
+	if err := seeder.Seed(); err != nil {
+		return fmt.Errorf("running seeder: %w", err)
 	}
 
-	if err := db.Create(adminUser).Error; err != nil {
-		return err
+	baseRepo := repository.NewBaseRepository(db.DB)
+	defer baseRepo.Close()
+
+	authRepo := repository.NewAuthRepository(db.DB)
+	userRepo := repository.NewUserRepository(db.DB)
+	roleRepo := repository.NewRoleRepository(db.DB)
+	permissionRepo := repository.NewPermissionRepository(db.DB)
+
+	baseService := service.NewBaseService(db.DB)
+	defer baseService.Close()
+
+	jwtInstance := jwt.NewJWT(
+		cfg.JWT.SecretKey,
+		cfg.JWT.AccessTokenExpiry,
+		cfg.JWT.RefreshTokenExpiry,
+	)
+
+	authService := service.NewAuthService(
+		db.DB,
+		authRepo,
+		jwtInstance,
+		cfg.JWT.SecretKey,
+		cfg.JWT.RefreshTokenExpiry,
+	)
+
+	userService := service.NewUserService(
+		db.DB,
+		userRepo,
+		cfg.JWT.SecretKey,
+		24, // Activation token expiry: 24 hours
+	)
+
+	passwordService := service.NewPasswordService(
+		db.DB,
+		authRepo,
+		userRepo,
+		cfg.JWT.SecretKey,
+		1, // Password reset token expiry: 1 hour
+	)
+
+	roleService := service.NewRoleService(
+		db.DB,
+		roleRepo,
+		permissionRepo,
+	)
+
+	permissionService := service.NewPermissionService(
+		db.DB,
+		permissionRepo,
+	)
+
+	healthHandler := handler.NewHealthHandler()
+	authHandler := handler.NewAuthHandler(
+		authService,
+		userService,
+		passwordService,
+		cfg.JWT.CookieSecure,
+		cfg.JWT.CookieSameSite,
+	)
+	userHandler := handler.NewUserHandler(userService)
+	roleHandler := handler.NewRoleHandler(roleService)
+	permissionHandler := handler.NewPermissionHandler(permissionService)
+
+	app := fiber.New(fiber.Config{
+		AppName:      "iam-service",
+		ErrorHandler: utils.ErrorHandler,
+	})
+
+	app.Use(middleware.Recovery())
+	app.Use(middleware.Logger())
+	app.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{cfg.FrontendURL, "http://localhost:3000"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Request-ID"},
+		AllowCredentials: true,
+	}))
+
+	router.SetupRoutes(app, router.Config{
+		HealthHandler:     healthHandler,
+		AuthHandler:       authHandler,
+		UserHandler:       userHandler,
+		RoleHandler:       roleHandler,
+		PermissionHandler: permissionHandler,
+		JWTSecretKey:      []byte(cfg.JWT.SecretKey),
+	})
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		addr := fmt.Sprintf(":%s", cfg.Server.Port)
+		logger.Info("starting server", zap.String("address", addr))
+
+		if err := app.Listen(addr); err != nil {
+			logger.Error("failed to start server", zap.Error(err))
+		}
+	}()
+
+	<-sigChan
+
+	logger.Info("shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := app.ShutdownWithContext(ctx); err != nil {
+		logger.Error("server shutdown error", zap.Error(err))
+		return fmt.Errorf("shutting down server: %w", err)
 	}
 
-	log.Printf("Super Admin account created: %s", username)
+	logger.Info("server stopped gracefully")
 	return nil
 }
