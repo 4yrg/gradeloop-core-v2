@@ -4,6 +4,11 @@ Academic service for managing academic data including courses, programs, semeste
 
 ## Features
 
+- **Faculty Management** ✨ NEW
+  - Create, update, and deactivate faculties
+  - Leadership panel support (Dean, Pro-Vice Chancellor, etc.)
+  - Multiple leaders per faculty
+  - Audit logging integration
 - Course management
 - Program/degree management
 - Semester management
@@ -124,6 +129,14 @@ docker run -p 8083:8083 --env-file .env academic-service
 ### API v1 (Protected Routes)
 All `/api/v1` routes require JWT authentication.
 
+#### Faculties (Super Admin Only) ✨ NEW
+- `POST /api/v1/faculties` - Create a new faculty
+- `GET /api/v1/faculties` - List all faculties
+- `GET /api/v1/faculties/:id` - Get faculty by ID
+- `PUT /api/v1/faculties/:id` - Update faculty
+- `PATCH /api/v1/faculties/:id/deactivate` - Deactivate faculty
+- `GET /api/v1/faculties/:id/leaders` - Get faculty leaders
+
 #### Courses
 - `GET /api/v1/courses` - List all courses
 - `POST /api/v1/courses` - Create a new course
@@ -156,6 +169,12 @@ All `/api/v1` routes require JWT authentication.
 
 Migrations are automatically run on service startup. The migration system uses GORM's AutoMigrate feature.
 
+## Documentation
+
+- **Faculty Management**: See `docs/FACULTY_MANAGEMENT.md` for detailed documentation
+- **Quick Start Guide**: See `docs/QUICK_START.md` for getting started with Faculty Management
+- **Implementation Summary**: See `docs/IMPLEMENTATION_SUMMARY.md` for technical details
+
 ## Testing
 
 Run tests:
@@ -166,6 +185,18 @@ go test ./...
 Run tests with coverage:
 ```bash
 go test -coverprofile=coverage.txt ./...
+```
+
+Run specific test suites:
+```bash
+# Repository tests
+go test ./internal/repository -v
+
+# Service tests
+go test ./internal/service -v
+
+# Handler tests
+go test ./internal/handler -v
 ```
 
 ## Development

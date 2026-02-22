@@ -7,8 +7,9 @@ import (
 )
 
 type Config struct {
-	HealthHandler *handler.HealthHandler
-	JWTSecretKey  []byte
+	HealthHandler  *handler.HealthHandler
+	FacultyHandler *handler.FacultyHandler
+	JWTSecretKey   []byte
 }
 
 func SetupRoutes(app *fiber.App, cfg Config) {
@@ -20,8 +21,17 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	// Protected routes (require authentication)
 	protected := api.Group("", middleware.AuthMiddleware(cfg.JWTSecretKey))
 
-	// Add your academic service routes here
-	_ = protected
+	// Super Admin only routes
+	superAdmin := protected.Group("", middleware.RequireRole("super_admin"))
+
+	// Faculty routes
+	faculties := superAdmin.Group("/faculties")
+	faculties.Post("/", cfg.FacultyHandler.CreateFaculty)
+	faculties.Get("/", cfg.FacultyHandler.ListFaculties)
+	faculties.Get("/:id", cfg.FacultyHandler.GetFaculty)
+	faculties.Put("/:id", cfg.FacultyHandler.UpdateFaculty)
+	faculties.Patch("/:id/deactivate", cfg.FacultyHandler.DeactivateFaculty)
+	faculties.Get("/:id/leaders", cfg.FacultyHandler.GetFacultyLeaders)
 
 	app.Get("/", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{

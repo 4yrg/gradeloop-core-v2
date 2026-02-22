@@ -1,0 +1,37 @@
+meta {
+  name: Create Faculty
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/api/v1/faculties
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "name": "Faculty of Computing",
+    "code": "FOC",
+    "description": "The Faculty of Computing offers undergraduate and postgraduate programs in computer science, software engineering, and information technology.",
+    "leaders": [
+      {
+        "user_id": "550e8400-e29b-41d4-a716-446655440001",
+        "role": "Dean"
+      },
+      {
+        "user_id": "550e8400-e29b-41d4-a716-446655440002",
+        "role": "Pro-Vice Chancellor"
+      }
+    ]
+  }
+}
+
+vars:pre-request {
+  base_url: http://localhost:8083
+}

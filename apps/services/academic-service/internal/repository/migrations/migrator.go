@@ -28,6 +28,8 @@ func (m *Migrator) Run() error {
 		&domain.Program{},
 		&domain.Semester{},
 		&domain.Enrollment{},
+		&domain.Faculty{},
+		&domain.FacultyLeadership{},
 	); err != nil {
 		return fmt.Errorf("auto migrate: %w", err)
 	}

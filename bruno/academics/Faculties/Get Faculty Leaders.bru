@@ -1,0 +1,20 @@
+meta {
+  name: Get Faculty Leaders
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{base_url}}/api/v1/faculties/{{faculty_id}}/leaders
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+vars:pre-request {
+  base_url: http://localhost:8083
+  faculty_id: 550e8400-e29b-41d4-a716-446655440000
+}

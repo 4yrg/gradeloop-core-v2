@@ -10,6 +10,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
+	"github.com/gradeloop/academic-service/internal/client"
 	"github.com/gradeloop/academic-service/internal/config"
 	"github.com/gradeloop/academic-service/internal/handler"
 	"github.com/gradeloop/academic-service/internal/middleware"
@@ -64,7 +65,19 @@ func run() error {
 	baseService := service.NewBaseService(db.DB)
 	defer baseService.Close()
 
+	// Initialize audit client
+	auditClient := client.NewAuditClient(cfg.IAMServiceURL, logger)
+
+	// Initialize repositories
+	facultyRepo := repository.NewFacultyRepository(db.DB)
+	leadershipRepo := repository.NewFacultyLeadershipRepository(db.DB)
+
+	// Initialize services
+	facultyService := service.NewFacultyService(db.DB, facultyRepo, leadershipRepo, auditClient, logger)
+
+	// Initialize handlers
 	healthHandler := handler.NewHealthHandler()
+	facultyHandler := handler.NewFacultyHandler(facultyService, logger)
 
 	app := fiber.New(fiber.Config{
 		AppName:      "academic-service",
@@ -81,8 +94,9 @@ func run() error {
 	}))
 
 	router.SetupRoutes(app, router.Config{
-		HealthHandler: healthHandler,
-		JWTSecretKey:  []byte(cfg.JWT.SecretKey),
+		HealthHandler:  healthHandler,
+		FacultyHandler: facultyHandler,
+		JWTSecretKey:   []byte(cfg.JWT.SecretKey),
 	})
 
 	sigChan := make(chan os.Signal, 1)
