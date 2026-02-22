@@ -5,19 +5,15 @@ meta {
 }
 
 get {
-  url: {{base_url}}/api/v1/faculties?include_inactive=false
+  url: {{base_url}}/api/v1/faculties
   body: none
   auth: bearer
-}
-
-auth:bearer {
-  token: {{access_token}}
 }
 
 params:query {
   include_inactive: false
 }
 
-vars:pre-request {
-  base_url: http://localhost:8083
+auth:bearer {
+  token: {{access_token}}
 }
