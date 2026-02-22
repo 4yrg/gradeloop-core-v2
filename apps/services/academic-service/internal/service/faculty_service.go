@@ -28,6 +28,7 @@ type facultyService struct {
 	db             *gorm.DB
 	facultyRepo    repository.FacultyRepository
 	leadershipRepo repository.FacultyLeadershipRepository
+	departmentRepo repository.DepartmentRepository
 	auditClient    *client.AuditClient
 	logger         *zap.Logger
 }
@@ -37,6 +38,7 @@ func NewFacultyService(
 	db *gorm.DB,
 	facultyRepo repository.FacultyRepository,
 	leadershipRepo repository.FacultyLeadershipRepository,
+	departmentRepo repository.DepartmentRepository,
 	auditClient *client.AuditClient,
 	logger *zap.Logger,
 ) FacultyService {
@@ -44,6 +46,7 @@ func NewFacultyService(
 		db:             db,
 		facultyRepo:    facultyRepo,
 		leadershipRepo: leadershipRepo,
+		departmentRepo: departmentRepo,
 		auditClient:    auditClient,
 		logger:         logger,
 	}
@@ -299,6 +302,20 @@ func (s *facultyService) DeactivateFaculty(
 	if err := s.facultyRepo.UpdateFaculty(faculty); err != nil {
 		s.logger.Error("failed to deactivate faculty", zap.Error(err))
 		return utils.ErrInternal("failed to deactivate faculty", err)
+	}
+
+	// Cascade deactivation: deactivate all departments under this faculty
+	if err := s.departmentRepo.DeactivateDepartmentsByFacultyID(id); err != nil {
+		s.logger.Error("failed to deactivate departments for faculty", zap.Error(err))
+		// Log warning but don't fail the operation
+		s.logger.Warn("faculty deactivated but departments deactivation failed",
+			zap.String("faculty_id", id.String()),
+			zap.Error(err),
+		)
+	} else {
+		s.logger.Info("deactivated departments for faculty",
+			zap.String("faculty_id", id.String()),
+		)
 	}
 
 	// Log audit event

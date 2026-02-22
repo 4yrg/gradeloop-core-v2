@@ -15,9 +15,12 @@ import (
 type AuditAction string
 
 const (
-	AuditActionFacultyCreated     AuditAction = "FACULTY_CREATED"
-	AuditActionFacultyUpdated     AuditAction = "FACULTY_UPDATED"
-	AuditActionFacultyDeactivated AuditAction = "FACULTY_DEACTIVATED"
+	AuditActionFacultyCreated        AuditAction = "FACULTY_CREATED"
+	AuditActionFacultyUpdated        AuditAction = "FACULTY_UPDATED"
+	AuditActionFacultyDeactivated    AuditAction = "FACULTY_DEACTIVATED"
+	AuditActionDepartmentCreated     AuditAction = "DEPARTMENT_CREATED"
+	AuditActionDepartmentUpdated     AuditAction = "DEPARTMENT_UPDATED"
+	AuditActionDepartmentDeactivated AuditAction = "DEPARTMENT_DEACTIVATED"
 )
 
 // AuditLogRequest represents the request body for audit logging
@@ -68,6 +71,34 @@ func (c *AuditClient) LogFacultyAction(
 		Action:     string(action),
 		Entity:     "faculty",
 		EntityID:   facultyID.String(),
+		UserID:     userID,
+		Email:      email,
+		Changes:    changes,
+		Metadata:   metadata,
+		IPAddress:  ipAddress,
+		UserAgent:  userAgent,
+		Service:    "academic-service",
+		OccurredAt: time.Now(),
+	}
+
+	return c.sendAuditLog(auditLog)
+}
+
+// LogDepartmentAction logs a department-related action
+func (c *AuditClient) LogDepartmentAction(
+	action AuditAction,
+	departmentID uuid.UUID,
+	userID uint,
+	email string,
+	changes map[string]interface{},
+	metadata map[string]interface{},
+	ipAddress string,
+	userAgent string,
+) error {
+	auditLog := AuditLogRequest{
+		Action:     string(action),
+		Entity:     "department",
+		EntityID:   departmentID.String(),
 		UserID:     userID,
 		Email:      email,
 		Changes:    changes,

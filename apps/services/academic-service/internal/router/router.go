@@ -7,9 +7,10 @@ import (
 )
 
 type Config struct {
-	HealthHandler  *handler.HealthHandler
-	FacultyHandler *handler.FacultyHandler
-	JWTSecretKey   []byte
+	HealthHandler     *handler.HealthHandler
+	FacultyHandler    *handler.FacultyHandler
+	DepartmentHandler *handler.DepartmentHandler
+	JWTSecretKey      []byte
 }
 
 func SetupRoutes(app *fiber.App, cfg Config) {
@@ -32,6 +33,15 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	faculties.Put("/:id", cfg.FacultyHandler.UpdateFaculty)
 	faculties.Patch("/:id/deactivate", cfg.FacultyHandler.DeactivateFaculty)
 	faculties.Get("/:id/leaders", cfg.FacultyHandler.GetFacultyLeaders)
+	faculties.Get("/:id/departments", cfg.DepartmentHandler.ListDepartmentsByFaculty)
+
+	// Department routes
+	departments := superAdmin.Group("/departments")
+	departments.Post("/", cfg.DepartmentHandler.CreateDepartment)
+	departments.Get("/", cfg.DepartmentHandler.ListDepartments)
+	departments.Get("/:id", cfg.DepartmentHandler.GetDepartment)
+	departments.Put("/:id", cfg.DepartmentHandler.UpdateDepartment)
+	departments.Patch("/:id/deactivate", cfg.DepartmentHandler.DeactivateDepartment)
 
 	app.Get("/", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{
