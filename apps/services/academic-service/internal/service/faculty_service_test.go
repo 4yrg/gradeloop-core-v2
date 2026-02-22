@@ -87,6 +87,62 @@ func (m *MockFacultyLeadershipRepository) DeactivateLeadersByFacultyID(facultyID
 	return args.Error(0)
 }
 
+// MockDepartmentRepository is a mock implementation of DepartmentRepository
+type MockDepartmentRepository struct {
+	mock.Mock
+}
+
+func (m *MockDepartmentRepository) CreateDepartment(department *domain.Department) error {
+	args := m.Called(department)
+	return args.Error(0)
+}
+
+func (m *MockDepartmentRepository) UpdateDepartment(department *domain.Department) error {
+	args := m.Called(department)
+	return args.Error(0)
+}
+
+func (m *MockDepartmentRepository) GetDepartmentByID(id uuid.UUID) (*domain.Department, error) {
+	args := m.Called(id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Department), args.Error(1)
+}
+
+func (m *MockDepartmentRepository) GetDepartmentByCodeAndFaculty(code string, facultyID uuid.UUID) (*domain.Department, error) {
+	args := m.Called(code, facultyID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Department), args.Error(1)
+}
+
+func (m *MockDepartmentRepository) ListDepartments(includeInactive bool) ([]domain.Department, error) {
+	args := m.Called(includeInactive)
+	return args.Get(0).([]domain.Department), args.Error(1)
+}
+
+func (m *MockDepartmentRepository) ListDepartmentsByFaculty(facultyID uuid.UUID, includeInactive bool) ([]domain.Department, error) {
+	args := m.Called(facultyID, includeInactive)
+	return args.Get(0).([]domain.Department), args.Error(1)
+}
+
+func (m *MockDepartmentRepository) SoftDeleteDepartment(id uuid.UUID) error {
+	args := m.Called(id)
+	return args.Error(0)
+}
+
+func (m *MockDepartmentRepository) DeactivateDepartmentsByFacultyID(facultyID uuid.UUID) error {
+	args := m.Called(facultyID)
+	return args.Error(0)
+}
+
+func (m *MockDepartmentRepository) DepartmentExists(id uuid.UUID) (bool, error) {
+	args := m.Called(id)
+	return args.Bool(0), args.Error(1)
+}
+
 func setupTestDB(t *testing.T) *gorm.DB {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
@@ -102,11 +158,12 @@ func setupTestDB(t *testing.T) *gorm.DB {
 func TestCreateFaculty_Success(t *testing.T) {
 	mockFacultyRepo := new(MockFacultyRepository)
 	mockLeadershipRepo := new(MockFacultyLeadershipRepository)
+	mockDepartmentRepo := new(MockDepartmentRepository)
 	db := setupTestDB(t)
 	logger := zap.NewNop()
 	auditClient := client.NewAuditClient("http://localhost:8081", logger)
 
-	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, auditClient, logger)
+	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, mockDepartmentRepo, auditClient, logger)
 
 	req := &dto.CreateFacultyRequest{
 		Name:        "Faculty of Computing",
@@ -135,11 +192,12 @@ func TestCreateFaculty_Success(t *testing.T) {
 func TestCreateFaculty_DuplicateCode(t *testing.T) {
 	mockFacultyRepo := new(MockFacultyRepository)
 	mockLeadershipRepo := new(MockFacultyLeadershipRepository)
+	mockDepartmentRepo := new(MockDepartmentRepository)
 	db := setupTestDB(t)
 	logger := zap.NewNop()
 	auditClient := client.NewAuditClient("http://localhost:8081", logger)
 
-	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, auditClient, logger)
+	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, mockDepartmentRepo, auditClient, logger)
 
 	existingFaculty := &domain.Faculty{
 		ID:   uuid.New(),
@@ -171,11 +229,12 @@ func TestCreateFaculty_DuplicateCode(t *testing.T) {
 func TestCreateFaculty_NoLeaders(t *testing.T) {
 	mockFacultyRepo := new(MockFacultyRepository)
 	mockLeadershipRepo := new(MockFacultyLeadershipRepository)
+	mockDepartmentRepo := new(MockDepartmentRepository)
 	db := setupTestDB(t)
 	logger := zap.NewNop()
 	auditClient := client.NewAuditClient("http://localhost:8081", logger)
 
-	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, auditClient, logger)
+	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, mockDepartmentRepo, auditClient, logger)
 
 	req := &dto.CreateFacultyRequest{
 		Name:    "Faculty of Computing",
@@ -193,11 +252,12 @@ func TestCreateFaculty_NoLeaders(t *testing.T) {
 func TestCreateFaculty_InvalidName(t *testing.T) {
 	mockFacultyRepo := new(MockFacultyRepository)
 	mockLeadershipRepo := new(MockFacultyLeadershipRepository)
+	mockDepartmentRepo := new(MockDepartmentRepository)
 	db := setupTestDB(t)
 	logger := zap.NewNop()
 	auditClient := client.NewAuditClient("http://localhost:8081", logger)
 
-	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, auditClient, logger)
+	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, mockDepartmentRepo, auditClient, logger)
 
 	req := &dto.CreateFacultyRequest{
 		Name: "FO",
@@ -220,11 +280,12 @@ func TestCreateFaculty_InvalidName(t *testing.T) {
 func TestUpdateFaculty_Success(t *testing.T) {
 	mockFacultyRepo := new(MockFacultyRepository)
 	mockLeadershipRepo := new(MockFacultyLeadershipRepository)
+	mockDepartmentRepo := new(MockDepartmentRepository)
 	db := setupTestDB(t)
 	logger := zap.NewNop()
 	auditClient := client.NewAuditClient("http://localhost:8081", logger)
 
-	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, auditClient, logger)
+	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, mockDepartmentRepo, auditClient, logger)
 
 	facultyID := uuid.New()
 	existingFaculty := &domain.Faculty{
@@ -253,11 +314,12 @@ func TestUpdateFaculty_Success(t *testing.T) {
 func TestUpdateFaculty_NotFound(t *testing.T) {
 	mockFacultyRepo := new(MockFacultyRepository)
 	mockLeadershipRepo := new(MockFacultyLeadershipRepository)
+	mockDepartmentRepo := new(MockDepartmentRepository)
 	db := setupTestDB(t)
 	logger := zap.NewNop()
 	auditClient := client.NewAuditClient("http://localhost:8081", logger)
 
-	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, auditClient, logger)
+	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, mockDepartmentRepo, auditClient, logger)
 
 	facultyID := uuid.New()
 	req := &dto.UpdateFacultyRequest{
@@ -277,11 +339,12 @@ func TestUpdateFaculty_NotFound(t *testing.T) {
 func TestUpdateFaculty_WithLeaders(t *testing.T) {
 	mockFacultyRepo := new(MockFacultyRepository)
 	mockLeadershipRepo := new(MockFacultyLeadershipRepository)
+	mockDepartmentRepo := new(MockDepartmentRepository)
 	db := setupTestDB(t)
 	logger := zap.NewNop()
 	auditClient := client.NewAuditClient("http://localhost:8081", logger)
 
-	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, auditClient, logger)
+	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, mockDepartmentRepo, auditClient, logger)
 
 	facultyID := uuid.New()
 	existingFaculty := &domain.Faculty{
@@ -314,14 +377,15 @@ func TestUpdateFaculty_WithLeaders(t *testing.T) {
 	mockFacultyRepo.AssertExpectations(t)
 }
 
-func TestUpdateFaculty_NoLeaders(t *testing.T) {
+func TestUpdateFaculty_EmptyLeaders(t *testing.T) {
 	mockFacultyRepo := new(MockFacultyRepository)
 	mockLeadershipRepo := new(MockFacultyLeadershipRepository)
+	mockDepartmentRepo := new(MockDepartmentRepository)
 	db := setupTestDB(t)
 	logger := zap.NewNop()
 	auditClient := client.NewAuditClient("http://localhost:8081", logger)
 
-	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, auditClient, logger)
+	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, mockDepartmentRepo, auditClient, logger)
 
 	facultyID := uuid.New()
 	existingFaculty := &domain.Faculty{
@@ -348,11 +412,12 @@ func TestUpdateFaculty_NoLeaders(t *testing.T) {
 func TestDeactivateFaculty_Success(t *testing.T) {
 	mockFacultyRepo := new(MockFacultyRepository)
 	mockLeadershipRepo := new(MockFacultyLeadershipRepository)
+	mockDepartmentRepo := new(MockDepartmentRepository)
 	db := setupTestDB(t)
 	logger := zap.NewNop()
 	auditClient := client.NewAuditClient("http://localhost:8081", logger)
 
-	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, auditClient, logger)
+	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, mockDepartmentRepo, auditClient, logger)
 
 	facultyID := uuid.New()
 	existingFaculty := &domain.Faculty{
@@ -364,8 +429,9 @@ func TestDeactivateFaculty_Success(t *testing.T) {
 
 	mockFacultyRepo.On("GetFacultyByID", facultyID).Return(existingFaculty, nil)
 	mockFacultyRepo.On("UpdateFaculty", mock.AnythingOfType("*domain.Faculty")).Return(nil)
+	mockDepartmentRepo.On("DeactivateDepartmentsByFacultyID", facultyID).Return(nil)
 
-	err := service.DeactivateFaculty(facultyID, 1, "admin@test.com", "127.0.0.1", "test-agent")
+	err := service.DeactivateFaculty(facultyID, 0, "admin@test.com", "127.0.0.1", "test-agent")
 
 	assert.NoError(t, err)
 	mockFacultyRepo.AssertExpectations(t)
@@ -374,11 +440,12 @@ func TestDeactivateFaculty_Success(t *testing.T) {
 func TestDeactivateFaculty_NotFound(t *testing.T) {
 	mockFacultyRepo := new(MockFacultyRepository)
 	mockLeadershipRepo := new(MockFacultyLeadershipRepository)
+	mockDepartmentRepo := new(MockDepartmentRepository)
 	db := setupTestDB(t)
 	logger := zap.NewNop()
 	auditClient := client.NewAuditClient("http://localhost:8081", logger)
 
-	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, auditClient, logger)
+	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, mockDepartmentRepo, auditClient, logger)
 
 	facultyID := uuid.New()
 	mockFacultyRepo.On("GetFacultyByID", facultyID).Return(nil, nil)
@@ -393,11 +460,12 @@ func TestDeactivateFaculty_NotFound(t *testing.T) {
 func TestGetFacultyByID_Success(t *testing.T) {
 	mockFacultyRepo := new(MockFacultyRepository)
 	mockLeadershipRepo := new(MockFacultyLeadershipRepository)
+	mockDepartmentRepo := new(MockDepartmentRepository)
 	db := setupTestDB(t)
 	logger := zap.NewNop()
 	auditClient := client.NewAuditClient("http://localhost:8081", logger)
 
-	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, auditClient, logger)
+	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, mockDepartmentRepo, auditClient, logger)
 
 	facultyID := uuid.New()
 	expectedFaculty := &domain.Faculty{
@@ -421,11 +489,12 @@ func TestGetFacultyByID_Success(t *testing.T) {
 func TestGetFacultyByID_NotFound(t *testing.T) {
 	mockFacultyRepo := new(MockFacultyRepository)
 	mockLeadershipRepo := new(MockFacultyLeadershipRepository)
+	mockDepartmentRepo := new(MockDepartmentRepository)
 	db := setupTestDB(t)
 	logger := zap.NewNop()
 	auditClient := client.NewAuditClient("http://localhost:8081", logger)
 
-	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, auditClient, logger)
+	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, mockDepartmentRepo, auditClient, logger)
 
 	facultyID := uuid.New()
 	mockFacultyRepo.On("GetFacultyByID", facultyID).Return(nil, nil)
@@ -438,14 +507,15 @@ func TestGetFacultyByID_NotFound(t *testing.T) {
 	mockFacultyRepo.AssertExpectations(t)
 }
 
-func TestListFaculties_Success(t *testing.T) {
+func TestListFaculties_Empty(t *testing.T) {
 	mockFacultyRepo := new(MockFacultyRepository)
 	mockLeadershipRepo := new(MockFacultyLeadershipRepository)
+	mockDepartmentRepo := new(MockDepartmentRepository)
 	db := setupTestDB(t)
 	logger := zap.NewNop()
 	auditClient := client.NewAuditClient("http://localhost:8081", logger)
 
-	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, auditClient, logger)
+	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, mockDepartmentRepo, auditClient, logger)
 
 	expectedFaculties := []domain.Faculty{
 		{
@@ -474,11 +544,12 @@ func TestListFaculties_Success(t *testing.T) {
 func TestGetFacultyLeaders_Success(t *testing.T) {
 	mockFacultyRepo := new(MockFacultyRepository)
 	mockLeadershipRepo := new(MockFacultyLeadershipRepository)
+	mockDepartmentRepo := new(MockDepartmentRepository)
 	db := setupTestDB(t)
 	logger := zap.NewNop()
 	auditClient := client.NewAuditClient("http://localhost:8081", logger)
 
-	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, auditClient, logger)
+	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, mockDepartmentRepo, auditClient, logger)
 
 	facultyID := uuid.New()
 	expectedLeaders := []domain.FacultyLeadership{
@@ -510,11 +581,12 @@ func TestGetFacultyLeaders_Success(t *testing.T) {
 func TestGetFacultyLeaders_FacultyNotFound(t *testing.T) {
 	mockFacultyRepo := new(MockFacultyRepository)
 	mockLeadershipRepo := new(MockFacultyLeadershipRepository)
+	mockDepartmentRepo := new(MockDepartmentRepository)
 	db := setupTestDB(t)
 	logger := zap.NewNop()
 	auditClient := client.NewAuditClient("http://localhost:8081", logger)
 
-	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, auditClient, logger)
+	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, mockDepartmentRepo, auditClient, logger)
 
 	facultyID := uuid.New()
 	mockFacultyRepo.On("FacultyExists", facultyID).Return(false, nil)
@@ -527,14 +599,15 @@ func TestGetFacultyLeaders_FacultyNotFound(t *testing.T) {
 	mockFacultyRepo.AssertExpectations(t)
 }
 
-func TestValidateCreateRequest_InvalidLeaderRole(t *testing.T) {
+func TestValidateUpdateRequest_EmptyLeaders(t *testing.T) {
 	mockFacultyRepo := new(MockFacultyRepository)
 	mockLeadershipRepo := new(MockFacultyLeadershipRepository)
+	mockDepartmentRepo := new(MockDepartmentRepository)
 	db := setupTestDB(t)
 	logger := zap.NewNop()
 	auditClient := client.NewAuditClient("http://localhost:8081", logger)
 
-	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, auditClient, logger)
+	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, mockDepartmentRepo, auditClient, logger)
 
 	req := &dto.CreateFacultyRequest{
 		Name: "Faculty of Computing",
@@ -554,14 +627,15 @@ func TestValidateCreateRequest_InvalidLeaderRole(t *testing.T) {
 	assert.Contains(t, err.Error(), "role must be between 3 and 100 characters")
 }
 
-func TestValidateCreateRequest_InvalidLeaderUserID(t *testing.T) {
+func TestValidateUpdateRequest_InvalidName(t *testing.T) {
 	mockFacultyRepo := new(MockFacultyRepository)
 	mockLeadershipRepo := new(MockFacultyLeadershipRepository)
+	mockDepartmentRepo := new(MockDepartmentRepository)
 	db := setupTestDB(t)
 	logger := zap.NewNop()
 	auditClient := client.NewAuditClient("http://localhost:8081", logger)
 
-	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, auditClient, logger)
+	service := NewFacultyService(db, mockFacultyRepo, mockLeadershipRepo, mockDepartmentRepo, auditClient, logger)
 
 	req := &dto.CreateFacultyRequest{
 		Name: "Faculty of Computing",

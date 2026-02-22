@@ -71,13 +71,16 @@ func run() error {
 	// Initialize repositories
 	facultyRepo := repository.NewFacultyRepository(db.DB)
 	leadershipRepo := repository.NewFacultyLeadershipRepository(db.DB)
+	departmentRepo := repository.NewDepartmentRepository(db.DB)
 
 	// Initialize services
-	facultyService := service.NewFacultyService(db.DB, facultyRepo, leadershipRepo, auditClient, logger)
+	facultyService := service.NewFacultyService(db.DB, facultyRepo, leadershipRepo, departmentRepo, auditClient, logger)
+	departmentService := service.NewDepartmentService(db.DB, departmentRepo, facultyRepo, auditClient, logger)
 
 	// Initialize handlers
 	healthHandler := handler.NewHealthHandler()
 	facultyHandler := handler.NewFacultyHandler(facultyService, logger)
+	departmentHandler := handler.NewDepartmentHandler(departmentService, logger)
 
 	app := fiber.New(fiber.Config{
 		AppName:      "academic-service",
@@ -94,9 +97,10 @@ func run() error {
 	}))
 
 	router.SetupRoutes(app, router.Config{
-		HealthHandler:  healthHandler,
-		FacultyHandler: facultyHandler,
-		JWTSecretKey:   []byte(cfg.JWT.SecretKey),
+		HealthHandler:     healthHandler,
+		FacultyHandler:    facultyHandler,
+		DepartmentHandler: departmentHandler,
+		JWTSecretKey:      []byte(cfg.JWT.SecretKey),
 	})
 
 	sigChan := make(chan os.Signal, 1)

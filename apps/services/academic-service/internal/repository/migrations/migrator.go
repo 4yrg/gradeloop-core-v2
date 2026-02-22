@@ -30,8 +30,18 @@ func (m *Migrator) Run() error {
 		&domain.Enrollment{},
 		&domain.Faculty{},
 		&domain.FacultyLeadership{},
+		&domain.Department{},
 	); err != nil {
 		return fmt.Errorf("auto migrate: %w", err)
+	}
+
+	// Add unique constraint for (faculty_id, code)
+	if err := m.db.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_departments_faculty_code
+		ON departments(faculty_id, code)
+		WHERE deleted_at IS NULL
+	`).Error; err != nil {
+		m.logger.Warn("failed to create unique index on departments", zap.Error(err))
 	}
 
 	m.logger.Info("migrations completed successfully")
