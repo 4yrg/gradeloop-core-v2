@@ -97,7 +97,7 @@ axiosInstance.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      // Call refresh token endpoint
+      // The refresh token lives in an HttpOnly cookie; withCredentials sends it.
       const { data } = await axios.post(
         `${API_URL}/auth/refresh`,
         {},
@@ -109,7 +109,7 @@ axiosInstance.interceptors.response.use(
 
       const newToken = data.access_token;
 
-      // Update token in store
+      // Update the in-memory access token and re-decode user claims.
       useAuthStore.getState().setAccessToken(newToken);
 
       // Process queued requests

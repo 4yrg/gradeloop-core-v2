@@ -123,6 +123,8 @@ export const useAuthStore = create<AuthState>()(
           const API_URL =
             process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
+          // The refresh token lives in an HttpOnly cookie set by the server.
+          // withCredentials ensures the browser sends it automatically.
           const res = await axiosBase.post(
             `${API_URL}/auth/refresh`,
             {},
@@ -146,7 +148,7 @@ export const useAuthStore = create<AuthState>()(
 
           set({ accessToken: newToken, user, isAuthenticated: true });
         } catch {
-          // Refresh token missing / expired – clear stale flags
+          // No cookie / expired — user must log in. This is expected on first load.
           set({ accessToken: null, isAuthenticated: false });
         } finally {
           set({ isLoading: false, isHydrated: true });
@@ -182,7 +184,8 @@ export const useAuthStore = create<AuthState>()(
         }
         return localStorage;
       }),
-      // Access token is intentionally excluded from persistence
+      // accessToken and refreshToken are intentionally excluded from persistence.
+      // The refresh token lives in an HttpOnly cookie managed by the browser.
       partialize: (state) => ({ user: state.user }),
     },
   ),

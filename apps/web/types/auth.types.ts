@@ -37,9 +37,9 @@ export interface LoginRequest {
 }
 
 /**
- * The IAM login endpoint returns ONLY the access token.
- * The refresh token is delivered via an HttpOnly cookie.
- * There is no `user` field in the response.
+ * The IAM login endpoint returns only the access token in the response body.
+ * The refresh token is set as an HttpOnly cookie by the server.
+ * There is no `user` field — all user data is embedded in the JWT claims.
  */
 export interface LoginResponse {
   access_token: string;
@@ -94,61 +94,6 @@ export interface UserListItem {
   created_at: string;
 }
 
-export interface ApiError {
-  message: string;
-  status?: number;
-  errors?: Record<string, string[]>;
-}
-
-
-// Login types
-export interface LoginRequest {
-  username: string;
-  password: string;
-}
-
-export interface LoginResponse {
-  access_token: string;
-  token_type: string;
-  user: User;
-}
-
-// Forgot Password types
-export interface ForgotPasswordRequest {
-  email: string;
-}
-
-export interface ForgotPasswordResponse {
-  message: string;
-}
-
-// Reset Password types
-export interface ResetPasswordRequest {
-  token: string;
-  new_password: string;
-}
-
-export interface ResetPasswordResponse {
-  message: string;
-}
-
-// Refresh Token types
-export interface RefreshTokenResponse {
-  access_token: string;
-  token_type: string;
-}
-
-// Change Password types
-export interface ChangePasswordRequest {
-  current_password: string;
-  new_password: string;
-}
-
-export interface ChangePasswordResponse {
-  message: string;
-}
-
-// Error types
 export interface ApiError {
   message: string;
   status?: number;
