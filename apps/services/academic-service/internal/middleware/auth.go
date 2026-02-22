@@ -8,12 +8,22 @@ import (
 	"github.com/gradeloop/academic-service/internal/utils"
 )
 
+// Claims matches the JWT structure from IAM Service
 type Claims struct {
-	UserID      uint     `json:"user_id"`
-	Email       string   `json:"email"`
-	Roles       []string `json:"roles"`
+	UserID      string   `json:"user_id"`   // Changed: UUID string from IAM
+	Username    string   `json:"username"`  // Changed: Added username field
+	RoleName    string   `json:"role_name"` // Changed: Single role string from IAM
 	Permissions []string `json:"permissions"`
 	jwt.RegisteredClaims
+}
+
+// normalizeRole converts role names to a standard format for comparison
+// Handles: "Super Admin" -> "super_admin", "super_admin" -> "super_admin"
+func normalizeRole(role string) string {
+	// Convert to lowercase and replace spaces with underscores
+	normalized := strings.ToLower(strings.TrimSpace(role))
+	normalized = strings.ReplaceAll(normalized, " ", "_")
+	return normalized
 }
 
 func AuthMiddleware(secretKey []byte) fiber.Handler {
@@ -46,9 +56,10 @@ func AuthMiddleware(secretKey []byte) fiber.Handler {
 			return utils.ErrUnauthorized("Invalid token claims")
 		}
 
+		// Store claims in context for handlers to access
 		c.Locals("user_id", claims.UserID)
-		c.Locals("email", claims.Email)
-		c.Locals("roles", claims.Roles)
+		c.Locals("username", claims.Username)
+		c.Locals("role_name", claims.RoleName)
 		c.Locals("permissions", claims.Permissions)
 
 		return c.Next()
@@ -72,17 +83,21 @@ func RequirePermission(permission string) fiber.Handler {
 	}
 }
 
+// RequireRole checks if the user has the required role
+// Supports both formats: "Super Admin" and "super_admin"
 func RequireRole(role string) fiber.Handler {
 	return func(c fiber.Ctx) error {
-		roles, ok := c.Locals("roles").([]string)
-		if !ok {
-			return utils.ErrForbidden("No roles found")
+		roleName, ok := c.Locals("role_name").(string)
+		if !ok || roleName == "" {
+			return utils.ErrForbidden("No role found")
 		}
 
-		for _, r := range roles {
-			if r == role {
-				return c.Next()
-			}
+		// Normalize both roles for comparison
+		normalizedUserRole := normalizeRole(roleName)
+		normalizedRequiredRole := normalizeRole(role)
+
+		if normalizedUserRole == normalizedRequiredRole {
+			return c.Next()
 		}
 
 		return utils.ErrForbidden("Insufficient role")

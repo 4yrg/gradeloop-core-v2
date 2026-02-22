@@ -31,17 +31,19 @@ func (h *FacultyHandler) CreateFaculty(c fiber.Ctx) error {
 		return utils.ErrBadRequest("invalid request body")
 	}
 
-	// Get user info from context
-	userID, ok := c.Locals("user_id").(uint)
-	if !ok {
+	// Get user info from context (username from IAM JWT)
+	username, ok := c.Locals("username").(string)
+	if !ok || username == "" {
 		return utils.ErrUnauthorized("user not authenticated")
 	}
 
-	email, _ := c.Locals("email").(string)
+	// For now, use username as email for audit logging
+	// TODO: Fetch actual user details from IAM service if needed
 	ipAddress := c.IP()
 	userAgent := c.Get("User-Agent")
 
-	faculty, err := h.facultyService.CreateFaculty(&req, userID, email, ipAddress, userAgent)
+	// Use 0 as placeholder user_id since we're using UUID-based auth
+	faculty, err := h.facultyService.CreateFaculty(&req, 0, username, ipAddress, userAgent)
 	if err != nil {
 		return err
 	}
@@ -63,17 +65,17 @@ func (h *FacultyHandler) UpdateFaculty(c fiber.Ctx) error {
 		return utils.ErrBadRequest("invalid request body")
 	}
 
-	// Get user info from context
-	userID, ok := c.Locals("user_id").(uint)
-	if !ok {
+	// Get user info from context (username from IAM JWT)
+	username, ok := c.Locals("username").(string)
+	if !ok || username == "" {
 		return utils.ErrUnauthorized("user not authenticated")
 	}
 
-	email, _ := c.Locals("email").(string)
 	ipAddress := c.IP()
 	userAgent := c.Get("User-Agent")
 
-	faculty, err := h.facultyService.UpdateFaculty(id, &req, userID, email, ipAddress, userAgent)
+	// Use 0 as placeholder user_id since we're using UUID-based auth
+	faculty, err := h.facultyService.UpdateFaculty(id, &req, 0, username, ipAddress, userAgent)
 	if err != nil {
 		return err
 	}
@@ -90,17 +92,17 @@ func (h *FacultyHandler) DeactivateFaculty(c fiber.Ctx) error {
 		return utils.ErrBadRequest("invalid faculty id")
 	}
 
-	// Get user info from context
-	userID, ok := c.Locals("user_id").(uint)
-	if !ok {
+	// Get user info from context (username from IAM JWT)
+	username, ok := c.Locals("username").(string)
+	if !ok || username == "" {
 		return utils.ErrUnauthorized("user not authenticated")
 	}
 
-	email, _ := c.Locals("email").(string)
 	ipAddress := c.IP()
 	userAgent := c.Get("User-Agent")
 
-	if err := h.facultyService.DeactivateFaculty(id, userID, email, ipAddress, userAgent); err != nil {
+	// Use 0 as placeholder user_id since we're using UUID-based auth
+	if err := h.facultyService.DeactivateFaculty(id, 0, username, ipAddress, userAgent); err != nil {
 		return err
 	}
 

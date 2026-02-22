@@ -106,6 +106,13 @@ services:
       dockerfile: Dockerfile
     container_name: email-service
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.email.rule=PathPrefix(`/api/v1/emails`)"
+      - "traefik.http.routers.email.entrypoints=web"
+      - "traefik.http.services.email-service.loadbalancer.server.port=8082"
+      # Apply middlewares (sharing the same limits as others if desired, or none)
+      - "traefik.http.routers.email.middlewares=limit"
 
     env_file:
       - .env
@@ -149,7 +156,7 @@ services:
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.academic.rule=PathPrefix(`/api/v1/faculties`) || PathPrefix(`/api/v1/courses`) || PathPrefix(`/api/v1/programs`) || PathPrefix(`/api/v1/semesters`) || PathPrefix(`/api/v1/enrollments`)"
+      - "traefik.http.routers.academic.rule=PathPrefix(`/api/v1/faculties`)"
       - "traefik.http.routers.academic.entrypoints=web"
       - "traefik.http.services.academic-service.loadbalancer.server.port=8083"
       # Request Size Limiting (1MB)
