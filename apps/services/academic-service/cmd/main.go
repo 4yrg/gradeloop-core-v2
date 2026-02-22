@@ -77,10 +77,20 @@ func run() error {
 	facultyService := service.NewFacultyService(db.DB, facultyRepo, leadershipRepo, departmentRepo, auditClient, logger)
 	departmentService := service.NewDepartmentService(db.DB, departmentRepo, facultyRepo, auditClient, logger)
 
+	// Initialize repositories for degrees & specializations
+	degreeRepo := repository.NewDegreeRepository(db.DB)
+	specializationRepo := repository.NewSpecializationRepository(db.DB)
+
+	// Initialize services for degrees & specializations
+	degreeService := service.NewDegreeService(db.DB, degreeRepo, specializationRepo, departmentRepo, auditClient, logger)
+	specializationService := service.NewSpecializationService(db.DB, specializationRepo, degreeRepo, auditClient, logger)
+
 	// Initialize handlers
 	healthHandler := handler.NewHealthHandler()
 	facultyHandler := handler.NewFacultyHandler(facultyService, logger)
 	departmentHandler := handler.NewDepartmentHandler(departmentService, logger)
+	degreeHandler := handler.NewDegreeHandler(degreeService, logger)
+	specializationHandler := handler.NewSpecializationHandler(specializationService, logger)
 
 	app := fiber.New(fiber.Config{
 		AppName:      "academic-service",
@@ -97,10 +107,12 @@ func run() error {
 	}))
 
 	router.SetupRoutes(app, router.Config{
-		HealthHandler:     healthHandler,
-		FacultyHandler:    facultyHandler,
-		DepartmentHandler: departmentHandler,
-		JWTSecretKey:      []byte(cfg.JWT.SecretKey),
+		HealthHandler:         healthHandler,
+		FacultyHandler:        facultyHandler,
+		DepartmentHandler:     departmentHandler,
+		DegreeHandler:         degreeHandler,
+		SpecializationHandler: specializationHandler,
+		JWTSecretKey:          []byte(cfg.JWT.SecretKey),
 	})
 
 	sigChan := make(chan os.Signal, 1)
