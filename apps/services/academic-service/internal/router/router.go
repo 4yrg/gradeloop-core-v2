@@ -10,10 +10,12 @@ import (
 )
 
 type Config struct {
-	HealthHandler     *handler.HealthHandler
-	FacultyHandler    *handler.FacultyHandler
-	DepartmentHandler *handler.DepartmentHandler
-	JWTSecretKey      []byte
+	HealthHandler         *handler.HealthHandler
+	FacultyHandler        *handler.FacultyHandler
+	DepartmentHandler     *handler.DepartmentHandler
+	DegreeHandler         *handler.DegreeHandler
+	SpecializationHandler *handler.SpecializationHandler
+	JWTSecretKey          []byte
 }
 
 // requireAdminRole is a custom middleware that checks for super_admin OR faculty_admin
@@ -62,6 +64,8 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	departments := protected.Group("/departments", requireAdminRole())
 	departments.Post("/", cfg.DepartmentHandler.CreateDepartment)
 	departments.Get("/", cfg.DepartmentHandler.ListDepartments)
+	// List degrees for a department
+	departments.Get("/:id/degrees", cfg.DegreeHandler.ListDegreesByDepartment)
 	departments.Get("/:id", cfg.DepartmentHandler.GetDepartment)
 	departments.Put("/:id", cfg.DepartmentHandler.UpdateDepartment)
 	departments.Patch("/:id/deactivate", cfg.DepartmentHandler.DeactivateDepartment)
@@ -69,6 +73,23 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	// Faculty departments endpoint - Super Admin OR Faculty Admin
 	facultiesAdmin := protected.Group("/faculties", requireAdminRole())
 	facultiesAdmin.Get("/:id/departments", cfg.DepartmentHandler.ListDepartmentsByFaculty)
+
+	// Degree routes - Super Admin OR Faculty Admin
+	degrees := protected.Group("/degrees", requireAdminRole())
+	degrees.Post("/", cfg.DegreeHandler.CreateDegree)
+	degrees.Get("/", cfg.DegreeHandler.ListDegrees)
+	degrees.Get("/:id", cfg.DegreeHandler.GetDegree)
+	degrees.Put("/:id", cfg.DegreeHandler.UpdateDegree)
+	degrees.Patch("/:id/deactivate", cfg.DegreeHandler.DeactivateDegree)
+	// List specializations for a degree
+	degrees.Get("/:id/specializations", cfg.SpecializationHandler.ListSpecializationsByDegree)
+
+	// Specialization routes - Super Admin OR Faculty Admin
+	specializations := protected.Group("/specializations", requireAdminRole())
+	specializations.Post("/", cfg.SpecializationHandler.CreateSpecialization)
+	specializations.Get("/:id", cfg.SpecializationHandler.GetSpecialization)
+	specializations.Put("/:id", cfg.SpecializationHandler.UpdateSpecialization)
+	specializations.Patch("/:id/deactivate", cfg.SpecializationHandler.DeactivateSpecialization)
 
 	app.Get("/", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{

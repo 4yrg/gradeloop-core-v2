@@ -21,6 +21,16 @@ const (
 	AuditActionDepartmentCreated     AuditAction = "DEPARTMENT_CREATED"
 	AuditActionDepartmentUpdated     AuditAction = "DEPARTMENT_UPDATED"
 	AuditActionDepartmentDeactivated AuditAction = "DEPARTMENT_DEACTIVATED"
+
+	// Degree actions
+	AuditActionDegreeCreated     AuditAction = "DEGREE_CREATED"
+	AuditActionDegreeUpdated     AuditAction = "DEGREE_UPDATED"
+	AuditActionDegreeDeactivated AuditAction = "DEGREE_DEACTIVATED"
+
+	// Specialization actions
+	AuditActionSpecializationCreated     AuditAction = "SPECIALIZATION_CREATED"
+	AuditActionSpecializationUpdated     AuditAction = "SPECIALIZATION_UPDATED"
+	AuditActionSpecializationDeactivated AuditAction = "SPECIALIZATION_DEACTIVATED"
 )
 
 // AuditLogRequest represents the request body for audit logging
@@ -99,6 +109,62 @@ func (c *AuditClient) LogDepartmentAction(
 		Action:     string(action),
 		Entity:     "department",
 		EntityID:   departmentID.String(),
+		UserID:     userID,
+		Email:      email,
+		Changes:    changes,
+		Metadata:   metadata,
+		IPAddress:  ipAddress,
+		UserAgent:  userAgent,
+		Service:    "academic-service",
+		OccurredAt: time.Now(),
+	}
+
+	return c.sendAuditLog(auditLog)
+}
+
+// LogDegreeAction logs a degree-related action
+func (c *AuditClient) LogDegreeAction(
+	action AuditAction,
+	degreeID uuid.UUID,
+	userID uint,
+	email string,
+	changes map[string]interface{},
+	metadata map[string]interface{},
+	ipAddress string,
+	userAgent string,
+) error {
+	auditLog := AuditLogRequest{
+		Action:     string(action),
+		Entity:     "degree",
+		EntityID:   degreeID.String(),
+		UserID:     userID,
+		Email:      email,
+		Changes:    changes,
+		Metadata:   metadata,
+		IPAddress:  ipAddress,
+		UserAgent:  userAgent,
+		Service:    "academic-service",
+		OccurredAt: time.Now(),
+	}
+
+	return c.sendAuditLog(auditLog)
+}
+
+// LogSpecializationAction logs a specialization-related action
+func (c *AuditClient) LogSpecializationAction(
+	action AuditAction,
+	specializationID uuid.UUID,
+	userID uint,
+	email string,
+	changes map[string]interface{},
+	metadata map[string]interface{},
+	ipAddress string,
+	userAgent string,
+) error {
+	auditLog := AuditLogRequest{
+		Action:     string(action),
+		Entity:     "specialization",
+		EntityID:   specializationID.String(),
 		UserID:     userID,
 		Email:      email,
 		Changes:    changes,
