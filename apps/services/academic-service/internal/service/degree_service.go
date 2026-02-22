@@ -176,11 +176,12 @@ func (s *degreeService) UpdateDegree(
 	}
 
 	if req.Code != "" && req.Code != degree.Code {
-		// check uniqueness within department
-		existing, err := s.degreeRepo.GetDegreeByIDByCodeAndDepartment(req.Code, degree.DepartmentID)
-		if err != nil {
-			// If repository does not provide such method, fallback to listing (graceful)
-			s.logger.Debug("GetDegreeByIDByCodeAndDepartment not available or failed, fallback", zap.Error(err))
+		// check uniqueness within department using optional helper
+		existing, err := s.optionalGetByCodeAndDepartment(req.Code, degree.DepartmentID)
+		// If optional helper is not implemented, it returns an error we can safely ignore for uniqueness fallback.
+		// If an actual error occurred while checking, log it.
+		if err != nil && err.Error() != "not implemented" {
+			s.logger.Debug("failed to check degree code uniqueness", zap.Error(err))
 		}
 		if existing != nil && existing.ID != degree.ID {
 			return nil, utils.ErrConflict("degree with this code already exists in this department")
@@ -600,8 +601,8 @@ func (s *degreeService) validateUpdateSpecializationRequest(req *dto.UpdateSpeci
 
 // --- Repository optional helper adaptation ---
 // Some repository implementations may not provide a code+department lookup helper.
-// Provide a default error-returning stub to allow compilation if repo doesn't implement it.
-var _ repository.DegreeRepository = (*repository.DegreeRepository)(nil)
+// The optionalGetByCodeAndDepartment method will attempt a type assertion to a richer repo.
+// No compile-time interface assertion is required here; the helper handles runtime assertions.
 
 // Since the existing repository interface in the project may not contain
 // GetDegreeByIDByCodeAndDepartment, we defensively attempt a type assertion
