@@ -33,6 +33,7 @@ func (m *Migrator) Run() error {
 		&domain.Department{},
 		&domain.Degree{},
 		&domain.Specialization{},
+		&domain.Batch{},
 	); err != nil {
 		return fmt.Errorf("auto migrate: %w", err)
 	}
@@ -62,6 +63,33 @@ func (m *Migrator) Run() error {
 		WHERE deleted_at IS NULL
 	`).Error; err != nil {
 		m.logger.Warn("failed to create unique index on specializations", zap.Error(err))
+	}
+
+	// Add unique constraint for (degree_id, code) on batches (partial — exclude soft-deleted)
+	if err := m.db.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_batches_degree_code
+		ON batches(degree_id, code)
+		WHERE deleted_at IS NULL
+	`).Error; err != nil {
+		m.logger.Warn("failed to create unique index on batches", zap.Error(err))
+	}
+
+	// Add index on parent_id for fast hierarchy traversal
+	if err := m.db.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_batches_parent_id
+		ON batches(parent_id)
+		WHERE deleted_at IS NULL
+	`).Error; err != nil {
+		m.logger.Warn("failed to create index on batches(parent_id)", zap.Error(err))
+	}
+
+	// Add index on degree_id for fast degree-scoped lookups
+	if err := m.db.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_batches_degree_id
+		ON batches(degree_id)
+		WHERE deleted_at IS NULL
+	`).Error; err != nil {
+		m.logger.Warn("failed to create index on batches(degree_id)", zap.Error(err))
 	}
 
 	m.logger.Info("migrations completed successfully")

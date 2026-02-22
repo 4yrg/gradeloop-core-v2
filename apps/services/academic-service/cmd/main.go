@@ -85,12 +85,19 @@ func run() error {
 	degreeService := service.NewDegreeService(db.DB, degreeRepo, specializationRepo, departmentRepo, auditClient, logger)
 	specializationService := service.NewSpecializationService(db.DB, specializationRepo, degreeRepo, auditClient, logger)
 
+	// Initialize repositories for batches
+	batchRepo := repository.NewBatchRepository(db.DB)
+
+	// Initialize services for batches
+	batchService := service.NewBatchService(db.DB, batchRepo, degreeRepo, specializationRepo, auditClient, logger)
+
 	// Initialize handlers
 	healthHandler := handler.NewHealthHandler()
 	facultyHandler := handler.NewFacultyHandler(facultyService, logger)
 	departmentHandler := handler.NewDepartmentHandler(departmentService, logger)
 	degreeHandler := handler.NewDegreeHandler(degreeService, logger)
 	specializationHandler := handler.NewSpecializationHandler(specializationService, logger)
+	batchHandler := handler.NewBatchHandler(batchService, logger)
 
 	app := fiber.New(fiber.Config{
 		AppName:      "academic-service",
@@ -112,6 +119,7 @@ func run() error {
 		DepartmentHandler:     departmentHandler,
 		DegreeHandler:         degreeHandler,
 		SpecializationHandler: specializationHandler,
+		BatchHandler:          batchHandler,
 		JWTSecretKey:          []byte(cfg.JWT.SecretKey),
 	})
 

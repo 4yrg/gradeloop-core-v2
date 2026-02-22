@@ -1,0 +1,105 @@
+meta {
+  name: Get Batch Tree
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{BATCHES_URL_V1}}/tree
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+
+docs {
+  # Get Batch Tree
+
+  Returns the full batch hierarchy as a recursive tree structure, starting from
+  all root-level batches (parent_id IS NULL) and nesting their descendants.
+
+  ## Endpoint
+  GET /api/v1/batches/tree
+
+  ## Authentication
+  - Requires a valid bearer access token (run the IAM Login request first).
+  - Caller must have `super_admin` or `faculty_admin` role.
+
+  ## Query Parameters
+  - `include_inactive` (boolean, optional, default: false)
+    - false => only active batches (is_active = true) appear in the tree
+    - true  => inactive batches are included; soft-deleted records are always excluded
+
+  ## How the Tree is Built
+  The service fetches all matching batches in a single flat SQL query and
+  assembles the nested structure in memory:
+
+  1. Every batch is indexed by its UUID.
+  2. Root nodes (parent_id IS NULL) become the top-level entries.
+  3. Each node's `children` array is populated by scanning for batches whose
+     `parent_id` equals the current node's `id`.
+  4. The process recurses until all leaves are attached.
+
+  ## Response (200 OK)
+  {
+    "tree": [
+      {
+        "id":               "uuid",
+        "parent_id":        null,
+        "degree_id":        "uuid",
+        "specialization_id": null,
+        "name":             "IT Class of 2025",
+        "code":             "IT2025",
+        "start_year":       2025,
+        "end_year":         2028,
+        "is_active":        true,
+        "children": [
+          {
+            "id":               "uuid",
+            "parent_id":        "uuid",
+            "degree_id":        "uuid",
+            "specialization_id": null,
+            "name":             "SE Track",
+            "code":             "SE",
+            "start_year":       2025,
+            "end_year":         2028,
+            "is_active":        true,
+            "children": [
+              {
+                "id":               "uuid",
+                "parent_id":        "uuid",
+                "degree_id":        "uuid",
+                "specialization_id": null,
+                "name":             "Project Alpha",
+                "code":             "PA",
+                "start_year":       2025,
+                "end_year":         2026,
+                "is_active":        true,
+                "children":         []
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "count": 1
+  }
+
+  ## Notes
+  - `count` reflects the number of root nodes, not the total number of batches.
+  - Leaf nodes always have `"children": []`.
+  - To retrieve the subtree rooted at a specific batch use
+    GET /api/v1/batches/:id/tree instead.
+
+  ## Error Responses
+  - 400 Bad Request  — invalid query parameters
+  - 401 Unauthorized — missing or invalid token
+  - 403 Forbidden    — insufficient role
+}

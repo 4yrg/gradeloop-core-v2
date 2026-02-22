@@ -31,6 +31,11 @@ const (
 	AuditActionSpecializationCreated     AuditAction = "SPECIALIZATION_CREATED"
 	AuditActionSpecializationUpdated     AuditAction = "SPECIALIZATION_UPDATED"
 	AuditActionSpecializationDeactivated AuditAction = "SPECIALIZATION_DEACTIVATED"
+
+	// Batch actions
+	AuditActionBatchCreated     AuditAction = "BATCH_CREATED"
+	AuditActionBatchUpdated     AuditAction = "BATCH_UPDATED"
+	AuditActionBatchDeactivated AuditAction = "BATCH_DEACTIVATED"
 )
 
 // AuditLogRequest represents the request body for audit logging

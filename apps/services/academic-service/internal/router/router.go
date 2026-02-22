@@ -15,6 +15,7 @@ type Config struct {
 	DepartmentHandler     *handler.DepartmentHandler
 	DegreeHandler         *handler.DegreeHandler
 	SpecializationHandler *handler.SpecializationHandler
+	BatchHandler          *handler.BatchHandler
 	JWTSecretKey          []byte
 }
 
@@ -90,6 +91,18 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	specializations.Get("/:id", cfg.SpecializationHandler.GetSpecialization)
 	specializations.Put("/:id", cfg.SpecializationHandler.UpdateSpecialization)
 	specializations.Patch("/:id/deactivate", cfg.SpecializationHandler.DeactivateSpecialization)
+
+	// Batch / Group routes - Super Admin OR Faculty Admin
+	// NOTE: /batches/tree must be registered BEFORE /batches/:id to avoid
+	// Fiber treating "tree" as a UUID parameter.
+	batches := protected.Group("/batches", requireAdminRole())
+	batches.Post("/", cfg.BatchHandler.CreateBatch)
+	batches.Get("/", cfg.BatchHandler.ListBatches)
+	batches.Get("/tree", cfg.BatchHandler.GetBatchTree)
+	batches.Get("/:id/tree", cfg.BatchHandler.GetBatchSubtree)
+	batches.Get("/:id", cfg.BatchHandler.GetBatch)
+	batches.Put("/:id", cfg.BatchHandler.UpdateBatch)
+	batches.Patch("/:id/deactivate", cfg.BatchHandler.DeactivateBatch)
 
 	app.Get("/", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{
