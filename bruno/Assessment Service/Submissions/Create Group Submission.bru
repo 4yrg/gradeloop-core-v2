@@ -1,0 +1,153 @@
+meta {
+  name: Create Group Submission
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{SUBMISSIONS_URL_V1}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+body:json {
+  {
+    "assignment_id": "{{ASSIGNMENT_ID}}",
+    "group_id": "{{GROUP_ID}}",
+    "language": "python",
+    "code": "def solve():\n    # Group solution\n    members = ['Alice', 'Bob', 'Charlie']\n    print(f'Group submission by: {members}')\n\nsolve()"
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    const id = res.body.id;
+    if (id) {
+      bru.setEnvVar("SUBMISSION_ID", id);
+      console.log("✅ SUBMISSION_ID saved:", id);
+    }
+
+    const assignmentId = res.body.assignment_id;
+    if (assignmentId) {
+      bru.setEnvVar("ASSIGNMENT_ID", assignmentId);
+      console.log("✅ ASSIGNMENT_ID confirmed:", assignmentId);
+    }
+
+    const groupId = res.body.group_id;
+    if (groupId) {
+      bru.setEnvVar("GROUP_ID", groupId);
+      console.log("✅ GROUP_ID confirmed:", groupId);
+    }
+
+    console.log("✅ Group submission created successfully");
+    console.log("   Version    :", res.body.version);
+    console.log("   Is Latest  :", res.body.is_latest);
+    console.log("   Status     :", res.body.status);
+    console.log("   Language   :", res.body.language);
+    console.log("   Storage    :", res.body.storage_path);
+    console.log("   Submitted  :", res.body.submitted_at);
+    console.log("   Group ID   :", res.body.group_id);
+  }
+
+  if (res.status === 400) {
+    console.log("❌ Bad request:", res.body.message);
+    console.log("   Possible causes:");
+    console.log("   - assignment does not allow group submissions");
+    console.log("   - group_id does not belong to this assignment");
+    console.log("   - caller is not a member of the group");
+    console.log("   - assignment is not active");
+  }
+
+  if (res.status === 404) {
+    console.log("❌ Not found:", res.body.message);
+    console.log("   Tip: ensure ASSIGNMENT_ID and GROUP_ID are both valid UUIDs.");
+  }
+
+  if (res.status === 403) {
+    console.log("❌ Forbidden:", res.body.message);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+
+docs {
+  # Create Group Submission
+
+  Creates a versioned code submission on behalf of a student group.  The
+  authenticated caller must be listed as a member in the group's `members`
+  array.  The assignment must have `allow_group_submission = true`.
+
+  ## Endpoint
+  POST /api/v1/submissions
+
+  ## Authentication
+  - Requires a valid Bearer access token.
+  - The authenticated user must be a member of the specified group.
+
+  ## Prerequisites
+  - Set `ASSIGNMENT_ID` — must reference an active assignment with
+    `allow_group_submission = true`.
+  - Set `GROUP_ID` — run "Create Group" first to obtain a group UUID, or
+    set it manually in the environment.
+
+  ## Request Body Fields
+  | Field         | Type   | Required | Description                                           |
+  |---------------|--------|----------|-------------------------------------------------------|
+  | assignment_id | uuid   | ✅       | The assignment this submission belongs to             |
+  | group_id      | uuid   | ✅       | The group submitting; caller must be a member         |
+  | language      | string | ❌       | Programming language identifier, e.g. "python", "go"  |
+  | code          | string | ✅       | The full source code to submit (stored in MinIO)      |
+
+  ## Group Validation Rules
+  1. `group_id` must reference an existing group.
+  2. The group's `assignment_id` must match the submitted `assignment_id`.
+  3. The assignment must have `allow_group_submission = true`.
+  4. The authenticated user's UUID must appear in the group's `members` array.
+
+  ## Versioning
+  Version is scoped to (assignment_id, group_id).  Each call increments the
+  version counter; the previous `is_latest = true` row is flipped to false and
+  the new row is inserted with `is_latest = true` and `status = pending`.
+
+  ## Storage
+  Source code is uploaded to MinIO at:
+    submissions/{assignment_id}/{submission_id}/code.txt
+  Only the `storage_path` is persisted in the database row.
+
+  ## Response (201 Created)
+  ```json
+  {
+    "id":            "uuid",
+    "assignment_id": "uuid",
+    "group_id":      "uuid",
+    "storage_path":  "submissions/assign-uuid/sub-uuid/code.txt",
+    "language":      "python",
+    "status":        "pending",
+    "version":       1,
+    "is_latest":     true,
+    "submitted_at":  "2025-08-01T10:00:00Z"
+  }
+  ```
+
+  ## Variable Automation
+  On success this script saves:
+  - `SUBMISSION_ID` — used by Get Submission, Get Code, and version queries
+  - `ASSIGNMENT_ID` — confirmed from response
+  - `GROUP_ID`      — confirmed from response
+
+  ## Error Responses
+  | Status | Reason                                                                   |
+  |--------|--------------------------------------------------------------------------|
+  | 400    | Missing fields, group does not allow submission, caller not a member     |
+  | 401    | Missing or invalid Bearer token                                          |
+  | 403    | Authentication issue                                                     |
+  | 404    | Assignment or group not found                                            |
+  | 500    | MinIO upload failure or database error                                   |
+}

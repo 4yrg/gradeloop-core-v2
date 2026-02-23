@@ -1,0 +1,184 @@
+meta {
+  name: List Submission Versions
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{ASSIGNMENTS_URL_V1}}/{{ASSIGNMENT_ID}}/submissions?user_id={{SUBMITTER_USER_ID}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+script:post-response {
+  if (res.status === 200) {
+    const count = res.body.count;
+    const submissions = res.body.submissions;
+
+    console.log("✅ Submission versions retrieved successfully");
+    console.log("   Total versions:", count);
+
+    if (submissions && submissions.length > 0) {
+      submissions.forEach((sub, idx) => {
+        const marker = sub.is_latest ? " ← LATEST" : "";
+        console.log(`   [v${sub.version}]${marker}`);
+        console.log(`     ID          : ${sub.id}`);
+        console.log(`     Status      : ${sub.status}`);
+        console.log(`     Language    : ${sub.language}`);
+        console.log(`     Storage     : ${sub.storage_path}`);
+        console.log(`     Submitted   : ${sub.submitted_at}`);
+        if (sub.group_id) {
+          console.log(`     Group ID    : ${sub.group_id}`);
+        }
+        if (sub.user_id) {
+          console.log(`     User ID     : ${sub.user_id}`);
+        }
+      });
+
+      // Save the latest submission ID for convenience
+      const latest = submissions.find(s => s.is_latest === true);
+      if (latest) {
+        bru.setEnvVar("SUBMISSION_ID", latest.id);
+        console.log("✅ SUBMISSION_ID updated to latest version:", latest.id);
+      }
+
+      // Save the oldest submission ID to demonstrate version history is preserved
+      const oldest = submissions[submissions.length - 1];
+      if (oldest && !oldest.is_latest) {
+        bru.setEnvVar("SUBMISSION_ID_V1", oldest.id);
+        console.log("✅ SUBMISSION_ID_V1 (oldest version) saved:", oldest.id);
+      }
+    } else {
+      console.log("   No submissions found for this assignment and owner scope.");
+      console.log("   Tip: run 'Create Submission' at least once before listing versions.");
+    }
+  }
+
+  if (res.status === 400) {
+    console.log("❌ Bad request:", res.body.message);
+    console.log("   Tip: ensure user_id or group_id query parameter is provided (not both).");
+    console.log("   Current query: user_id =", bru.getEnvVar("SUBMITTER_USER_ID"));
+    console.log("   Switch to group mode by changing the URL to: ?group_id={{GROUP_ID}}");
+  }
+
+  if (res.status === 401) {
+    console.log("❌ Unauthorized — run IAM Service > Auth > Login first.");
+  }
+
+  if (res.status === 404) {
+    console.log("❌ Assignment not found — check that ASSIGNMENT_ID is a valid UUID.");
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+
+docs {
+  # List Submission Versions
+
+  Returns the complete version history for a given assignment and owner scope
+  (user or group), sorted newest-first (version DESC).  Every resubmission is
+  preserved as an immutable record; this endpoint lets you browse the full
+  history and see which version is currently marked `is_latest = true`.
+
+  ## Endpoint
+  GET /api/v1/assignments/:id/submissions?user_id=<uuid>
+  GET /api/v1/assignments/:id/submissions?group_id=<uuid>
+
+  ## Authentication
+  - Requires a valid Bearer access token.
+
+  ## Prerequisites
+  - {{ASSIGNMENT_ID}} must be set (from Assignments → Create Assignment).
+  - {{SUBMITTER_USER_ID}} must be set (saved automatically by Create Submission).
+  - Run "Create Submission" at least once — run it multiple times to build
+    up a meaningful version history before using this endpoint.
+
+  ## Path Parameters
+  | Parameter | Type | Required | Description                      |
+  |-----------|------|----------|----------------------------------|
+  | id        | uuid | ✅       | The assignment UUID              |
+
+  ## Query Parameters
+  Exactly one of the following must be provided:
+
+  | Parameter | Type | Required | Description                                         |
+  |-----------|------|----------|-----------------------------------------------------|
+  | user_id   | uuid | ✅ (or)  | Filter by individual submitter UUID                 |
+  | group_id  | uuid | ✅ (or)  | Filter by group UUID (for group submissions)        |
+
+  Providing both or neither returns 400 Bad Request.
+
+  ## Response (200 OK)
+  ```json
+  {
+    "submissions": [
+      {
+        "id":            "uuid-v3",
+        "assignment_id": "uuid",
+        "user_id":       "uuid",
+        "storage_path":  "submissions/assign-uuid/sub-uuid-v3/code.txt",
+        "language":      "python",
+        "status":        "pending",
+        "version":       3,
+        "is_latest":     true,
+        "submitted_at":  "2025-08-03T14:00:00Z"
+      },
+      {
+        "id":            "uuid-v2",
+        "assignment_id": "uuid",
+        "user_id":       "uuid",
+        "storage_path":  "submissions/assign-uuid/sub-uuid-v2/code.txt",
+        "language":      "python",
+        "status":        "pending",
+        "version":       2,
+        "is_latest":     false,
+        "submitted_at":  "2025-08-02T11:00:00Z"
+      },
+      {
+        "id":            "uuid-v1",
+        "assignment_id": "uuid",
+        "user_id":       "uuid",
+        "storage_path":  "submissions/assign-uuid/sub-uuid-v1/code.txt",
+        "language":      "python",
+        "status":        "pending",
+        "version":       1,
+        "is_latest":     false,
+        "submitted_at":  "2025-08-01T09:00:00Z"
+      }
+    ],
+    "count": 3
+  }
+  ```
+
+  ## Ordering
+  Results are always sorted by `version DESC` — the newest submission appears
+  first.  The entry with `is_latest = true` is always at index 0.
+
+  ## Immutability Guarantee
+  All previous versions remain intact with their original `storage_path`,
+  `language`, `status`, and `submitted_at` values.  Nothing is ever deleted
+  or overwritten — only the `is_latest` flag changes.
+
+  ## Variable Automation
+  On success this script saves:
+  - `SUBMISSION_ID`    — updated to the latest version's ID (index 0)
+  - `SUBMISSION_ID_V1` — the oldest version's ID (for code-retrieval demos)
+
+  ## Group Version History
+  To list group submission versions, change the URL query parameter:
+    GET /api/v1/assignments/{{ASSIGNMENT_ID}}/submissions?group_id={{GROUP_ID}}
+
+  ## Error Responses
+  | Status | Reason                                                         |
+  |--------|----------------------------------------------------------------|
+  | 400    | Missing or ambiguous query params (need exactly one of the two)|
+  | 400    | assignment_id path param is not a valid UUID                   |
+  | 401    | Missing or invalid Bearer token                                |
+}

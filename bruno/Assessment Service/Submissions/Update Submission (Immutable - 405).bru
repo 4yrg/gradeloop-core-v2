@@ -1,0 +1,117 @@
+meta {
+  name: Update Submission (Immutable - 405)
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{SUBMISSIONS_URL_V1}}/{{SUBMISSION_ID}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+body:json {
+  {
+    "code": "this should never be accepted"
+  }
+}
+
+script:post-response {
+  if (res.status === 405) {
+    console.log("✅ Immutability enforced correctly — 405 Method Not Allowed received.");
+    console.log("   Message:", res.body.message);
+    console.log("   This is the expected behaviour. Submissions are immutable records.");
+    console.log("   To update code, POST a new submission to create the next version.");
+  }
+
+  if (res.status === 200 || res.status === 204) {
+    console.log("❌ UNEXPECTED: The server accepted a PUT on an immutable submission.");
+    console.log("   This is a regression — submissions must never be mutated in place.");
+    console.log("   Submission ID:", bru.getEnvVar("SUBMISSION_ID"));
+  }
+
+  if (res.status === 401) {
+    console.log("⚠️  Unauthorized — run IAM Service > Auth > Login first.");
+    console.log("   Note: even with a valid token the response should be 405, not 401.");
+  }
+
+  if (res.status === 404) {
+    console.log("⚠️  Submission not found.");
+    console.log("   Tip: set SUBMISSION_ID to a valid UUID and retry.");
+    console.log("   The 405 response is expected regardless of whether the ID exists.");
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+
+docs {
+  # Update Submission (Immutable — 405)
+
+  Verifies that the immutability contract on submissions is enforced by the server.
+  Submissions are append-only versioned records; they can never be mutated in place.
+  This request is expected to always return 405 Method Not Allowed.
+
+  To update submitted code, POST a new submission — this creates the next version
+  while preserving all previous versions with `is_latest = false`.
+
+  ## Endpoint
+  PUT /api/v1/submissions/:id
+
+  ## Expected Response
+  405 Method Not Allowed — always, regardless of authentication state or whether
+  the submission ID exists.
+
+  ## Authentication
+  - Requires a valid Bearer access token.
+  - Even an admin token will receive 405.
+
+  ## Prerequisites
+  - {{SUBMISSION_ID}} must be set.
+    Run "Create Submission" first to obtain a valid UUID.
+
+  ## Path Parameters
+  | Parameter | Type | Required | Description             |
+  |-----------|------|----------|-------------------------|
+  | id        | uuid | ✅       | The submission UUID     |
+
+  ## Expected Response Body (405 Method Not Allowed)
+  ```json
+  {
+    "code":    405,
+    "message": "submissions are immutable; create a new submission to update"
+  }
+  ```
+
+  ## Why Submissions Are Immutable
+  Immutable submissions provide a complete, tamper-proof audit trail of every
+  piece of code a student has ever submitted.  Each resubmission creates a new
+  versioned record with an incremented `version` counter.  The previous version
+  remains intact with `is_latest = false`.
+
+  This design guarantees:
+  - Academic integrity (no silent overwrites of graded work)
+  - Full version history for instructors and students
+  - Safe rollback to any previous version
+  - A reliable basis for judge/grader runs tied to a specific submission UUID
+
+  ## Versioning Alternative
+  To submit new code, use POST /api/v1/submissions with the same assignment_id
+  (and optionally group_id).  The service will:
+  1. Find the current `is_latest = true` row for this (assignment, owner) scope.
+  2. Flip it to `is_latest = false`.
+  3. Upload the new code to MinIO.
+  4. Insert a new row with `version = previous + 1` and `is_latest = true`.
+
+  ## Error Responses
+  | Status | Reason                             |
+  |--------|------------------------------------|
+  | 405    | ✅ Expected — submissions immutable |
+  | 401    | Missing or invalid Bearer token     |
+}

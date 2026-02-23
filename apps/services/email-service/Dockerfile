@@ -3,11 +3,11 @@ FROM golang:alpine AS builder
 WORKDIR /app
 
 COPY go.mod go.sum ./
-RUN go mod download
+COPY vendor ./vendor
 
 COPY . .
 
-RUN go build -o email-service ./cmd/api
+RUN go build -mod=vendor -o email-service ./cmd/api
 
 FROM alpine:latest
 

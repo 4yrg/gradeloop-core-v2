@@ -14,7 +14,6 @@
 shared/libs/go/secrets/secrets.test
 
 # Dependencies
-**/vendor/
 **/node_modules/
 
 # Local configuration and secrets

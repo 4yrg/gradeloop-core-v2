@@ -1,0 +1,178 @@
+meta {
+  name: Create Group
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{GROUPS_URL_V1}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+body:json {
+  {
+    "assignment_id": "{{ASSIGNMENT_ID}}",
+    "members": [
+      "{{CURRENT_USER_ID}}",
+      "{{BATCH_MEMBER_USER_ID}}"
+    ]
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    const id = res.body.id;
+    if (id) {
+      bru.setEnvVar("GROUP_ID", id);
+      console.log("✅ GROUP_ID saved:", id);
+    }
+  
+    const assignmentId = res.body.assignment_id;
+    if (assignmentId) {
+      bru.setEnvVar("ASSIGNMENT_ID", assignmentId);
+      console.log("✅ ASSIGNMENT_ID confirmed:", assignmentId);
+    }
+  
+    const members = res.body.members;
+    if (members && members.length > 0) {
+      console.log("✅ Group members confirmed:", members.length, "member(s)");
+      members.forEach((m, i) => {
+        console.log("   Member", i + 1, ":", m);
+      });
+    }
+  
+    console.log("✅ Group created successfully");
+    console.log("   Group ID      :", res.body.id);
+    console.log("   Assignment ID :", res.body.assignment_id);
+    console.log("   Member Count  :", res.body.members ? res.body.members.length : 0);
+    console.log("   Created At    :", res.body.created_at);
+    console.log("");
+    console.log("   Next step: use GROUP_ID in 'Create Group Submission'.");
+  }
+  
+  if (res.status === 400) {
+    console.log("❌ Bad request:", res.body.message);
+    console.log("");
+    console.log("   Possible causes:");
+    console.log("   - assignment_id is missing or not a valid UUID");
+    console.log("   - assignment does not have allow_group_submission = true");
+    console.log("   - members array is empty or contains invalid UUIDs");
+    console.log("   - group size exceeds assignment max_group_size");
+    console.log("   - assignment is not active");
+    console.log("");
+    console.log("   Current ASSIGNMENT_ID:", bru.getEnvVar("ASSIGNMENT_ID"));
+    console.log("   Tip: ensure the assignment was created with allow_group_submission = true.");
+    console.log("   Tip: ensure max_group_size >= number of members provided.");
+  }
+  
+  if (res.status === 404) {
+    console.log("❌ Assignment not found:", res.body.message);
+    console.log("   Tip: check that ASSIGNMENT_ID is set and the assignment is active.");
+    console.log("   Current ASSIGNMENT_ID:", bru.getEnvVar("ASSIGNMENT_ID"));
+  }
+  
+  if (res.status === 401) {
+    console.log("❌ Unauthorized — run IAM Service > Auth > Login first.");
+  }
+  
+  if (res.status === 403) {
+    console.log("❌ Forbidden:", res.body.message);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+
+docs {
+  # Create Group
+  
+  Creates a new submission group for a group-enabled assignment.  The group's
+  `members` field is a JSON array of user UUID strings.  Duplicate member UUIDs
+  are silently deduplicated before the record is persisted.
+  
+  After a group is created, any listed member can submit on behalf of the group
+  by providing `"group_id": "{{GROUP_ID}}"` in the POST /submissions body.
+  
+  ## Endpoint
+  POST /api/v1/groups
+  
+  ## Authentication
+  - Requires a valid Bearer access token.
+  - The authenticated user's UUID is recorded as the creator (used in the
+    audit log), but the creator does not need to be listed in `members`.
+  
+  ## Prerequisites
+  - Set `ASSIGNMENT_ID` to a valid active assignment UUID that has
+    `allow_group_submission = true` and `max_group_size >= 2`.
+  - Run Assignments → Create Assignment with:
+      "allow_group_submission": true,
+      "max_group_size": 4
+  - Set `CURRENT_USER_ID` to the UUID of the first group member.
+  - Set `BATCH_MEMBER_USER_ID` (already in the environment) for the second member.
+  
+  ## Request Body Fields
+  | Field         | Type          | Required | Description                                              |
+  |---------------|---------------|----------|----------------------------------------------------------|
+  | assignment_id | uuid          | ✅       | The assignment this group belongs to                     |
+  | members       | []string(uuid)| ✅       | Array of member user UUID strings; must be non-empty     |
+  
+  ## Validation Rules
+  1. `assignment_id` must reference an existing, active assignment.
+  2. The assignment must have `allow_group_submission = true`.
+  3. `members` must be a non-empty array.
+  4. Each member must be a valid UUID string — invalid UUIDs return 400.
+  5. Duplicate UUIDs are silently removed; the stored array is deduplicated.
+  6. The final member count (after deduplication) must not exceed the
+     assignment's `max_group_size`.
+  
+  ## Members Storage
+  Members are stored as a PostgreSQL JSONB array:
+    ["uuid-1", "uuid-2", "uuid-3"]
+  
+  A GIN index on the `members` column enables O(log n) membership checks
+  using the `@>` (contains) operator when validating group submissions.
+  
+  ## Audit Log
+  On success an audit entry is written with action: GROUP_CREATED,
+  entity: group, entity_id: <new UUID>.
+  
+  ## Response (201 Created)
+  ```json
+  {
+    "id":            "uuid",
+    "assignment_id": "uuid",
+    "members": [
+      "uuid-member-1",
+      "uuid-member-2",
+      "uuid-member-3"
+    ],
+    "created_at": "2025-08-01T09:00:00Z"
+  }
+  ```
+  
+  ## Variable Automation
+  On success this script saves:
+  - `GROUP_ID`      — used by Create Group Submission and Get Group
+  - `ASSIGNMENT_ID` — confirmed from response
+  
+  ## Next Steps
+  After creating a group, use the saved GROUP_ID to submit on behalf of the group:
+    POST /api/v1/submissions  with  "group_id": "{{GROUP_ID}}"
+  See: Assessment Service → Submissions → Create Group Submission
+  
+  ## Error Responses
+  | Status | Reason                                                                   |
+  |--------|--------------------------------------------------------------------------|
+  | 400    | Missing/invalid fields, group submission disabled, size exceeded         |
+  | 401    | Missing or invalid Bearer token                                          |
+  | 403    | Insufficient authentication                                              |
+  | 404    | Assignment not found or not active                                       |
+  | 500    | Database error                                                           |
+}

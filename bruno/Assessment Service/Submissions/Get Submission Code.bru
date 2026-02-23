@@ -1,0 +1,123 @@
+meta {
+  name: Get Submission Code
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{SUBMISSIONS_URL_V1}}/{{SUBMISSION_ID}}/code
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+script:post-response {
+  if (res.status === 200) {
+    const submissionId = res.body.submission_id;
+    if (submissionId) {
+      bru.setEnvVar("SUBMISSION_ID", submissionId);
+      console.log("✅ SUBMISSION_ID confirmed:", submissionId);
+    }
+
+    const assignmentId = res.body.assignment_id;
+    if (assignmentId) {
+      bru.setEnvVar("ASSIGNMENT_ID", assignmentId);
+      console.log("✅ ASSIGNMENT_ID confirmed:", assignmentId);
+    }
+
+    console.log("✅ Submission code retrieved successfully");
+    console.log("   Submission ID :", res.body.submission_id);
+    console.log("   Assignment ID :", res.body.assignment_id);
+    console.log("   Language      :", res.body.language);
+    console.log("   Version       :", res.body.version);
+    console.log("   Code length   :", res.body.code ? res.body.code.length : 0, "chars");
+    console.log("   Code preview  :", res.body.code ? res.body.code.substring(0, 120) + (res.body.code.length > 120 ? "..." : "") : "(empty)");
+  }
+
+  if (res.status === 404) {
+    console.log("❌ Submission not found — check that SUBMISSION_ID is set correctly.");
+    console.log("   Tip: run 'Create Submission' or 'Get Submission' first.");
+  }
+
+  if (res.status === 401) {
+    console.log("❌ Unauthorized — run IAM Service > Auth > Login first.");
+  }
+
+  if (res.status === 500) {
+    console.log("❌ Internal error — MinIO may be unreachable or the object may be missing.");
+    console.log("   Check that the MinIO container is running: docker ps | grep minio");
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+
+docs {
+  # Get Submission Code
+
+  Retrieves the raw source code for a submission directly from MinIO object
+  storage.  The response envelope includes identifying metadata so callers do
+  not need a separate round-trip to GET /submissions/:id.
+
+  The code is stored in MinIO under the path:
+    submissions/{assignment_id}/{submission_id}/code.txt
+
+  ## Endpoint
+  GET /api/v1/submissions/:id/code
+
+  ## Authentication
+  - Requires a valid Bearer access token.
+
+  ## Prerequisites
+  - {{SUBMISSION_ID}} must be set.
+    Run "Create Submission" first, or set it manually in the environment.
+
+  ## Path Parameters
+  | Parameter | Type | Required | Description             |
+  |-----------|------|----------|-------------------------|
+  | id        | uuid | ✅       | The submission UUID     |
+
+  ## Response (200 OK)
+  ```json
+  {
+    "submission_id": "uuid",
+    "assignment_id": "uuid",
+    "language":      "python",
+    "version":       1,
+    "code":          "def solve():\n    print('Hello, GradeLoop!')\n\nsolve()"
+  }
+  ```
+
+  ## Fields
+  | Field         | Type    | Description                                                  |
+  |---------------|---------|--------------------------------------------------------------|
+  | submission_id | uuid    | The submission whose code was retrieved                      |
+  | assignment_id | uuid    | The assignment this submission belongs to                    |
+  | language      | string  | Programming language identifier, e.g. "python", "go"        |
+  | version       | integer | The version number of this submission                        |
+  | code          | string  | The full source code retrieved from MinIO object storage     |
+
+  ## How Code is Retrieved
+  1. The service loads the submission metadata row from PostgreSQL.
+  2. It uses the `storage_path` column to locate the object in MinIO.
+  3. The raw bytes are streamed from MinIO and returned as a UTF-8 string.
+  4. No caching layer is applied — each request reads directly from MinIO.
+
+  ## Variable Automation
+  On success this script saves:
+  - `SUBMISSION_ID` — confirmed from response
+  - `ASSIGNMENT_ID` — confirmed from response
+
+  ## Error Responses
+  | Status | Reason                                                           |
+  |--------|------------------------------------------------------------------|
+  | 400    | id is not a valid UUID                                           |
+  | 401    | Missing or invalid Bearer token                                  |
+  | 404    | Submission metadata not found in the database                    |
+  | 500    | MinIO unreachable, object missing, or internal read error        |
+}

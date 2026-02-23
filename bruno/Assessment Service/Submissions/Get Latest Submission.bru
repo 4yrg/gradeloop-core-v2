@@ -1,0 +1,161 @@
+meta {
+  name: Get Latest Submission
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{ASSIGNMENTS_URL_V1}}/{{ASSIGNMENT_ID}}/latest?user_id={{SUBMITTER_USER_ID}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+script:post-response {
+  if (res.status === 200) {
+    const id = res.body.id;
+    if (id) {
+      bru.setEnvVar("SUBMISSION_ID", id);
+      console.log("✅ SUBMISSION_ID updated to latest:", id);
+    }
+
+    const assignmentId = res.body.assignment_id;
+    if (assignmentId) {
+      bru.setEnvVar("ASSIGNMENT_ID", assignmentId);
+      console.log("✅ ASSIGNMENT_ID confirmed:", assignmentId);
+    }
+
+    if (res.body.user_id) {
+      bru.setEnvVar("SUBMITTER_USER_ID", res.body.user_id);
+      console.log("✅ SUBMITTER_USER_ID confirmed:", res.body.user_id);
+    }
+
+    if (res.body.group_id) {
+      bru.setEnvVar("GROUP_ID", res.body.group_id);
+      console.log("✅ GROUP_ID confirmed:", res.body.group_id);
+    }
+
+    console.log("✅ Latest submission retrieved successfully");
+    console.log("   Submission ID :", res.body.id);
+    console.log("   Version       :", res.body.version);
+    console.log("   Is Latest     :", res.body.is_latest);
+    console.log("   Status        :", res.body.status);
+    console.log("   Language      :", res.body.language);
+    console.log("   Storage Path  :", res.body.storage_path);
+    console.log("   Submitted At  :", res.body.submitted_at);
+
+    if (res.body.is_latest !== true) {
+      console.log("⚠️  WARNING: The returned submission does not have is_latest=true.");
+      console.log("   This may indicate a versioning integrity issue.");
+    }
+  }
+
+  if (res.status === 404) {
+    console.log("❌ No submission found for this assignment and owner scope.");
+    console.log("   Tip: run 'Create Submission' first, then retry.");
+    console.log("   Current ASSIGNMENT_ID  :", bru.getEnvVar("ASSIGNMENT_ID"));
+    console.log("   Current user_id param  :", bru.getEnvVar("SUBMITTER_USER_ID"));
+  }
+
+  if (res.status === 400) {
+    console.log("❌ Bad request:", res.body.message);
+    console.log("   Tip: ensure exactly one of user_id or group_id is provided in the query string.");
+    console.log("   To query group latest: change URL to ?group_id={{GROUP_ID}}");
+  }
+
+  if (res.status === 401) {
+    console.log("❌ Unauthorized — run IAM Service > Auth > Login first.");
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+
+docs {
+  # Get Latest Submission
+
+  Returns the single submission with `is_latest = true` for the given
+  assignment and owner scope (user or group).  This is the fast-path query
+  backed by a partial index on `is_latest WHERE is_latest = true`, making it
+  O(1) regardless of how many previous versions exist.
+
+  Use this endpoint when you only care about the most recent submission and do
+  not need the full version history.  For the full history use:
+    GET /api/v1/assignments/:id/submissions?user_id=<uuid>
+
+  ## Endpoint
+  GET /api/v1/assignments/:id/latest?user_id=<uuid>
+  GET /api/v1/assignments/:id/latest?group_id=<uuid>
+
+  ## Authentication
+  - Requires a valid Bearer access token.
+
+  ## Prerequisites
+  - {{ASSIGNMENT_ID}} must be set (from Assignments → Create Assignment).
+  - {{SUBMITTER_USER_ID}} must be set (saved automatically by Create Submission).
+  - At least one submission must exist for the given (assignment, owner) scope.
+    Run "Create Submission" first if needed.
+
+  ## Path Parameters
+  | Parameter | Type | Required | Description              |
+  |-----------|------|----------|--------------------------|
+  | id        | uuid | ✅       | The assignment UUID      |
+
+  ## Query Parameters
+  Exactly one of the following must be provided:
+
+  | Parameter | Type | Required | Description                                          |
+  |-----------|------|----------|------------------------------------------------------|
+  | user_id   | uuid | ✅ (or)  | Fetch latest for this individual user                |
+  | group_id  | uuid | ✅ (or)  | Fetch latest for this group                          |
+
+  Providing both or neither returns 400 Bad Request.
+
+  ## Response (200 OK)
+  ```json
+  {
+    "id":            "uuid",
+    "assignment_id": "uuid",
+    "user_id":       "uuid",
+    "storage_path":  "submissions/assign-uuid/sub-uuid/code.txt",
+    "language":      "python",
+    "status":        "pending",
+    "version":       3,
+    "is_latest":     true,
+    "submitted_at":  "2025-08-03T14:00:00Z"
+  }
+  ```
+
+  The `is_latest` field is always `true` in the response — this endpoint
+  never returns an older version.
+
+  ## Performance
+  This query is backed by a PostgreSQL partial index:
+    CREATE INDEX latest_idx ON submissions(is_latest) WHERE is_latest = true;
+  Combined with the composite index on (assignment_id, user_id) or
+  (assignment_id, group_id), the lookup is O(log n) at worst and effectively
+  constant-time for typical workloads.
+
+  ## Group Latest Submission
+  To retrieve the latest version for a group, change the query parameter:
+    GET /api/v1/assignments/{{ASSIGNMENT_ID}}/latest?group_id={{GROUP_ID}}
+
+  ## Variable Automation
+  On success this script saves:
+  - `SUBMISSION_ID`     — updated to the latest version's ID
+  - `ASSIGNMENT_ID`     — confirmed from response
+  - `SUBMITTER_USER_ID` — confirmed when user_id is present
+  - `GROUP_ID`          — confirmed when group_id is present
+
+  ## Error Responses
+  | Status | Reason                                                          |
+  |--------|-----------------------------------------------------------------|
+  | 400    | Missing or ambiguous query params; assignment_id not a UUID     |
+  | 401    | Missing or invalid Bearer token                                 |
+  | 404    | No submission found for this (assignment, owner) scope          |
+}
