@@ -27,7 +27,26 @@ This project is an AI-integrated Learning Management System (LMS) built with a m
 
 ### Frontend implementation rules (technology-aware)
 
-- Use only libraries already installed in `apps/web/package.json` unless explicitly asked to add new ones.
+- Use only libraries already installed in `apps/web/package.json` unless explicitly asked to add new one
+
+---
+
+# Backend (Python) — agent rules for Python projects
+
+**AGENT INSTRUCTION:** When implementing or modifying Python services or backend code, you MUST follow these guidelines to keep implementations production-ready and consistent:
+
+- Use only libraries already declared in the service's `pyproject.toml` (or `requirements.txt`) unless explicitly approved to add new dependencies.
+- Prefer async-first libraries for external I/O: e.g. `httpx` for HTTP, `aioboto3` or `aiobotocore` for S3/MinIO, and `redis.asyncio` or equivalent for Redis.
+- Use `pydantic-settings` (BaseSettings) for configuration; require critical env vars and fail fast on validation errors.
+- Implement structured JSON logging (e.g. Loguru with `serialize=True`) for machine-readable logs.
+- Expose Prometheus metrics (instrumentation) and a health endpoint (e.g. `/api/v1/health`) which verifies connectivity to external dependencies (MinIO, Redis).
+- Use FastAPI `Depends` for dependency injection of clients (S3, Redis, AI model) and prefer application-scoped clients placed on `app.state`.
+- Keep all blocking or CPU-bound work off the event loop (use `run_in_executor` or background tasks where appropriate).
+- Add type hints and run static checks (mypy) and linters (ruff) as part of CI.
+- Provide a multi-stage Dockerfile that runs as a non-root user and a Makefile with common targets (dev, lint, test, build).
+
+These rules are targeted to ensure reliability, observability, and maintainability for Python backend services within this repository.
+
 - Prefer building UI with shadcn/ui patterns + existing Radix dependencies.
 - For API calls, use `axios` and keep auth/session handling aligned with IAM cookie + access-token flow.
 - For client state, use `zustand` where global app state is required.
@@ -51,7 +70,7 @@ This project is an AI-integrated Learning Management System (LMS) built with a m
 - [Next.js](https://ui.shadcn.com/docs/installation/next): Install shadcn/ui in a Next.js project.
 
 ## Components
-  
+
 ### Form & Input
 
 - [Form](https://ui.shadcn.com/docs/components/form): Building forms with React Hook Form and Zod validation.
