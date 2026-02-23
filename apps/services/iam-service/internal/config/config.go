@@ -9,11 +9,10 @@ import (
 )
 
 type Config struct {
-	Server          ServerConfig
-	Database        DatabaseConfig
-	JWT             JWTConfig
-	FrontendURL     string
-	EmailServiceURL string
+	Server      ServerConfig
+	Database    DatabaseConfig
+	JWT         JWTConfig
+	FrontendURL string
 }
 
 type ServerConfig struct {
@@ -68,8 +67,7 @@ func Load() (*Config, error) {
 			CookieSecure:       getEnvAsBool("JWT_COOKIE_SECURE", false),
 			CookieSameSite:     getEnv("JWT_COOKIE_SAMESITE", "Lax"),
 		},
-		FrontendURL:     getEnv("FRONTEND_URL", "http://localhost:3000"),
-		EmailServiceURL: getEnv("EMAIL_SERVICE_URL", "http://localhost:8082"),
+		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:3000"),
 	}, nil
 }
 

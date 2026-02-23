@@ -6,7 +6,6 @@ import "github.com/google/uuid"
 
 type CreateRoleRequest struct {
 	Name          string   `json:"name" validate:"required"`
-	UserType      string   `json:"user_type" validate:"required,oneof=student employee all"`
 	IsSystemRole  bool     `json:"is_system_role"`
 	PermissionIDs []string `json:"permission_ids"`
 }
@@ -14,21 +13,18 @@ type CreateRoleRequest struct {
 type CreateRoleResponse struct {
 	ID           uuid.UUID            `json:"id"`
 	Name         string               `json:"name"`
-	UserType     string               `json:"user_type"`
 	IsSystemRole bool                 `json:"is_system_role"`
 	Permissions  []PermissionResponse `json:"permissions"`
 }
 
 type UpdateRoleRequest struct {
 	Name          string   `json:"name" validate:"required"`
-	UserType      string   `json:"user_type" validate:"required,oneof=student employee all"`
 	PermissionIDs []string `json:"permission_ids"`
 }
 
 type UpdateRoleResponse struct {
 	ID           uuid.UUID            `json:"id"`
 	Name         string               `json:"name"`
-	UserType     string               `json:"user_type"`
 	IsSystemRole bool                 `json:"is_system_role"`
 	Permissions  []PermissionResponse `json:"permissions"`
 }
@@ -36,7 +32,6 @@ type UpdateRoleResponse struct {
 type RoleResponse struct {
 	ID           uuid.UUID            `json:"id"`
 	Name         string               `json:"name"`
-	UserType     string               `json:"user_type"`
 	IsSystemRole bool                 `json:"is_system_role"`
 	Permissions  []PermissionResponse `json:"permissions"`
 }

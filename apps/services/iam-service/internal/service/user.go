@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/gradeloop/iam-service/internal/client"
 	"github.com/gradeloop/iam-service/internal/domain"
 	"github.com/gradeloop/iam-service/internal/dto"
 	"github.com/gradeloop/iam-service/internal/jwt"
@@ -30,7 +29,7 @@ var (
 type UserService interface {
 	CreateUser(ctx context.Context, req *dto.CreateUserRequest, actorPermissions []string) (*dto.CreateUserResponse, error)
 	ActivateUser(ctx context.Context, token, password string) (*dto.ActivateUserResponse, error)
-	GetUsers(ctx context.Context, page, limit int, userType string, roleID string) (*dto.GetUsersResponse, error)
+	GetUsers(ctx context.Context, page, limit int, userType string) (*dto.GetUsersResponse, error)
 	UpdateUser(ctx context.Context, id string, req *dto.UpdateUserRequest) (*dto.UpdateUserResponse, error)
 	DeleteUser(ctx context.Context, id string) error
 	RestoreUser(ctx context.Context, id string) error
@@ -41,8 +40,6 @@ type userService struct {
 	userRepo              repository.UserRepository
 	secretKey             []byte
 	activationTokenExpiry time.Duration
-	emailClient           *client.EmailClient
-	frontendURL           string
 }
 
 func NewUserService(
@@ -50,16 +47,12 @@ func NewUserService(
 	userRepo repository.UserRepository,
 	secretKey string,
 	activationTokenExpiryHours int64,
-	emailClient *client.EmailClient,
-	frontendURL string,
 ) UserService {
 	return &userService{
 		db:                    db,
 		userRepo:              userRepo,
 		secretKey:             []byte(secretKey),
 		activationTokenExpiry: time.Duration(activationTokenExpiryHours) * time.Hour,
-		emailClient:           emailClient,
-		frontendURL:           frontendURL,
 	}
 }
 
@@ -189,17 +182,8 @@ func (s *userService) CreateUser(ctx context.Context, req *dto.CreateUserRequest
 		return nil, fmt.Errorf("generating activation token: %w", err)
 	}
 
-	// Create activation link
-	activationLink := fmt.Sprintf("%s/auth/activate?token=%s", s.frontendURL, activationToken)
-
-	// Send activation email
-	if s.emailClient != nil {
-		if err := s.emailClient.SendActivationEmail(ctx, user.Email, user.Username, activationLink); err != nil {
-			// Log the error but don't fail the user creation
-			// In production, you might want to queue this for retry
-			fmt.Printf("Warning: Failed to send activation email to %s: %v\n", user.Email, err)
-		}
-	}
+	// Create activation link (simulate email)
+	activationLink := fmt.Sprintf("/auth/activate?token=%s", activationToken)
 
 	return &dto.CreateUserResponse{
 		ID:             user.ID,
@@ -208,7 +192,7 @@ func (s *userService) CreateUser(ctx context.Context, req *dto.CreateUserRequest
 		RoleID:         roleID,
 		IsActive:       user.IsActive,
 		ActivationLink: activationLink,
-		Message:        fmt.Sprintf("User created successfully. An activation email has been sent to %s. The link expires at %s", user.Email, expiresAt.Format(time.RFC3339)),
+		Message:        fmt.Sprintf("User created. Activation link expires at %s", expiresAt.Format(time.RFC3339)),
 	}, nil
 }
 
@@ -258,7 +242,7 @@ func (s *userService) ActivateUser(ctx context.Context, token, password string) 
 	}, nil
 }
 
-func (s *userService) GetUsers(ctx context.Context, page, limit int, userType string, roleID string) (*dto.GetUsersResponse, error) {
+func (s *userService) GetUsers(ctx context.Context, page, limit int, userType string) (*dto.GetUsersResponse, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -267,12 +251,12 @@ func (s *userService) GetUsers(ctx context.Context, page, limit int, userType st
 	}
 	offset := (page - 1) * limit
 
-	users, err := s.userRepo.GetUsers(ctx, offset, limit, userType, roleID)
+	users, err := s.userRepo.GetUsers(ctx, offset, limit, userType)
 	if err != nil {
 		return nil, fmt.Errorf("fetching users: %w", err)
 	}
 
-	totalCount, err := s.userRepo.CountUsers(ctx, userType, roleID)
+	totalCount, err := s.userRepo.CountUsers(ctx, userType)
 	if err != nil {
 		return nil, fmt.Errorf("counting users: %w", err)
 	}

@@ -91,7 +91,6 @@ func (s *roleService) CreateRole(ctx context.Context, req *dto.CreateRoleRequest
 	role := &domain.Role{
 		ID:           uuid.New(),
 		Name:         req.Name,
-		UserType:     req.UserType,
 		IsSystemRole: req.IsSystemRole,
 	}
 
@@ -186,7 +185,6 @@ func (s *roleService) UpdateRole(ctx context.Context, roleID uuid.UUID, req *dto
 
 	// Update role
 	role.Name = req.Name
-	role.UserType = req.UserType
 
 	if err := s.roleRepo.UpdateRole(ctx, role); err != nil {
 		return nil, fmt.Errorf("updating role: %w", err)
@@ -299,7 +297,6 @@ func (s *roleService) toCreateRoleResponse(role *domain.Role) *dto.CreateRoleRes
 	resp := &dto.CreateRoleResponse{
 		ID:           role.ID,
 		Name:         role.Name,
-		UserType:     role.UserType,
 		IsSystemRole: role.IsSystemRole,
 		Permissions:  make([]dto.PermissionResponse, len(role.Permissions)),
 	}
@@ -317,7 +314,6 @@ func (s *roleService) toRoleResponse(role *domain.Role) *dto.RoleResponse {
 	resp := &dto.RoleResponse{
 		ID:           role.ID,
 		Name:         role.Name,
-		UserType:     role.UserType,
 		IsSystemRole: role.IsSystemRole,
 		Permissions:  make([]dto.PermissionResponse, len(role.Permissions)),
 	}
@@ -335,7 +331,6 @@ func (s *roleService) toUpdateRoleResponse(role *domain.Role) *dto.UpdateRoleRes
 	resp := &dto.UpdateRoleResponse{
 		ID:           role.ID,
 		Name:         role.Name,
-		UserType:     role.UserType,
 		IsSystemRole: role.IsSystemRole,
 		Permissions:  make([]dto.PermissionResponse, len(role.Permissions)),
 	}

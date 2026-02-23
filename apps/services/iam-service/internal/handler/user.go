@@ -54,9 +54,8 @@ func (h *UserHandler) GetUsers(c fiber.Ctx) error {
 	}
 
 	userType := c.Query("user_type", "all")
-	roleID := c.Query("role_id", "")
 
-	response, err := h.userService.GetUsers(c.RequestCtx(), page, limit, userType, roleID)
+	response, err := h.userService.GetUsers(c.RequestCtx(), page, limit, userType)
 	if err != nil {
 		return handleUserError(err)
 	}

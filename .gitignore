@@ -38,9 +38,6 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-# Keep apps/web/lib/ tracked
-!apps/web/lib/
-
 # PyInstaller
 *.manifest
 *.spec
@@ -286,4 +283,3 @@ go.work
 # CI/CD artifacts
 ci_summary.txt
 final_status.txt
-.mcp.json

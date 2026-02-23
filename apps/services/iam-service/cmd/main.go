@@ -10,7 +10,6 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
-	"github.com/gradeloop/iam-service/internal/client"
 	"github.com/gradeloop/iam-service/internal/config"
 	"github.com/gradeloop/iam-service/internal/handler"
 	"github.com/gradeloop/iam-service/internal/jwt"
@@ -71,9 +70,6 @@ func run() error {
 	baseService := service.NewBaseService(db.DB)
 	defer baseService.Close()
 
-	// Initialize email client
-	emailClient := client.NewEmailClient(cfg.EmailServiceURL)
-
 	jwtInstance := jwt.NewJWT(
 		cfg.JWT.SecretKey,
 		cfg.JWT.AccessTokenExpiry,
@@ -93,8 +89,6 @@ func run() error {
 		userRepo,
 		cfg.JWT.SecretKey,
 		24, // Activation token expiry: 24 hours
-		emailClient,
-		cfg.FrontendURL,
 	)
 
 	passwordService := service.NewPasswordService(
@@ -103,8 +97,6 @@ func run() error {
 		userRepo,
 		cfg.JWT.SecretKey,
 		1, // Password reset token expiry: 1 hour
-		emailClient,
-		cfg.FrontendURL,
 	)
 
 	roleService := service.NewRoleService(
