@@ -275,6 +275,8 @@ credentials.json
 *.sqlite3
 
 # Go
+main
+bin/
 *.exe
 *.exe~
 *.dll

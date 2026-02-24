@@ -92,7 +92,7 @@ COPY pyproject.toml poetry.lock* /build/
 # --only main       → skip dev group (pytest, ruff, mypy, etc.)
 # --no-root         → do not install the cipas package itself yet
 #                     (we copy src/ separately to keep the layer clean)
-RUN poetry install --only main --no-root --no-interaction --no-ansi
+RUN poetry lock --no-update || true && poetry install --only main --no-root --no-interaction --no-ansi
 
 # ── Application source ────────────────────────────────────────────────────────
 # Copied after dependency installation so that source-only changes do not
@@ -102,7 +102,7 @@ COPY README.md /build/README.md
 
 # Install the cipas package itself (editable-equivalent for the venv).
 # This registers the `cipas` package so `from cipas.xxx import yyy` resolves.
-RUN poetry install --only main --no-interaction --no-ansi
+RUN poetry lock --no-update || true && poetry install --only main --no-interaction --no-ansi
 
 # -----------------------------------------------------------------------------
 # Stage 2 — runtime
