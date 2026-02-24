@@ -159,6 +159,65 @@ class Settings(BaseSettings):
         description="Maximum AST node count for a single extracted granule",
     )
 
+    # ── Similarity scoring (Track A) ──────────────────────────────────────────
+    # LCS similarity score threshold above which a pair is flagged as a clone.
+    # Pairs with score >= threshold are flagged; strictly below are ignored.
+    # 0.0 flags all pairs (debug mode).
+    SYNTACTIC_CLONE_THRESHOLD: float = Field(
+        0.85,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "LCS similarity threshold for clone detection. "
+            "Pairs with score >= threshold are flagged as clones."
+        ),
+    )
+    # Minimum estimated Jaccard similarity (from MinHash) for a pair to
+    # proceed to the LCS stage.  Pairs below this are discarded early.
+    JACCARD_PREFILTER_THRESHOLD: float = Field(
+        0.3,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "MinHash Jaccard pre-filter threshold. "
+            "Pairs with estimated Jaccard < threshold are excluded before LCS."
+        ),
+    )
+    # Number of independent hash functions for MinHash signature generation.
+    # Higher values improve Jaccard estimate accuracy (~1/sqrt(k) std error).
+    MINHASH_PERMUTATIONS: int = Field(
+        128,
+        ge=16,
+        le=512,
+        description="Number of MinHash permutations (signature length).",
+    )
+    # Number of LSH bands.  rows_per_band = MINHASH_PERMUTATIONS / LSH_NUM_BANDS.
+    # LSH threshold ≈ (1/num_bands)^(1/rows_per_band).
+    # 128 permutations / 32 bands = 4 rows/band → threshold ≈ 0.42.
+    LSH_NUM_BANDS: int = Field(
+        32,
+        ge=4,
+        le=256,
+        description=(
+            "Number of LSH bands for candidate pair discovery. "
+            "Must divide MINHASH_PERMUTATIONS evenly."
+        ),
+    )
+    # Token n-gram size for shingling.  5-grams capture short structural patterns.
+    SHINGLE_SIZE: int = Field(
+        5,
+        ge=1,
+        le=20,
+        description="Token n-gram size for shingling (default 5-grams).",
+    )
+    # Maximum wall-clock time in seconds for a single similarity analysis run.
+    # Requests that exceed this are cancelled and returned as HTTP 504.
+    SIMILARITY_ANALYSIS_TIMEOUT: float = Field(
+        600.0,
+        gt=0,
+        description="Maximum seconds for a single similarity analysis run (default 10 min).",
+    )
+
     # ── Observability ─────────────────────────────────────────────────────────
     LOG_LEVEL: str = Field("INFO", description="Loguru log level")
     OTEL_SERVICE_NAME: str = Field("cipas", description="OpenTelemetry service name")

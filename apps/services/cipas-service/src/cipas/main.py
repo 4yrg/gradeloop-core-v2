@@ -75,12 +75,15 @@ import uvicorn
 
 from cipas.api.v1.routes.health import router as health_router
 from cipas.api.v1.routes.ingestion import router as ingestion_router
+from cipas.api.v1.routes.similarity import router as similarity_router
 from cipas.core.config import Settings, configure_logging, get_settings
 from cipas.core.exceptions import CapacityError, CIPASError
 from cipas.domain.models import ProblemDetail
 from cipas.ingestion.pipeline import IngestionPipeline
+from cipas.similarity.scorer import SimilarityScoringPipeline
 from cipas.storage.db import close_pool, create_pool
 from cipas.storage.repository import StorageRepository
+from cipas.storage.similarity_repository import SimilarityRepository as SimilarityRepo
 
 # ---------------------------------------------------------------------------
 # Lifespan
@@ -147,11 +150,40 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     app.state.pipeline = pipeline
 
+    # ── 4. Instantiate SimilarityRepository ──────────────────────────────────
+    similarity_repository = SimilarityRepo(pool=pool)
+    app.state.similarity_repository = similarity_repository
+    logger.info("CIPAS startup: SimilarityRepository initialised")
+
+    # ── 5. Instantiate and start SimilarityScoringPipeline ───────────────────
+    lcs_worker_count = settings.PARSER_WORKERS or 0  # reuse same count as parse workers
+    logger.info(
+        "CIPAS startup: starting SimilarityScoringPipeline",
+        lcs_workers=lcs_worker_count or "os.cpu_count()",
+    )
+    similarity_pipeline = SimilarityScoringPipeline(worker_count=lcs_worker_count)
+    try:
+        await similarity_pipeline.start()
+    except Exception as exc:
+        logger.error(
+            "CIPAS startup FAILED: could not start SimilarityScoringPipeline",
+            error=str(exc),
+        )
+        try:
+            await pipeline.stop()
+            await close_pool(pool)
+        except Exception:
+            pass
+        raise
+
+    app.state.similarity_pipeline = similarity_pipeline
+
     logger.info(
         "CIPAS startup complete — service is READY",
         env=settings.ENV,
         port=settings.PORT,
         worker_count=pipeline.worker_count,
+        lcs_workers=similarity_pipeline.worker_count,
         max_concurrent_batches=settings.MAX_CONCURRENT_BATCHES,
     )
 
@@ -161,7 +193,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # ── Shutdown ──────────────────────────────────────────────────────────────
     logger.info("CIPAS shutdown initiated")
 
-    # Stop the ingestion pipeline first (drains in-flight parse tasks).
+    # Stop the similarity scoring pipeline (drains in-flight LCS tasks).
+    try:
+        await similarity_pipeline.stop()
+    except Exception as exc:
+        logger.warning(
+            "Error during similarity pipeline shutdown (non-fatal)", error=str(exc)
+        )
+
+    # Stop the ingestion pipeline (drains in-flight parse tasks).
     try:
         await pipeline.stop()
     except Exception as exc:
@@ -291,6 +331,7 @@ def _register_routes(app: FastAPI) -> None:
     """
     app.include_router(health_router, prefix="/api/v1")
     app.include_router(ingestion_router, prefix="/api/v1")
+    app.include_router(similarity_router, prefix="/api/v1")
 
 
 # ---------------------------------------------------------------------------
