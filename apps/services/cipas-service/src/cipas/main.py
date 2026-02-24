@@ -75,10 +75,12 @@ import uvicorn
 
 from cipas.api.v1.routes.health import router as health_router
 from cipas.api.v1.routes.ingestion import router as ingestion_router
+from cipas.api.v1.routes.normalization import router as normalization_router
 from cipas.core.config import Settings, configure_logging, get_settings
 from cipas.core.exceptions import CapacityError, CIPASError
 from cipas.domain.models import ProblemDetail
 from cipas.ingestion.pipeline import IngestionPipeline
+from cipas.normalization import NormalizationService
 from cipas.storage.db import close_pool, create_pool
 from cipas.storage.repository import StorageRepository
 
@@ -147,11 +149,40 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     app.state.pipeline = pipeline
 
+    # ── 4. Instantiate and start NormalizationService ─────────────────────────
+    logger.info(
+        "CIPAS startup: starting NormalizationService",
+        normalization_workers=settings.NORMALIZATION_WORKERS or "os.cpu_count()",
+        redis_url_redacted=True,
+        normalization_ttl_seconds=settings.NORMALIZATION_TTL_SECONDS,
+    )
+    normalization_service = NormalizationService(settings=settings)
+    try:
+        await normalization_service.start()
+    except Exception as exc:
+        logger.error(
+            "CIPAS startup FAILED: could not start NormalizationService",
+            error=str(exc),
+        )
+        # Attempt graceful cleanup of previously started components.
+        try:
+            await pipeline.stop()
+        except Exception:
+            pass
+        try:
+            await close_pool(pool)
+        except Exception:
+            pass
+        raise
+
+    app.state.normalization_service = normalization_service
+
     logger.info(
         "CIPAS startup complete — service is READY",
         env=settings.ENV,
         port=settings.PORT,
-        worker_count=pipeline.worker_count,
+        ingestion_workers=pipeline.worker_count,
+        normalization_workers=normalization_service.worker_count,
         max_concurrent_batches=settings.MAX_CONCURRENT_BATCHES,
     )
 
@@ -161,7 +192,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # ── Shutdown ──────────────────────────────────────────────────────────────
     logger.info("CIPAS shutdown initiated")
 
-    # Stop the ingestion pipeline first (drains in-flight parse tasks).
+    # Stop the normalization service (drains in-flight normalization tasks).
+    try:
+        await normalization_service.stop()
+    except Exception as exc:
+        logger.warning(
+            "Error during normalization service shutdown (non-fatal)", error=str(exc)
+        )
+
+    # Stop the ingestion pipeline (drains in-flight parse tasks).
     try:
         await pipeline.stop()
     except Exception as exc:
@@ -291,6 +330,7 @@ def _register_routes(app: FastAPI) -> None:
     """
     app.include_router(health_router, prefix="/api/v1")
     app.include_router(ingestion_router, prefix="/api/v1")
+    app.include_router(normalization_router, prefix="/api/v1")
 
 
 # ---------------------------------------------------------------------------

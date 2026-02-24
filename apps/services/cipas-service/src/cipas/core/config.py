@@ -168,6 +168,68 @@ class Settings(BaseSettings):
     )
     SENTRY_DSN: Optional[SecretStr] = Field(None, description="Sentry DSN (optional)")
 
+    # ── Redis ─────────────────────────────────────────────────────────────────
+    REDIS_URL: str = Field(
+        "redis://localhost:6379/0",
+        description=(
+            "Redis connection URL for normalisation result caching. "
+            "Format: redis://[:password@]host[:port][/db-number]. "
+            "TLS: rediss://..."
+        ),
+    )
+    # Normalization result TTL in seconds (default: 1 hour).
+    NORMALIZATION_TTL_SECONDS: int = Field(
+        3600,
+        ge=60,
+        le=86400,
+        description="TTL in seconds for normalised granule results stored in Redis",
+    )
+    # Number of ProcessPoolExecutor workers dedicated to the normalisation
+    # pipeline (CPU-bound stripping + canonicalisation).  0 = os.cpu_count().
+    NORMALIZATION_WORKERS: int = Field(
+        0,
+        ge=0,
+        description=(
+            "Worker count for the normalisation ProcessPoolExecutor. "
+            "0 = os.cpu_count(). Set explicitly in memory-constrained environments."
+        ),
+    )
+    # Per-granule normalization timeout in seconds (asyncio.wait_for on executor).
+    NORMALIZATION_TASK_TIMEOUT: float = Field(
+        10.0,
+        gt=0,
+        description="Per-granule normalisation timeout in seconds",
+    )
+    # Maximum granule batch size for a single normalize_batch() call.
+    NORMALIZATION_BATCH_SIZE: int = Field(
+        64,
+        ge=1,
+        le=512,
+        description="Maximum granules per normalize_batch() invocation",
+    )
+    # Path to the google-java-format JAR.  If empty, the formatter is disabled
+    # and normalisation falls back to stripped text for Java granules.
+    JAVA_FORMATTER_JAR: str = Field(
+        "",
+        description=(
+            "Absolute path to the google-java-format JAR. "
+            "Empty string disables Java pretty-printing (fallback to stripped text)."
+        ),
+    )
+    # Expected black version prefix for version-pinning guard (e.g. "24.").
+    # Set to "" to disable the guard.
+    BLACK_VERSION_PREFIX: str = Field(
+        "24.",
+        description="Expected black version prefix for version-pinning check. Empty = disabled.",
+    )
+    # Expected clang-format major version (e.g. 14, 15, 16, 17, 18).
+    # 0 disables the guard.
+    CLANG_FORMAT_MAJOR_VERSION: int = Field(
+        0,
+        ge=0,
+        description="Expected clang-format major version for pinning check. 0 = disabled.",
+    )
+
     # ── Health check ─────────────────────────────────────────────────────────
     HEALTH_CHECK_TIMEOUT_SECONDS: float = Field(
         3.0,
@@ -176,6 +238,20 @@ class Settings(BaseSettings):
     )
 
     # ── Validators ───────────────────────────────────────────────────────────
+
+    @field_validator("REDIS_URL")
+    @classmethod
+    def validate_redis_url(cls, v: str) -> str:
+        if not (
+            v.startswith("redis://")
+            or v.startswith("rediss://")
+            or v.startswith("unix://")
+        ):
+            raise ValueError(
+                "REDIS_URL must start with 'redis://', 'rediss://', or 'unix://'. "
+                f"Got scheme: {v.split('://')[0]!r}"
+            )
+        return v
 
     @field_validator("ENV")
     @classmethod
