@@ -24,8 +24,10 @@ Design principles:
         ├── StorageError          (5xx — infrastructure fault)
         │     ├── DBConnectionError
         │     └── DBWriteError
-        └── CapacityError         (503 — transient overload)
-              └── SemaphoreTimeoutError
+        ├── CapacityError         (503 — transient overload)
+        │     └── SemaphoreTimeoutError
+        └── ScoringError          (5xx — similarity scoring fault)
+              └── ReportNotFoundError
 
 All exceptions are importable from `cipas.core.exceptions` directly.
 """
@@ -494,6 +496,45 @@ class SemaphoreTimeoutError(CapacityError):
 
 
 # ---------------------------------------------------------------------------
+# Scoring errors  (HTTP 5xx — similarity pipeline fault)
+# ---------------------------------------------------------------------------
+
+
+class ScoringError(CIPASError):
+    """
+    Base for similarity scoring pipeline failures.
+
+    Raised when the SimilarityScoringPipeline encounters an unrecoverable
+    error that is not attributable to invalid input.  The caller should not
+    retry without changes; the error indicates a service-level fault.
+    """
+
+    code = "SCORING_ERROR"
+    http_status = 500
+
+
+class ReportNotFoundError(CIPASError):
+    """
+    A similarity report with the requested ID does not exist in the DB.
+
+    HTTP 404 — the report_id is valid UUID syntax but no row was found.
+
+    Context fields:
+        report_id: The UUID that was not found.
+    """
+
+    code = "REPORT_NOT_FOUND"
+    http_status = 404
+
+    def __init__(self, report_id: str) -> None:
+        super().__init__(
+            detail=f"Similarity report '{report_id}' does not exist.",
+            context={"report_id": report_id},
+        )
+        self.report_id = report_id
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -508,6 +549,9 @@ __all__ = [
     "UnsupportedLanguageError",
     "InvalidFilenameError",
     "InvalidEncodingError",
+    # Scoring (5xx)
+    "ScoringError",
+    "ReportNotFoundError",
     # Ingestion (5xx)
     "IngestionError",
     "ParseError",
