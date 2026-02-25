@@ -3,6 +3,8 @@ Fragmenter: Extract method-level code blocks using Tree-sitter S-expression quer
 
 This module provides functionality to extract code fragments (functions, methods,
 classes) from parsed Concrete Syntax Trees.
+
+Supports tree-sitter 0.22.x+ (new API with QueryCursor).
 """
 
 from dataclasses import dataclass, field
@@ -111,6 +113,8 @@ class Fragmenter:
         Raises:
             ValueError: If language is not supported
         """
+        import tree_sitter
+
         tree = self.engine.parse(source_code, language)
         lang_config = self.engine.get_language_config(language)
         queries = lang_config.get("fragment_queries", {})
@@ -125,21 +129,30 @@ class Fragmenter:
             if frag_type not in queries:
                 continue
 
-            query = self.engine.languages[language].query(queries[frag_type])
-            captures = query.captures(tree.root_node)
+            # Create query using tree_sitter.Query with the language
+            lang_capsule = self.engine.languages[language]
+            lang = tree_sitter.Language(lang_capsule)
+            query = tree_sitter.Query(lang, queries[frag_type])
 
-            for node, capture_name in captures:
-                fragment = self._create_fragment(
-                    node=node,
-                    source_code=source_code,
-                    language=language,
-                    source_file=source_file,
-                    fragment_type=frag_type,
-                    fragment_counter=fragment_counter,
-                )
-                if fragment:
-                    fragments.append(fragment)
-                    fragment_counter += 1
+            # Use QueryCursor to execute query
+            cursor = tree_sitter.QueryCursor(query)
+            matches = cursor.matches(tree.root_node)
+
+            # Process matches - new API returns (pattern_index, {capture_name: [nodes]})
+            for pattern_index, captures_dict in matches:
+                for capture_name, nodes in captures_dict.items():
+                    for node in nodes:
+                        fragment = self._create_fragment(
+                            node=node,
+                            source_code=source_code,
+                            language=language,
+                            source_file=source_file,
+                            fragment_type=frag_type,
+                            fragment_counter=fragment_counter,
+                        )
+                        if fragment:
+                            fragments.append(fragment)
+                            fragment_counter += 1
 
         return fragments
 

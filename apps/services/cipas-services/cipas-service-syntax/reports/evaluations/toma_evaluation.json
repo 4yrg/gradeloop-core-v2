@@ -1,0 +1,38 @@
+{
+  "evaluation_summary": {
+    "dataset": "TOMA",
+    "pairs_evaluated": 1400,
+    "total_time_seconds": 55.86,
+    "timestamp": "2026-02-25T14:37:31.517534"
+  },
+  "overall_metrics": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0,
+    "accuracy": 1.0
+  },
+  "by_clone_type": {
+    "Type-1 (Exact Clones)": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "accuracy": 1.0
+    },
+    "Type-2 (Renamed Clones)": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "accuracy": 1.0
+    },
+    "Type-3 (Modified Clones)": "N/A",
+    "Type-4 (Semantic Clones)": "N/A"
+  },
+  "confusion_matrix": {
+    "true_positives": 400,
+    "false_positives": 0,
+    "true_negatives": 399,
+    "false_negatives": 0,
+    "precision": 1.0,
+    "recall": 1.0
+  }
+}

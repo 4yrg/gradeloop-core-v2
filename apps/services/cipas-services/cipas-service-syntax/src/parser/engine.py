@@ -3,19 +3,14 @@ Tree-sitter Parser Engine for language-agnostic code parsing.
 
 This module provides a wrapper class to load Tree-sitter grammar libraries
 and parse source code into Concrete Syntax Trees (CST).
+
+Supports tree-sitter 0.22.x+ (new API with language modules).
 """
 
 from pathlib import Path
 from typing import Dict, Optional
 
 import yaml
-
-try:
-    from tree_sitter import Language, Parser
-except ImportError:
-    # Graceful handling if tree-sitter is not installed
-    Language = None  # type: ignore
-    Parser = None  # type: ignore
 
 
 class ParserEngine:
@@ -29,22 +24,29 @@ class ParserEngine:
         >>> print(tree.root_node)
     """
 
+    # Language module mappings for tree-sitter 0.22+
+    LANGUAGE_MODULES = {
+        "python": "tree_sitter_python",
+        "java": "tree_sitter_java",
+        "c": "tree_sitter_c",
+    }
+
     def __init__(self, config_path: Optional[str] = None):
         """
         Initialize the Parser Engine.
 
         Args:
             config_path: Path to languages.yaml configuration file.
-                        Defaults to "config/languages.yaml" relative to module.
+                        Defaults to "config/languages.yaml" relative to project root.
         """
         if config_path is None:
-            config_path = str(
-                Path(__file__).parent.parent / "config" / "languages.yaml"
-            )
+            # Go up from src/parser/ to project root, then into config/
+            project_root = Path(__file__).parent.parent.parent
+            config_path = str(project_root / "config" / "languages.yaml")
 
         self.config = self._load_config(config_path)
-        self.languages: Dict[str, "Language"] = {}
-        self.parsers: Dict[str, "Parser"] = {}
+        self.languages = {}
+        self.parsers = {}
         self._warmup()
 
     def _load_config(self, config_path: str) -> dict:
@@ -61,11 +63,11 @@ class ParserEngine:
         for lang_name in self.config.get("languages", {}).keys():
             try:
                 self.load_language(lang_name)
-            except FileNotFoundError:
+            except (FileNotFoundError, ImportError):
                 # Gracefully handle missing grammars during development
                 pass
 
-    def load_language(self, language: str) -> "Language":
+    def load_language(self, language: str):
         """
         Load a Tree-sitter grammar library for the specified language.
 
@@ -77,7 +79,7 @@ class ParserEngine:
 
         Raises:
             ValueError: If language is not supported
-            FileNotFoundError: If grammar library is not found
+            ImportError: If language module is not installed
         """
         if language not in self.config.get("languages", {}):
             raise ValueError(f"Unsupported language: {language}")
@@ -85,25 +87,26 @@ class ParserEngine:
         if language in self.languages:
             return self.languages[language]
 
-        lang_config = self.config["languages"][language]
-        grammar_path = Path(lang_config["grammar_path"])
-        library_file = grammar_path / lang_config["library_file"]
+        # Try to import the language module
+        module_name = self.LANGUAGE_MODULES.get(language)
+        if module_name is None:
+            raise ValueError(f"No language module configured for: {language}")
 
-        if not library_file.exists():
-            raise FileNotFoundError(f"Grammar library not found: {library_file}")
-
-        if Language is None:
+        try:
+            lang_module = __import__(module_name, fromlist=["language"])
+            lang = lang_module.language()
+        except ImportError as e:
             raise ImportError(
-                "tree-sitter is not installed. Install with: pip install tree-sitter"
-            )
+                f"Language module '{module_name}' not installed. "
+                f"Install with: pip install {module_name.replace('_', '-')}"
+            ) from e
 
-        self.languages[language] = Language(library_file, language)
-        self.parsers[language] = Parser()
-        self.parsers[language].set_language(self.languages[language])
+        self.languages[language] = lang
+        self.parsers[language] = ParserWrapper(lang)
 
         return self.languages[language]
 
-    def parse(self, source_code: bytes, language: str) -> "Tree":
+    def parse(self, source_code: bytes, language: str):
         """
         Parse source code and return the Concrete Syntax Tree (CST).
 
@@ -143,3 +146,18 @@ class ParserEngine:
             List of language names
         """
         return list(self.config.get("languages", {}).keys())
+
+
+class ParserWrapper:
+    """Wrapper for tree-sitter Parser with consistent API."""
+
+    def __init__(self, language_capsule):
+        import tree_sitter
+
+        self.parser = tree_sitter.Parser()
+        # Convert PyCapsule to tree_sitter.Language object
+        self.parser.language = tree_sitter.Language(language_capsule)
+
+    def parse(self, source_code: bytes):
+        """Parse source code and return the tree."""
+        return self.parser.parse(source_code)

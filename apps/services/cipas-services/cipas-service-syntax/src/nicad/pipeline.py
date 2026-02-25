@@ -13,7 +13,7 @@ try:
 except ImportError:
     Tree = object  # type: ignore
 
-from ..parser.fragmenter import CodeFragment
+from parser.fragmenter import CodeFragment
 from .blind_renamer import BlindRenamer
 from .lcs_matcher import LCSMatcher
 from .noise_removal import NoiseRemover

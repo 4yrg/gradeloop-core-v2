@@ -13,7 +13,7 @@ try:
 except ImportError:
     Tree = object  # type: ignore
 
-from ..parser.fragmenter import CodeFragment
+from parser.fragmenter import CodeFragment
 from .features import FeatureExtractor
 from .mapper import ToMAMapper
 

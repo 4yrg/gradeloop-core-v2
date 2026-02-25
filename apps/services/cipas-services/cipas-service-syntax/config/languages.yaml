@@ -11,7 +11,6 @@ languages:
     fragment_queries:
       function: "(function_definition) @func"
       class: "(class_definition) @class"
-      method: "(function_definition) @method"
     normalization_rules:
       strip_comments: true
       normalize_strings: true

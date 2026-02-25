@@ -1,0 +1,18 @@
+{
+  "total_pairs": 152349,
+  "clone_pairs": 195140,
+  "non_clone_pairs": -42791,
+  "type1_count": 48116,
+  "type2_count": 4234,
+  "type3_count": 42790,
+  "type4_count": 100000,
+  "train_samples": 106643,
+  "val_samples": 22853,
+  "test_samples": 22853,
+  "accuracy": 1.0,
+  "precision": 1.0,
+  "recall": 1.0,
+  "f1_score": 1.0,
+  "training_time_seconds": 1.1076421737670898,
+  "timestamp": "2026-02-25T14:45:33.705526"
+}
