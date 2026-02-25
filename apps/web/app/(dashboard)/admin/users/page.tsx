@@ -159,6 +159,7 @@ export default function UsersPage() {
         page,
         limit: PAGE_LIMIT,
         role_id: roleFilter || undefined,
+        search: debouncedSearch || undefined,
       });
       setUsers(result.data);
       setTotal(result.total);
@@ -167,7 +168,7 @@ export default function UsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, roleFilter]);
+  }, [page, roleFilter, debouncedSearch]);
 
   React.useEffect(() => {
     fetchUsers();
@@ -179,19 +180,12 @@ export default function UsersPage() {
   // ── Client-side filtering (search & status only — role filter is server-side) ──
   const displayUsers = React.useMemo(() => {
     return users.filter((u) => {
-      if (debouncedSearch) {
-        const q = debouncedSearch.toLowerCase();
-        if (
-          !u.full_name?.toLowerCase().includes(q) &&
-          !u.email.toLowerCase().includes(q)
-        )
-          return false;
-      }
+      // Status filter is still client-side because backend doesn't support it yet
       if (statusFilter === "active" && !u.is_active) return false;
       if (statusFilter === "inactive" && u.is_active) return false;
       return true;
     });
-  }, [users, debouncedSearch, statusFilter]);
+  }, [users, statusFilter]);
 
   // ── Derived stats ────────────────────────────────────────────────────────────
   const activeCount = users.filter((u) => u.is_active).length;
@@ -416,9 +410,9 @@ export default function UsersPage() {
                       <TableCell className="hidden lg:table-cell text-sm text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
                         {user.last_login_at
                           ? new Date(user.last_login_at).toLocaleDateString(
-                              "en-US",
-                              { dateStyle: "medium" },
-                            )
+                            "en-US",
+                            { dateStyle: "medium" },
+                          )
                           : "—"}
                       </TableCell>
                       <TableCell>

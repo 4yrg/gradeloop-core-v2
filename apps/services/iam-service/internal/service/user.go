@@ -22,7 +22,7 @@ var (
 
 type UserService interface {
 	CreateUser(ctx context.Context, req *dto.CreateUserRequest, actorPermissions []string) (*dto.CreateUserResponse, error)
-	GetUsers(ctx context.Context, page, limit int, userType string, roleID string) (*dto.GetUsersResponse, error)
+	GetUsers(ctx context.Context, page, limit int, userType string, roleID string, search string) (*dto.GetUsersResponse, error)
 	UpdateUser(ctx context.Context, id string, req *dto.UpdateUserRequest) (*dto.UpdateUserResponse, error)
 	DeleteUser(ctx context.Context, id string) error
 	RestoreUser(ctx context.Context, id string) error
@@ -202,7 +202,7 @@ func (s *userService) CreateUser(ctx context.Context, req *dto.CreateUserRequest
 	}, nil
 }
 
-func (s *userService) GetUsers(ctx context.Context, page, limit int, userType string, roleID string) (*dto.GetUsersResponse, error) {
+func (s *userService) GetUsers(ctx context.Context, page, limit int, userType string, roleID string, search string) (*dto.GetUsersResponse, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -211,12 +211,12 @@ func (s *userService) GetUsers(ctx context.Context, page, limit int, userType st
 	}
 	offset := (page - 1) * limit
 
-	users, err := s.userRepo.GetUsers(ctx, offset, limit, userType, roleID)
+	users, err := s.userRepo.GetUsers(ctx, offset, limit, userType, roleID, search)
 	if err != nil {
 		return nil, fmt.Errorf("fetching users: %w", err)
 	}
 
-	totalCount, err := s.userRepo.CountUsers(ctx, userType, roleID)
+	totalCount, err := s.userRepo.CountUsers(ctx, userType, roleID, search)
 	if err != nil {
 		return nil, fmt.Errorf("counting users: %w", err)
 	}
