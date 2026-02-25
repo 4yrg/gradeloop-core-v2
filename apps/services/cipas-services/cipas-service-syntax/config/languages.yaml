@@ -1,0 +1,50 @@
+# Tree-sitter Grammar Configuration for Clone Detection
+# Supports Python, Java, and C languages
+
+languages:
+  python:
+    name: "Python"
+    grammar_path: "data/grammars/tree-sitter-python"
+    library_file: "libpython.so"
+    file_extensions:
+      - ".py"
+    fragment_queries:
+      function: "(function_definition) @func"
+      class: "(class_definition) @class"
+      method: "(function_definition) @method"
+    normalization_rules:
+      strip_comments: true
+      normalize_strings: true
+      blind_rename_identifiers: true
+      blind_rename_literals: true
+
+  java:
+    name: "Java"
+    grammar_path: "data/grammars/tree-sitter-java"
+    library_file: "libjava.so"
+    file_extensions:
+      - ".java"
+    fragment_queries:
+      method: "(method_declaration) @method"
+      constructor: "(constructor_declaration) @constructor"
+      class: "(class_declaration) @class"
+    normalization_rules:
+      strip_comments: true
+      normalize_strings: true
+      blind_rename_identifiers: true
+      blind_rename_literals: true
+
+  c:
+    name: "C"
+    grammar_path: "data/grammars/tree-sitter-c"
+    library_file: "libc.so"
+    file_extensions:
+      - ".c"
+      - ".h"
+    fragment_queries:
+      function: "(function_definition) @func"
+    normalization_rules:
+      strip_comments: true
+      normalize_strings: true
+      blind_rename_identifiers: true
+      blind_rename_literals: true

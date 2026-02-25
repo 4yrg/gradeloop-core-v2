@@ -131,6 +131,7 @@ celerybeat.pid
 .env.production.local
 .env*.local
 .venv
+.venv-*
 env/
 venv/
 ENV/
@@ -291,4 +292,4 @@ final_status.txt
 
 # CIPAS
 #apps/services/cipas-service/datasets
-#datasets
+datasets
