@@ -177,15 +177,6 @@ USER ${APP_USER}
 # Port 8000 is reserved for Traefik in the Compose network.
 EXPOSE 8085
 
-# ── Healthcheck ───────────────────────────────────────────────────────────────
-# Performed by Docker / Compose before the service is declared healthy.
-# Uses curl against the liveness endpoint; tolerates 5s startup grace.
-HEALTHCHECK \
-    --interval=15s \
-    --timeout=5s \
-    --retries=5 \
-    --start-period=20s \
-    CMD curl -f http://localhost:8085/api/v1/cipas/health || exit 1
 
 # ── Entrypoint ────────────────────────────────────────────────────────────────
 # uvloop:     faster event loop (C implementation of asyncio).
