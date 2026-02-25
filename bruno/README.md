@@ -8,8 +8,9 @@ This directory contains comprehensive Bruno API requests for testing all GradeLo
 
 **Services**:
 - ✅ IAM Service - All 27 endpoints working
-- ✅ Email Service - All 6 endpoints working  
+- ✅ Email Service - All 6 endpoints working
 - ✅ Academic Service - All 8 endpoints working (JWT compatibility fixed!)
+- ✅ CIPAS Service - All 14 endpoints working (E15/US10 implemented)
 
 **Recent Fix**: Updated Academic Service to accept IAM Service JWT format. The JWT structure incompatibility has been resolved.
 
@@ -139,6 +140,26 @@ bruno/
         ├── Update Faculty.bru         # Update faculty
         ├── Deactivate Faculty.bru     # Deactivate faculty
         └── Get Faculty Leaders.bru    # Get faculty leaders
+
+└── CIPAS Service/                      # Code Integrity & Plagiarism Detection
+    ├── Health/
+    │   ├── Health Check.bru           # Service health check
+    │   ├── Service Info.bru           # Service readiness check
+    │   └── Pool Metrics.bru           # Database pool metrics
+    ├── Submissions/
+    │   ├── Submit Code.bru            # Submit code for analysis
+    │   ├── Get Submission Status.bru  # Check submission status
+    │   └── List Submission Granules.bru # List extracted granules
+    ├── Similarity Analysis/
+    │   ├── Run Similarity Analysis.bru # Compare two submissions
+    │   ├── Get Similarity Report.bru   # Get report by ID
+    │   ├── List Clone Matches.bru      # List detected clones
+    │   └── List Submission Reports.bru # List reports for submission
+    └── Clone Evidence/
+        ├── Get Clone Graph.bru         # Get Sigma.js graph data
+        ├── Get Clone Classes.bru       # Get Union-Find clusters
+        ├── Get Clone Evidence.bru      # Get side-by-side code comparison
+        └── Get Full Evidence Report.bru # Get comprehensive report
 ```
 
 ## Authentication Flow
@@ -415,6 +436,103 @@ Many requests include placeholder values like:
 
 Bruno stores requests as `.bru` files which are git-friendly.
 
+## CIPAS Service Quick Start
+
+The CIPAS (Code Integrity Analysis and Plagiarism Detection Service) provides clone detection and similarity analysis.
+
+### 1. Start CIPAS Service
+
+```bash
+docker-compose up cipas-service
+```
+
+CIPAS runs on port `8085` by default (different from other services on `8000`).
+
+### 2. Check Service Health
+
+Navigate to `CIPAS Service > Health > Health Check` and send the request.
+
+Expected response:
+```json
+{
+  "status": "healthy",
+  "version": "0.2.0"
+}
+```
+
+### 3. Submit Code for Analysis
+
+1. Go to `CIPAS Service > Submissions > Submit Code`
+2. Set environment variables:
+   - `SUBMISSION_ID`: Generate a new UUID
+   - `ASSIGNMENT_ID`: Your assignment UUID
+   - `CURRENT_USER_ID`: Your user UUID
+3. Update the file content with actual source code
+4. Send request
+5. Note the `granules_extracted` count
+
+### 4. Submit Second Code (for comparison)
+
+1. Go to `CIPAS Service > Submissions > Submit Code`
+2. Set `SUBMISSION_ID` to a new UUID (this will be `SUBMISSION_ID_V2`)
+3. Send request
+
+### 5. Run Similarity Analysis
+
+1. Go to `CIPAS Service > Similarity Analysis > Run Similarity Analysis`
+2. Ensure `SUBMISSION_ID` and `SUBMISSION_ID_V2` are set
+3. Optionally adjust thresholds:
+   - `syntactic_clone_threshold`: 0.85 (default)
+   - `jaccard_prefilter_threshold`: 0.3 (default)
+4. Send request
+5. Note the `report_id` and `clones_flagged` count
+
+### 6. View Clone Evidence
+
+**Option A: Graph Visualization**
+1. Go to `CIPAS Service > Clone Evidence > Get Clone Graph`
+2. Set `ASSIGNMENT_ID`
+3. Send request
+4. Use response with Sigma.js for visualization
+
+**Option B: Clone Classes (Collusion Rings)**
+1. Go to `CIPAS Service > Clone Evidence > Get Clone Classes`
+2. Set `ASSIGNMENT_ID`
+3. Send request
+4. Review detected collusion rings
+
+**Option C: Side-by-Side Code Comparison**
+1. Go to `CIPAS Service > Clone Evidence > Get Clone Evidence`
+2. Set `SUBMISSION_ID` (student A) and `SUBMISSION_ID_V2` (student B)
+3. Send request
+4. Review matching code snippets
+
+### Environment Variables for CIPAS
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `CIPAS_BASE_URL` | Service URL | `http://localhost:8085` |
+| `CIPAS_URL_V1` | API endpoint | `{{CIPAS_BASE_URL}}/api/v1/cipas` |
+| `ASSIGNMENT_ID` | Assignment UUID | `550e8400-e29b-41d4-a716-446655440000` |
+| `SUBMISSION_ID` | First submission UUID | `660e8400-e29b-41d4-a716-446655440001` |
+| `SUBMISSION_ID_V2` | Second submission UUID | `770e8400-e29b-41d4-a716-446655440002` |
+| `REPORT_ID` | Analysis report UUID | `880e8400-e29b-41d4-a716-446655440003` |
+
+### CIPAS vs Other Services
+
+**Authentication:**
+- CIPAS does NOT require JWT tokens for most endpoints (internal service)
+- Some admin endpoints may require `{{ACCESS_TOKEN}}`
+
+**Port:**
+- CIPAS: `8085`
+- IAM/Email/Academic: `8000`
+
+**Workflow:**
+1. Submit code → Get granules
+2. Compare submissions → Get report
+3. View evidence → Graph/Classes/Code comparison
+
 ## Contributing
 
 When adding new API requests:
@@ -446,12 +564,13 @@ When adding new API requests:
 
 ## Version Information
 
-- **Collection Version**: 1.0.0
-- **Last Updated**: 2024
+- **Collection Version**: 1.1.0
+- **Last Updated**: 2026-02-24
 - **Supported Services**:
   - IAM Service v1.0.0
   - Email Service v1.0.0
   - Academic Service v1.0.0
+  - CIPAS Service v0.2.0 (E15/US10 implemented)
 
 ---
 
