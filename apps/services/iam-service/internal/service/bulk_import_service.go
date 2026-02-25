@@ -232,6 +232,8 @@ func (s *bulkImportService) ExecuteImport(ctx context.Context, reader io.Reader,
 			Email:       userRow.Email,
 			RoleID:      roleID.String(),
 			UserType:    userRow.UserType,
+			Department:  userRow.Department,
+			Faculty:     userRow.Faculty,
 			StudentID:   userRow.StudentID,
 			Designation: userRow.Designation,
 		}

@@ -114,6 +114,8 @@ func (s *userService) CreateUser(ctx context.Context, req *dto.CreateUserRequest
 		FullName:                req.FullName,
 		PasswordHash:            "", // First-time user flow, password is empty initially
 		RoleID:                  &roleID,
+		Department:              req.Department,
+		Faculty:                 req.Faculty,
 		IsActive:                false,
 		IsPasswordResetRequired: true,
 	}
