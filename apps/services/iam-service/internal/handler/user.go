@@ -157,8 +157,6 @@ func handleUserError(err error) error {
 	switch err {
 	case service.ErrUnauthorized:
 		return fiber.NewError(fiber.StatusUnauthorized, "Unauthorized")
-	case service.ErrUsernameTaken:
-		return fiber.NewError(fiber.StatusConflict, "Username already exists")
 	case service.ErrEmailTaken:
 		return fiber.NewError(fiber.StatusConflict, "Email already exists")
 	case service.ErrRoleNotFound:

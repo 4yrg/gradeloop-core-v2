@@ -16,9 +16,8 @@ import (
 )
 
 var (
-	ErrUsernameTaken = errors.New("username already exists")
-	ErrEmailTaken    = errors.New("email already exists")
-	ErrRoleNotFound  = errors.New("role not found")
+	ErrEmailTaken   = errors.New("email already exists")
+	ErrRoleNotFound = errors.New("role not found")
 )
 
 type UserService interface {
@@ -110,7 +109,6 @@ func (s *userService) CreateUser(ctx context.Context, req *dto.CreateUserRequest
 
 	user := &domain.User{
 		ID:                      uuid.New(),
-		Username:                req.Email,
 		Email:                   req.Email,
 		FullName:                req.FullName,
 		PasswordHash:            "", // First-time user flow, password is empty initially
@@ -251,7 +249,6 @@ func (s *userService) GetUsers(ctx context.Context, page, limit int, userType st
 
 		userResponses = append(userResponses, dto.UserResponse{
 			ID:          user.ID,
-			Username:    user.Username,
 			Email:       user.Email,
 			FullName:    user.FullName,
 			AvatarURL:   user.AvatarURL,
@@ -320,7 +317,6 @@ func (s *userService) UpdateUser(ctx context.Context, id string, req *dto.Update
 
 	return &dto.UpdateUserResponse{
 		ID:       user.ID,
-		Username: user.Username,
 		Email:    user.Email,
 		RoleID:   roleID,
 		IsActive: user.IsActive,
@@ -410,7 +406,6 @@ func (s *userService) GetProfile(ctx context.Context, id string) (*dto.UserRespo
 
 	return &dto.UserResponse{
 		ID:          user.ID,
-		Username:    user.Username,
 		Email:       user.Email,
 		FullName:    user.FullName,
 		AvatarURL:   user.AvatarURL,
