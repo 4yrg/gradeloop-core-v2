@@ -14,7 +14,7 @@ Features:
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, status
+from fastapi import APIRouter, FastAPI, status
 
 from clone_detection.utils.common_setup import setup_logging
 from routes import (
@@ -49,12 +49,24 @@ async def lifespan(app: FastAPI):
     """
     # Startup: Load models
     logger.info("Starting CIPAS Service...")
-    from routes import _get_model_status
+    logger.info("Loading pre-trained models...")
+
+    from routes import (
+        _get_model_status,
+        _load_semantic_model,
+        _load_syntactic_model,
+    )
+
+    # Force load both models
+    _load_syntactic_model()
+    _load_semantic_model()
 
     models = _get_model_status()
     for model_name, model_status in models.items():
         if model_status.available:
-            logger.info(f"Model {model_name}: available={model_status.available}")
+            logger.info(
+                f"Model {model_name}: available={model_status.available}, loaded={model_status.loaded}"
+            )
         else:
             logger.warning(f"Model {model_name}: not available ({model_status.error})")
 
@@ -93,25 +105,28 @@ using two complementary pipelines:
 
 1. **Compare two code snippets**:
    ```
-   POST /compare
+   POST /api/v1/cipas/compare
    ```
 
 2. **Check service health**:
    ```
-   GET /health
+   GET /api/v1/cipas/health
    ```
 
 3. **Tokenize code**:
    ```
-   POST /tokenize
+   POST /api/v1/cipas/tokenize
    ```
     """,
     version="0.1.0",
     lifespan=lifespan,
 )
 
+# Create router with prefix
+api_router = APIRouter(prefix="/api/v1/cipas")
 
-@app.get(
+
+@api_router.get(
     "/",
     response_model=dict,
     tags=["Root"],
@@ -127,7 +142,7 @@ async def root():
     }
 
 
-@app.get(
+@api_router.get(
     "/health",
     response_model=HealthResponse,
     tags=["Health"],
@@ -142,7 +157,7 @@ async def health_check():
     return get_health()
 
 
-@app.post(
+@api_router.post(
     "/compare",
     response_model=ComparisonResult,
     tags=["Comparison"],
@@ -176,7 +191,7 @@ async def compare_two_codes(request: ComparisonRequest):
     return compare_codes(request)
 
 
-@app.post(
+@api_router.post(
     "/compare/batch",
     response_model=BatchComparisonResult,
     tags=["Comparison"],
@@ -193,7 +208,7 @@ async def compare_codes_batch_endpoint(request: BatchComparisonRequest):
     return compare_codes_batch(request)
 
 
-@app.get(
+@api_router.get(
     "/feature-importance",
     response_model=FeatureImportanceResponse,
     tags=["Models"],
@@ -209,7 +224,7 @@ async def get_importance(pipeline: PipelineEnum):
     return get_feature_importance(pipeline)
 
 
-@app.post(
+@api_router.post(
     "/tokenize",
     response_model=TokenizeResponse,
     tags=["Utilities"],
@@ -239,7 +254,7 @@ async def tokenize_code_endpoint(request: TokenizeRequest):
 
 
 # Additional helper endpoints
-@app.get(
+@api_router.get(
     "/models",
     response_model=dict,
     tags=["Models"],
@@ -252,7 +267,7 @@ async def get_models_status():
     return {"models": _get_model_status()}
 
 
-@app.get(
+@api_router.get(
     "/ready",
     response_model=dict,
     tags=["Health"],
@@ -283,6 +298,10 @@ async def readiness_check():
             "models_loaded": False,
             "details": models,
         }
+
+
+# Include router in app
+app.include_router(api_router)
 
 
 if __name__ == "__main__":

@@ -373,8 +373,8 @@ services:
     labels:
       - "traefik.enable=true"
       # Route all /api/v1/cipas/* traffic to this service.
-      # Also exposes /metrics for Prometheus scraping.
-      - "traefik.http.routers.cipas.rule=PathPrefix(`/api/v1/cipas`) || PathPrefix(`/health`) || PathPrefix(`/ready`)"
+      # Also expose health and ready endpoints for monitoring.
+      - "traefik.http.routers.cipas.rule=PathPrefix(`/api/v1/cipas`)"
       - "traefik.http.routers.cipas.entrypoints=web"
       - "traefik.http.services.cipas-service.loadbalancer.server.port=8085"
       # Request Size Limiting: 50 MB to accommodate batches of up to 200 × 1 MB files.
@@ -392,10 +392,9 @@ services:
     env_file:
       - .env
 
-    ports:
-      # Expose CIPAS service on port 8085 for direct access (Bruno, direct API calls)
-      # Also accessible via Traefik on port 8000 at /api/v1/cipas/*
-      - "8085:8085"
+    volumes:
+      # Mount models directory to access pre-trained models
+      - ./apps/services/cipas-service/clone_detection/models:/app/clone_detection/models:ro
 
     environment:
       # ── Runtime ──────────────────────────────────────────────────────────────
@@ -403,6 +402,9 @@ services:
       - CIPAS_LOG_LEVEL=${CIPAS_LOG_LEVEL:-INFO}
       - CIPAS_PORT=8085
       - CIPAS_HOST=0.0.0.0
+      # ── Paths ────────────────────────────────────────────────────────────────
+      - CIPAS_PROJECT_ROOT=/app
+      - CIPAS_DATA_DIR=/app/datasets
 
       # ── Database ─────────────────────────────────────────────────────────────
       # Connects to the cipas-postgres service on the internal Compose network.

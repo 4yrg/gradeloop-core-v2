@@ -21,17 +21,25 @@ import pandas as pd
 
 def get_project_root() -> Path:
     """Get the project root directory (cipas-service)."""
-    # Use absolute path based on known project structure
+    # Use environment variable if set (for Docker), otherwise use relative path
+    root = os.environ.get("CIPAS_PROJECT_ROOT")
+    if root:
+        return Path(root)
+
+    # Fallback: use path relative to this file
     # This file is at: gradeloop-core-v2/apps/services/cipas-service/clone_detection/utils/
-    return Path(
-        "/home/iamdasun/Projects/4yrg/gradeloop-core-v2/apps/services/cipas-service"
-    )
+    return Path(__file__).resolve().parent.parent.parent.parent
 
 
 def get_data_dir() -> Path:
     """Get the datasets directory."""
-    # Datasets are at: gradeloop-core-v2/datasets/
-    return Path("/home/iamdasun/Projects/4yrg/gradeloop-core-v2/datasets")
+    # Use environment variable if set (for Docker), otherwise use relative path
+    data_dir = os.environ.get("CIPAS_DATA_DIR")
+    if data_dir:
+        return Path(data_dir)
+
+    # Fallback: datasets are at: gradeloop-core-v2/datasets/
+    return get_project_root().parent.parent.parent / "datasets"
 
 
 def get_toma_dataset_dir() -> Path:

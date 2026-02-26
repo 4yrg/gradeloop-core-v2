@@ -14,14 +14,20 @@ body:json {
   {
     "pairs": [
       {
-        "code1": "int x = 1;",
-        "code2": "int y = 1;",
-        "language": "java",
+        "code1": "int sum(int n){int total=0;for(int i=1;i<=n;i++){total+=i;}return total;}",
+        "code2": "int sum(int n){int total=0;for(int i=1;i<=n;i++){total+=i;}return total;}",
+        "language": "c",
         "pipeline": "syntactic"
       },
       {
-        "code1": "return a + b;",
-        "code2": "return a - b;",
+        "code1": "public int factorial(int n){int result=1;for(int i=1;i<=n;i++){result*=i;}return result;}",
+        "code2": "public int factorial(int n){int result=1;for(int i=1;i<=n;i++){result*=i;}return result;}",
+        "language": "java",
+        "pipeline": "syntactic"
+      },
+       {
+        "code1": "def find_max(arr): max_val=arr[0]; [max_val:=x for x in arr if x>max_val]; return max_val",
+        "code2": "def find_max(arr): max_val=arr[0]; [max_val:=x for x in arr if x>max_val]; return max_val",
         "language": "java",
         "pipeline": "syntactic"
       }
