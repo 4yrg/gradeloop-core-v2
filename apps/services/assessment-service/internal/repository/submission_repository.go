@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/4yrg/gradeloop-core-v2/assessment-service/internal/domain"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -41,6 +42,12 @@ type SubmissionRepository interface {
 	// UpdateExecutionResults updates the submission with Judge0 execution results.
 	// It is called by the queue worker after code execution.
 	UpdateExecutionResults(submission *domain.Submission) error
+
+	// UpdateCriteriaBreakdown updates the rubric-based scoring results for a submission
+	UpdateCriteriaBreakdown(submissionID uuid.UUID, breakdown datatypes.JSON, totalScore int, rubricVersionID int) error
+
+	// ApplyInstructorOverride stores a manual score adjustment with audit trail
+	ApplyInstructorOverride(submissionID uuid.UUID, override datatypes.JSON, adjustedScore int) error
 }
 
 // submissionRepository is the concrete GORM-backed implementation.
@@ -229,6 +236,31 @@ func (r *submissionRepository) UpdateExecutionResults(submission *domain.Submiss
 			"test_cases_passed":     submission.TestCasesPassed,
 			"total_test_cases":      submission.TotalTestCases,
 			"test_case_results":     submission.TestCaseResults,
+		}).
+		Error
+}
+
+// UpdateCriteriaBreakdown updates the rubric-based scoring results for a submission
+func (r *submissionRepository) UpdateCriteriaBreakdown(submissionID uuid.UUID, breakdown datatypes.JSON, totalScore int, rubricVersionID int) error {
+	return r.db.
+		Model(&domain.Submission{}).
+		Where("id = ?", submissionID).
+		Updates(map[string]interface{}{
+			"criteria_breakdown": breakdown,
+			"total_score":        totalScore,
+			"rubric_version_id":  rubricVersionID,
+		}).
+		Error
+}
+
+// ApplyInstructorOverride stores a manual score adjustment with audit trail
+func (r *submissionRepository) ApplyInstructorOverride(submissionID uuid.UUID, override datatypes.JSON, adjustedScore int) error {
+	return r.db.
+		Model(&domain.Submission{}).
+		Where("id = ?", submissionID).
+		Updates(map[string]interface{}{
+			"instructor_override": override,
+			"total_score":         adjustedScore,
 		}).
 		Error
 }

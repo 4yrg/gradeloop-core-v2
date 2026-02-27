@@ -87,6 +87,12 @@ type Submission struct {
 	TestCasesPassed     int            `gorm:"" json:"test_cases_passed,omitempty"`
 	TotalTestCases      int            `gorm:"" json:"total_test_cases,omitempty"`
 	TestCaseResults     datatypes.JSON `gorm:"type:jsonb" json:"test_case_results,omitempty"`
+
+	// Rubric-based scoring results
+	CriteriaBreakdown   datatypes.JSON `gorm:"type:jsonb" json:"criteria_breakdown,omitempty"`
+	RubricVersionID     int            `gorm:"" json:"rubric_version_id,omitempty"`
+	TotalScore          int            `gorm:"" json:"total_score,omitempty"`
+	InstructorOverride  datatypes.JSON `gorm:"type:jsonb" json:"instructor_override,omitempty"`
 }
 
 // TableName overrides the GORM default table name.
@@ -104,6 +110,28 @@ func (s *Submission) BeforeCreate(_ *gorm.DB) error {
 		s.SubmittedAt = time.Now().UTC()
 	}
 	return nil
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CriteriaBreakdown represents the scoring breakdown per rubric dimension
+// ─────────────────────────────────────────────────────────────────────────────
+
+// CriteriaBreakdown represents scores for each rubric dimension
+type CriteriaBreakdown struct {
+	Execution             int `json:"execution"`
+	LogicalCorrectness    int `json:"logical_correctness"`
+	BestPractices         int `json:"best_practices"`
+	CodeQuality           int `json:"code_quality"`
+	ConceptualUnderstanding int `json:"conceptual_understanding"`
+}
+
+// InstructorOverride represents a manual score adjustment by an instructor
+type InstructorOverride struct {
+	AdjustedScore int       `json:"adjusted_score"`
+	Reason        string    `json:"reason"`
+	OverriddenBy  string    `json:"overridden_by"`
+	OverriddenAt  time.Time `json:"overridden_at"`
+	OriginalScore int       `json:"original_score"`
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"encoding/json"
+
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 	"github.com/4yrg/gradeloop-core-v2/assessment-service/internal/domain"
@@ -50,7 +52,7 @@ func requireUserID(c fiber.Ctx) uuid.UUID {
 
 // toAssignmentResponse converts a domain.Assignment to its DTO representation.
 func toAssignmentResponse(a *domain.Assignment) dto.AssignmentResponse {
-	return dto.AssignmentResponse{
+	resp := dto.AssignmentResponse{
 		ID:               a.ID,
 		CourseInstanceID: a.CourseInstanceID,
 
@@ -72,10 +74,46 @@ func toAssignmentResponse(a *domain.Assignment) dto.AssignmentResponse {
 		EnableSocraticFeedback: a.EnableSocraticFeedback,
 		AllowRegenerate:        a.AllowRegenerate,
 
-		IsActive:  a.IsActive,
-		CreatedBy: a.CreatedBy,
+		RubricVersion: a.RubricVersion,
+		IsActive:      a.IsActive,
+		CreatedBy:     a.CreatedBy,
 
 		CreatedAt: a.CreatedAt,
 		UpdatedAt: a.UpdatedAt,
 	}
+
+	// Parse rubric config if present
+	if a.RubricConfig != nil && len(a.RubricConfig) > 0 {
+		var rubric domain.RubricConfig
+		if err := json.Unmarshal(a.RubricConfig, &rubric); err == nil {
+			dimensions := make([]dto.RubricDimensionDTO, len(rubric.Dimensions))
+			for i, dim := range rubric.Dimensions {
+				dimensions[i] = dto.RubricDimensionDTO{
+					ID:          dim.ID,
+					Name:        dim.Name,
+					Weight:      dim.Weight,
+					Description: dim.Description,
+				}
+			}
+
+			totalWeight := rubric.Execution.Weight
+			for _, dim := range rubric.Dimensions {
+				totalWeight += dim.Weight
+			}
+
+			resp.RubricConfig = &dto.RubricResponse{
+				AssignmentID: a.ID,
+				Execution: dto.ExecutionConfigDTO{
+					Weight:    rubric.Execution.Weight,
+					Fixed:     rubric.Execution.Fixed,
+					TestCases: rubric.Execution.TestCases,
+				},
+				Dimensions:  dimensions,
+				Version:     a.RubricVersion,
+				TotalWeight: totalWeight,
+			}
+		}
+	}
+
+	return resp
 }
