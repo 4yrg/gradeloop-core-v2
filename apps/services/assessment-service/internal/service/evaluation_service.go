@@ -3,10 +3,12 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 
 	"github.com/4yrg/gradeloop-core-v2/assessment-service/internal/client"
 	"github.com/4yrg/gradeloop-core-v2/assessment-service/internal/domain"
+	"github.com/4yrg/gradeloop-core-v2/assessment-service/internal/dto"
 	"go.uber.org/zap"
 )
 
@@ -26,6 +28,12 @@ type EvaluationService interface {
 
 	// CompareOutputs compares expected and actual output with normalization
 	CompareOutputs(expected, actual string) bool
+
+	// CalculateExecutionScore computes the execution score based on test results
+	CalculateExecutionScore(passed, total int, weight int) int
+
+	// CalculateTotalScore computes the final score from criteria breakdown
+	CalculateTotalScore(breakdown domain.CriteriaBreakdown) int
 }
 
 // EvaluationResult contains the aggregated test case evaluation results
@@ -187,4 +195,101 @@ func DeserializeTestCaseResults(data []byte) ([]domain.TestCaseResult, error) {
 		return nil, err
 	}
 	return results, nil
+}
+
+// CalculateExecutionScore computes the execution score based on test results
+// Returns a score proportional to the weight based on test pass rate
+func (s *evaluationService) CalculateExecutionScore(passed, total int, weight int) int {
+	if total == 0 {
+		return 0
+	}
+	if passed >= total {
+		return weight
+	}
+	// Proportional score: (passed/total) * weight
+	return (passed * weight) / total
+}
+
+// CalculateTotalScore computes the final score from criteria breakdown
+func (s *evaluationService) CalculateTotalScore(breakdown domain.CriteriaBreakdown) int {
+	return breakdown.Execution +
+		breakdown.LogicalCorrectness +
+		breakdown.BestPractices +
+		breakdown.CodeQuality +
+		breakdown.ConceptualUnderstanding
+}
+
+// BuildDefaultCriteriaBreakdown creates a default criteria breakdown
+// using the standard ACAFS Blueprint rubric weights
+func BuildDefaultCriteriaBreakdown(executionScore int) domain.CriteriaBreakdown {
+	return domain.CriteriaBreakdown{
+		Execution:               executionScore,
+		LogicalCorrectness:      0, // To be filled by ACAFS service
+		BestPractices:           0,
+		CodeQuality:             0,
+		ConceptualUnderstanding: 0,
+	}
+}
+
+// GetDefaultRubricConfig returns the default ACAFS Blueprint rubric configuration
+func GetDefaultRubricConfig() dto.RubricConfigDTO {
+	return dto.RubricConfigDTO{
+		Execution: dto.ExecutionConfigDTO{
+			Weight: dto.FixedExecutionWeight,
+			Fixed:  true,
+		},
+		Dimensions: []dto.RubricDimensionDTO{
+			{
+				ID:          "logical_correctness",
+				Name:        "Logical Correctness",
+				Weight:      25,
+				Description: "Algorithmic accuracy and logical flow of the solution",
+			},
+			{
+				ID:          "best_practices",
+				Name:        "Best Practices",
+				Weight:      20,
+				Description: "Bounds checking, initialization, error handling, and defensive programming",
+			},
+			{
+				ID:          "code_quality",
+				Name:        "Code Quality",
+				Weight:      15,
+				Description: "Readability, modularity, naming conventions, and code organization",
+			},
+			{
+				ID:          "conceptual_understanding",
+				Name:        "Conceptual Understanding",
+				Weight:      10,
+				Description: "Appropriate use of programming paradigms (recursion vs iteration, etc.)",
+			},
+		},
+	}
+}
+
+// CriteriaBreakdownFromJSON parses a criteria breakdown from JSON bytes
+func CriteriaBreakdownFromJSON(data []byte) (domain.CriteriaBreakdown, error) {
+	var breakdown domain.CriteriaBreakdown
+	if err := json.Unmarshal(data, &breakdown); err != nil {
+		return domain.CriteriaBreakdown{}, err
+	}
+	return breakdown, nil
+}
+
+// CriteriaBreakdownToJSON serializes a criteria breakdown to JSON bytes
+func CriteriaBreakdownToJSON(breakdown domain.CriteriaBreakdown) ([]byte, error) {
+	return json.Marshal(breakdown)
+}
+
+// ValidateCriteriaBreakdown ensures the breakdown sums correctly
+func ValidateCriteriaBreakdown(breakdown domain.CriteriaBreakdown, expectedTotal int) error {
+	total := breakdown.Execution +
+		breakdown.LogicalCorrectness +
+		breakdown.BestPractices +
+		breakdown.CodeQuality +
+		breakdown.ConceptualUnderstanding
+	if total != expectedTotal {
+		return errors.New("criteria breakdown total does not match expected total")
+	}
+	return nil
 }
