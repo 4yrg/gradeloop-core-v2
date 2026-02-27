@@ -89,6 +89,10 @@ type AssignmentResponse struct {
 	EnableSocraticFeedback bool `json:"enable_socratic_feedback"`
 	AllowRegenerate        bool `json:"allow_regenerate"`
 
+	// Rubric configuration fields
+	RubricConfig  *RubricResponse `json:"rubric_config,omitempty"`
+	RubricVersion int             `json:"rubric_version"`
+
 	IsActive  bool      `json:"is_active"`
 	CreatedBy uuid.UUID `json:"created_by"`
 

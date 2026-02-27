@@ -16,6 +16,7 @@ type Config struct {
 	SubmissionHandler *handler.SubmissionHandler
 	GroupHandler      *handler.GroupHandler
 	InstructorHandler *handler.InstructorHandler
+	RubricHandler     *handler.RubricHandler
 	JWTSecretKey      []byte
 }
 
@@ -140,4 +141,24 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 
 	// GET    /api/v1/groups/:id                 — get group metadata + members
 	groups.Get("/:id", cfg.GroupHandler.GetGroup)
+
+	// ── Rubrics ────────────────────────────────────────────────────────────────
+	// Rubric management is restricted to admin/super_admin roles.
+	rubrics := protected.Group("/assignments", requireAdminRole())
+
+	// POST   /api/v1/assignments/:id/rubric     — create rubric
+	rubrics.Post("/:id/rubric", cfg.RubricHandler.CreateRubric)
+
+	// GET    /api/v1/assignments/:id/rubric     — get rubric
+	rubrics.Get("/:id/rubric", cfg.RubricHandler.GetRubric)
+
+	// PATCH  /api/v1/assignments/:id/rubric     — update rubric
+	rubrics.Patch("/:id/rubric", cfg.RubricHandler.UpdateRubric)
+
+	// ── Evaluations ────────────────────────────────────────────────────────────
+	// Evaluation management for instructors.
+	evaluations := protected.Group("/evaluations", requireAdminRole())
+
+	// PATCH  /api/v1/evaluations/:id/override   — instructor score override
+	evaluations.Patch("/:id/override", cfg.RubricHandler.ApplyInstructorOverride)
 }

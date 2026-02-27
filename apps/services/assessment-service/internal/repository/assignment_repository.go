@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/4yrg/gradeloop-core-v2/assessment-service/internal/domain"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -14,6 +15,8 @@ type AssignmentRepository interface {
 	GetAssignmentByID(id uuid.UUID) (*domain.Assignment, error)
 	UpdateAssignment(assignment *domain.Assignment) error
 	ListAssignmentsByCourseInstance(courseInstanceID uuid.UUID) ([]domain.Assignment, error)
+	UpdateRubric(assignmentID uuid.UUID, rubricConfig datatypes.JSON, version int) error
+	GetRubricVersion(assignmentID uuid.UUID) (int, error)
 }
 
 // assignmentRepository is the concrete GORM-backed implementation.
@@ -72,4 +75,32 @@ func (r *assignmentRepository) ListAssignmentsByCourseInstance(courseInstanceID 
 	}
 
 	return assignments, nil
+}
+
+// UpdateRubric updates the rubric configuration and version for an assignment
+func (r *assignmentRepository) UpdateRubric(assignmentID uuid.UUID, rubricConfig datatypes.JSON, version int) error {
+	return r.db.Model(&domain.Assignment{}).
+		Where("id = ? AND is_active = true", assignmentID).
+		Updates(map[string]interface{}{
+			"rubric_config":  rubricConfig,
+			"rubric_version": version,
+		}).Error
+}
+
+// GetRubricVersion retrieves the current rubric version for an assignment
+func (r *assignmentRepository) GetRubricVersion(assignmentID uuid.UUID) (int, error) {
+	var assignment domain.Assignment
+	err := r.db.
+		Select("rubric_version").
+		Where("id = ? AND is_active = true", assignmentID).
+		First(&assignment).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, nil
+		}
+		return 0, err
+	}
+
+	return assignment.RubricVersion, nil
 }

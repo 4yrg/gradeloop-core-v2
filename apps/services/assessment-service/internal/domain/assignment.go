@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -34,6 +35,11 @@ type Assignment struct {
 	EnableSocraticFeedback bool `gorm:"not null;default:false" json:"enable_socratic_feedback"`
 	AllowRegenerate        bool `gorm:"not null;default:false" json:"allow_regenerate"`
 
+	// RubricConfig stores the multi-dimensional scoring rubric as JSONB
+	RubricConfig datatypes.JSON `gorm:"type:jsonb" json:"rubric_config,omitempty"`
+	// RubricVersion tracks rubric changes for versioning
+	RubricVersion int `gorm:"not null;default:1" json:"rubric_version"`
+
 	IsActive bool `gorm:"not null;default:true" json:"is_active"`
 
 	CreatedBy uuid.UUID `gorm:"type:uuid;not null" json:"created_by"`
@@ -54,6 +60,33 @@ type TestCase struct {
 	ExpectedOutput string `json:"expected_output"`
 	IsHidden       bool   `json:"is_hidden"`
 	OrderIndex     int    `json:"order_index"`
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Rubric Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+// RubricConfig represents the complete scoring rubric for an assignment
+type RubricConfig struct {
+	Execution  ExecutionConfig   `json:"execution"`
+	Dimensions []RubricDimension `json:"dimensions"`
+}
+
+// ExecutionConfig represents the deterministic execution scoring configuration
+// Execution weight is fixed at 30% per ACAFS Blueprint standards
+type ExecutionConfig struct {
+	Weight    int      `json:"weight"`
+	Fixed     bool     `json:"fixed"`
+	TestCases []string `json:"test_cases,omitempty"`
+}
+
+// RubricDimension represents a single semantic evaluation dimension
+// (e.g., Logical Correctness, Best Practices, Code Quality, Conceptual Understanding)
+type RubricDimension struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Weight      int    `json:"weight"`
+	Description string `json:"description"`
 }
 
 // TableName overrides the GORM default table name.

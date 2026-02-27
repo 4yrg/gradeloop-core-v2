@@ -202,6 +202,73 @@ func (m *Migrator) Run() error {
 		m.logger.Warn("failed to create index on submissions(execution_status)", zap.Error(err))
 	}
 
+	// ── Rubric Engine Migration ───────────────────────────────────────────────
+	// Multi-dimensional scoring rubric support
+
+	// Add rubric_config column to assignments
+	if err := m.db.Exec(`
+		ALTER TABLE assignments
+		ADD COLUMN IF NOT EXISTS rubric_config JSONB
+	`).Error; err != nil {
+		m.logger.Warn("failed to add rubric_config column to assignments", zap.Error(err))
+	}
+
+	// Add rubric_version column to assignments
+	if err := m.db.Exec(`
+		ALTER TABLE assignments
+		ADD COLUMN IF NOT EXISTS rubric_version INTEGER DEFAULT 1
+	`).Error; err != nil {
+		m.logger.Warn("failed to add rubric_version column to assignments", zap.Error(err))
+	}
+
+	// Add criteria_breakdown column to submissions
+	if err := m.db.Exec(`
+		ALTER TABLE submissions
+		ADD COLUMN IF NOT EXISTS criteria_breakdown JSONB
+	`).Error; err != nil {
+		m.logger.Warn("failed to add criteria_breakdown column to submissions", zap.Error(err))
+	}
+
+	// Add rubric_version_id column to submissions
+	if err := m.db.Exec(`
+		ALTER TABLE submissions
+		ADD COLUMN IF NOT EXISTS rubric_version_id INTEGER
+	`).Error; err != nil {
+		m.logger.Warn("failed to add rubric_version_id column to submissions", zap.Error(err))
+	}
+
+	// Add total_score column to submissions
+	if err := m.db.Exec(`
+		ALTER TABLE submissions
+		ADD COLUMN IF NOT EXISTS total_score INTEGER
+	`).Error; err != nil {
+		m.logger.Warn("failed to add total_score column to submissions", zap.Error(err))
+	}
+
+	// Add instructor_override column to submissions
+	if err := m.db.Exec(`
+		ALTER TABLE submissions
+		ADD COLUMN IF NOT EXISTS instructor_override JSONB
+	`).Error; err != nil {
+		m.logger.Warn("failed to add instructor_override column to submissions", zap.Error(err))
+	}
+
+	// Index on rubric_version_id for efficient lookups
+	if err := m.db.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_submissions_rubric_version_id
+		ON submissions(rubric_version_id)
+	`).Error; err != nil {
+		m.logger.Warn("failed to create index on submissions(rubric_version_id)", zap.Error(err))
+	}
+
+	// Index on total_score for grade reporting queries
+	if err := m.db.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_submissions_total_score
+		ON submissions(total_score)
+	`).Error; err != nil {
+		m.logger.Warn("failed to create index on submissions(total_score)", zap.Error(err))
+	}
+
 	m.logger.Info("migrations completed successfully")
 	return nil
 }
