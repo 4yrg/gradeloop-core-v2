@@ -149,12 +149,20 @@ func run() error {
 		logger,
 	)
 
+	rubricService := service.NewRubricService(
+		assignmentRepo,
+		submissionRepo,
+		auditClient,
+		logger,
+	)
+
 	// ── Handlers ─────────────────────────────────────────────────────────────
 	healthHandler := handler.NewHealthHandler()
 	assignmentHandler := handler.NewAssignmentHandler(assignmentService, logger)
 	submissionHandler := handler.NewSubmissionHandler(submissionService, logger)
 	groupHandler := handler.NewGroupHandler(groupService, logger)
 	instructorHandler := handler.NewInstructorHandler(assignmentService, submissionService, academicClient, logger)
+	rubricHandler := handler.NewRubricHandler(rubricService, logger)
 
 	// ── Fiber app ────────────────────────────────────────────────────────────
 	app := fiber.New(fiber.Config{
@@ -178,6 +186,7 @@ func run() error {
 		SubmissionHandler: submissionHandler,
 		GroupHandler:      groupHandler,
 		InstructorHandler: instructorHandler,
+		RubricHandler:     rubricHandler,
 		JWTSecretKey:      []byte(cfg.JWT.SecretKey),
 	})
 
