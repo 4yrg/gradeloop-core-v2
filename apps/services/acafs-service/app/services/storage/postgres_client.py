@@ -188,3 +188,125 @@ class PostgresClient:
             if row:
                 return ASTBlueprint.model_validate_json(row["ast_blueprint"])
             return None
+
+    async def get_rubric_config(self, assignment_id: UUID) -> Optional[dict]:
+        """Retrieve rubric configuration for an assignment.
+        
+        Args:
+            assignment_id: UUID of the assignment
+            
+        Returns:
+            Rubric configuration dict if found, None otherwise
+        """
+        async with self._get_connection() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT rubric_config, rubric_version
+                FROM assignments
+                WHERE id = $1 AND is_active = true
+                """,
+                assignment_id,
+            )
+            
+            if row and row["rubric_config"]:
+                import json
+                config = json.loads(row["rubric_config"])
+                config["version"] = row["rubric_version"]
+                return config
+            return None
+
+    async def store_evaluation_results(
+        self,
+        submission_id: UUID,
+        criteria_breakdown: dict,
+        total_score: int,
+        rubric_version_id: int = 1,
+    ) -> None:
+        """Store evaluation results including criteria breakdown.
+        
+        Args:
+            submission_id: UUID of the submission
+            criteria_breakdown: Scoring breakdown per dimension
+            total_score: Final computed score
+            rubric_version_id: Version of rubric used
+        """
+        import json
+        
+        async with self._get_connection() as conn:
+            await conn.execute(
+                """
+                UPDATE submissions
+                SET criteria_breakdown = $1,
+                    total_score = $2,
+                    rubric_version_id = $3,
+                    updated_at = NOW()
+                WHERE id = $4
+                """,
+                json.dumps(criteria_breakdown),
+                total_score,
+                rubric_version_id,
+                submission_id,
+            )
+            logger.info(
+                "evaluation_results_stored",
+                submission_id=str(submission_id),
+                total_score=total_score,
+            )
+
+    async def store_acafs_evaluation(
+        self,
+        submission_id: UUID,
+        assignment_id: UUID,
+        criteria_breakdown: dict,
+        total_score: int,
+        semantic_feedback: Optional[dict] = None,
+    ) -> None:
+        """Store complete ACAFS evaluation results.
+        
+        Args:
+            submission_id: UUID of the submission
+            assignment_id: UUID of the assignment
+            criteria_breakdown: Scoring breakdown per dimension
+            total_score: Final computed score
+            semantic_feedback: Optional LLM-generated feedback
+        """
+        import json
+        
+        async with self._get_connection() as conn:
+            # Create acafs_evaluations table if not exists
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS acafs_evaluations (
+                    id SERIAL PRIMARY KEY,
+                    submission_id UUID NOT NULL UNIQUE,
+                    assignment_id UUID NOT NULL,
+                    criteria_breakdown JSONB NOT NULL,
+                    total_score INTEGER NOT NULL,
+                    semantic_feedback JSONB,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                )
+            """)
+            
+            await conn.execute(
+                """
+                INSERT INTO acafs_evaluations 
+                    (submission_id, assignment_id, criteria_breakdown, total_score, semantic_feedback)
+                VALUES ($1, $2, $3, $4, $5)
+                ON CONFLICT (submission_id) 
+                DO UPDATE SET
+                    criteria_breakdown = EXCLUDED.criteria_breakdown,
+                    total_score = EXCLUDED.total_score,
+                    semantic_feedback = EXCLUDED.semantic_feedback,
+                    updated_at = NOW()
+                """,
+                submission_id,
+                assignment_id,
+                json.dumps(criteria_breakdown),
+                total_score,
+                json.dumps(semantic_feedback) if semantic_feedback else None,
+            )
+            logger.info(
+                "acafs_evaluation_stored",
+                submission_id=str(submission_id),
+                total_score=total_score,
+            )
