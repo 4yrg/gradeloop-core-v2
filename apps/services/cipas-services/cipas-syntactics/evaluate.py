@@ -2,48 +2,26 @@
 evaluate.py — Evaluate the two-stage clone detection pipeline on BigCloneBench Balanced.
 
 Pipeline context:
-  Stage 0: NiCAD-style normalizer → Type-1 / Type-2
-  Stage 1: XGBoost Clone Detector (clone_detector_xgb.pkl)
-           Trained on Type-1 + Type-2 + Type-3 (strong/moderate/weak) vs NonClone.
-           Outputs a clone probability in [0, 1].
-  Stage 2: Type-3 Filter (clone_detection/type3_filter.py)
-           Applies levenshtein_ratio and ast_jaccard boundary checks to determine
-           whether a confirmed clone is specifically a Type-3 near-miss.
+  Stage 0 (NiCAD-style, Phase One):
+        StructuralNormalizer CST comparison.
+        Detects Type-1  (Jaccard ≥ 0.98 AND Lev ≥ 0.98, literal comparison)
+        Detects Type-2  (max(Jaccard, Lev) ≥ 0.95, blinded comparison, token-delta ≤ 5 %)
 
-Evaluation dataset:
-  BigCloneBench Balanced (bigclonebench_balanced.json)
-  Path: /home/iamdasun/Projects/4yrg/gradeloop-core-v2/datasets/bigclonebench/bigclonebench_balanced.json
+  Stage 1 (XGBoost, Phase Two):
+        Hybrid String + AST features → XGBoost classifier → clone probability in [0, 1].
+        Applied ONLY to pairs whose ground-truth clone_type is 3 (or non-clones).
 
-  JSON schema per record:
-    {
-      "id1", "id2",
-      "label"      : 1 = clone, 0 = non-clone,
-      "clone_type" : 1 | 2 | 3  (only meaningful when label == 1),
-      "code1", "code2",
-      ...
-    }
+  Stage 2 (Type-3 Filter):
+        Applies levenshtein_ratio and ast_jaccard boundary checks to map an
+        XGBoost-confirmed clone to a Type-3 near-miss result.
 
-  Evaluation split used:
-    Syntactic clones → label=1  AND  clone_type in {1, 2, 3} → XGBoost target = 1
-    Non-clones       → label=0                                → XGBoost target = 0
-
-    NOTE: clone_type=4 (semantic-only) pairs are EXCLUDED from the binary
-    evaluation because this model is a syntactic-only detector.
-    The per-clone-type breakdown is reported separately.
+Evaluation split per clone type:
+  Type-1 / Type-2  → ground-truth positive = NiCAD phase must fire (label 1)
+  Type-3           → ground-truth positive = XGBoost + Type-3 Filter must fire (label 1)
+  Non-clones       → neither stage should fire (label 0); both stages are run
 
 Primary KPI:
-  Type-3 Recall ≥ 40% (measured via the Stage 2 Type-3 Filter output).
-
-Prediction pipeline per pair:
-  1. XGBoost predicts clone probability: p = model.predict_proba(X)[i][1]
-  2. If p > threshold → is_clone = True, else False.
-  3. If is_clone: apply Type-3 Filter → is_type3 = is_type3_clone(features, feature_names, p)
-  4. Final prediction: 1 if is_type3 else 0.
-
-Features must match what was used during training (train.py):
-  String features (6): Jaccard, Dice, Levenshtein dist/ratio, Jaro, Jaro-Winkler
-  AST features (4+N) : Structural Jaccard, depth diff, node count diff/ratio,
-                       structural_density_1/2/diff, per-node-type distribution diffs
+  Type-3 Recall ≥ 40 % via the XGBoost + Type-3 Filter path.
 
 Usage:
     poetry run python evaluate.py
@@ -70,6 +48,7 @@ from tqdm import tqdm
 
 from clone_detection.features.syntactic_features import SyntacticFeatureExtractor
 from clone_detection.models.classifiers import SyntacticClassifier
+from clone_detection.pipelines import TieredPipeline
 from clone_detection.type3_filter import is_type3_clone
 from clone_detection.utils.common_setup import setup_logging
 
@@ -172,7 +151,7 @@ def load_bcb_dataset(
 
 
 # ---------------------------------------------------------------------------
-# Feature extraction
+# Feature extraction (used only for XGBoost / Type-3 path)
 # ---------------------------------------------------------------------------
 
 def extract_features(
@@ -222,17 +201,17 @@ def evaluate(
     """
     Evaluate the two-stage clone detection pipeline on BigCloneBench Balanced.
 
-    Prediction flow per pair:
-      1. Clone Detector (XGBoost): p = model.predict_proba(X)[i][1]
-      2. If p > threshold → enter Type-3 Filter
-         else → not a clone (prediction = 0)
-      3. Type-3 Filter: is_type3_clone(features_array, feature_names, p)
-         True  → prediction = 1  (Type-3 near-miss clone)
-         False → prediction = 0  (high-similarity clone excluded as Type-1/2,
-                                   or probability too low)
+    Routing logic per pair:
+      ┌─ Type-1 / Type-2 ground-truth clones ──► NiCAD phase (Phase One)
+      │                                           Prediction = 1 if NiCAD fires
+      │
+      ├─ Type-3 ground-truth clones          ──► XGBoost (Phase Two) + Type-3 Filter
+      │                                           Prediction = 1 if XGBoost + filter fires
+      │
+      └─ Non-clones (label = 0)              ──► NiCAD first, then XGBoost
+                                                  Prediction = 1 if either stage fires
 
-    The per-clone-type recall breakdown measures how well this two-stage
-    pipeline catches each clone type, with Type-3 recall being the primary KPI.
+    Per-clone-type recall is the PRIMARY KPI (target: Type-3 Recall ≥ 40 %).
 
     Args:
         model_name:            Filename for the trained clone detector pkl.
@@ -242,7 +221,7 @@ def evaluate(
         threshold:             Override the model's calibrated clone probability
                                threshold (None → use model's calibrated value).
         log_type3_similarity:  If True, log lev/ast/prob for each correct Type-3
-                               detection (Step 10 optional logging).
+                               detection.
 
     Returns:
         Dictionary containing accuracy, precision, recall, F1, ROC-AUC,
@@ -254,15 +233,16 @@ def evaluate(
     logger.info("=" * 80)
     logger.info("Two-Stage Clone Detection — Pipeline Evaluation on BigCloneBench Balanced")
     logger.info("=" * 80)
-    logger.info(f"Stage 1 model : {model_name}")
-    logger.info(f"Stage 2       : Type-3 Filter (type3_filter.py)")
-    logger.info(f"Dataset       : {BCB_BALANCED_PATH}")
-    logger.info(f"Clone types   : {sorted(clone_types)}")
-    logger.info(f"Threshold     : {threshold if threshold is not None else 'calibrated (from model)'}")
+    logger.info(f"Stage 0 (NiCAD)  : Type-1 / Type-2 via StructuralNormalizer")
+    logger.info(f"Stage 1 (XGBoost): Type-3 via {model_name}")
+    logger.info(f"Stage 2          : Type-3 Filter (type3_filter.py)")
+    logger.info(f"Dataset          : {BCB_BALANCED_PATH}")
+    logger.info(f"Clone types      : {sorted(clone_types)}")
+    logger.info(f"Threshold        : {threshold if threshold is not None else 'calibrated (from model)'}")
     logger.info("=" * 80)
 
-    # ---- Load model -------------------------------------------------------
-    logger.info(f"\nLoading clone detector model '{model_name}' …")
+    # ---- Load XGBoost model -----------------------------------------------
+    logger.info(f"\nLoading XGBoost clone detector model '{model_name}' …")
     try:
         model = SyntacticClassifier.load(model_name)
     except FileNotFoundError:
@@ -271,6 +251,9 @@ def evaluate(
             "  poetry run python train.py"
         )
         raise
+
+    # ---- Build NiCAD pipeline (no XGBoost classifier) --------------------
+    nicad_pipeline = TieredPipeline(classifier=None)
 
     # ---- Load evaluation data --------------------------------------------
     logger.info("\nLoading evaluation dataset …")
@@ -287,14 +270,14 @@ def evaluate(
     logger.info(f"  Clones    : {n_clones:,}  ({n_clones / total * 100:.1f} %)")
     logger.info(f"  Non-clones: {n_nonclones:,}  ({n_nonclones / total * 100:.1f} %)")
 
-    # ---- Extract features ------------------------------------------------
-    logger.info("\nExtracting features …")
+    # ---- Extract features (XGBoost uses these for Type-3 + non-clones) ---
+    logger.info("\nExtracting String + AST features (used for XGBoost / Type-3 path) …")
     X, raw_feature_names = extract_features(
         code1_list, code2_list, language="java", include_node_types=include_node_types
     )
     y = np.array(labels)
 
-    # ---- Filter to those kept during training ----------------------------
+    # ---- Filter features to those kept during training -------------------
     missing_feats = [f for f in model.feature_names if f not in raw_feature_names]
     if missing_feats:
         logger.error(f"Missing features required by the model: {missing_feats}")
@@ -304,9 +287,9 @@ def evaluate(
     X_filtered = X[:, kept_indices]
     feature_names = model.feature_names
 
-    # ---- Stage 1: Clone Detector probabilities ---------------------------
-    logger.info("\nRunning Stage 1: Clone Detector …")
-    y_proba = model.predict_proba(X_filtered)[:, 1]
+    # ---- XGBoost probabilities (computed once for all pairs) -------------
+    logger.info("\nComputing XGBoost clone probabilities …")
+    y_proba_xgb = model.predict_proba(X_filtered)[:, 1]
 
     # Resolve threshold: CLI arg → model's calibrated_threshold → default 0.5
     effective_threshold = threshold
@@ -323,31 +306,92 @@ def evaluate(
     else:
         logger.info(f"Applying threshold {effective_threshold:.2f}")
 
-    # ---- Stage 2: Type-3 Filter ------------------------------------------
-    logger.info("\nRunning Stage 2: Type-3 Filter …")
+    # ---- Per-pair prediction with type-routed logic ----------------------
+    logger.info("\nRunning type-routed evaluation …")
+    logger.info("  Type-1 / Type-2 pairs → NiCAD (Phase One)")
+    logger.info("  Type-3 pairs          → XGBoost + Type-3 Filter (Phase Two)")
+    logger.info("  Non-clones            → NiCAD first, then XGBoost")
+
     y_pred: list[int] = []
+    # y_proba_final mirrors XGBoost probability for ROC-AUC; for NiCAD-confirmed
+    # clones we set 1.0 (very high confidence) and for NiCAD-confirmed non-clones
+    # we keep the XGBoost probability as a fallback score.
+    y_proba_final: list[float] = []
 
-    for i in range(len(X)):
-        prob = float(y_proba[i])
+    nicad_routes = 0     # pairs routed through NiCAD
+    xgb_routes   = 0     # pairs routed through XGBoost
 
-        if prob > effective_threshold:
-            # Pair is a clone — apply Type-3 boundary filter
-            pred = int(is_type3_clone(X_filtered[i], feature_names, prob))
+    for i in tqdm(range(total), desc="Evaluating pairs"):
+        meta       = meta_list[i]
+        label      = int(meta["label"])
+        clone_type = int(meta.get("clone_type", 0))
+        c1         = code1_list[i]
+        c2         = code2_list[i]
+        prob_xgb   = float(y_proba_xgb[i])
 
-            # Optional: log structural signature of true-positive Type-3 detections
-            if log_type3_similarity and pred == 1 and y[i] == 1:
-                lev_idx = feature_names.index("feat_levenshtein_ratio")
-                ast_idx = feature_names.index("feat_ast_jaccard")
-                logger.info(
-                    "Type3 clone: lev=%.3f, ast=%.3f, prob=%.3f",
-                    X_filtered[i][lev_idx], X_filtered[i][ast_idx], prob,
-                )
+        # ── Type-1 / Type-2 ground-truth clones: NiCAD path ──────────────
+        if label == 1 and clone_type in {1, 2}:
+            nicad_routes += 1
+            try:
+                result = nicad_pipeline._phase_one_nicad(c1, c2, "java")
+                nicad_fired = result.clone_type in ("Type-1", "Type-2")
+            except Exception as exc:
+                logger.debug(f"NiCAD phase failed for pair {i}: {exc}")
+                nicad_fired = False
+
+            pred = 1 if nicad_fired else 0
+            # Confidence: NiCAD uses jaccard_similarity as the score
+            try:
+                score = result.jaccard_similarity if nicad_fired else prob_xgb
+            except Exception:
+                score = float(nicad_fired)
+            y_pred.append(pred)
+            y_proba_final.append(score)
+
+        # ── Type-3 ground-truth clones: XGBoost + Type-3 Filter path ─────
+        elif label == 1 and clone_type == 3:
+            xgb_routes += 1
+            if prob_xgb > effective_threshold:
+                pred = int(is_type3_clone(X_filtered[i], feature_names, prob_xgb))
+                if log_type3_similarity and pred == 1:
+                    lev_idx = feature_names.index("feat_levenshtein_ratio")
+                    ast_idx = feature_names.index("feat_ast_jaccard")
+                    logger.info(
+                        "Type3 TP: lev=%.3f, ast=%.3f, prob=%.3f",
+                        X_filtered[i][lev_idx], X_filtered[i][ast_idx], prob_xgb,
+                    )
+            else:
+                pred = 0
+            y_pred.append(pred)
+            y_proba_final.append(prob_xgb)
+
+        # ── Non-clones (label = 0): NiCAD first, then XGBoost ────────────
         else:
-            pred = 0
+            nicad_routes += 1
+            xgb_routes   += 1
+            try:
+                result      = nicad_pipeline._phase_one_nicad(c1, c2, "java")
+                nicad_fired = result.clone_type in ("Type-1", "Type-2")
+            except Exception as exc:
+                logger.debug(f"NiCAD phase failed for pair {i}: {exc}")
+                nicad_fired = False
 
-        y_pred.append(pred)
+            if nicad_fired:
+                # NiCAD falsely fires on a non-clone → FP
+                pred = 1
+            elif prob_xgb > effective_threshold:
+                pred = int(is_type3_clone(X_filtered[i], feature_names, prob_xgb))
+            else:
+                pred = 0
 
-    y_pred_arr = np.array(y_pred)
+            y_pred.append(pred)
+            y_proba_final.append(prob_xgb)
+
+    y_pred_arr  = np.array(y_pred)
+    y_proba_arr = np.array(y_proba_final)
+
+    logger.info(f"\n  NiCAD route invocations : {nicad_routes:,}")
+    logger.info(f"  XGBoost route invocations: {xgb_routes:,}")
 
     # ---- Overall metrics -------------------------------------------------
     metrics = {
@@ -355,7 +399,7 @@ def evaluate(
         "precision": precision_score(y, y_pred_arr, zero_division=0),
         "recall"   : recall_score(y, y_pred_arr, zero_division=0),
         "f1"       : f1_score(y, y_pred_arr, zero_division=0),
-        "roc_auc"  : roc_auc_score(y, y_proba),
+        "roc_auc"  : roc_auc_score(y, y_proba_arr),
         "threshold": effective_threshold,
     }
 
@@ -384,6 +428,8 @@ def evaluate(
             if (precision_ct + recall_ct) > 0 else 0.0
         )
 
+        source = "NiCAD (Phase One)" if ct in {1, 2} else "XGBoost + Type-3 Filter"
+
         clone_type_metrics[ct] = {
             "count":     len(ct_idx),
             "tp":        tp,
@@ -391,16 +437,17 @@ def evaluate(
             "recall":    recall_ct,
             "precision": precision_ct,
             "f1":        f1_ct,
+            "detector":  source,
         }
 
     # ---- Report ----------------------------------------------------------
     logger.info("\n" + "=" * 80)
-    logger.info("EVALUATION REPORT — BigCloneBench Balanced (Two-Stage Pipeline)")
+    logger.info("EVALUATION REPORT — BigCloneBench Balanced")
     logger.info("=" * 80)
     logger.info(f"Dataset     : {BCB_BALANCED_PATH}")
     logger.info(f"Total       : {total:,} pairs")
     logger.info(f"Clones      : {n_clones:,}  |  Non-clones: {n_nonclones:,}")
-    logger.info(f"Threshold   : {effective_threshold:.2f}  (Stage 1) + Type-3 Filter (Stage 2)")
+    logger.info(f"XGB Thresh  : {effective_threshold:.2f}  (Stage 1, Type-3 path only)")
     logger.info("-" * 80)
     logger.info(f"Accuracy    : {metrics['accuracy']:.4f}")
     logger.info(f"Precision   : {metrics['precision']:.4f}")
@@ -419,23 +466,25 @@ def evaluate(
     # Per-clone-type recall — PRIMARY KPI
     if clone_type_metrics:
         logger.info("\n" + "=" * 80)
-        logger.info("Per-Clone-Type Metrics via Two-Stage Pipeline  (PRIMARY KPI)")
+        logger.info("Per-Clone-Type Metrics — Routed Evaluation  (PRIMARY KPI)")
+        logger.info("  Type-1/2 → NiCAD (Phase One)  |  Type-3 → XGBoost + Type-3 Filter")
         logger.info("Target: Type-3 Recall ≥ 40%")
         logger.info("=" * 80)
-        logger.info(f"  {'Type':<7} {'Recall':>7}  {'Precision':>9}  {'F1':>7}   bar (recall)             TP / (TP+FN)  n")
-        logger.info(f"  {'-'*7} {'-'*7}  {'-'*9}  {'-'*7}   {'-'*24}  {'-'*12}  {'-'*6}")
+        logger.info(f"  {'Type':<7} {'Recall':>7}  {'Precision':>9}  {'F1':>7}   bar (recall)             TP / (TP+FN)  n       Detector")
+        logger.info(f"  {'-'*7} {'-'*7}  {'-'*9}  {'-'*7}   {'-'*24}  {'-'*12}  {'-'*6}  {'-'*26}")
         for ct, m in clone_type_metrics.items():
             bar_filled = int(m["recall"] * 20)
             bar = "█" * bar_filled + "░" * (20 - bar_filled)
-            kpi = " ← TARGET" if ct == 3 else ""
+            kpi  = " ← TARGET" if ct == 3 else ""
             meet = " ✓" if ct == 3 and m["recall"] >= 0.40 else (" ✗" if ct == 3 else "")
             logger.info(
                 f"  Type-{ct}  {m['recall']:>7.4f}  {m['precision']:>9.4f}  {m['f1']:>7.4f}   [{bar}]"
                 f"  TP={m['tp']:>5} / {m['tp']+m['fn']:>5}  n={m['count']:>6}{kpi}{meet}"
+                f"  {m['detector']}"
             )
 
-    # Feature importance
-    logger.info("\nTop-20 Feature Importances (Clone Detector):")
+    # Feature importance (XGBoost only)
+    logger.info("\nTop-20 Feature Importances (XGBoost Clone Detector — Type-3 path):")
     logger.info("-" * 80)
     try:
         for feat_name, importance in model.get_feature_importance_sorted()[:20]:
@@ -443,8 +492,12 @@ def evaluate(
     except Exception:
         pass
 
-    # Type-3 filter boundary reminder
-    logger.info("\nType-3 Filter Boundaries Applied (Stage 2):")
+    # Boundary reminders
+    logger.info("\nNiCAD Phase-One Thresholds (Type-1 / Type-2 path):")
+    logger.info("  Type-1: Jaccard ≥ 0.98 AND Levenshtein ≥ 0.98 (literal CST)")
+    logger.info("  Type-2: max(Jaccard, Lev) ≥ 0.95, token-length delta ≤ 5 % (blinded CST)")
+
+    logger.info("\nType-3 Filter Boundaries Applied (XGBoost path — Stage 2):")
     logger.info("  prob_floor       : 0.35  (pairs below this are not clones)")
     logger.info("  lev_ratio_upper  : 0.85  (above this = Type-1/2, excluded from Type-3)")
     logger.info("  ast_jaccard_upper: 0.90  (above this = Type-1/2, excluded from Type-3)")
@@ -460,8 +513,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description=(
             "Evaluate the two-stage clone detection pipeline on BigCloneBench Balanced.\n\n"
-            "Stage 1: XGBoost Clone Detector predicts clone probability.\n"
-            "Stage 2: Type-3 Filter maps confirmed clones to near-miss Type-3 predictions.\n\n"
+            "Routing:\n"
+            "  Type-1 / Type-2 → NiCAD StructuralNormalizer (Phase One)\n"
+            "  Type-3          → XGBoost Clone Detector + Type-3 Filter (Phase Two)\n"
+            "  Non-clones      → NiCAD then XGBoost (both stages)\n\n"
             f"Dataset: {BCB_BALANCED_PATH}"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -495,7 +550,8 @@ if __name__ == "__main__":
         default=None,
         metavar="T",
         help=(
-            "Stage 1 clone probability threshold (None = use model calibrated value). "
+            "XGBoost clone probability threshold for the Type-3 path "
+            "(None = use model calibrated value). "
             "Sweep 0.10–0.30 to find the best Type-3 F1."
         ),
     )
