@@ -53,10 +53,51 @@ class Settings(BaseSettings):
     ast_max_lines: int = Field(default=5000, alias="AST_MAX_LINES")
     ast_timeout_seconds: int = Field(default=2, alias="AST_TIMEOUT_SECONDS")
 
+    # LLM Configuration
+    llm_api_key: str = Field(default="", alias="LLM_API_KEY")
+    llm_model: str = Field(default="gpt-4", alias="LLM_MODEL")
+    llm_base_url: str = Field(default="", alias="LLM_BASE_URL")
+
     @property
     def database_dsn(self) -> str:
         """Return database DSN as string."""
         return str(self.database_url)
+
+
+# Default ACAFS Blueprint Rubric Configuration
+DEFAULT_RUBRIC_CONFIG = {
+    "execution": {
+        "weight": 30,
+        "fixed": True,
+        "test_cases": [],
+    },
+    "dimensions": [
+        {
+            "id": "logical_correctness",
+            "name": "Logical Correctness",
+            "weight": 25,
+            "description": "Algorithmic accuracy and logical flow of the solution",
+        },
+        {
+            "id": "best_practices",
+            "name": "Best Practices",
+            "weight": 20,
+            "description": "Bounds checking, initialization, error handling, and defensive programming",
+        },
+        {
+            "id": "code_quality",
+            "name": "Code Quality",
+            "weight": 15,
+            "description": "Readability, modularity, naming conventions, and code organization",
+        },
+        {
+            "id": "conceptual_understanding",
+            "name": "Conceptual Understanding",
+            "weight": 10,
+            "description": "Appropriate use of programming paradigms (recursion vs iteration, etc.)",
+        },
+    ],
+}
 
 
 @lru_cache
