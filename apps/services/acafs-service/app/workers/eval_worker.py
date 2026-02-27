@@ -7,7 +7,10 @@ from typing import Optional
 from app.config import Settings
 from app.logging_config import get_logger
 from app.schemas import SubmissionEvent
+from app.schemas.rubric import DEFAULT_RUBRIC_CONFIG, RubricConfig, RubricScoringInput
 from app.services.evaluation.ast_parser import ASTParser
+from app.services.evaluation.llm_gateway import LLMGateway
+from app.services.evaluation.rubric_engine import RubricEngine
 from app.services.storage.minio_client import MinIOClient
 from app.services.storage.postgres_client import PostgresClient
 
@@ -34,6 +37,8 @@ class EvaluationWorker:
         self.minio = minio_client
         self.postgres = postgres_client
         self.ast_parser = ASTParser()
+        self.rubric_engine = RubricEngine()
+        self.llm_gateway = LLMGateway()
         self._executor = ThreadPoolExecutor(max_workers=settings.rabbitmq_concurrency)
 
     async def process_event(self, event: SubmissionEvent) -> None:
@@ -70,6 +75,9 @@ class EvaluationWorker:
                 language=event.language,
                 blueprint=blueprint,
             )
+
+            # Perform rubric-based scoring
+            await self._score_submission(event, code, blueprint)
             
             logger.info(
                 "submission_processed_successfully",
@@ -148,6 +156,114 @@ class EvaluationWorker:
             failure_reason=reason,
             error_details={"details": details},
         )
+
+    async def _score_submission(
+        self,
+        event: SubmissionEvent,
+        code: str,
+        blueprint,
+    ) -> None:
+        """Score submission using rubric engine.
+        
+        Args:
+            event: Submission event
+            code: Source code
+            blueprint: AST blueprint
+        """
+        try:
+            # Get rubric config for assignment
+            rubric_dict = await self.postgres.get_rubric_config(event.assignment_id)
+            
+            if rubric_dict:
+                rubric_config = RubricConfig.model_validate(rubric_dict)
+                rubric_version = rubric_dict.get("version", 1)
+            else:
+                # Use default rubric
+                rubric_config = DEFAULT_RUBRIC_CONFIG
+                rubric_version = 1
+                logger.info(
+                    "using_default_rubric",
+                    assignment_id=str(event.assignment_id),
+                )
+
+            # Build scoring input
+            scoring_input = RubricScoringInput(
+                submission_id=str(event.submission_id),
+                assignment_id=str(event.assignment_id),
+                code=code,
+                language=event.language,
+                ast_blueprint=blueprint.model_dump(),
+                rubric_config=rubric_config,
+            )
+
+            # Get semantic scores from LLM if available
+            semantic_scores = None
+            try:
+                llm_result = self.llm_gateway.generate_semantic_scores(
+                    code=code,
+                    ast_blueprint=blueprint.model_dump(),
+                    rubric_config=rubric_config,
+                    language=event.language,
+                )
+                if llm_result:
+                    semantic_scores = {
+                        "logical_correctness": llm_result.logical_correctness.score,
+                        "best_practices": llm_result.best_practices.score,
+                        "code_quality": llm_result.code_quality.score,
+                        "conceptual_understanding": llm_result.conceptual_understanding.score,
+                    }
+                    logger.info(
+                        "llm_semantic_scoring_completed",
+                        submission_id=str(event.submission_id),
+                    )
+            except Exception as e:
+                logger.warning(
+                    "llm_scoring_failed",
+                    submission_id=str(event.submission_id),
+                    error=str(e),
+                )
+
+            # Calculate scores
+            score_result = self.rubric_engine.score_submission(
+                input_data=scoring_input,
+                semantic_scores=semantic_scores,
+            )
+
+            # Store evaluation results
+            await self.postgres.store_acafs_evaluation(
+                submission_id=event.submission_id,
+                assignment_id=event.assignment_id,
+                criteria_breakdown=score_result.criteria_breakdown.model_dump(),
+                total_score=score_result.total_score,
+                semantic_feedback={
+                    "llm_scored": semantic_scores is not None,
+                    "rubric_version": rubric_version,
+                } if semantic_scores else None,
+            )
+
+            # Also update submissions table
+            await self.postgres.store_evaluation_results(
+                submission_id=event.submission_id,
+                criteria_breakdown=score_result.criteria_breakdown.model_dump(),
+                total_score=score_result.total_score,
+                rubric_version_id=rubric_version,
+            )
+
+            logger.info(
+                "submission_scored",
+                submission_id=str(event.submission_id),
+                total_score=score_result.total_score,
+                execution=score_result.criteria_breakdown.execution,
+                logical_correctness=score_result.criteria_breakdown.logical_correctness,
+            )
+
+        except Exception as e:
+            logger.error(
+                "scoring_failed",
+                submission_id=str(event.submission_id),
+                error=str(e),
+            )
+            # Don't fail the whole processing, just log the error
 
     def close(self) -> None:
         """Clean up resources."""
