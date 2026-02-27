@@ -1,0 +1,22 @@
+meta {
+  name: Instructor Override
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/evaluations/{{submissionId}}/override
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "adjusted_score": 85,
+    "reason": "Student demonstrated excellent understanding despite minor execution issues"
+  }
+}

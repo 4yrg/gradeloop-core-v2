@@ -1,0 +1,46 @@
+meta {
+  name: Update Rubric
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/assignments/{{assignmentId}}/rubric
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "dimensions": [
+      {
+        "id": "logical_correctness",
+        "name": "Logical Correctness",
+        "weight": 30,
+        "description": "Algorithmic accuracy and logical flow of the solution - UPDATED"
+      },
+      {
+        "id": "best_practices",
+        "name": "Best Practices",
+        "weight": 15,
+        "description": "Bounds checking, initialization, error handling, and defensive programming"
+      },
+      {
+        "id": "code_quality",
+        "name": "Code Quality",
+        "weight": 15,
+        "description": "Readability, modularity, naming conventions, and code organization"
+      },
+      {
+        "id": "conceptual_understanding",
+        "name": "Conceptual Understanding",
+        "weight": 10,
+        "description": "Appropriate use of programming paradigms (recursion vs iteration, etc.)"
+      }
+    ]
+  }
+}
