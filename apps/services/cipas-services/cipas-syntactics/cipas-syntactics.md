@@ -6,7 +6,7 @@
 
 - **Automatic cascade detection**: Type-1 → Type-2 → Type-3 → Non-clone
 - **NiCad-style normalization** for Type-1/2 detection
-- **TOMA approach with Random Forest** for Type-3 detection
+- **TOMA approach with XGBoost** for Type-3 detection
 - **6 syntactic features**: Jaccard, Dice, Levenshtein distance/ratio, Jaro, Jaro-Winkler
 - **~65x faster** than neural network approaches
 
@@ -16,7 +16,7 @@
 |------------|-------------|------------------|-----------|
 | **Type-1** | Exact matches (renaming, formatting) | Literal CST comparison | ≥0.98 |
 | **Type-2** | Renamed identifiers/literals | Blinded CST comparison | ≥0.95 + Δtokens ≤5% |
-| **Type-3** | Modified statements | TOMA + Random Forest | RF probability |
+| **Type-3** | Modified statements | TOMA + XGBoost | XGB probability |
 
 ---
 
@@ -75,7 +75,7 @@ This will:
 
 ```bash
 poetry run python -c "from clone_detection.tokenizers.tree_sitter_tokenizer import TreeSitterTokenizer; print('✓ Tree-sitter loaded')"
-poetry run python -c "from sklearn.ensemble import RandomForestClassifier; print('✓ scikit-learn loaded')"
+poetry run python -c "import xgboost; print('✓ XGBoost loaded')"
 ```
 
 ### 4. Create Models Directory
@@ -90,11 +90,11 @@ mkdir -p models
 
 ### Understanding the Training Process
 
-The syntactic classifier uses **Random Forest** to detect Type-3 clones (modified statements). Training requires:
+The syntactic classifier uses **XGBoost** to detect Type-3 clones (modified statements). Training requires:
 
 - **Dataset**: Labeled code pairs (clone/not-clone) with syntactic features
 - **Feature Extraction**: 6 similarity features per pair
-- **Output**: Trained model saved as `models/type3_rf.pkl`
+- **Output**: Trained model saved as `models/type3_xgb.pkl`
 
 ### Feature Extraction
 
@@ -126,14 +126,14 @@ poetry run python train_model.py \
   --dataset ../../../../datasets/toma-dataset \
   --dataset-format toma \
   --language java \
-  --model-name type3_rf.pkl
+  --model-name type3_xgb.pkl
 
 # Train with sampled data (faster, for testing)
 poetry run python train_model.py \
   --dataset ../../../../datasets/toma-dataset \
   --dataset-format toma \
   --language java \
-  --model-name type3_rf.pkl \
+  --model-name type3_xgb.pkl \
   --sample-size 10000
 
 # Train with specific clone types (e.g., Type-3 only)
@@ -141,7 +141,7 @@ poetry run python train_model.py \
   --dataset ../../../../datasets/toma-dataset \
   --dataset-format toma \
   --language java \
-  --model-name type3_rf.pkl \
+  --model-name type3_xgb.pkl \
   --clone-types 3 \
   --sample-size 5000
 ```
@@ -184,10 +184,10 @@ Expected output:
 2026-02-26 10:00:05 - __main__ - INFO - Class distribution: 10000 clones, 10000 non-clones
 2026-02-26 10:00:05 - __main__ - INFO - Extracting syntactic features...
 2026-02-26 10:05:00 - __main__ - INFO - Feature matrix shape: (20000, 6)
-2026-02-26 10:05:01 - __main__ - INFO - Training Random Forest classifier...
+2026-02-26 10:05:01 - __main__ - INFO - Training XGBoost classifier...
 2026-02-26 10:05:15 - __main__ - INFO - Cross-validation F1: 0.9023 (+/- 0.0156)
 2026-02-26 10:05:15 - __main__ - INFO - Test set metrics: {'accuracy': 0.91, 'precision': 0.90, 'recall': 0.92, 'f1': 0.91}
-2026-02-26 10:05:16 - __main__ - INFO - Model saved to /path/to/cipas-syntactics/models/type3_rf.pkl
+2026-02-26 10:05:16 - __main__ - INFO - Model saved to /path/to/cipas-syntactics/models/type3_xgb.pkl
 ```
 
 ---

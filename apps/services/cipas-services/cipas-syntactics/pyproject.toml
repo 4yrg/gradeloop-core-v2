@@ -1,7 +1,7 @@
 [project]
 name = "cipas-syntactics"
 version = "0.1.0"
-description = "Syntactic Code Clone Detection Service (Type-1/2/3) with Tree-sitter and Random Forest"
+description = "Syntactic Code Clone Detection Service (Type-1/2/3) with Tree-sitter and XGBoost"
 authors = [
     {name = "Dasun Wickramasooriya",email = "dasun.wickramasooriya@gmail.com"}
 ]
@@ -17,6 +17,7 @@ dependencies = [
     "tree-sitter-python (>=0.23.0,<0.24.0)",
     # ML libraries for syntactic analysis
     "scikit-learn (>=1.6.0,<2.0.0)",
+    "xgboost (>=2.0.0,<3.0.0)",
     # Data processing
     "pandas (>=2.2.0,<3.0.0)",
     "numpy (>=2.2.0,<3.0.0)",

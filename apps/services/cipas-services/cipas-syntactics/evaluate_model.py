@@ -1,27 +1,27 @@
 """
 Evaluation Script for Syntactic Clone Detection Model (Type-3).
 
-Evaluates a trained Random Forest classifier on test datasets.
+Evaluates a trained XGBoost classifier on test datasets.
 Supports BigCloneBench (JSONL) and TOMA dataset formats.
 
 Usage:
     # Evaluate with BigCloneBench dataset
     poetry run python evaluate_model.py \
-        --model models/type3_rf.pkl \
+        --model models/type3_xgb.pkl \
         --dataset /path/to/bigclonebench/bigclonebench.jsonl \
         --dataset-format bigclonebench \
         --language java
 
     # Evaluate with TOMA dataset
     poetry run python evaluate_model.py \
-        --model models/type3_rf.pkl \
+        --model models/type3_xgb.pkl \
         --dataset /path/to/toma-dataset \
         --dataset-format toma \
         --language java
 
     # Evaluate with JSON dataset
     poetry run python evaluate_model.py \
-        --model models/type3_rf.pkl \
+        --model models/type3_xgb.pkl \
         --dataset /path/to/test_dataset.json \
         --dataset-format json \
         --language java

@@ -1,0 +1,108 @@
+{
+  "model_path": "models/type3_hybrid_xgb.pkl",
+  "dataset_path": "../../../../datasets/bigclonebench/bigclonebench_balanced.json",
+  "language": "java",
+  "timestamp": "2026-02-27T08:05:10.323683",
+  "total_samples": 64223,
+  "overall_metrics": {
+    "accuracy": 0.926163523971163,
+    "precision": 0.9782445429658163,
+    "recall": 0.9130769056825634,
+    "f1": 0.9445380116959065,
+    "roc_auc": 0.9830090665490807
+  },
+  "per_clone_type_metrics": {
+    "Non-clone": {
+      "count": 20000,
+      "accuracy": 0.9551,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "roc_auc": NaN
+    },
+    "Type-1": {
+      "count": 20000,
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "roc_auc": NaN
+    },
+    "Type-2": {
+      "count": 4223,
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "roc_auc": NaN
+    },
+    "Type-3": {
+      "count": 20000,
+      "accuracy": 0.8078,
+      "precision": 1.0,
+      "recall": 0.8078,
+      "f1": 0.8936829295276026,
+      "roc_auc": NaN
+    }
+  },
+  "feature_importance": {
+    "feat_jaccard_similarity": 0.0068995151668787,
+    "feat_dice_coefficient": 0.004475194960832596,
+    "feat_levenshtein_distance": 0.019122622907161713,
+    "feat_levenshtein_ratio": 0.11574563384056091,
+    "feat_jaro_similarity": 0.0036123443860560656,
+    "feat_jaro_winkler_similarity": 0.004074962809681892,
+    "feat_ast_jaccard": 0.1816767454147339,
+    "feat_ast_depth_diff": 0.01859756000339985,
+    "feat_ast_node_count_diff": 0.012679587118327618,
+    "feat_ast_node_count_ratio": 0.01071411557495594,
+    "feat_node_if_statement_diff": 0.013621339574456215,
+    "feat_node_for_statement_diff": 0.013848132453858852,
+    "feat_node_while_statement_diff": 0.024410981684923172,
+    "feat_node_do_statement_diff": 0.028384244069457054,
+    "feat_node_switch_statement_diff": 0.0,
+    "feat_node_try_statement_diff": 0.09614088386297226,
+    "feat_node_catch_clause_diff": 0.06901200115680695,
+    "feat_node_finally_clause_diff": 0.09028385579586029,
+    "feat_node_return_statement_diff": 0.002616878831759095,
+    "feat_node_break_statement_diff": 0.0029015999753028154,
+    "feat_node_continue_statement_diff": 0.009422246366739273,
+    "feat_node_throw_statement_diff": 0.027521256357431412,
+    "feat_node_assert_statement_diff": 0.0027599013410508633,
+    "feat_node_local_variable_declaration_diff": 0.01786506175994873,
+    "feat_node_assignment_expression_diff": 0.00852188654243946,
+    "feat_node_binary_expression_diff": 0.01566803641617298,
+    "feat_node_method_invocation_diff": 0.019307026639580727,
+    "feat_node_class_declaration_diff": 0.00811219122260809,
+    "feat_node_method_declaration_diff": 0.004741333890706301,
+    "feat_node_field_declaration_diff": 0.0073036146350204945,
+    "feat_node_constructor_declaration_diff": 0.0,
+    "feat_node_enhanced_for_statement_diff": 0.02786617912352085,
+    "feat_node_synchronized_statement_diff": 0.0027198786847293377,
+    "feat_node_switch_rule_diff": 0.0,
+    "feat_node_yield_statement_diff": 0.0,
+    "feat_node_labeled_statement_diff": 0.0023846221156418324,
+    "feat_node_expression_statement_diff": 0.010545020923018456,
+    "feat_node_block_diff": 0.019238222390413284,
+    "feat_node_parenthesized_expression_diff": 0.019899677485227585,
+    "feat_node_cast_expression_diff": 0.010511684231460094,
+    "feat_node_instanceof_expression_diff": 0.00046201719669625163,
+    "feat_node_lambda_expression_diff": 0.0,
+    "feat_node_method_reference_diff": 0.0,
+    "feat_node_object_creation_expression_diff": 0.010911427438259125,
+    "feat_node_array_creation_expression_diff": 0.021824676543474197,
+    "feat_node_ternary_expression_diff": 0.0016361625166609883,
+    "feat_node_update_expression_diff": 0.009208764880895615,
+    "feat_node_unary_expression_diff": 0.02275087498128414
+  },
+  "confusion_matrix": [
+    [
+      19102,
+      898
+    ],
+    [
+      3844,
+      40379
+    ]
+  ]
+}

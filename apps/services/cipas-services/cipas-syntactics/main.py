@@ -4,13 +4,13 @@ CIPAS Syntactics Service - Syntactic Code Clone Detection API.
 A FastAPI-based service for detecting syntactic code clones (Type-1/2/3) using:
 - Pipeline: Syntactic similarity with automatic cascade detection
 - Tree-sitter based CST parsing
-- Machine learning classifier (Random Forest for Type-3)
+- Machine learning classifier (XGBoost for Type-3)
 
 Features:
 - Multi-language support (Java, C, Python)
 - Tree-sitter based CST parsing
 - NiCad-style normalization for Type-1/2 detection
-- TOMA approach with Random Forest for Type-3 detection
+- TOMA approach with XGBoost for Type-3 detection
 - Fast (~65x faster than neural approaches)
 """
 
@@ -91,7 +91,7 @@ The service uses a three-tier cascade strategy:
 
 **Phase Two: TOMA Approach (Type-3)**
 - Token Frequency Vector + Token Sequence Stream
-- Random Forest classification with 6 syntactic features
+- XGBoost classification with 6 syntactic features
 
 ### Detection Characteristics
 
@@ -99,7 +99,7 @@ The service uses a three-tier cascade strategy:
 |------------|-----------------|------------|
 | **Type-1** | Literal CST comparison | 1.0 (exact) |
 | **Type-2** | Blinded CST comparison | ~0.95-0.99 |
-| **Type-3** | TOMA + Random Forest | RF probability |
+| **Type-3** | TOMA + XGBoost | XGBoost probability |
 
 ### Supported Languages
 - Java

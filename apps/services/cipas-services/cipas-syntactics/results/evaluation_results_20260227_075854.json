@@ -1,0 +1,49 @@
+{
+  "model_path": "models/type3_hybrid_xgb.pkl",
+  "dataset_path": "../../../../datasets/bigclonebench/bigclonebench_balanced.json",
+  "language": "java",
+  "timestamp": "2026-02-27T07:58:54.640507",
+  "total_samples": 64223,
+  "overall_metrics": {
+    "accuracy": 0.926163523971163,
+    "precision": 0.9782445429658163,
+    "recall": 0.9130769056825634,
+    "f1": 0.9445380116959065,
+    "roc_auc": 0.9830090665490807
+  },
+  "per_clone_type_metrics": {
+    "Non-clone": {
+      "count": 20000,
+      "accuracy": 0.9551,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "roc_auc": NaN
+    },
+    "Type-1": {
+      "count": 20000,
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "roc_auc": NaN
+    },
+    "Type-2": {
+      "count": 4223,
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "roc_auc": NaN
+    },
+    "Type-3": {
+      "count": 20000,
+      "accuracy": 0.8078,
+      "precision": 1.0,
+      "recall": 0.8078,
+      "f1": 0.8936829295276026,
+      "roc_auc": NaN
+    }
+  },
+  "feature_importance": {
+    "feat_jaccard_similarity": 

@@ -1,7 +1,7 @@
 """
 Training Script for Syntactic + Structural Clone Detection Model (Type-3).
 
-This script trains a Random Forest classifier on labeled code pair datasets.
+This script trains an XGBoost classifier on labeled code pair datasets.
 Supports TOMA dataset format (CSV with function IDs) and JSON format (with inline code).
 
 Uses hybrid features:
@@ -14,7 +14,7 @@ Usage:
         --dataset /path/to/toma-dataset \
         --dataset-format toma \
         --language java \
-        --model-name type3_hybrid_rf.pkl \
+        --model-name type3_hybrid_xgb.pkl \
         --include-node-types
 
     # Train with JSON dataset
@@ -22,7 +22,7 @@ Usage:
         --dataset /path/to/dataset.json \
         --dataset-format json \
         --language java \
-        --model-name type3_hybrid_rf.pkl \
+        --model-name type3_hybrid_xgb.pkl \
         --include-node-types
 """
 
@@ -229,14 +229,18 @@ def train_syntactic_model(
     dataset_path: str,
     dataset_format: str = "toma",
     language: str = "java",
-    model_name: str = "type3_hybrid_rf.pkl",
+    model_name: str = "type3_hybrid_xgb.pkl",
     test_size: float = 0.2,
     cross_validation: bool = True,
     n_estimators: int = 100,
-    max_depth: int = 10,
+    max_depth: int = 6,
+    learning_rate: float = 0.1,
+    subsample: float = 0.8,
+    colsample_bytree: float = 0.8,
     sample_size: int | None = None,
     clone_types: list[int] | None = None,
     include_node_types: bool = True,
+    use_gpu: bool = False,
 ) -> dict:
     """
     Train the hybrid syntactic + structural clone detection model.
@@ -248,11 +252,15 @@ def train_syntactic_model(
         model_name: Name for saved model
         test_size: Fraction of data for testing
         cross_validation: Whether to use cross-validation
-        n_estimators: Number of trees in Random Forest
+        n_estimators: Number of boosting rounds (trees)
         max_depth: Maximum tree depth
+        learning_rate: Learning rate (eta)
+        subsample: Subsample ratio of training instances
+        colsample_bytree: Subsample ratio of columns per tree
         sample_size: Optional sample size per class (for TOMA dataset)
         clone_types: Optional list of clone types to include (for TOMA dataset)
         include_node_types: Whether to include node type distribution features
+        use_gpu: Whether to use GPU acceleration
 
     Returns:
         Training metrics dictionary
@@ -287,10 +295,14 @@ def train_syntactic_model(
     classifier = SyntacticClassifier(
         n_estimators=n_estimators,
         max_depth=max_depth,
+        learning_rate=learning_rate,
+        subsample=subsample,
+        colsample_bytree=colsample_bytree,
         feature_names=feature_names,
+        use_gpu=use_gpu,
     )
 
-    logger.info("Training Random Forest classifier...")
+    logger.info("Training XGBoost classifier...")
     metrics = classifier.train(
         X, y, test_size=test_size, cross_validation=cross_validation
     )
@@ -339,7 +351,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-name",
         type=str,
-        default="type3_hybrid_rf.pkl",
+        default="type3_hybrid_xgb.pkl",
         help="Output model filename",
     )
     parser.add_argument(
@@ -357,13 +369,31 @@ if __name__ == "__main__":
         "--n-estimators",
         type=int,
         default=100,
-        help="Number of trees in Random Forest",
+        help="Number of boosting rounds (trees)",
     )
     parser.add_argument(
         "--max-depth",
         type=int,
-        default=10,
+        default=6,
         help="Maximum tree depth",
+    )
+    parser.add_argument(
+        "--learning-rate",
+        type=float,
+        default=0.1,
+        help="Learning rate (eta)",
+    )
+    parser.add_argument(
+        "--subsample",
+        type=float,
+        default=0.8,
+        help="Subsample ratio of training instances",
+    )
+    parser.add_argument(
+        "--colsample-bytree",
+        type=float,
+        default=0.8,
+        help="Subsample ratio of columns per tree",
     )
     parser.add_argument(
         "--sample-size",
@@ -383,6 +413,11 @@ if __name__ == "__main__":
         action="store_true",
         help="Disable node type distribution features (use only 10 basic features)",
     )
+    parser.add_argument(
+        "--use-gpu",
+        action="store_true",
+        help="Use GPU acceleration for training",
+    )
 
     args = parser.parse_args()
 
@@ -395,9 +430,13 @@ if __name__ == "__main__":
         cross_validation=not args.no_cv,
         n_estimators=args.n_estimators,
         max_depth=args.max_depth,
+        learning_rate=args.learning_rate,
+        subsample=args.subsample,
+        colsample_bytree=args.colsample_bytree,
         sample_size=args.sample_size,
         clone_types=args.clone_types,
         include_node_types=not args.no_node_types,
+        use_gpu=args.use_gpu,
     )
 
     logger.info("\n" + "=" * 60)

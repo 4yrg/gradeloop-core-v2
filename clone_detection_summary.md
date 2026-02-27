@@ -8,7 +8,7 @@ The clone detection system has been refactored from a monolithic `cipas-service`
 
 | Service | Location | Clone Types | Port | Technology |
 |---------|----------|-------------|------|------------|
-| **CIPAS Syntactics** | `apps/services/cipas-services/cipas-syntactics` | Type-1, Type-2, Type-3 | 8086 | Random Forest |
+| **CIPAS Syntactics** | `apps/services/cipas-services/cipas-syntactics` | Type-1, Type-2, Type-3 | 8086 | XGBoost |
 | **CIPAS Semantics** | `apps/services/cipas-services/cipas-semantics` | Type-4 | 8087 | XGBoost |
 
 ### Benefits of Migration
@@ -24,7 +24,7 @@ The clone detection system has been refactored from a monolithic `cipas-service`
 **CIPAS Syntactics Service** (`/api/v1/syntactics/*`):
 - `POST /api/v1/syntactics/compare` - Compare two code snippets (Type-1/2/3)
 - `GET /api/v1/syntactics/health` - Health check
-- `GET /api/v1/syntactics/feature-importance` - Get RF feature importance
+- `GET /api/v1/syntactics/feature-importance` - Get XGBoost feature importance
 - `POST /api/v1/syntactics/tokenize` - Tokenize code
 
 **CIPAS Semantics Service** (`/api/v1/semantics/*`):
@@ -37,7 +37,7 @@ The clone detection system has been refactored from a monolithic `cipas-service`
 
 The system categorizes clones into four types and utilizes an **automatic cascade detection strategy** that seamlessly integrates both pipelines:
 
-- **Automatic Cascade:** Implements a four-tier detection strategy for Type-1, Type-2, Type-3, and Type-4 clones using **NiCad-style normalization**, **Random Forest**, and **XGBoost Classifiers**.
+- **Automatic Cascade:** Implements a four-tier detection strategy for Type-1, Type-2, Type-3, and Type-4 clones using **NiCad-style normalization** and **XGBoost Classifiers**.
 - **Early Exit Optimization:** The pipeline automatically breaks when a clone type is confirmed, reducing computational overhead.
 
 ### Detection Flow
@@ -54,8 +54,8 @@ The system categorizes clones into four types and utilizes an **automatic cascad
 │                                                                  │
 │  Phase Two: TOMA Approach (Type-3)                               │
 │  ├─ Token Frequency Vector + Token Sequence Stream              │
-│  └─ Random Forest Classification (6 syntactic features)          │
-│      └─ Confidence: RF probability → [EXIT]                      │
+│  └─ XGBoost Classification (6 syntactic features)                │
+│      └─ Confidence: XGBoost probability → [EXIT]                 │
 │                                                                  │
 │  Phase Three: Semantic Analysis (Type-4)                         │
 │  ├─ Fused Semantic Features (100+ features)                     │
@@ -91,7 +91,7 @@ Structurally identical code snippets where identifiers, literals, types, or vari
   - All literals (strings, numbers) → `LIT` token
   - Keywords and operators preserved
   - **Threshold:** max(Jaccard, Levenshtein) ≥ 0.95 **AND** Token Count Delta ≤ 5%
-  - **Type-2 Logic Leak Prevention:** If token count difference > 5%, the pair bypasses Type-2 classification and proceeds to Phase Two (TOMA + Random Forest) for Type-3/Type-4 analysis, even if similarity is high. This prevents misclassification of structurally modified code as Type-2.
+  - **Type-2 Logic Leak Prevention:** Code pairs with high similarity (>0.95) but significant length difference (>5%) bypass Type-2 and proceed to Phase Two/Three
 - **Confidence Score:** ~0.95-0.99 (scales with similarity)
 - **Normalization Level:** `Blinded`
 - **Performance:** Achieves an expected F1 score of 92%+.
@@ -115,12 +115,12 @@ Clones with further modifications, such as added, removed, or changed statements
     - Declarations: `method_declaration`, `field_declaration`, `local_variable_declaration`
     - Expressions: `binary_expression`, `assignment_expression`, `method_invocation`, `ternary_expression`
     - Each feature measures normalized difference in node type frequencies
-  - **Random Forest model** trained on **10 features** (basic) or **48 features** (with node types)
-- **Confidence Score:** Random Forest probability
+  - **XGBoost model** trained on **10 features** (basic) or **48 features** (with node types)
+- **Confidence Score:** XGBoost probability
 - **Normalization Level:** `Token-based`
 - **Performance:** Expected F1 score improvement from 54% recall to 75%+ with structural features
 - **Training Script:** `train_model.py` with `--include-node-types` flag for full 48-feature model
-- **Model File:** `type3_hybrid_rf.pkl`
+- **Model File:** `type3_hybrid_xgb.pkl`
 - **Location:** `apps/services/cipas-services/cipas-syntactics/clone_detection/models/`
 
 ### Type-4: Semantic Clones
@@ -249,7 +249,7 @@ The clone detection system is now deployed as two independent microservices:
 │  Type-1/2/3 Detection   │     │  Type-4 Detection       │
 │  - NiCad Normalization  │     │  - 102 Semantic Features│
 │  - TOMA Approach        │     │  - XGBoost Classifier   │
-│  - Random Forest        │     │                         │
+│  - XGBoost              │     │                         │
 └─────────────────────────┘     └─────────────────────────┘
               │                               │
               └───────────────┬───────────────┘
@@ -272,8 +272,8 @@ The clone detection system is now deployed as two independent microservices:
 
 ### Machine Learning
 
-**CIPAS Syntactics (Random Forest):**
-- Highly parallelized (`n_jobs=-1`)
+**CIPAS Syntactics (XGBoost):**
+- Optimized for high-performance classification
 - **Hybrid Feature Set:**
   - **6 Syntactic Features:** Jaccard, Dice, Levenshtein distance/ratio, Jaro, Jaro-Winkler
   - **4 Structural Features:** AST Jaccard, AST Depth Diff, AST Node Count Diff, AST Node Count Ratio
@@ -282,7 +282,7 @@ The clone detection system is now deployed as two independent microservices:
 - **Explainability (GRADELOOP-83):** Feature names saved with model for importance visualization
 - **Parsing Safety:** Graceful handling of malformed student code with fallback to zero features
 - ~65x faster than neural approaches
-- Model file: `type3_hybrid_rf.pkl`
+- Model file: `type3_hybrid_xgb.pkl`
 - Location: `apps/services/cipas-services/cipas-syntactics/clone_detection/models/`
 - Training command:
   ```bash
@@ -290,8 +290,8 @@ The clone detection system is now deployed as two independent microservices:
   poetry run python train_model.py \
       --dataset /path/to/dataset \
       --language java \
-      --model-name type3_hybrid_rf.pkl
-  
+      --model-name type3_hybrid_xgb.pkl
+
   # Basic model without node types (10 features)
   poetry run python train_model.py \
       --dataset /path/to/dataset \
@@ -319,7 +319,7 @@ The clone detection system is now deployed as two independent microservices:
 |-------|--------|----------|-----------|------------|------------|------------|
 | Pass A | Literal comparison | Normalized CST tokens | Jaccard ≥ 0.98, Lev ≥ 0.98 | Type-1 | 1.0 | ✓ |
 | Pass B | Blinded comparison | Blinded CST tokens | max(J, L) ≥ 0.95 **AND** δ ≤ 5% | Type-2 | ~0.95-0.99 | ✓ |
-| Phase Two | Hybrid + Random Forest | 48 features (6 syntactic + 4 structural + 38 node type) | RF probability | Type-3 | RF score | ✓ |
+| Phase Two | XGBoost + Hybrid Features | 48 features (6 syntactic + 4 structural + 38 node type) | XGB probability | Type-3 | XGB score | ✓ |
 | Phase Three | XGBoost + Semantic Features | 204 fused features (102 per code) | XGB probability | Type-4 | XGB score | ✓ |
 
 **Optimization:** The cascade automatically breaks when a clone type is confirmed, reducing computational overhead by up to 80% for Type-1/Type-2 clones. Type-4 detection uses the full 204-feature vector only when earlier phases fail to confirm a clone.
@@ -410,7 +410,7 @@ The hybrid model provides explainability through feature importance analysis:
     {"feature": "feat_node_method_invocation_diff", "importance": 0.045}
   ],
   "total_features": 48,
-  "model_type": "Random Forest",
+  "model_type": "XGBoost",
   "n_estimators": 100
 }
 ```
