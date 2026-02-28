@@ -1,63 +1,286 @@
 #!/usr/bin/env python3
 """
-Simple Evaluation Script for Type-IV Code Clone Detector.
+Unified Evaluation Script for CIPAS Semantics - Type-4 Clone Detector.
 
-Evaluate a trained Type-IV clone detector on benchmark datasets.
-Supports multi-language evaluation for Java, Python, C, and C#.
+Evaluates trained models on benchmark datasets with comprehensive metrics.
 
-Quick Start:
-    # Evaluate on GPTCloneBench (Java only)
+Usage:
+    # Quick evaluation (default: GPTCloneBench, Java, 1000 samples)
     poetry run python evaluate.py
 
-    # Evaluate on all 4 languages
-    poetry run python evaluate.py --all-languages
+    # Evaluate specific model and language
+    poetry run python evaluate.py \\
+        --model models/type4_xgb_java.pkl \\
+        --language java \\
+        --sample-size 2000
 
-    # Evaluate with custom model
-    poetry run python evaluate.py --model models/type4_xgb_codenet.pkl
+    # Evaluate on all languages
+    poetry run python evaluate.py \\
+        --model models/type4_xgb_java.pkl \\
+        --all-languages \\
+        --sample-size 1000
 
-    # Evaluate on multiple datasets
-    poetry run python evaluate.py --datasets gptclonebench bigclonebench --all-languages
+    # Full evaluation with visualizations
+    poetry run python evaluate.py \\
+        --model models/type4_xgb_java.pkl \\
+        --visualize \\
+        --output-dir ./evaluation_results
 """
 
 import argparse
+import json
 import logging
 import sys
 from pathlib import Path
+from typing import Dict, List, Optional
+
+import numpy as np
 
 # Add current directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
+from sklearn.metrics import (
+    accuracy_score,
+    classification_report,
+    confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
+
+from clone_detection.features.sheneamer_features import SheneamerFeatureExtractor
+from clone_detection.models.classifiers import SemanticClassifier
 from clone_detection.utils.common_setup import setup_logging
-from evaluate_gptclonebench import evaluate_gptclonebench
-from evaluate_model import evaluate_model
+from clone_detection.utils.metrics_visualization import MetricsVisualizer
+from evaluate_gptclonebench import load_gptclonebench_dataset
 
 logger = setup_logging(__name__)
+
+
+def evaluate_model(
+    model_path: str,
+    dataset_path: str = "../../../../datasets/gptclonebench/gptclonebench_dataset.jsonl",
+    language: str = "java",
+    sample_size: Optional[int] = 1000,
+    threshold: Optional[float] = None,
+    threshold_sweep: bool = True,
+    visualize: bool = True,
+    output_dir: str = "./evaluation_output",
+) -> Dict:
+    """
+    Evaluate a trained model on a dataset.
+
+    Args:
+        model_path: Path to trained model (.pkl file)
+        dataset_path: Path to evaluation dataset
+        language: Programming language
+        sample_size: Number of samples to evaluate (None = full dataset)
+        threshold: Custom decision threshold (default: use calibrated threshold)
+        threshold_sweep: Perform threshold analysis
+        visualize: Generate visualizations
+        output_dir: Output directory for results
+
+    Returns:
+        Evaluation metrics dictionary
+    """
+    logger.info("=" * 80)
+    logger.info("CIPAS SEMANTICS - MODEL EVALUATION")
+    logger.info("=" * 80)
+    logger.info(f"Model: {model_path}")
+    logger.info(f"Dataset: {dataset_path}")
+    logger.info(f"Language: {language}")
+    logger.info(f"Sample size: {sample_size or 'full dataset'}")
+    logger.info("=" * 80)
+
+    # Load model
+    logger.info(f"\nLoading model from {model_path}...")
+    model = SemanticClassifier.load(Path(model_path).name)
+    logger.info(f"Model threshold: {model.get_threshold():.3f}")
+
+    # Set custom threshold if provided
+    if threshold is not None:
+        model.set_threshold(threshold)
+        logger.info(f"Using custom threshold: {threshold:.3f}")
+
+    # Load dataset
+    logger.info(f"\nLoading dataset from {dataset_path}...")
+    code1_list, code2_list, labels, metadata = load_gptclonebench_dataset(
+        dataset_path, sample_size=sample_size
+    )
+    logger.info(f"Loaded {len(code1_list)} code pairs")
+
+    # Extract features
+    logger.info("Extracting features...")
+    extractor = SheneamerFeatureExtractor()
+    features = []
+    for code1, code2 in zip(code1_list, code2_list):
+        fused = extractor.extract_fused_features(code1, code2, language)
+        features.append(fused)
+
+    X_test = np.array(features)
+    y_test = np.array(labels)
+    logger.info(f"Feature matrix shape: {X_test.shape}")
+
+    # Make predictions
+    logger.info("Making predictions...")
+    y_pred = model.predict(X_test)
+    y_proba = model.predict_proba(X_test)[:, 1]
+
+    # Calculate metrics
+    metrics = {
+        "accuracy": accuracy_score(y_test, y_pred),
+        "precision": precision_score(y_test, y_pred, zero_division=0),
+        "recall": recall_score(y_test, y_pred, zero_division=0),
+        "f1": f1_score(y_test, y_pred, zero_division=0),
+        "roc_auc": roc_auc_score(y_test, y_proba) if len(set(y_test)) > 1 else 0.5,
+        "macro_f1": (
+            f1_score(y_test, y_pred, pos_label=0, zero_division=0)
+            + f1_score(y_test, y_pred, pos_label=1, zero_division=0)
+        )
+        / 2,
+        "threshold_used": model.get_threshold(),
+    }
+
+    # Confusion matrix
+    cm = confusion_matrix(y_test, y_pred)
+    metrics["confusion_matrix"] = cm.tolist()
+    metrics["true_negatives"] = int(cm[0][0])
+    metrics["false_positives"] = int(cm[0][1])
+    metrics["false_negatives"] = int(cm[1][0])
+    metrics["true_positives"] = int(cm[1][1])
+
+    # Print results
+    print_evaluation_report(metrics, y_test, y_pred)
+
+    # Threshold sweep
+    if threshold_sweep:
+        logger.info("\nPerforming threshold sweep analysis...")
+        sweep_results = model.threshold_sweep(X_test, y_test)
+
+        optimal_f1 = model.find_optimal_threshold(X_test, y_test, metric="f1")
+        optimal_macro_f1 = model.find_optimal_threshold(
+            X_test, y_test, metric="f1_macro"
+        )
+
+        metrics["optimal_threshold_f1"] = float(optimal_f1)
+        metrics["optimal_threshold_macro_f1"] = float(optimal_macro_f1)
+
+        # Save sweep results
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+        sweep_csv = output_path / "threshold_sweep_results.csv"
+        sweep_results.to_csv(sweep_csv, index=False)
+        logger.info(f"Threshold sweep saved to: {sweep_csv}")
+
+        logger.info(f"\nOptimal threshold for F1: {optimal_f1:.3f}")
+        logger.info(f"Optimal threshold for Macro-F1: {optimal_macro_f1:.3f}")
+
+    # Generate visualizations
+    if visualize:
+        logger.info("\nGenerating visualizations...")
+        visualizer = MetricsVisualizer(output_dir=output_dir)
+
+        feature_names = extractor.get_feature_names(fused=True)
+        if hasattr(model, "feature_names") and model.feature_names:
+            feature_names = model.feature_names
+
+        extra_info = {
+            "dataset": "GPTCloneBench",
+            "language": language,
+            "model": model_path,
+            "total_samples": len(y_test),
+            "feature_count": X_test.shape[1],
+        }
+
+        report_files = visualizer.create_complete_report(
+            y_true=y_test,
+            y_pred=y_pred,
+            y_scores=y_proba,
+            metrics=metrics,
+            feature_names=feature_names,
+            importances=model.base_model.feature_importances_,
+            extra_info=extra_info,
+            report_name=f"evaluation_report_{language}.html",
+        )
+
+        logger.info(f"Visualizations saved to: {report_files['html_report']}")
+        metrics["visualization_path"] = str(report_files["html_report"])
+
+    # Save metrics
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    metrics_file = output_path / f"metrics_{language}.json"
+    with open(metrics_file, "w") as f:
+        json.dump(metrics, f, indent=2, default=str)
+    logger.info(f"Metrics saved to: {metrics_file}")
+
+    return metrics
+
+
+def print_evaluation_report(metrics: Dict, y_test: np.ndarray, y_pred: np.ndarray):
+    """Print formatted evaluation report."""
+    logger.info("\n" + "=" * 80)
+    logger.info("EVALUATION RESULTS")
+    logger.info("=" * 80)
+
+    logger.info(f"\nDataset Statistics:")
+    logger.info(f"  Total samples: {len(y_test):,}")
+    logger.info(f"  Clones: {sum(y_test):,} ({sum(y_test) / len(y_test) * 100:.1f}%)")
+    logger.info(
+        f"  Non-clones: {len(y_test) - sum(y_test):,} ({(len(y_test) - sum(y_test)) / len(y_test) * 100:.1f}%)"
+    )
+
+    logger.info(f"\nOverall Metrics:")
+    logger.info(f"  Accuracy:     {metrics['accuracy']:.4f}")
+    logger.info(f"  Precision:    {metrics['precision']:.4f}")
+    logger.info(f"  Recall:       {metrics['recall']:.4f}")
+    logger.info(f"  F1 Score:     {metrics['f1']:.4f}")
+    logger.info(f"  Macro-F1:     {metrics['macro_f1']:.4f}")
+    logger.info(f"  ROC AUC:      {metrics['roc_auc']:.4f}")
+
+    logger.info(f"\nPer-Class F1 Scores:")
+    logger.info(
+        f"  Non-Clone F1: {metrics['f1'] - (metrics['f1'] - f1_score(y_test, y_pred, pos_label=0, zero_division=0)):.4f}"
+    )
+    logger.info(
+        f"  Clone F1:     {f1_score(y_test, y_pred, pos_label=1, zero_division=0):.4f}"
+    )
+
+    logger.info(f"\nConfusion Matrix:")
+    cm = np.array(metrics["confusion_matrix"])
+    logger.info(f"  [[{cm[0][0]:5d}  {cm[0][1]:5d}]   [TN   FP]")
+    logger.info(f"   [{cm[1][0]:5d}  {cm[1][1]:5d}]]  [FN   TP]")
+
+    logger.info(f"\nThreshold: {metrics['threshold_used']:.3f}")
 
 
 def main():
     """Main evaluation entry point."""
     parser = argparse.ArgumentParser(
-        description="Evaluate Type-IV Code Clone Detector",
+        description="Evaluate CIPAS Semantics Type-4 Clone Detector",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Evaluate on GPTCloneBench (Java only)
+  # Quick evaluation (default settings)
   poetry run python evaluate.py
 
-  # Evaluate on all 4 languages
-  poetry run python evaluate.py --all-languages
+  # Evaluate specific model
+  poetry run python evaluate.py \\
+    --model models/type4_xgb_java.pkl \\
+    --language java \\
+    --sample-size 2000
 
-  # Evaluate with custom model
-  poetry run python evaluate.py --model models/type4_xgb_codenet.pkl
+  # Evaluate on all languages
+  poetry run python evaluate.py \\
+    --model models/type4_xgb_java.pkl \\
+    --all-languages
 
-  # Evaluate on multiple datasets and all languages
-  poetry run python evaluate.py --datasets gptclonebench bigclonebench --all-languages
-
-  # Evaluate with sampling (faster)
-  poetry run python evaluate.py --sample-size 500 --all-languages
-
-  # Evaluate without visualizations (faster)
-  poetry run python evaluate.py --no-visualize --all-languages
+  # Full evaluation with visualizations
+  poetry run python evaluate.py \\
+    --model models/type4_xgb_java.pkl \\
+    --visualize \\
+    --output-dir ./my_evaluation
         """,
     )
 
@@ -65,60 +288,66 @@ Examples:
     parser.add_argument(
         "--model",
         type=str,
-        default="./models/type4_xgb_codenet.pkl",
-        help="Path to trained model (default: ./models/type4_xgb_codenet.pkl)",
+        default="models/type4_xgb_java.pkl",
+        help="Path to trained model (default: models/type4_xgb_java.pkl)",
     )
 
     # Dataset arguments
     parser.add_argument(
-        "--datasets",
+        "--dataset",
         type=str,
-        nargs="+",
-        default=["gptclonebench"],
-        choices=["gptclonebench", "bigclonebench", "toma"],
-        help="Datasets to evaluate on (default: gptclonebench)",
+        default="../../../../datasets/gptclonebench/gptclonebench_dataset.jsonl",
+        help="Path to evaluation dataset (default: GPTCloneBench)",
     )
     parser.add_argument(
         "--language",
         type=str,
-        default="java",
+        default=None,
         choices=["java", "python", "c", "csharp"],
-        help="Programming language of the code (default: java)",
+        help="Programming language (default: all 4 if not specified)",
     )
     parser.add_argument(
         "--all-languages",
         action="store_true",
-        help="Evaluate on all 4 languages (java, python, c, csharp). Overrides --language",
+        help="Evaluate on all 4 languages",
     )
+
+    # Evaluation arguments
     parser.add_argument(
         "--sample-size",
         type=int,
-        default=None,
-        help="Sample size for evaluation (default: full dataset)",
-    )
-
-    # Output arguments
-    parser.add_argument(
-        "--output-dir",
-        type=str,
-        default="./evaluation_output",
-        help="Directory for evaluation output (default: ./evaluation_output)",
-    )
-    parser.add_argument(
-        "--no-visualize",
-        action="store_true",
-        help="Disable visualization generation",
+        default=1000,
+        help="Number of samples to evaluate (default: 1000)",
     )
     parser.add_argument(
         "--threshold",
         type=float,
         default=None,
-        help="Custom decision threshold (default: use model's calibrated threshold)",
+        help="Custom decision threshold (default: use calibrated threshold)",
     )
     parser.add_argument(
-        "--threshold-sweep",
+        "--no-threshold-sweep",
         action="store_true",
-        help="Perform threshold sweep analysis",
+        help="Disable threshold sweep analysis",
+    )
+
+    # Output arguments
+    parser.add_argument(
+        "--visualize",
+        action="store_true",
+        default=True,
+        help="Generate visualizations (default: enabled)",
+    )
+    parser.add_argument(
+        "--no-visualize",
+        action="store_true",
+        help="Disable visualizations",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default="./evaluation_output",
+        help="Output directory (default: ./evaluation_output)",
     )
 
     # Logging
@@ -132,135 +361,69 @@ Examples:
 
     args = parser.parse_args()
 
-    # Set logging level
+    # Configure logging
     logging.getLogger().setLevel(getattr(logging, args.log_level))
 
-    # Handle --all-languages flag
-    if args.all_languages:
+    # Determine languages
+    if args.all_languages or args.language is None:
         languages = ["java", "python", "c", "csharp"]
-        logger.info("Evaluating on all 4 languages: java, python, c, csharp")
+        if args.language is None and not args.all_languages:
+            logger.info(
+                "No language specified. Evaluating on ALL 4 languages by default."
+            )
     else:
         languages = [args.language]
 
-    # Verify model exists
-    model_path = Path(args.model)
-    if not model_path.exists():
-        logger.error(f"Model not found: {model_path}")
-        logger.info("\nPlease train a model first:")
-        logger.info("  poetry run python train.py --all-languages --sample-size 10000")
-        sys.exit(1)
-
-    logger.info("=" * 70)
-    logger.info("TYPE-IV CODE CLONE DETECTOR - EVALUATION")
-    logger.info("=" * 70)
-    logger.info(f"Model: {model_path}")
-    logger.info(f"Datasets: {args.datasets}")
-    logger.info(f"Languages: {languages}")
-    logger.info(f"Sample size: {args.sample_size or 'full dataset'}")
-    logger.info(f"Visualizations: {'Enabled' if not args.no_visualize else 'Disabled'}")
-    logger.info("=" * 70)
-
-    # Dataset configurations
-    dataset_paths = {
-        "gptclonebench": "../../../../datasets/gptclonebench/gptclonebench_dataset.jsonl",
-        "bigclonebench": "../../../../datasets/bigclonebench/bigclonebench.jsonl",
-        "toma": "../../../../datasets/toma-dataset",
-    }
-
-    dataset_formats = {
-        "gptclonebench": "gptclonebench",
-        "bigclonebench": "bigclonebench",
-        "toma": "toma",
-    }
-
-    # Evaluate on each dataset and language
+    # Run evaluation for each language
     all_results = {}
+    for lang in languages:
+        logger.info(f"\n{'=' * 80}")
+        logger.info(f"EVALUATING LANGUAGE: {lang.upper()}")
+        logger.info(f"{'=' * 80}\n")
 
-    for dataset_name in args.datasets:
-        dataset_path = Path(dataset_paths[dataset_name])
+        # Determine model path
+        if len(languages) > 1:
+            model_path = f"models/type4_xgb_{lang}.pkl"
+        else:
+            model_path = args.model
 
-        if not dataset_path.exists():
-            logger.warning(
-                f"Dataset not found: {dataset_path}. Skipping {dataset_name}..."
-            )
+        # Check if model exists
+        if not Path(model_path).exists():
+            logger.warning(f"Model not found: {model_path}. Skipping {lang}...")
             continue
 
-        for language in languages:
-            logger.info(f"\n{'=' * 70}")
-            logger.info(f"Evaluating on {dataset_name.upper()} ({language.upper()})")
-            logger.info(f"{'=' * 70}")
+        # Evaluate
+        metrics = evaluate_model(
+            model_path=model_path,
+            dataset_path=args.dataset,
+            language=lang,
+            sample_size=args.sample_size,
+            threshold=args.threshold,
+            threshold_sweep=not args.no_threshold_sweep,
+            visualize=args.visualize and not args.no_visualize,
+            output_dir=args.output_dir,
+        )
 
-            # Create output directory per dataset and language
-            output_subdir = f"{args.output_dir}/{dataset_name}/{language}"
+        all_results[lang] = metrics
 
-            try:
-                if dataset_name == "gptclonebench":
-                    # Use specialized GPTCloneBench evaluator
-                    metrics = evaluate_gptclonebench(
-                        model_path=str(model_path),
-                        dataset_path=str(dataset_path),
-                        language=language,
-                        sample_size=args.sample_size,
-                        visualize=not args.no_visualize,
-                        output_dir=output_subdir,
-                        threshold=args.threshold,
-                        threshold_sweep=args.threshold_sweep,
-                    )
-                else:
-                    # Use standard evaluator
-                    metrics = evaluate_model(
-                        model_path=str(model_path),
-                        dataset_path=str(dataset_path),
-                        dataset_format=dataset_formats[dataset_name],
-                        language=language,
-                        sample_size=args.sample_size,
-                        visualize=not args.no_visualize,
-                        output_dir=output_subdir,
-                        threshold=args.threshold,
-                        threshold_sweep=args.threshold_sweep,
-                    )
-
-                key = f"{dataset_name}_{language}"
-                all_results[key] = metrics
-
-                # Print results
-                logger.info(f"\n{'=' * 70}")
-                logger.info(f"{dataset_name.upper()} ({language.upper()}) RESULTS")
-                logger.info(f"{'=' * 70}")
-                for key_metric, value in metrics.items():
-                    if isinstance(value, float):
-                        logger.info(
-                            f"  {key_metric.replace('_', ' ').title()}: {value:.4f}"
-                        )
-                    elif key_metric == "visualization_path":
-                        logger.info(f"  Visualizations: {value}")
-
-            except Exception as e:
-                logger.error(
-                    f"Evaluation failed for {dataset_name} ({language}): {e}",
-                    exc_info=True,
-                )
-                all_results[f"{dataset_name}_{language}"] = {"error": str(e)}
-
-    # Final summary
-    logger.info("\n" + "=" * 70)
-    logger.info("EVALUATION COMPLETE")
-    logger.info("=" * 70)
+    # Print summary
+    logger.info("\n" + "=" * 80)
+    logger.info("EVALUATION COMPLETE - SUMMARY")
+    logger.info("=" * 80)
 
     if all_results:
-        logger.info("\nSummary:")
-        for key, metrics in all_results.items():
-            if "error" not in metrics:
-                logger.info(f"\n  {key.upper()}:")
-                logger.info(f"    F1 Score: {metrics.get('f1', 0):.4f}")
-                logger.info(f"    Accuracy: {metrics.get('accuracy', 0):.4f}")
-                logger.info(f"    Precision: {metrics.get('precision', 0):.4f}")
-                logger.info(f"    Recall: {metrics.get('recall', 0):.4f}")
-            else:
-                logger.info(f"\n  {key.upper()}: FAILED - {metrics['error']}")
+        logger.info(
+            f"\n{'Language':<12} {'Accuracy':<10} {'Precision':<10} {'Recall':<10} {'F1':<10} {'Macro-F1':<10}"
+        )
+        logger.info("-" * 62)
+        for lang, metrics in all_results.items():
+            logger.info(
+                f"{lang:<12} {metrics['accuracy']:<10.4f} {metrics['precision']:<10.4f} "
+                f"{metrics['recall']:<10.4f} {metrics['f1']:<10.4f} {metrics['macro_f1']:<10.4f}"
+            )
 
     logger.info(f"\nOutputs saved to: {Path(args.output_dir).absolute()}")
-    logger.info("=" * 70)
+    logger.info("=" * 80)
 
 
 if __name__ == "__main__":
