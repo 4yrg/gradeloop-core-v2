@@ -36,6 +36,7 @@ type SubmissionWorker struct {
 	auditClient    *client.AuditClient
 	judge0Client   *client.Judge0Client
 	evalService    EvaluationService
+	acafsPublisher *queue.ACAFSProducer
 	db             *gorm.DB
 	logger         *zap.Logger
 }
@@ -49,6 +50,7 @@ func NewSubmissionWorker(
 	auditClient *client.AuditClient,
 	judge0Client *client.Judge0Client,
 	evalService EvaluationService,
+	acafsPublisher *queue.ACAFSProducer,
 	db *gorm.DB,
 	logger *zap.Logger,
 ) queue.JobProcessor {
@@ -59,6 +61,7 @@ func NewSubmissionWorker(
 		auditClient:    auditClient,
 		judge0Client:   judge0Client,
 		evalService:    evalService,
+		acafsPublisher: acafsPublisher,
 		db:             db,
 		logger:         logger,
 	}
@@ -220,6 +223,29 @@ func (w *SubmissionWorker) Process(ctx context.Context, job queue.SubmissionJob)
 		job.UserAgent,
 	); auditErr != nil {
 		logger.Warn("worker: failed to write audit log for submission", zap.Error(auditErr))
+	}
+
+	// ── Step 7: Publish to ACAFS for rubric scoring ──────────────────────────
+	// This is best-effort — a failure here must not cause the message to be
+	// requeued because the submission is already processed.
+	if w.acafsPublisher != nil {
+		acafsJob := queue.ACAFSJob{
+			SubmissionID: job.SubmissionID,
+			AssignmentID: job.AssignmentID,
+			UserID:       job.UserID,
+			StoragePath:  uploadedPath,
+			Language:     job.Language,
+			LanguageID:   job.LanguageID,
+			Code:         job.Code,
+			Username:     job.Username,
+			IPAddress:    job.IPAddress,
+			UserAgent:    job.UserAgent,
+		}
+		if publishErr := w.acafsPublisher.Publish(ctx, acafsJob); publishErr != nil {
+			logger.Warn("worker: failed to publish to ACAFS for rubric scoring", zap.Error(publishErr))
+		} else {
+			logger.Info("worker: published to ACAFS for rubric scoring")
+		}
 	}
 
 	logger.Info("worker: submission job completed successfully")
