@@ -290,5 +290,20 @@ func toSubmissionResponse(s *domain.Submission) dto.SubmissionResponse {
 		}
 	}
 
+	// Add rubric scoring results if available (check for non-nil/zero values)
+	// Note: TotalScore can legitimately be 0, so we check if CriteriaBreakdown exists
+	if len(s.CriteriaBreakdown) > 0 || s.RubricVersionID > 0 {
+		response.TotalScore = s.TotalScore
+		response.RubricVersionID = s.RubricVersionID
+
+		// Deserialize criteria breakdown if present
+		if len(s.CriteriaBreakdown) > 0 {
+			var breakdown map[string]interface{}
+			if err := json.Unmarshal(s.CriteriaBreakdown, &breakdown); err == nil {
+				response.CriteriaBreakdown = breakdown
+			}
+		}
+	}
+
 	return response
 }
