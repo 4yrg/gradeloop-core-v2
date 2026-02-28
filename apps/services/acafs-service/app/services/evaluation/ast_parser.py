@@ -69,15 +69,8 @@ class ASTParser:
             )
 
         try:
-            # Parse with timeout
+            # Parse code (tree-sitter is fast, no timeout needed)
             tree = self._parse_with_timeout(parser, code)
-            if tree is None:
-                return self._create_error_blueprint(
-                    language=language,
-                    reason="parser_timeout",
-                    ast_truncated=ast_truncated,
-                    lines=total_lines,
-                )
 
             # Extract structural elements
             blueprint = self._extract_blueprint(tree, language)
@@ -106,38 +99,20 @@ class ASTParser:
             )
 
     def _parse_with_timeout(self, parser: Parser, code: str) -> Optional[Tree]:
-        """Parse code with timeout protection.
+        """Parse code without timeout (tree-sitter is fast).
+        
+        Note: Signal-based timeout removed as it doesn't work in threads.
+        Tree-sitter parsing is typically < 100ms even for large files.
+        Code is already truncated to ast_max_lines (default 5000).
         
         Args:
             parser: Tree-sitter parser
             code: Source code
             
         Returns:
-            Parse tree or None if timeout
+            Parse tree
         """
-        import signal
-        from contextlib import contextmanager
-
-        @contextmanager
-        def timeout(seconds: int):
-            """Context manager for timeout."""
-            def handler(signum, frame):
-                raise TimeoutError(f"Parsing exceeded {seconds} seconds")
-
-            old_handler = signal.signal(signal.SIGALRM, handler)
-            signal.alarm(seconds)
-            try:
-                yield
-            finally:
-                signal.alarm(0)
-                signal.signal(signal.SIGALRM, old_handler)
-
-        try:
-            with timeout(self.settings.ast_timeout_seconds):
-                return parser.parse(bytes(code, "utf-8"))
-        except TimeoutError:
-            logger.error("parse_timeout", timeout_seconds=self.settings.ast_timeout_seconds)
-            return None
+        return parser.parse(bytes(code, "utf-8"))
 
     def _extract_blueprint(self, tree: Tree, language: str) -> ASTBlueprint:
         """Extract structural blueprint from parse tree.

@@ -82,6 +82,11 @@ type SubmissionResponse struct {
 	TestCasesPassed   int                    `json:"test_cases_passed,omitempty"`
 	TotalTestCases    int                    `json:"total_test_cases,omitempty"`
 	TestCaseResults   []domain.TestCaseResult `json:"test_case_results,omitempty"`
+
+	// Rubric-based scoring results
+	CriteriaBreakdown map[string]interface{} `json:"criteria_breakdown,omitempty"`
+	RubricVersionID   int                    `json:"rubric_version_id,omitempty"`
+	TotalScore        int                    `json:"total_score,omitempty"`
 }
 
 // SubmissionCodeResponse wraps the raw source code returned by

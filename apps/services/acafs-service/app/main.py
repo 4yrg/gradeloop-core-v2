@@ -24,26 +24,47 @@ logger = get_logger(__name__)
 consumer: RabbitMQConsumer | None = None
 worker: EvaluationWorker | None = None
 postgres_client: PostgresClient | None = None
+message_queue: asyncio.Queue | None = None
+consumer_thread: Thread | None = None
 
 
-async def process_message(event: SubmissionEvent) -> None:
-    """Process a submission event from RabbitMQ.
+async def process_message_queue() -> None:
+    """Process messages from the queue in the main event loop.
     
-    Args:
-        event: Submission event
+    This runs continuously in the background to process submission events.
     """
-    if worker:
-        await worker.process_event(event)
+    global message_queue, worker
+    
+    while True:
+        try:
+            if message_queue is None or worker is None:
+                await asyncio.sleep(0.1)
+                continue
+                
+            # Wait for a message from the queue
+            event = await message_queue.get()
+            
+            # Process the event
+            await worker.process_event(event)
+            
+            # Mark task as done
+            message_queue.task_done()
+            
+        except asyncio.CancelledError:
+            logger.info("message_processor_cancelled")
+            break
+        except Exception as e:
+            logger.error("message_processing_error", error=str(e))
 
 
 def run_consumer() -> None:
     """Run RabbitMQ consumer in a separate thread."""
-    global consumer
+    global consumer, message_queue
     settings = get_settings()
     
     consumer = RabbitMQConsumer(
         settings=settings,
-        message_handler=lambda event: asyncio.run(process_message(event)),
+        message_queue=message_queue,
     )
     
     try:
@@ -58,7 +79,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     
     Handles startup and shutdown events.
     """
-    global worker, postgres_client
+    global worker, postgres_client, message_queue, consumer_thread
     
     # Startup
     settings = get_settings()
@@ -70,6 +91,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         version="0.1.0",
         environment=settings.environment,
     )
+    
+    # Initialize message queue for thread-safe communication
+    message_queue = asyncio.Queue(maxsize=100)
     
     # Initialize PostgreSQL client
     postgres_client = PostgresClient(settings.database_dsn)
@@ -96,12 +120,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     consumer_thread = Thread(target=run_consumer, daemon=True)
     consumer_thread.start()
     
+    # Start message processor task in main event loop
+    message_processor_task = asyncio.create_task(process_message_queue())
+    
     logger.info("acafs_service_ready")
     
     yield
     
     # Shutdown
     logger.info("acafs_service_shutting_down")
+    
+    # Cancel message processor
+    message_processor_task.cancel()
+    try:
+        await message_processor_task
+    except asyncio.CancelledError:
+        pass
     
     if consumer:
         consumer.stop()

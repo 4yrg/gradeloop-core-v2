@@ -233,13 +233,12 @@ class PostgresClient:
         import json
         
         async with self._get_connection() as conn:
-            await conn.execute(
+            result = await conn.execute(
                 """
                 UPDATE submissions
-                SET criteria_breakdown = $1,
+                SET criteria_breakdown = $1::jsonb,
                     total_score = $2,
-                    rubric_version_id = $3,
-                    updated_at = NOW()
+                    rubric_version_id = $3
                 WHERE id = $4
                 """,
                 json.dumps(criteria_breakdown),
@@ -247,11 +246,20 @@ class PostgresClient:
                 rubric_version_id,
                 submission_id,
             )
-            logger.info(
-                "evaluation_results_stored",
-                submission_id=str(submission_id),
-                total_score=total_score,
-            )
+            
+            # Check if any row was updated
+            if result == "UPDATE 0":
+                logger.warning(
+                    "submission_not_found_for_update",
+                    submission_id=str(submission_id),
+                )
+            else:
+                logger.info(
+                    "evaluation_results_stored",
+                    submission_id=str(submission_id),
+                    total_score=total_score,
+                    result=result,
+                )
 
     async def store_acafs_evaluation(
         self,

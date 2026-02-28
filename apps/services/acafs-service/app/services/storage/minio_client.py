@@ -53,7 +53,21 @@ class MinIOClient:
             raise
 
     async def get_submission_code(self, storage_path: str) -> str:
-        """Retrieve source code from MinIO.
+        """Retrieve source code from MinIO (async wrapper).
+        
+        Args:
+            storage_path: Object key/path in MinIO
+            
+        Returns:
+            Source code as string
+            
+        Raises:
+            S3Error: If object retrieval fails
+        """
+        return self.get_submission_code_sync(storage_path)
+
+    def get_submission_code_sync(self, storage_path: str) -> str:
+        """Retrieve source code from MinIO (sync version for thread pool).
         
         Args:
             storage_path: Object key/path in MinIO

@@ -4,6 +4,7 @@ import json
 import threading
 import time
 from typing import Callable, Optional
+from asyncio import Queue
 
 import pika
 from pika.adapters.blocking_connection import BlockingChannel
@@ -22,16 +23,16 @@ class RabbitMQConsumer:
     def __init__(
         self,
         settings: Settings,
-        message_handler: Callable[[SubmissionEvent], None],
+        message_queue: Queue,
     ):
         """Initialize RabbitMQ consumer.
         
         Args:
             settings: Application settings
-            message_handler: Callback for processing messages
+            message_queue: Async queue for passing messages to main event loop
         """
         self.settings = settings
-        self.message_handler = message_handler
+        self.message_queue = message_queue
         self._connection: Optional[pika.BlockingConnection] = None
         self._channel: Optional[BlockingChannel] = None
         self._closing = False
@@ -139,11 +140,17 @@ class RabbitMQConsumer:
                 language=event.language,
             )
 
-            # Process message
-            self.message_handler(event)
-            
-            # Acknowledge success
-            channel.basic_ack(delivery_tag=delivery_tag)
+            # Put message in queue for main event loop to process
+            # Use asyncio.run_coroutine_threadsafe or put_nowait since we're in a different thread
+            try:
+                self.message_queue.put_nowait(event)
+                
+                # Acknowledge success
+                channel.basic_ack(delivery_tag=delivery_tag)
+            except Exception as e:
+                logger.error("queue_put_failed", message_id=message_id, error=str(e))
+                # Requeue for retry
+                channel.basic_nack(delivery_tag=delivery_tag, requeue=True)
             logger.info(
                 "message_processed",
                 message_id=message_id,

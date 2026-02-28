@@ -1,7 +1,6 @@
 """Evaluation worker for processing submission events."""
 
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
 from app.config import Settings
@@ -39,7 +38,6 @@ class EvaluationWorker:
         self.ast_parser = ASTParser()
         self.rubric_engine = RubricEngine()
         self.llm_gateway = LLMGateway()
-        self._executor = ThreadPoolExecutor(max_workers=settings.rabbitmq_concurrency)
 
     async def process_event(self, event: SubmissionEvent) -> None:
         """Process a submission event.
@@ -109,14 +107,14 @@ class EvaluationWorker:
         if event.code:
             return event.code
             
-        # Otherwise fetch from MinIO
+        # Otherwise fetch from MinIO (runs in thread pool to avoid blocking)
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
-            self._executor,
-            lambda: asyncio.run(self.minio.get_submission_code(event.storage_path)),
+            None,  # Use default executor
+            lambda: self.minio.get_submission_code_sync(event.storage_path),
         )
 
-    async def _parse_ast(self, event: SubmissionEvent, code: str) -> None:
+    async def _parse_ast(self, event: SubmissionEvent, code: str):
         """Parse AST from source code.
         
         Args:
@@ -126,9 +124,10 @@ class EvaluationWorker:
         Returns:
             AST blueprint
         """
+        # Run CPU-bound parsing in thread pool to avoid blocking event loop
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
-            self._executor,
+            None,  # Use default executor
             lambda: self.ast_parser.parse(
                 code=code,
                 language=event.language,
@@ -267,5 +266,4 @@ class EvaluationWorker:
 
     def close(self) -> None:
         """Clean up resources."""
-        self._executor.shutdown(wait=True)
         logger.info("evaluation_worker_closed")
