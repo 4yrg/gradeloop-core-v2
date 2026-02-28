@@ -191,9 +191,10 @@ class CodeNetDataLoader:
 
     def create_training_pairs(
         self,
-        sample_size: int = 10000,
+        sample_size: Optional[int] = None,
         clone_ratio: float = 0.5,
         problems: Optional[list[str]] = None,
+        max_problems: Optional[int] = None,
     ) -> tuple[list[str], list[str], list[int]]:
         """
         Create training pairs from CodeNet dataset.
@@ -202,9 +203,10 @@ class CodeNetDataLoader:
         Negative pairs: Solutions to different problems (non-clones)
 
         Args:
-            sample_size: Total number of pairs to create
+            sample_size: Total number of pairs to create (None = use all available)
             clone_ratio: Ratio of positive (clone) pairs
             problems: Optional list of problems to use
+            max_problems: Maximum number of problems to load (speeds up training)
 
         Returns:
             Tuple of (code1_list, code2_list, labels)
@@ -214,14 +216,18 @@ class CodeNetDataLoader:
             problems = self.get_problem_list(min_submissions=5)
             logger.info(f"Found {len(problems)} problems with submissions")
 
-        # Limit problems for faster loading
-        if len(problems) > 100:
-            problems = random.sample(problems, 100)
+            # Limit problems for faster training
+            if max_problems is not None:
+                problems = problems[:max_problems]
+                logger.info(
+                    f"Using {len(problems)} problems (limited from {len(problems)})"
+                )
 
         # Load submissions per problem
         problem_submissions = {}
         logger.info("Loading submissions...")
 
+        # Use tqdm for progress tracking
         for problem_id in tqdm(problems, desc="Loading problems"):
             submissions = self.load_problem_submissions(problem_id)
             if len(submissions) >= 2:
@@ -234,11 +240,22 @@ class CodeNetDataLoader:
         code2_list = []
         labels = []
 
+        # Calculate target pair counts
+        if sample_size is None:
+            # Use all available pairs (estimate)
+            total_possible = sum(
+                max(0, len(subs) * (len(subs) - 1) // 2)
+                for subs in problem_submissions.values()
+            )
+            # Limit to prevent memory issues
+            sample_size = min(total_possible, 500000)  # Cap at 500k pairs
+            logger.info(f"Using estimated {sample_size:,} pairs from full dataset")
+
         n_clone_pairs = int(sample_size * clone_ratio)
         n_nonclone_pairs = sample_size - n_clone_pairs
 
         # Create clone pairs (same problem)
-        logger.info(f"Creating {n_clone_pairs} clone pairs...")
+        logger.info(f"Creating {n_clone_pairs:,} clone pairs...")
         clone_count = 0
         problem_ids = list(problem_submissions.keys())
 
@@ -253,8 +270,11 @@ class CodeNetDataLoader:
                 labels.append(1)
                 clone_count += 1
 
+            if clone_count % 1000 == 0:
+                logger.info(f"  Created {clone_count:,} clone pairs...")
+
         # Create non-clone pairs (different problems)
-        logger.info(f"Creating {n_nonclone_pairs} non-clone pairs...")
+        logger.info(f"Creating {n_nonclone_pairs:,} non-clone pairs...")
         nonclone_count = 0
 
         while nonclone_count < n_nonclone_pairs and len(problem_ids) >= 2:
@@ -270,9 +290,12 @@ class CodeNetDataLoader:
                 labels.append(0)
                 nonclone_count += 1
 
+            if nonclone_count % 1000 == 0:
+                logger.info(f"  Created {nonclone_count:,} non-clone pairs...")
+
         logger.info(
-            f"Created {len(code1_list)} total pairs "
-            f"({clone_count} clones, {nonclone_count} non-clones)"
+            f"Created {len(code1_list):,} total pairs "
+            f"({clone_count:,} clones, {nonclone_count:,} non-clones)"
         )
 
         return code1_list, code2_list, labels
@@ -283,11 +306,14 @@ def train_codenet(
     language: str = "java",
     languages: Optional[list[str]] = None,
     model_name: str = "type4_xgb_codenet.pkl",
-    sample_size: int = 10000,
+    sample_size: Optional[int] = None,
     clone_ratio: float = 0.5,
     sampling_strategy: str = "problem",
     test_size: float = 0.2,
     cross_validation: bool = True,
+    visualize: bool = True,
+    output_dir: Optional[str] = None,
+    max_problems: Optional[int] = None,
 ) -> dict:
     """
     Train Type-IV clone detector using CodeNet dataset.
@@ -297,11 +323,13 @@ def train_codenet(
         language: Primary language to train on
         languages: Optional list of languages for multi-language training
         model_name: Name for the saved model file
-        sample_size: Number of training pairs
+        sample_size: Number of training pairs (None = use full dataset, capped at 500k)
         clone_ratio: Ratio of clone pairs in training data
         sampling_strategy: 'problem' (same problem = clone) or 'random'
         test_size: Fraction of data for testing
         cross_validation: Whether to use cross-validation
+        visualize: Whether to generate visualizations
+        output_dir: Directory for visualization output
 
     Returns:
         Training metrics dictionary
@@ -329,8 +357,9 @@ def train_codenet(
         loader = CodeNetDataLoader(dataset_path, codenet_lang)
 
         code1, code2, labels = loader.create_training_pairs(
-            sample_size=sample_size // len(languages),
+            sample_size=sample_size,  # Can be None for full dataset
             clone_ratio=clone_ratio,
+            max_problems=max_problems,
         )
 
         all_code1.extend(code1)
@@ -390,6 +419,47 @@ def train_codenet(
     with open(feature_names_file, "w") as f:
         json.dump(feature_names, f, indent=2)
     logger.info(f"Feature names saved to {feature_names_file}")
+
+    # Generate visualizations
+    if visualize:
+        logger.info("Generating training visualizations...")
+        visualizer = MetricsVisualizer(output_dir=output_dir)
+
+        # Get predictions for visualization
+        from sklearn.model_selection import train_test_split
+
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=test_size, random_state=42, stratify=y
+        )
+
+        y_pred = classifier.predict(X_test)
+        y_scores = classifier.predict_proba(X_test)[:, 1]
+
+        # Create complete report
+        extra_info = {
+            "dataset": dataset_path,
+            "language(s)": ", ".join(languages) if languages else language,
+            "sample_size": len(all_code1),
+            "clone_ratio": clone_ratio,
+            "model_name": model_name,
+            "feature_count": X.shape[1],
+            "train_size": len(X_train),
+            "test_size": len(X_test),
+        }
+
+        report_files = visualizer.create_complete_report(
+            y_true=y_test,
+            y_pred=y_pred,
+            y_scores=y_scores,
+            metrics=metrics,
+            feature_names=feature_names,
+            importances=classifier.model.feature_importances_,
+            extra_info=extra_info,
+            report_name=f"training_report_{model_name.replace('.pkl', '')}.html",
+        )
+
+        logger.info(f"Visualizations saved to: {report_files['html_report']}")
+        metrics["visualization_path"] = str(report_files["html_report"])
 
     return metrics
 

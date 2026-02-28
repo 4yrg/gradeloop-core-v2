@@ -341,7 +341,7 @@ def evaluate_gptclonebench(
 
     # Save detailed results
     results_dir = Path(output_dir) if output_dir else Path("gptclonebench_results")
-    results_dir.mkdir(exist_ok=True)
+    results_dir.mkdir(parents=True, exist_ok=True)
 
     # Save prompt analysis
     if not prompt_analysis.empty:
