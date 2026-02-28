@@ -277,9 +277,36 @@ func (r *RabbitMQ) declareTopology() error {
 		return fmt.Errorf("rabbitmq: binding queue %q: %w", SubmissionQueue, err)
 	}
 
+	// Declare ACAFS evaluation queue for rubric scoring
+	if _, err := ch.QueueDeclare(
+		ACAFSQueue, // name
+		true,       // durable
+		false,      // auto-delete
+		false,      // exclusive
+		false,      // no-wait
+		amqp.Table{
+			"x-dead-letter-exchange": SubmissionExchange + ".dlx",
+			"x-max-length":           int64(50_000),
+		},
+	); err != nil {
+		return fmt.Errorf("rabbitmq: declaring acafs queue %q: %w", ACAFSQueue, err)
+	}
+
+	// Bind ACAFS queue to the exchange with the same routing key
+	if err := ch.QueueBind(
+		ACAFSQueue,           // queue name
+		SubmissionRoutingKey, // routing key
+		SubmissionExchange,   // exchange
+		false,
+		nil,
+	); err != nil {
+		return fmt.Errorf("rabbitmq: binding acafs queue %q: %w", ACAFSQueue, err)
+	}
+
 	r.logger.Info("rabbitmq: topology declared",
 		zap.String("exchange", SubmissionExchange),
 		zap.String("queue", SubmissionQueue),
+		zap.String("acafs_queue", ACAFSQueue),
 	)
 
 	return nil
