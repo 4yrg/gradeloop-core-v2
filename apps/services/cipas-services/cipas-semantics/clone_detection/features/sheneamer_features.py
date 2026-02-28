@@ -1157,76 +1157,65 @@ class SheneamerFeatureExtractor:
 
     def _generate_feature_names(self) -> list[str]:
         """Generate names for all features including contrastive fusion features."""
-        names = []
+        base_names = []
 
         # Traditional feature names
-        names.append("loc")
+        base_names.append("loc")
         for category in self.KEYWORD_CATEGORIES:
-            names.append(f"keyword_{category}")
+            base_names.append(f"keyword_{category}")
 
         # CST feature names
         for node_type in self.CST_NON_LEAF_NODES:
-            names.append(f"cst_{node_type}")
+            base_names.append(f"cst_{node_type}")
 
         # Semantic/PDG feature names
         for rel_type in self.PDG_RELATIONSHIP_TYPES:
-            names.append(f"pdg_{rel_type}")
+            base_names.append(f"pdg_{rel_type}")
 
         # Depth feature names
-        names.extend(self.DEPTH_FEATURE_NAMES)
+        base_names.extend(self.DEPTH_FEATURE_NAMES)
 
         # Type signature feature names
         for pattern in self.TYPE_SIGNATURE_PATTERNS:
-            names.append(f"type_{pattern}")
+            base_names.append(f"type_{pattern}")
 
         # API fingerprinting feature names
         for pattern in self.API_FINGERPRINT_CATEGORIES:
-            names.append(f"api_{pattern}")
+            base_names.append(f"api_{pattern}")
 
-        # If using contrastive fusion, generate names for all fusion components
-        if self.use_contrastive_fusion:
-            # Concatenation features (f1 and f2)
-            concat_names1 = [f"{n}_1" for n in names]
-            concat_names2 = [f"{n}_2" for n in names]
+        # Generate names for contrastive fusion components
+        # 1. Absolute difference features
+        abs_diff_names = [f"abs_diff_{n}" for n in base_names]
 
-            # Absolute difference features
-            diff_names = [f"diff_{n}" for n in names]
+        # 2. Relative difference features
+        rel_diff_names = [f"rel_diff_{n}" for n in base_names]
 
-            # Element-wise product features
-            product_names = [f"prod_{n}" for n in names]
+        # 3. Max-min ratio features
+        max_min_names = [f"max_min_ratio_{n}" for n in base_names]
 
-            # Cosine similarity per category
-            cosine_names = [
-                f"cosine_{cat}"
-                for cat in ["traditional", "cst", "semantic", "depth", "type", "api"]
-            ]
+        # 4. Interaction term features
+        interaction_names = [f"interaction_{n}" for n in base_names]
 
-            # Euclidean distance
-            distance_names = ["euclidean_distance"]
+        # 5. Cosine similarity (single scalar)
+        cosine_name = ["cosine_similarity_global"]
 
-            # Combine all names
-            all_names = (
-                concat_names1
-                + concat_names2
-                + diff_names
-                + product_names
-                + cosine_names
-                + distance_names
-            )
-            return all_names
+        # Combine all names (405 total)
+        all_names = (
+            abs_diff_names
+            + rel_diff_names
+            + max_min_names
+            + interaction_names
+            + cosine_name
+        )
 
-        # Without contrastive fusion, just use concatenated names
-        names1 = [f"{n}_1" for n in names]
-        names2 = [f"{n}_2" for n in names]
-        return names1 + names2
+        return all_names
 
     def get_feature_names(self, fused: bool = False) -> list[str]:
         """
         Get feature names.
 
         Args:
-            fused: If True, return names for fused features.
-                   With contrastive fusion enabled, includes diff, product, and similarity names.
+            fused: If True, return names for fused contrastive features.
 
         Returns:
             List of feature names
