@@ -72,29 +72,33 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	})
 
 	// ── Assignments ───────────────────────────────────────────────────────────
-	// All assignment mutations require super_admin or admin role.
-	assignments := protected.Group("/assignments", requireAdminRole())
+	// Common middleware for instructor+admin access
+	requireInstructorOrAdmin := middleware.RequireAnyRole("Employee", "Admin", "Super Admin")
 
-	// POST   /api/v1/assignments                                  — create
-	assignments.Post("/", cfg.AssignmentHandler.CreateAssignment)
+	// Single assignments group with instructor+admin access
+	// Specific admin-only routes have additional middleware
+	assignments := protected.Group("/assignments", requireInstructorOrAdmin)
 
-	// GET    /api/v1/assignments/course-instance/:courseInstanceId — list by course instance
+	// POST   /api/v1/assignments                                  — create (admin only)
+	assignments.Post("/", requireAdminRole(), cfg.AssignmentHandler.CreateAssignment)
+
+	// GET    /api/v1/assignments/course-instance/:courseInstanceId — list by course instance (admin only)
 	// NOTE: Must be registered BEFORE GET /:id so that the literal segment
 	// "course-instance" is not swallowed as a UUID parameter value.
-	assignments.Get("/course-instance/:courseInstanceId", cfg.AssignmentHandler.ListAssignmentsByCourseInstance)
+	assignments.Get("/course-instance/:courseInstanceId", requireAdminRole(), cfg.AssignmentHandler.ListAssignmentsByCourseInstance)
 
-	// GET    /api/v1/assignments/:id/submissions                  — list all versions
-	// GET    /api/v1/assignments/:id/latest                       — get latest version
+	// GET    /api/v1/assignments/:id/submissions                  — list all versions (instructor+admin)
+	// GET    /api/v1/assignments/:id/latest                       — get latest version (instructor+admin)
 	// NOTE: These must be registered BEFORE GET /:id to prevent Fiber from
 	// routing the literal sub-segments as UUID param values.
 	assignments.Get("/:id/submissions", cfg.SubmissionHandler.ListSubmissions)
 	assignments.Get("/:id/latest", cfg.SubmissionHandler.GetLatestSubmission)
 
-	// GET    /api/v1/assignments/:id                              — get by ID (active only)
+	// GET    /api/v1/assignments/:id                              — get by ID (active only) (instructor+admin)
 	assignments.Get("/:id", cfg.AssignmentHandler.GetAssignment)
 
-	// PATCH  /api/v1/assignments/:id                              — update / soft-delete
-	assignments.Patch("/:id", cfg.AssignmentHandler.UpdateAssignment)
+	// PATCH  /api/v1/assignments/:id                              — update / soft-delete (admin only)
+	assignments.Patch("/:id", requireAdminRole(), cfg.AssignmentHandler.UpdateAssignment)
 
 	// ── Submissions ───────────────────────────────────────────────────────────
 	// Submissions are accessible to all authenticated users (enrollment is
@@ -122,13 +126,11 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	// Accessible to Employee + Admin + Super Admin.
 	// PathPrefix: /api/v1/instructor-assignments — routed by Traefik
 	// PathPrefix: /api/v1/instructor-submissions — routed by Traefik
-	requireEmployeeOrAdmin := middleware.RequireAnyRole("Employee", "Admin", "Super Admin")
-
-	instructorAssignments := protected.Group("/instructor-assignments", requireEmployeeOrAdmin)
+	instructorAssignments := protected.Group("/instructor-assignments", requireInstructorOrAdmin)
 	instructorAssignments.Get("/me", cfg.InstructorHandler.GetMyAssignments)
 	instructorAssignments.Post("/", cfg.InstructorHandler.CreateAssignment)
 
-	instructorSubmissions := protected.Group("/instructor-submissions", requireEmployeeOrAdmin)
+	instructorSubmissions := protected.Group("/instructor-submissions", requireInstructorOrAdmin)
 	instructorSubmissions.Get("/assignment/:id", cfg.InstructorHandler.GetSubmissions)
 
 	// ── Groups ────────────────────────────────────────────────────────────────
@@ -143,8 +145,10 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	groups.Get("/:id", cfg.GroupHandler.GetGroup)
 
 	// ── Rubrics ────────────────────────────────────────────────────────────────
-	// Rubric management is restricted to admin/super_admin roles.
-	rubrics := protected.Group("/assignments", requireAdminRole())
+	// Rubric management is accessible to instructors (Employee) and admins.
+	// Instructors can manage rubrics for their assigned course instances.
+	// Uses the assignments group defined above with requireInstructorOrAdmin middleware.
+	rubrics := assignments
 
 	// POST   /api/v1/assignments/:id/rubric     — create rubric
 	rubrics.Post("/:id/rubric", cfg.RubricHandler.CreateRubric)
@@ -156,8 +160,8 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	rubrics.Patch("/:id/rubric", cfg.RubricHandler.UpdateRubric)
 
 	// ── Evaluations ────────────────────────────────────────────────────────────
-	// Evaluation management for instructors.
-	evaluations := protected.Group("/evaluations", requireAdminRole())
+	// Evaluation management for instructors (score overrides).
+	evaluations := protected.Group("/evaluations", requireInstructorOrAdmin)
 
 	// PATCH  /api/v1/evaluations/:id/override   — instructor score override
 	evaluations.Patch("/:id/override", cfg.RubricHandler.ApplyInstructorOverride)
