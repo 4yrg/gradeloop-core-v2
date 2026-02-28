@@ -486,6 +486,8 @@ class SemanticClassifier:
         """
         Perform a threshold sweep to analyze model performance at different thresholds.
 
+        Automatically applies feature pruning if the model was trained with pruning.
+
         Args:
             X: Feature matrix
             y: True labels
@@ -494,6 +496,14 @@ class SemanticClassifier:
         Returns:
             DataFrame with metrics for each threshold
         """
+        # Apply feature pruning if needed (backward compatible)
+        if (
+            hasattr(self, "pruned_feature_indices")
+            and self.pruned_feature_indices is not None
+        ):
+            if X.shape[1] != self.pruned_feature_count:
+                X = X[:, self.pruned_feature_indices]
+
         if thresholds is None:
             thresholds = np.arange(0.1, 0.95, 0.05)
 
@@ -545,6 +555,8 @@ class SemanticClassifier:
         """
         Find the optimal decision threshold for a given metric.
 
+        Automatically applies feature pruning if the model was trained with pruning.
+
         Args:
             X: Feature matrix
             y: True labels
@@ -556,6 +568,14 @@ class SemanticClassifier:
         Returns:
             Optimal threshold value
         """
+        # Apply feature pruning if needed (backward compatible)
+        if (
+            hasattr(self, "pruned_feature_indices")
+            and self.pruned_feature_indices is not None
+        ):
+            if X.shape[1] != self.pruned_feature_count:
+                X = X[:, self.pruned_feature_indices]
+
         y_proba = self.model.predict_proba(X)[:, 1]
 
         # Try many threshold values for fine-grained optimization

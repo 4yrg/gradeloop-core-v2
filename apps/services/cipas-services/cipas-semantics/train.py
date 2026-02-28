@@ -123,6 +123,29 @@ Examples:
         help="Ratio of clone pairs in training data (default: 0.5)",
     )
     parser.add_argument(
+        "--hard-negative-ratio",
+        type=float,
+        default=0.20,
+        help="Ratio of hard negative pairs in training data (default: 0.20)",
+    )
+    parser.add_argument(
+        "--include-gptclonebench",
+        action="store_true",
+        help="Include GPTCloneBench samples for domain adaptation",
+    )
+    parser.add_argument(
+        "--gptclonebench-path",
+        type=str,
+        default="../../../../datasets/gptclonebench/gptclonebench_dataset.jsonl",
+        help="Path to GPTCloneBench dataset (default: ../../../../datasets/gptclonebench/gptclonebench_dataset.jsonl)",
+    )
+    parser.add_argument(
+        "--gptclonebench-ratio",
+        type=float,
+        default=0.10,
+        help="Ratio of GPTCloneBench samples in training data (default: 0.10 = 10%%)",
+    )
+    parser.add_argument(
         "--max-problems",
         type=int,
         default=None,
@@ -202,6 +225,15 @@ Examples:
     )
     logger.info(f"Sample size: {sample_size_str}")
     logger.info(f"Clone ratio: {args.clone_ratio}")
+    logger.info(f"Hard negative ratio: {args.hard_negative_ratio}")
+    if args.include_gptclonebench:
+        logger.info(
+            f"GPTCloneBench: {args.gptclonebench_path} ({args.gptclonebench_ratio * 100:.0f}%)"
+        )
+    else:
+        logger.info(
+            "GPTCloneBench: Not included (use --include-gptclonebench to enable)"
+        )
     logger.info(f"Model output: {model_dir / model_name}")
     logger.info(f"Visualizations: {'Enabled' if not args.no_visualize else 'Disabled'}")
     logger.info("=" * 70)
@@ -224,6 +256,10 @@ Examples:
             model_name=model_name,
             sample_size=args.sample_size,
             clone_ratio=args.clone_ratio,
+            hard_negative_ratio=args.hard_negative_ratio,
+            include_gptclonebench=args.include_gptclonebench,
+            gptclonebench_path=args.gptclonebench_path,
+            gptclonebench_ratio=args.gptclonebench_ratio,
             test_size=args.test_size,
             cross_validation=not args.no_cv,
             visualize=not args.no_visualize,
