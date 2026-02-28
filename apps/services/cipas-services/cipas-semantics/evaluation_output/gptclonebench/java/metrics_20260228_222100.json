@@ -4,5 +4,5 @@
   "recall": 0.9370645293501526,
   "f1": 0.6842122763849172,
   "roc_auc": 0.16027521391127708,
-  "visualization_path": "evaluation_output/gptclonebench/java/reports/gptclonebench_evaluation_report.html"
+  "timestamp": "2026-02-28T22:21:00.533997"
 }
