@@ -103,6 +103,7 @@ func run() error {
 
 	// ── Message queue: publisher + worker + consumer ──────────────────────────
 	submissionPublisher := queue.NewSubmissionPublisher(rmq, logger)
+	acafsPublisher := queue.NewACAFSProducer(rmq, logger)
 
 	// Create evaluation service for test case evaluation
 	evaluationService := service.NewEvaluationService(judge0Client, logger)
@@ -114,6 +115,7 @@ func run() error {
 		auditClient,
 		judge0Client,
 		evaluationService,
+		acafsPublisher,
 		db.DB,
 		logger,
 	)
