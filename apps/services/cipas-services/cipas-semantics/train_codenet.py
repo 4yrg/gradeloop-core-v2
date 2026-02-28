@@ -195,18 +195,27 @@ class CodeNetDataLoader:
         clone_ratio: float = 0.5,
         problems: Optional[list[str]] = None,
         max_problems: Optional[int] = None,
+        hard_negative_ratio: float = 0.20,
+        include_gptclonebench: bool = False,
+        gptclonebench_path: Optional[str] = None,
+        gptclonebench_ratio: float = 0.05,
     ) -> tuple[list[str], list[str], list[int]]:
         """
-        Create training pairs from CodeNet dataset.
+        Create training pairs from CodeNet dataset with hard negative mining.
 
         Positive pairs: Solutions to the same problem (semantic clones)
         Negative pairs: Solutions to different problems (non-clones)
+        Hard negatives: Solutions to similar problems with similar structure
 
         Args:
             sample_size: Total number of pairs to create (None = use all available)
             clone_ratio: Ratio of positive (clone) pairs
             problems: Optional list of problems to use
             max_problems: Maximum number of problems to load (speeds up training)
+            hard_negative_ratio: Ratio of hard negative pairs (default: 20%)
+            include_gptclonebench: Whether to include GPTCloneBench samples
+            gptclonebench_path: Path to GPTCloneBench dataset
+            gptclonebench_ratio: Ratio of GPTCloneBench samples (default: 5%)
 
         Returns:
             Tuple of (code1_list, code2_list, labels)
@@ -251,11 +260,18 @@ class CodeNetDataLoader:
             sample_size = min(total_possible, 500000)  # Cap at 500k pairs
             logger.info(f"Using estimated {sample_size:,} pairs from full dataset")
 
+        # Calculate pair counts
         n_clone_pairs = int(sample_size * clone_ratio)
-        n_nonclone_pairs = sample_size - n_clone_pairs
+        n_hard_negative_pairs = int(sample_size * hard_negative_ratio)
+        n_easy_negative_pairs = sample_size - n_clone_pairs - n_hard_negative_pairs
 
-        # Create clone pairs (same problem)
-        logger.info(f"Creating {n_clone_pairs:,} clone pairs...")
+        # Ensure non-negative
+        n_easy_negative_pairs = max(0, n_easy_negative_pairs)
+
+        # ========================================
+        # 1. Create clone pairs (same problem) - Label 1
+        # ========================================
+        logger.info(f"Creating {n_clone_pairs:,} clone pairs (same problem)...")
         clone_count = 0
         problem_ids = list(problem_submissions.keys())
 
@@ -267,17 +283,56 @@ class CodeNetDataLoader:
                 code1, code2 = random.sample(submissions, 2)
                 code1_list.append(code1)
                 code2_list.append(code2)
-                labels.append(1)
+                labels.append(1)  # Same problem = clone
                 clone_count += 1
 
             if clone_count % 1000 == 0:
                 logger.info(f"  Created {clone_count:,} clone pairs...")
 
-        # Create non-clone pairs (different problems)
-        logger.info(f"Creating {n_nonclone_pairs:,} non-clone pairs...")
-        nonclone_count = 0
+        # ========================================
+        # 2. Create hard negative pairs (similar problems, different logic) - Label 0
+        # ========================================
+        logger.info(f"Creating {n_hard_negative_pairs:,} hard negative pairs...")
+        logger.info(
+            "Hard negatives: Similar problems with similar structure but different semantics"
+        )
 
-        while nonclone_count < n_nonclone_pairs and len(problem_ids) >= 2:
+        hard_negative_count = 0
+
+        # Group problems by similarity (adjacent problem IDs often have similar structure)
+        sorted_problems = sorted(problem_ids)
+
+        while hard_negative_count < n_hard_negative_pairs and len(sorted_problems) >= 2:
+            # Pick adjacent or nearby problems (likely to have similar structure)
+            idx = random.randint(0, len(sorted_problems) - 2)
+            problem1 = sorted_problems[idx]
+            problem2 = sorted_problems[
+                idx + random.randint(1, min(3, len(sorted_problems) - idx - 1))
+            ]
+
+            # Verify different problems
+            if problem1 != problem2:
+                subs1 = problem_submissions[problem1]
+                subs2 = problem_submissions[problem2]
+
+                if subs1 and subs2:
+                    code1 = random.choice(subs1)
+                    code2 = random.choice(subs2)
+                    code1_list.append(code1)
+                    code2_list.append(code2)
+                    labels.append(0)  # Different problems = non-clone (hard negative)
+                    hard_negative_count += 1
+
+            if hard_negative_count % 500 == 0:
+                logger.info(f"  Created {hard_negative_count:,} hard negative pairs...")
+
+        # ========================================
+        # 3. Create easy negative pairs (random different problems) - Label 0
+        # ========================================
+        logger.info(f"Creating {n_easy_negative_pairs:,} easy negative pairs...")
+        easy_negative_count = 0
+
+        while easy_negative_count < n_easy_negative_pairs and len(problem_ids) >= 2:
             problem1, problem2 = random.sample(problem_ids, 2)
             subs1 = problem_submissions[problem1]
             subs2 = problem_submissions[problem2]
@@ -288,17 +343,84 @@ class CodeNetDataLoader:
                 code1_list.append(code1)
                 code2_list.append(code2)
                 labels.append(0)
-                nonclone_count += 1
+                easy_negative_count += 1
 
-            if nonclone_count % 1000 == 0:
-                logger.info(f"  Created {nonclone_count:,} non-clone pairs...")
+            if easy_negative_count % 1000 == 0:
+                logger.info(f"  Created {easy_negative_count:,} easy negative pairs...")
+
+        # ========================================
+        # 4. Add GPTCloneBench domain mixing (5-10%)
+        # ========================================
+        if include_gptclonebench and gptclonebench_path:
+            logger.info(
+                f"Adding GPTCloneBench samples ({gptclonebench_ratio * 100:.0f}%)..."
+            )
+            gpt_samples = self._load_gptclonebench_samples(
+                gptclonebench_path, int(sample_size * gptclonebench_ratio)
+            )
+
+            if gpt_samples:
+                logger.info(f"Loaded {len(gpt_samples)} GPTCloneBench pairs")
+                for code1, code2, label in gpt_samples:
+                    code1_list.append(code1)
+                    code2_list.append(code2)
+                    labels.append(label)
 
         logger.info(
             f"Created {len(code1_list):,} total pairs "
-            f"({clone_count:,} clones, {nonclone_count:,} non-clones)"
+            f"({clone_count:,} clones, {hard_negative_count:,} hard negatives, {easy_negative_count:,} easy negatives)"
+        )
+
+        # Label verification
+        clone_pairs = sum(1 for l in labels if l == 1)
+        nonclone_pairs = sum(1 for l in labels if l == 0)
+        logger.info(
+            f"Label distribution: {clone_pairs} clones ({clone_pairs / len(labels) * 100:.1f}%), {nonclone_pairs} non-clones ({nonclone_pairs / len(labels) * 100:.1f}%)"
         )
 
         return code1_list, code2_list, labels
+
+    def _load_gptclonebench_samples(
+        self,
+        gptclonebench_path: str,
+        n_samples: int,
+    ) -> list[tuple[str, str, int]]:
+        """
+        Load samples from GPTCloneBench dataset for domain mixing.
+
+        Args:
+            gptclonebench_path: Path to GPTCloneBench JSONL file
+            n_samples: Number of samples to load
+
+        Returns:
+            List of (code1, code2, label) tuples
+        """
+        import json
+
+        samples = []
+
+        try:
+            with open(gptclonebench_path, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+
+            # Sample randomly
+            if len(lines) > n_samples:
+                lines = random.sample(lines, n_samples)
+
+            for line in lines:
+                data = json.loads(line)
+                code1 = data.get("code1", "")
+                code2 = data.get("code2", "")
+                # GPTCloneBench uses 'semantic' boolean
+                label = 1 if data.get("semantic", False) else 0
+
+                if code1 and code2 and len(code1) > 50 and len(code2) > 50:
+                    samples.append((code1, code2, label))
+
+        except Exception as e:
+            logger.warning(f"Failed to load GPTCloneBench: {e}")
+
+        return samples
 
 
 def train_codenet(
@@ -308,15 +430,20 @@ def train_codenet(
     model_name: str = "type4_xgb_codenet.pkl",
     sample_size: Optional[int] = None,
     clone_ratio: float = 0.5,
-    sampling_strategy: str = "problem",
+    hard_negative_ratio: float = 0.20,
+    include_gptclonebench: bool = False,
+    gptclonebench_path: Optional[str] = None,
+    gptclonebench_ratio: float = 0.05,
     test_size: float = 0.2,
     cross_validation: bool = True,
     visualize: bool = True,
     output_dir: Optional[str] = None,
     max_problems: Optional[int] = None,
+    feature_pruning: bool = True,
+    isotonic_calibration: bool = True,
 ) -> dict:
     """
-    Train Type-IV clone detector using CodeNet dataset.
+    Train Type-IV clone detector using CodeNet dataset with hard negative mining.
 
     Args:
         dataset_path: Path to Project CodeNet dataset
@@ -325,11 +452,16 @@ def train_codenet(
         model_name: Name for the saved model file
         sample_size: Number of training pairs (None = use full dataset, capped at 500k)
         clone_ratio: Ratio of clone pairs in training data
-        sampling_strategy: 'problem' (same problem = clone) or 'random'
+        hard_negative_ratio: Ratio of hard negative pairs (default: 20%)
+        include_gptclonebench: Whether to include GPTCloneBench samples
+        gptclonebench_path: Path to GPTCloneBench dataset
+        gptclonebench_ratio: Ratio of GPTCloneBench samples (default: 5%)
         test_size: Fraction of data for testing
         cross_validation: Whether to use cross-validation
         visualize: Whether to generate visualizations
         output_dir: Directory for visualization output
+        feature_pruning: Enable feature pruning (drop bottom 20%)
+        isotonic_calibration: Enable isotonic probability calibration
 
     Returns:
         Training metrics dictionary
@@ -357,8 +489,12 @@ def train_codenet(
         loader = CodeNetDataLoader(dataset_path, codenet_lang)
 
         code1, code2, labels = loader.create_training_pairs(
-            sample_size=sample_size,  # Can be None for full dataset
+            sample_size=sample_size,
             clone_ratio=clone_ratio,
+            hard_negative_ratio=hard_negative_ratio,
+            include_gptclonebench=include_gptclonebench,
+            gptclonebench_path=gptclonebench_path,
+            gptclonebench_ratio=gptclonebench_ratio,
             max_problems=max_problems,
         )
 
@@ -373,29 +509,92 @@ def train_codenet(
     extractor = SheneamerFeatureExtractor()
 
     X = []
-    y = all_labels
+    y = []  # Sync y with X (only add labels for successful extractions)
 
-    for code1, code2 in tqdm(
-        zip(all_code1, all_code2), total=len(all_code1), desc="Extracting features"
+    failed_extractions = 0
+    successful_extractions = 0
+
+    # Determine the parsing language
+    parse_lang = languages[0] if len(languages) == 1 else "java"
+    logger.info(f"Using language '{parse_lang}' for feature extraction")
+    logger.info(f"Available parsers: {list(extractor.tokenizer.parsers.keys())}")
+
+    # Log first code sample for debugging
+    if all_code1:
+        logger.info(f"Sample code 1 (first 100 chars): {all_code1[0][:100]}...")
+        logger.info(f"Sample code 2 (first 100 chars): {all_code2[0][:100]}...")
+
+    for code1, code2, label in tqdm(
+        zip(all_code1, all_code2, all_labels),
+        total=len(all_labels),
+        desc="Extracting features",
     ):
         try:
-            # Determine language for parsing
-            parse_lang = languages[0] if len(languages) == 1 else "java"
-
             fused_features = extractor.extract_fused_features(code1, code2, parse_lang)
+
+            # Validate feature shape
+            if not isinstance(fused_features, np.ndarray) or fused_features.ndim != 1:
+                logger.warning(
+                    f"Invalid feature shape: {type(fused_features)}, ndim: {getattr(fused_features, 'ndim', 'N/A')}"
+                )
+                failed_extractions += 1
+                continue
+
             X.append(fused_features)
+            y.append(label)
+            successful_extractions += 1
+
+            # Log progress
+            if successful_extractions == 1:
+                logger.info(
+                    f"First successful extraction: shape={fused_features.shape}, dtype={fused_features.dtype}"
+                )
+            elif successful_extractions == 100:
+                logger.info(f"Extracted 100 features successfully...")
+
         except Exception as e:
-            logger.debug(f"Feature extraction failed: {e}")
+            if failed_extractions < 3:  # Log first 3 failures
+                logger.warning(f"Feature extraction failed: {e}")
+                logger.warning(
+                    f"  Code1 length: {len(code1)}, Code2 length: {len(code2)}"
+                )
+            failed_extractions += 1
             continue
 
-    X = np.array(X)
-    y = np.array(y)
+    logger.info(f"Successfully extracted features for {successful_extractions} pairs")
+    if failed_extractions > 0:
+        logger.warning(f"Failed to extract features for {failed_extractions} pairs")
+
+    # Convert list of arrays to numpy array
+    if successful_extractions > 0:
+        X = np.stack(X)  # Use stack for list of equal-length arrays
+        y = np.array(y)
+        logger.info(f"X type: {type(X)}, dtype: {X.dtype}, shape: {X.shape}")
+    else:
+        X = np.array([]).reshape(0, extractor.n_fused_features)
+        y = np.array([])
+        logger.warning("No features extracted, creating empty array")
+
+    # Verify feature matrix is valid
+    if X.size == 0 or len(X.shape) < 2:
+        logger.error(f"Feature matrix is empty or invalid. Shape: {X.shape}")
+        logger.error("This may be due to:")
+        logger.error("  1. Tree-sitter parser not loaded for the specified language")
+        logger.error("  2. All code snippets failed parsing")
+        logger.error("  3. Language mismatch between data and parser")
+        logger.error(f"  4. Requested language: {parse_lang}")
+        logger.error(
+            f"  5. Available parsers: {list(extractor.tokenizer.parsers.keys())}"
+        )
+        raise ValueError(f"Feature matrix extraction failed. Shape: {X.shape}")
 
     logger.info(f"Feature matrix shape: {X.shape}")
     logger.info(f"Class distribution: {sum(y)} clones, {len(y) - sum(y)} non-clones")
 
-    # Train classifier
-    logger.info("Training XGBoost classifier...")
+    # Train classifier with feature pruning and isotonic calibration
+    logger.info(
+        "Training XGBoost classifier with feature pruning and isotonic calibration..."
+    )
     classifier = SemanticClassifier(
         max_depth=8,
         learning_rate=0.05,
@@ -403,10 +602,22 @@ def train_codenet(
         subsample=0.9,
         colsample_bytree=0.8,
         reg_lambda=1.0,
+        feature_pruning=feature_pruning,
+        feature_pruning_percentile=0.20,  # Drop bottom 20% of features
+        isotonic_calibration=isotonic_calibration,
+        calibration_cv_folds=5,
     )
 
+    feature_names = extractor.get_feature_names(fused=True)
+
     metrics = classifier.train(
-        X, y, test_size=test_size, cross_validation=cross_validation
+        X,
+        y,
+        feature_names=feature_names,
+        test_size=test_size,
+        cross_validation=cross_validation,
+        apply_feature_pruning=feature_pruning,
+        apply_isotonic_calibration=isotonic_calibration,
     )
 
     # Save model
