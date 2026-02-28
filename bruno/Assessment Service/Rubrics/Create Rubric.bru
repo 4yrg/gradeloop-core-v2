@@ -5,13 +5,13 @@ meta {
 }
 
 post {
-  url: {{baseUrl}}/api/v1/assignments/{{assignmentId}}/rubric
+  url: {{BASE_URL}}/api/v1/assignments/{{ASSIGNMENT_ID}}/rubric
   body: json
   auth: bearer
 }
 
 auth:bearer {
-  token: {{token}}
+  token: {{ACCESS_TOKEN}}
 }
 
 body:json {
@@ -48,4 +48,10 @@ body:json {
       }
     ]
   }
+}
+
+vars:pre-request {
+  assignmentId: 784414b1-2615-44be-bd86-c9d146c369a7
+  baseUrl: http://localhost:8000
+  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMWYwMjZlNDUtMjhmMC00NmViLWE5YTItODBiYzQ1NjI4MzZkIiwiZW1haWwiOiJyOTQxZ0Bkb2xsaWNvbnMuY29tIiwicm9sZV9uYW1lIjoiZW1wbG95ZWUiLCJmdWxsX25hbWUiOiJWaW5ueSBDYXJleSIsInBlcm1pc3Npb25zIjpbInN0dWRlbnRzOnJlYWQiLCJjb3Vyc2VzOnJlYWQiLCJhc3NpZ25tZW50czpyZWFkIiwic3VibWlzc2lvbnM6cmVhZCJdLCJpc3MiOiJpYW0tc2VydmljZSIsInN1YiI6IjFmMDI2ZTQ1LTI4ZjAtNDZlYi1hOWEyLTgwYmM0NTYyODM2ZCIsImV4cCI6MTc3MjI1MDU2NiwibmJmIjoxNzcyMjQ5NjY2LCJpYXQiOjE3NzIyNDk2NjYsImp0aSI6IjY4MGMzZTJmLTA2MDAtNDQzMi1hMDE3LWZiMGY3NjAzYjYxNSJ9.ow97I_feDWJc-bKP-Y5MCt8MJsRPRNW2R6xjrIDsr6g
 }

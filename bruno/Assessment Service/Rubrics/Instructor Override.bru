@@ -5,13 +5,13 @@ meta {
 }
 
 patch {
-  url: {{baseUrl}}/api/v1/evaluations/{{submissionId}}/override
+  url: {{BASE_URL}}/api/v1/evaluations/{{SUBMISSION_ID}}/override
   body: json
   auth: bearer
 }
 
 auth:bearer {
-  token: {{token}}
+  token: {{ACCESS_TOKEN}}
 }
 
 body:json {

@@ -5,11 +5,11 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/api/v1/assignments/{{assignmentId}}/rubric
+  url: {{BASE_URL}}/api/v1/assignments/{{ASSIGNMENT_ID}}/rubric
   body: none
   auth: bearer
 }
 
 auth:bearer {
-  token: {{token}}
+  token: {{ACCESS_TOKEN}}
 }

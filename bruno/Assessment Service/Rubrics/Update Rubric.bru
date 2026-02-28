@@ -5,13 +5,13 @@ meta {
 }
 
 patch {
-  url: {{baseUrl}}/api/v1/assignments/{{assignmentId}}/rubric
+  url: {{BASE_URL}}/api/v1/assignments/{{ASSIGNMENT_ID}}/rubric
   body: json
   auth: bearer
 }
 
 auth:bearer {
-  token: {{token}}
+  token: {{ACCESS_TOKEN}}
 }
 
 body:json {
@@ -43,4 +43,8 @@ body:json {
       }
     ]
   }
+}
+
+vars:pre-request {
+  baseUrl: B
 }
