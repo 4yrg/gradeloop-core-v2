@@ -109,7 +109,7 @@ The `SyntacticFeatureExtractor` computes 6 features from token sequences:
 
 ### Training with TOMA Dataset
 
-The `train_model.py` script is already created and supports the TOMA dataset format.
+The `train.py` script supports the TOMA dataset format.
 
 #### TOMA Dataset Structure
 
@@ -122,14 +122,14 @@ The TOMA dataset at `datasets/toma-dataset/` contains:
 
 ```bash
 # Train with full TOMA dataset (may take several hours)
-poetry run python train_model.py \
+poetry run python train.py \
   --dataset ../../../../datasets/toma-dataset \
   --dataset-format toma \
   --language java \
   --model-name type3_xgb.pkl
 
 # Train with sampled data (faster, for testing)
-poetry run python train_model.py \
+poetry run python train.py \
   --dataset ../../../../datasets/toma-dataset \
   --dataset-format toma \
   --language java \
@@ -137,42 +137,13 @@ poetry run python train_model.py \
   --sample-size 10000
 
 # Train with specific clone types (e.g., Type-3 only)
-poetry run python train_model.py \
+poetry run python train.py \
   --dataset ../../../../datasets/toma-dataset \
   --dataset-format toma \
   --language java \
   --model-name type3_xgb.pkl \
   --clone-types 3 \
   --sample-size 5000
-```
-
-#### Training with Custom JSON Dataset
-
-You can also use a custom JSON dataset:
-
-```bash
-poetry run python train_model.py \
-  --dataset /path/to/dataset.json \
-  --dataset-format json \
-  --language java \
-  --model-name type3_rf.pkl
-```
-
-#### JSON Dataset Format
-
-```json
-[
-  {
-    "code1": "public int foo(int x) { return x + 1; }",
-    "code2": "public int bar(int y) { return y + 1; }",
-    "label": 1
-  },
-  {
-    "code1": "public int foo(int x) { return x + 1; }",
-    "code2": "public int multiply(int x) { return x * 2; }",
-    "label": 0
-  }
-]
 ```
 
 ### Training Output
@@ -196,21 +167,21 @@ Expected output:
 
 ### Evaluation with BigCloneBench Dataset
 
-The `evaluate_model.py` script supports BigCloneBench, TOMA, and JSON formats.
+The `evaluate.py` script supports BigCloneBench, TOMA, and JSON formats.
 
 #### Running Evaluation (BigCloneBench)
 
 ```bash
 # Evaluate with BigCloneBench dataset
-poetry run python evaluate_model.py \
-  --model models/type3_rf.pkl \
+poetry run python evaluate.py \
+  --model models/type3_xgb.pkl \
   --dataset ../../../../datasets/bigclonebench/bigclonebench.jsonl \
   --dataset-format bigclonebench \
   --language java
 
 # Evaluate with sampled data (faster)
-poetry run python evaluate_model.py \
-  --model models/type3_rf.pkl \
+poetry run python evaluate.py \
+  --model models/type3_xgb.pkl \
   --dataset ../../../../datasets/bigclonebench/bigclonebench.jsonl \
   --dataset-format bigclonebench \
   --language java \
@@ -221,42 +192,25 @@ poetry run python evaluate_model.py \
 
 ```bash
 # Evaluate with TOMA dataset
-poetry run python evaluate_model.py \
-  --model models/type3_rf.pkl \
+poetry run python evaluate.py \
+  --model models/type3_xgb.pkl \
   --dataset ../../../../datasets/toma-dataset \
   --dataset-format toma \
   --language java
 
 # Evaluate with sampled data
-poetry run python evaluate_model.py \
-  --model models/type3_rf.pkl \
+poetry run python evaluate.py \
+  --model models/type3_xgb.pkl \
   --dataset ../../../../datasets/toma-dataset \
   --dataset-format toma \
   --language java \
   --sample-size 5000
 ```
 
-#### Running Evaluation (JSON Dataset)
-
-```bash
-poetry run python evaluate_model.py \
-  --model models/type3_rf.pkl \
-  --dataset /path/to/test_dataset.json \
-  --dataset-format json \
-  --language java
-```
-
 ### Evaluation Output
 
 Expected output:
 ```
-2026-02-26 11:00:00 - __main__ - INFO - Loading model from models/type3_rf.pkl...
-2026-02-26 11:00:01 - __main__ - INFO - Loading BigCloneBench dataset from ../../../../datasets/bigclonebench/bigclonebench.jsonl...
-2026-02-26 11:00:05 - __main__ - INFO - Found 100000 entries in BigCloneBench
-2026-02-26 11:00:10 - __main__ - INFO - Loaded 5000 code pairs from BigCloneBench
-2026-02-26 11:00:10 - __main__ - INFO - Extracting features for 5000 pairs...
-2026-02-26 11:02:00 - __main__ - INFO - Making predictions...
-
 ============================================================
 EVALUATION REPORT
 ============================================================
@@ -311,7 +265,7 @@ The service uses automatic cascade detection:
 |-------|------------|---------------------|
 | Pass A (Literal) | Type-1 | <5ms |
 | Pass B (Blinded) | Type-2 | <10ms |
-| Phase Two (TOMA+RF) | Type-3 | ~50ms |
+| Phase Two (TOMA+XGB) | Type-3 | ~50ms |
 
 ---
 
@@ -369,7 +323,7 @@ Response:
   "version": "0.1.0",
   "models": {
     "syntactic_type3": {
-      "model_name": "type3_rf.pkl",
+      "model_name": "type3_xgb.pkl",
       "available": true,
       "loaded": true,
       "error": null
@@ -441,7 +395,7 @@ curl http://localhost:8086/api/v1/syntactics/feature-importance
 Response:
 ```json
 {
-  "model": "type3_rf.pkl",
+  "model": "type3_xgb.pkl",
   "features": {
     "jaccard_similarity": 0.35,
     "dice_coefficient": 0.28,
@@ -497,7 +451,7 @@ docker run -d \
 
 ### Docker Compose
 
-Add to project's `docker-compose.yaml`:
+The service is already configured in the project's `docker-compose.yaml`:
 
 ```yaml
 services:
@@ -507,14 +461,15 @@ services:
     ports:
       - "8086:8086"
     volumes:
-      - ./apps/services/cipas-services/cipas-syntactics/models:/app/models
+      - ./apps/services/cipas-services/cipas-syntactics/models:/app/models:ro
     environment:
       - CIPAS_SYNTACTICS_PORT=8086
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD", "curl", "-f", "http://localhost:8086/api/v1/syntactics/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
 ```
 
 ---
@@ -525,11 +480,11 @@ services:
 
 #### 1. Model Not Found
 
-**Error**: `Model file not found: type3_rf.pkl`
+**Error**: `Model file not found: type3_xgb.pkl`
 
 **Solution**: Train the model first:
 ```bash
-poetry run python train_model.py --dataset /path/to/dataset.json
+poetry run python train.py --dataset /path/to/dataset
 ```
 
 #### 2. Tree-sitter Parser Loading Failed
@@ -559,7 +514,7 @@ poetry run uvicorn main:app --port 8089
 
 #### 5. Low Type-3 Detection Accuracy
 
-**Solution**: 
+**Solution**:
 - Increase training dataset size
 - Tune hyperparameters: `--n-estimators 200 --max-depth 15`
 - Ensure balanced class distribution in dataset
@@ -583,23 +538,23 @@ cd apps/services/cipas-services/cipas-syntactics
 poetry install
 
 # Training with TOMA dataset
-poetry run python train_model.py \
+poetry run python train.py \
   --dataset ../../../../datasets/toma-dataset \
   --dataset-format toma \
   --language java \
-  --model-name type3_rf.pkl
+  --model-name type3_xgb.pkl
 
 # Training with sampled data (faster)
-poetry run python train_model.py \
+poetry run python train.py \
   --dataset ../../../../datasets/toma-dataset \
   --dataset-format toma \
   --language java \
-  --model-name type3_rf.pkl \
+  --model-name type3_xgb.pkl \
   --sample-size 10000
 
 # Evaluation with BigCloneBench
-poetry run python evaluate_model.py \
-  --model models/type3_rf.pkl \
+poetry run python evaluate.py \
+  --model models/type3_xgb.pkl \
   --dataset ../../../../datasets/bigclonebench/bigclonebench.jsonl \
   --dataset-format bigclonebench \
   --language java
@@ -621,13 +576,16 @@ cipas-syntactics/
 ├── schemas.py              # Pydantic models
 ├── pyproject.toml          # Dependencies
 ├── Dockerfile              # Docker configuration
-├── train_model.py          # Training script (TOMA/JSON support)
-├── evaluate_model.py       # Evaluation script (BigCloneBench/TOMA/JSON)
+├── train.py                # Training script (TOMA support)
+├── evaluate.py             # Evaluation script (BigCloneBench/TOMA)
+├── tui.py                  # Terminal UI for interactive analysis
+├── PIPELINE.md             # Technical pipeline documentation
+├── cipas-syntactics.md     # This documentation
 ├── clone_detection/
 │   ├── features/
 │   │   └── syntactic_features.py    # 6 feature extractors
 │   ├── models/
-│   │   └── classifiers.py           # Random Forest wrapper
+│   │   └── classifiers.py           # XGBoost wrapper
 │   ├── normalizers/
 │   │   └── structural_normalizer.py # NiCad-style normalization
 │   ├── pipelines/
@@ -635,7 +593,7 @@ cipas-syntactics/
 │   └── tokenizers/
 │       └── tree_sitter_tokenizer.py
 └── models/                 # Trained models directory
-    └── type3_rf.pkl        # Syntactic model
+    └── type3_xgb.pkl       # Syntactic model
 ```
 
 **Datasets:**
@@ -648,7 +606,7 @@ cipas-syntactics/
 |------------|---------|-------------|-------------|
 | **Type-1** | ≥0.98 | ≥0.98 | 0% |
 | **Type-2** | ≥0.95 | ≥0.95 | ≤5% |
-| **Type-3** | RF Classification | | |
+| **Type-3** | XGBoost Classification | | |
 
 ### Performance Benchmarks
 
