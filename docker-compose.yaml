@@ -348,7 +348,22 @@ services:
       - ./apps/services/cipas-service/src:/app/src
       # Mount models directory to access pre-trained models
       - ./apps/services/cipas-service/clone_detection/models:/app/clone_detection/models:ro
-    command: [ "/opt/venv/bin/uvicorn", "cipas.main:app", "--host", "0.0.0.0", "--port", "8085", "--loop", "uvloop", "--http", "httptools", "--workers", "1", "--reload" ]
+    command:
+      [
+        "/opt/venv/bin/uvicorn",
+        "cipas.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8085",
+        "--loop",
+        "uvloop",
+        "--http",
+        "httptools",
+        "--workers",
+        "1",
+        "--reload",
+      ]
     container_name: cipas-service
     restart: unless-stopped
     labels:
@@ -463,7 +478,12 @@ services:
 
     healthcheck:
       test:
-        ["CMD", "curl", "-f", "http://localhost:${CIPAS_SYN_SVC_PORT}/api/v1/syntactics/ready"]
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:${CIPAS_SYN_SVC_PORT}/api/v1/syntactics/ready",
+        ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -514,7 +534,12 @@ services:
 
     healthcheck:
       test:
-        ["CMD", "curl", "-f", "http://localhost:${CIPAS_SEM_SVC_PORT}/api/v1/semantics/ready"]
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:${CIPAS_SEM_SVC_PORT}/api/v1/semantics/ready",
+        ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -562,24 +587,24 @@ services:
       - SERVICE_HOST=0.0.0.0
       - LOG_LEVEL=${ACAFS_LOG_LEVEL:-INFO}
       - ENVIRONMENT=${ENVIRONMENT:-development}
-      
+
       # RabbitMQ
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
       - RABBITMQ_EXCHANGE=${ACAFS_RABBITMQ_EXCHANGE:-submissions}
       - RABBITMQ_QUEUE=${ACAFS_RABBITMQ_QUEUE:-acafs.evaluation}
       - RABBITMQ_ROUTING_KEY=${ACAFS_RABBITMQ_ROUTING_KEY:-submission.created}
       - RABBITMQ_CONCURRENCY=${ACAFS_RABBITMQ_CONCURRENCY:-4}
-      
+
       # PostgreSQL (shared with assessment service)
       - DATABASE_URL=postgresql://${GRA_DB_USER}:${GRA_DB_PASSWORD}@${GRA_DB_HOST}:${GRA_DB_PORT}/${ASSESSMENT_SVC_DB_NAME}
-      
+
       # MinIO
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
       - MINIO_BUCKET=${MINIO_BUCKET:-submissions}
       - MINIO_USE_SSL=false
-      
+
       # AST Parser
       - AST_MAX_LINES=${ACAFS_AST_MAX_LINES:-5000}
       - AST_TIMEOUT_SECONDS=${ACAFS_AST_TIMEOUT_SECONDS:-2}
@@ -595,7 +620,13 @@ services:
       - gradeloop-network
 
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8086/api/v1/acafs/health')"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8086/api/v1/acafs/health')",
+        ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -665,35 +696,136 @@ services:
         max-file: "3"
         compress: "true"
   # =============================================================================
-  # Redis (for CIPAS and other services)
+  # Redis (for CIPAS async task handling)
   # =============================================================================
-  #  redis:
-  #    image: redis:7-alpine
-  #    container_name: redis
-  #    restart: unless-stopped
-  #    command: [ "redis-server", "--save", "", "--appendonly", "no" ]
-  #    ports:
-  #      - "6379:6379"
-  #
-  #    volumes:
-  #      - redis-data:/data
-  #
-  #    networks:
-  #      - gradeloop-network
-  #
-  #    healthcheck:
-  #      test: [ "CMD", "redis-cli", "ping" ]
-  #      interval: 10s
-  #      timeout: 5s
-  #      retries: 5
-  #      start_period: 10s
-  #
-  #    logging:
-  #      driver: "json-file"
-  #      options:
-  #        max-size: "10m"
-  #        max-file: "3"
-  #        compress: "true"
+  redis:
+    image: redis:7-alpine
+    container_name: gradeloop-redis
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+
+    volumes:
+      - redis-data:/data
+
+    networks:
+      - gradeloop-network
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+
+  # =============================================================================
+  # CIPAS AI Service (2-Tier Hybrid Code Detection)
+  # =============================================================================
+  cipas-ai:
+    build:
+      context: ./apps/services/cipas-services/cipas-ai
+      dockerfile: Dockerfile
+      target: dev
+    volumes:
+      - ./apps/services/cipas-services/cipas-ai:/app
+      # Mount pre-trained models directory
+      - ./apps/services/cipas-services/cipas-ai/models:/app/models:ro
+    container_name: cipas-ai
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cipas-ai.rule=PathPrefix(`/api/v1/cipas-ai`)"
+      - "traefik.http.routers.cipas-ai.entrypoints=web"
+      - "traefik.http.services.cipas-ai-service.loadbalancer.server.port=8087"
+      # Request Size Limiting (5MB for code submissions)
+      - "traefik.http.middlewares.cipas-ai-limit.buffering.maxRequestBodyBytes=5242880"
+      # Rate Limiting (100 requests per minute)
+      - "traefik.http.middlewares.cipas-ai-ratelimit.ratelimit.average=100"
+      - "traefik.http.middlewares.cipas-ai-ratelimit.ratelimit.period=1m"
+      - "traefik.http.middlewares.cipas-ai-ratelimit.ratelimit.burst=10"
+      # Apply middlewares
+      - "traefik.http.routers.cipas-ai.middlewares=cipas-ai-limit,cipas-ai-ratelimit"
+
+    env_file:
+      - .env
+
+    environment:
+      # Service configuration
+      - CIPAS_AI_SERVICE_NAME=cipas-ai
+      - CIPAS_AI_SERVICE_VERSION=0.2.0
+      - CIPAS_AI_PORT=8087
+      - CIPAS_AI_HOST=0.0.0.0
+      - CIPAS_AI_ENVIRONMENT=${CIPAS_AI_ENVIRONMENT:-development}
+
+      # Model configuration
+      - CIPAS_AI_TIER1_MODEL_PATH=/app/models/catboost_classifier.cbm
+      - CIPAS_AI_TIER2_MODEL_NAME=project-droid/DroidDetect-Large
+      - CIPAS_AI_MODERNBERT_BASE_NAME=answerdotai/ModernBERT-large
+
+      # Quantization (enable for limited VRAM)
+      - CIPAS_AI_ENABLE_4BIT_QUANTIZATION=${CIPAS_AI_ENABLE_4BIT:-false}
+      - CIPAS_AI_ENABLE_8BIT_QUANTIZATION=${CIPAS_AI_ENABLE_8BIT:-false}
+
+      # Inference thresholds
+      - CIPAS_AI_TIER1_HIGH_THRESHOLD=0.92
+      - CIPAS_AI_TIER1_LOW_THRESHOLD=0.08
+
+      # Performance
+      - CIPAS_AI_MAX_TOKENS=8192
+      - CIPAS_AI_SLIDING_WINDOW_SIZE=4096
+      - CIPAS_AI_SLIDING_WINDOW_OVERLAP=256
+      - CIPAS_AI_WORKER_COUNT=1
+      - CIPAS_AI_ENABLE_ASYNC_INFERENCE=true
+
+      # Redis for async tasks
+      - CIPAS_AI_REDIS_URL=redis://redis:6379/0
+
+      # Logging
+      - CIPAS_AI_LOG_LEVEL=${CIPAS_AI_LOG_LEVEL:-INFO}
+      - CIPAS_AI_LOG_FORMAT=json
+
+      # HuggingFace (optional, for authenticated access)
+      - HUGGING_FACE_TOKEN=${HUGGING_FACE_TOKEN:-}
+
+    expose:
+      - "8087"
+
+    depends_on:
+      redis:
+        condition: service_healthy
+
+    networks:
+      - gradeloop-network
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8087/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+
+    # Deploy configuration for resource limits
+    deploy:
+      resources:
+        reservations:
+          memory: 4G
+        limits:
+          memory: 8G
 
   # =============================================================================
   # Networks Configuration
