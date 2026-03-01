@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { AssignmentCard } from "@/components/dashboard/assignment-card";
 import { assessmentApi } from "@/lib/api/assessments";
+import { studentCoursesApi } from "@/lib/api/academics";
 import type { Assignment } from "@/types/assessment.types";
 
 export default function StudentAssignmentsPage() {
@@ -18,21 +19,48 @@ export default function StudentAssignmentsPage() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
-  // TODO: In production, get the actual course instance IDs from the student's enrollments
-  // For now, we'll use a demo approach
-  const courseInstanceId = "demo-course-instance-id"; // Replace with actual logic
-
   React.useEffect(() => {
     const fetchAssignments = async () => {
       try {
         setLoading(true);
-        // TODO: Fetch all enrolled courses and their assignments
-        // For now, using a single course instance as demo
-        // const response = await assessmentApi.getAssignmentsByCourseInstance(courseInstanceId);
-        // setAssignments(response.assignments);
 
-        // Mock data for now - remove this when API is connected
-        setAssignments([]);
+        // 1. Get all course instances this student is enrolled in.
+        const enrolledCourses = await studentCoursesApi.listMyCourses();
+
+        if (enrolledCourses.length === 0) {
+          setAssignments([]);
+          return;
+        }
+
+        // 2. For each course instance, fetch its assignments in parallel.
+        const results = await Promise.allSettled(
+          enrolledCourses.map((c) =>
+            assessmentApi.getAssignmentsByCourseInstance(c.course_instance_id),
+          ),
+        );
+
+        // 3. Flatten all assignment arrays into one list.
+        const all: Assignment[] = [];
+        for (const result of results) {
+          if (result.status === "fulfilled") {
+            const data = result.value;
+            if (Array.isArray(data)) {
+              all.push(...data);
+            } else if (Array.isArray(data?.assignments)) {
+              all.push(...data.assignments);
+            }
+          }
+        }
+
+        // Deduplicate by id (in case the same assignment appears in multiple results).
+        const seen = new Set<string>();
+        const unique = all.filter((a) => {
+          if (seen.has(a.id)) return false;
+          seen.add(a.id);
+          return true;
+        });
+
+        setAssignments(unique);
       } catch (err) {
         console.error("Failed to fetch assignments:", err);
         setError("Failed to load assignments. Please try again later.");
@@ -42,7 +70,7 @@ export default function StudentAssignmentsPage() {
     };
 
     fetchAssignments();
-  }, [courseInstanceId]);
+  }, []);
 
   if (loading) {
     return (
