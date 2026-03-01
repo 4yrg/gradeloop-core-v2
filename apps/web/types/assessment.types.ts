@@ -1,5 +1,17 @@
 // Assessment Service Types
 
+export interface GitHubIntegration {
+  enabled: boolean;
+  repository_url?: string;
+  repository_name?: string;
+  repository_owner?: string;
+  default_branch?: string;
+  template_repo?: string;
+  require_pull_request: boolean;
+  auto_create_repos: boolean;
+  submission_branch_prefix?: string;
+}
+
 export interface Assignment {
   id: string;
   course_instance_id: string;
@@ -20,6 +32,8 @@ export interface Assignment {
   created_by: string;
   created_at: string;
   updated_at: string;
+  // GitHub Integration
+  github_integration?: GitHubIntegration;
 }
 
 export interface AssignmentListResponse {
@@ -39,6 +53,11 @@ export interface Submission {
   storage_path: string;
   submitted_at: string;
   created_at: string;
+  // GitHub Integration
+  github_commit_sha?: string;
+  github_branch?: string;
+  github_pull_request_url?: string;
+  github_repository_url?: string;
 }
 
 export interface CreateSubmissionRequest {
