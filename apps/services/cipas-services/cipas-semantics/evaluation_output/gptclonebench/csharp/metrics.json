@@ -1,8 +1,0 @@
-{
-  "accuracy": 0.506886008136861,
-  "precision": 0.5363633659537761,
-  "recall": 0.8211667197959834,
-  "f1": 0.6488898485012056,
-  "roc_auc": 0.40767072602086507,
-  "visualization_path": "evaluation_output/gptclonebench/csharp/reports/gptclonebench_evaluation_report.html"
-}

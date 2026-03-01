@@ -316,8 +316,8 @@ Examples:
     parser.add_argument(
         "--sample-size",
         type=int,
-        default=1000,
-        help="Number of samples to evaluate (default: 1000)",
+        default=None,
+        help="Number of samples to evaluate (default: FULL dataset)",
     )
     parser.add_argument(
         "--threshold",
@@ -365,12 +365,14 @@ Examples:
     logging.getLogger().setLevel(getattr(logging, args.log_level))
 
     # Determine languages
-    if args.all_languages or args.language is None:
+    if args.all_languages:
+        # When --all-languages is specified, evaluate on all languages with the specified model
         languages = ["java", "python", "c", "csharp"]
-        if args.language is None and not args.all_languages:
-            logger.info(
-                "No language specified. Evaluating on ALL 4 languages by default."
-            )
+        logger.info(f"Evaluating {args.model} on ALL 4 languages...")
+    elif args.language is None:
+        # Default to all 4 languages with language-specific models
+        languages = ["java", "python", "c", "csharp"]
+        logger.info("No language specified. Evaluating on ALL 4 languages by default.")
     else:
         languages = [args.language]
 
@@ -381,11 +383,8 @@ Examples:
         logger.info(f"EVALUATING LANGUAGE: {lang.upper()}")
         logger.info(f"{'=' * 80}\n")
 
-        # Determine model path
-        if len(languages) > 1:
-            model_path = f"models/type4_xgb_{lang}.pkl"
-        else:
-            model_path = args.model
+        # Determine model path - use specified model for all languages
+        model_path = args.model
 
         # Check if model exists
         if not Path(model_path).exists():
