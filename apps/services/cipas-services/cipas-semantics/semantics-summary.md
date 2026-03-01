@@ -174,14 +174,9 @@ cipas-semantics/
 │
 ├── train.py                         # Training entry point
 ├── train_codenet.py                 # CodeNet training logic
-├── train_model.py                   # Generic training
-│
-├── evaluate.py                      # Evaluation entry point
+├── evaluate.py                      # Unified evaluation script
 ├── evaluate_gptclonebench.py        # GPTCloneBench evaluator
 ├── evaluate_model.py                # Generic evaluator
-│
-├── run_complete_pipeline.py         # End-to-end pipeline
-├── run_pipeline.sh                  # Bash wrapper
 │
 ├── clone_detection/
 │   ├── features/
@@ -194,18 +189,110 @@ cipas-semantics/
 │       ├── common_setup.py          # Path/logging utilities
 │       └── metrics_visualization.py # HTML report generator
 │
-├── models/                          # Trained models
-│   ├── type4_xgb_java.pkl
-│   ├── type4_xgb_python.pkl
-│   ├── type4_xgb_c.pkl
-│   └── type4_xgb_csharp.pkl
+├── models/                          # OUTPUT: Trained models & metrics
+│   ├── type4_xgb_java.pkl           # Trained model
+│   ├── type4_xgb_java.pkl.features.json  # Feature names
+│   └── type4_xgb_java.pkl.metrics.json   # Training metrics
 │
-└── tests/                           # Unit tests
+├── metrics_output/                  # OUTPUT: Training visualizations
+│   └── reports/
+│       └── training_report_*.html   # Training HTML reports
+│
+└── evaluation_output/               # OUTPUT: Evaluation results
+    ├── metrics_java.json            # Evaluation metrics per language
+    ├── metrics_python.json
+    ├── metrics_c.json
+    ├── metrics_csharp.json
+    ├── threshold_sweep_results.csv  # Threshold analysis
+    └── reports/
+        ├── evaluation_report_java.html    # Evaluation HTML reports
+        ├── evaluation_report_python.html
+        ├── evaluation_report_c.html
+        └── evaluation_report_csharp.html
 ```
 
 ---
 
-## 4. Training Pipeline
+## 4. Output Files
+
+### 4.1 Training Outputs
+
+**Location:** `models/` and `metrics_output/`
+
+| File | Description | Format |
+|------|-------------|--------|
+| `models/type4_xgb_*.pkl` | Trained model | Pickle |
+| `models/type4_xgb_*.pkl.features.json` | Feature names (437 features) | JSON |
+| `models/type4_xgb_*.pkl.metrics.json` | Training metrics | JSON |
+| `metrics_output/reports/training_report_*.html` | Training visualization | HTML |
+
+**Training Metrics (JSON):**
+```json
+{
+  "accuracy": 0.85,
+  "precision": 0.84,
+  "recall": 0.87,
+  "f1": 0.855,
+  "roc_auc": 0.91,
+  "optimal_threshold": 0.52,
+  "macro_f1_thresholded": 0.85,
+  "feature_pruning_applied": true,
+  "isotonic_calibration_applied": true,
+  "original_features": 437,
+  "pruned_features": 350
+}
+```
+
+### 4.2 Evaluation Outputs
+
+**Location:** `evaluation_output/`
+
+| File | Description | Format |
+|------|-------------|--------|
+| `evaluation_output/metrics_*.json` | Evaluation metrics per language | JSON |
+| `evaluation_output/threshold_sweep_results.csv` | Threshold analysis | CSV |
+| `evaluation_output/reports/evaluation_report_*.html` | Evaluation visualization | HTML |
+
+**Evaluation Metrics (JSON):**
+```json
+{
+  "accuracy": 0.88,
+  "precision": 0.92,
+  "recall": 0.85,
+  "f1": 0.88,
+  "macro_f1": 0.82,
+  "roc_auc": 0.91,
+  "threshold_used": 0.52,
+  "confusion_matrix": [[TN, FP], [FN, TP]],
+  "true_negatives": 450,
+  "false_positives": 50,
+  "false_negatives": 75,
+  "true_positives": 425,
+  "optimal_threshold_f1": 0.55,
+  "optimal_threshold_macro_f1": 0.52
+}
+```
+
+### 4.3 Visualization Reports
+
+**Training Report (HTML) Includes:**
+- ROC Curve
+- Precision-Recall Curve
+- Confusion Matrix Heatmap
+- Feature Importance Bar Chart (top 20)
+- Training Parameters Summary
+
+**Evaluation Report (HTML) Includes:**
+- ROC Curve
+- Precision-Recall Curve
+- Confusion Matrix Heatmap (normalized)
+- Feature Importance Bar Chart (top 20)
+- Threshold Sweep Plot
+- Evaluation Parameters Summary
+
+---
+
+## 5. Training Pipeline
 
 ### 4.1 Quick Start
 
@@ -273,20 +360,23 @@ poetry run python train.py --sample-size 10000 --language java
 ### 5.1 Quick Start
 
 ```bash
-# Quick evaluation (default: all 4 languages, 1000 samples each)
+# Full evaluation on ALL samples (default - no sampling)
 poetry run python evaluate.py
 
-# Evaluate specific model and language
+# Evaluate specific model on full dataset
 poetry run python evaluate.py \
   --model models/type4_xgb_java.pkl \
-  --language java \
-  --sample-size 2000
+  --language java
 
-# Full evaluation with visualizations
+# Quick test with sample limit
 poetry run python evaluate.py \
   --model models/type4_xgb_java.pkl \
-  --visualize \
-  --output-dir ./evaluation_results
+  --sample-size 1000
+
+# Full evaluation on all languages
+poetry run python evaluate.py \
+  --model models/type4_xgb_universal.pkl \
+  --all-languages
 ```
 
 ### 5.2 Evaluation Process

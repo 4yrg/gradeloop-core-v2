@@ -631,6 +631,12 @@ def train_codenet(
         json.dump(feature_names, f, indent=2)
     logger.info(f"Feature names saved to {feature_names_file}")
 
+    # Save training metrics
+    metrics_file = get_model_path(f"{model_name}.metrics.json")
+    with open(metrics_file, "w") as f:
+        json.dump(metrics, f, indent=2, default=str)
+    logger.info(f"Training metrics saved to {metrics_file}")
+
     # Generate visualizations
     if visualize:
         logger.info("Generating training visualizations...")
