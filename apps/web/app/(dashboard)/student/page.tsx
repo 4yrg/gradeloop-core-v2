@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import {
     BookOpen,
     FileText,
-    GraduationCap,
-    Clock,
     Trophy,
     Calendar,
     ArrowRight
@@ -78,6 +76,12 @@ export default function StudentDashboardPage() {
                             View All
                             <ArrowRight className="h-4 w-4 ml-2" />
                         </Button>
+                 </CardHeader>
+                    <CardHeader>
+
+                        <CardTitle>Upcoming Deadlines</CardTitle>
+                        <CardDescription>Don&apos;t miss these important dates</CardDescription>
+
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">

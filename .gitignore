@@ -131,6 +131,7 @@ celerybeat.pid
 .env.production.local
 .env*.local
 .venv
+.venv-*
 env/
 venv/
 ENV/
@@ -274,7 +275,14 @@ credentials.json
 *.sqlite
 *.sqlite3
 
+# Datasets (large files)
+datasets/
+*.csv
+*.jsonl
+
 # Go
+main
+bin/
 *.exe
 *.exe~
 *.dll
@@ -287,3 +295,8 @@ go.work
 ci_summary.txt
 final_status.txt
 .mcp.json
+
+
+# CIPAS
+#apps/services/cipas-service/datasets
+#datasets
