@@ -16,6 +16,7 @@ type EnrollmentService interface {
 	EnrollStudent(req *dto.EnrollmentRequest, username, ipAddress, userAgent string) (*domain.Enrollment, error)
 	UpdateEnrollment(instanceID, userID uuid.UUID, req *dto.UpdateEnrollmentRequest, username, ipAddress, userAgent string) (*domain.Enrollment, error)
 	GetEnrollments(instanceID uuid.UUID) ([]domain.Enrollment, error)
+	GetMyEnrollments(userID uuid.UUID) ([]domain.Enrollment, error)
 	RemoveEnrollment(instanceID, userID uuid.UUID, username, ipAddress, userAgent string) error
 }
 
@@ -233,6 +234,20 @@ func (s *enrollmentService) GetEnrollments(instanceID uuid.UUID) ([]domain.Enrol
 		return nil, utils.ErrInternal("failed to list enrollments", err)
 	}
 
+	return enrollments, nil
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GetMyEnrollments
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GetMyEnrollments returns all course-instance enrollments for the given student.
+func (s *enrollmentService) GetMyEnrollments(userID uuid.UUID) ([]domain.Enrollment, error) {
+	enrollments, err := s.enrollmentRepo.GetEnrollmentsByUserID(userID)
+	if err != nil {
+		s.logger.Error("failed to list enrollments by user", zap.Error(err))
+		return nil, utils.ErrInternal("failed to list enrollments", err)
+	}
 	return enrollments, nil
 }
 
