@@ -155,6 +155,71 @@ func (h *InstructorHandler) CreateAssignment(c fiber.Ctx) error {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PATCH /api/v1/instructor-assignments/:id
+// ─────────────────────────────────────────────────────────────────────────────
+
+// UpdateAssignment lets an instructor update configuration fields on an
+// assignment they own. Ownership is verified: the assignment must have been
+// created by the requesting instructor AND belong to one of their assigned
+// course instances.
+func (h *InstructorHandler) UpdateAssignment(c fiber.Ctx) error {
+	assignmentID, err := parseUUID(c, "id")
+	if err != nil {
+		return err
+	}
+
+	// Fetch the assignment to verify ownership
+	assignment, err := h.assignmentService.GetAssignmentByID(assignmentID)
+	if err != nil {
+		return err
+	}
+	if assignment == nil {
+		return utils.ErrNotFound("assignment not found")
+	}
+
+	// Ownership check: must be the creator
+	userID := requireUserID(c)
+	if assignment.CreatedBy != userID {
+		return utils.ErrForbidden("you do not own this assignment")
+	}
+
+	// Course instance check: must still be assigned to that course
+	courseIDs, err := h.instructorCourseIDs(c)
+	if err != nil {
+		return err
+	}
+	if !courseIDs[assignment.CourseInstanceID] {
+		return utils.ErrForbidden("you are not assigned to this course instance")
+	}
+
+	var req dto.UpdateAssignmentRequest
+	if err := c.Bind().JSON(&req); err != nil {
+		return utils.ErrBadRequest("invalid request body")
+	}
+
+	// Instructors cannot change is_active via this endpoint
+	req.IsActive = nil
+
+	username := requireUsername(c)
+	if username == "" {
+		return utils.ErrUnauthorized("user not authenticated")
+	}
+
+	updated, err := h.assignmentService.UpdateAssignment(
+		assignmentID,
+		&req,
+		username,
+		c.IP(),
+		c.Get("User-Agent"),
+	)
+	if err != nil {
+		return err
+	}
+
+	return c.Status(fiber.StatusOK).JSON(toAssignmentResponse(updated))
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/v1/instructor-submissions/assignment/:id
 // ─────────────────────────────────────────────────────────────────────────────
 
