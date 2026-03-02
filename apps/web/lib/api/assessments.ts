@@ -12,6 +12,7 @@ import type {
     AssignmentResponse,
     ListAssignmentsResponse,
     CreateAssignmentRequest,
+    UpdateAssignmentRequest,
     SubmissionResponse,
     ListSubmissionsResponse,
     GroupResponse,
@@ -121,6 +122,11 @@ export const instructorAssessmentsApi = {
 
     createAssignment: async (req: CreateAssignmentRequest): Promise<AssignmentResponse> => {
         const { data } = await axiosInstance.post<AssignmentResponse>('/instructor-assignments', req);
+        return data;
+    },
+
+    updateAssignment: async (id: string, req: UpdateAssignmentRequest): Promise<AssignmentResponse> => {
+        const { data } = await axiosInstance.patch<AssignmentResponse>(`/instructor-assignments/${id}`, req);
         return data;
     },
 
