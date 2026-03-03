@@ -25,8 +25,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy dependency files first for layer caching
 COPY pyproject.toml ./
 
-# Install dependencies directly with pip
-RUN pip install --no-cache-dir -e "."
+# Install dependencies directly (package-mode = false in pyproject.toml)
+RUN pip install --no-cache-dir \
+    fastapi \
+    uvicorn \
+    pydantic \
+    tree-sitter \
+    tree-sitter-java \
+    tree-sitter-c \
+    tree-sitter-c-sharp \
+    tree-sitter-python \
+    scikit-learn \
+    xgboost \
+    pandas \
+    numpy \
+    rapidfuzz \
+    matplotlib \
+    seaborn \
+    plotly \
+    tqdm
 
 # Copy application code
 COPY main.py routes.py schemas.py ./
@@ -84,7 +101,7 @@ FROM builder AS development
 WORKDIR /app
 
 # Install dev dependencies
-RUN pip install --no-cache-dir -e ".[dev]" 2>/dev/null || pip install --no-cache-dir -e "."
+RUN pip install --no-cache-dir pytest 2>/dev/null || true
 
 COPY main.py routes.py schemas.py ./
 COPY clone_detection/ ./clone_detection/

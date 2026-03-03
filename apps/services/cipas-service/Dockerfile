@@ -26,8 +26,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy dependency files first for layer caching
 COPY pyproject.toml ./
 
-# Install dependencies directly with pip
-RUN pip install --no-cache-dir -e ".[main]"
+# Install dependencies from pyproject.toml [project] section
+# Use --no-deps to avoid poetry-core build, then install deps directly
+RUN pip install --no-cache-dir \
+    fastapi \
+    uvicorn \
+    pydantic \
+    tree-sitter \
+    tree-sitter-java \
+    tree-sitter-c \
+    tree-sitter-python \
+    scikit-learn \
+    xgboost \
+    pandas \
+    numpy \
+    rapidfuzz
 
 # Copy application code (layer invalidated on code change)
 COPY main.py routes.py schemas.py ./
@@ -88,7 +101,7 @@ FROM builder AS development
 WORKDIR /app
 
 # Install dev dependencies
-RUN pip install --no-cache-dir -e ".[dev]" 2>/dev/null || pip install --no-cache-dir -e "."
+RUN pip install --no-cache-dir pytest 2>/dev/null || true
 
 # Copy application code
 COPY main.py routes.py schemas.py ./
