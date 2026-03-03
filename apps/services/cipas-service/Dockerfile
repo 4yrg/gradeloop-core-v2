@@ -24,7 +24,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
-COPY --from=python:3.11-slim /usr/local/bin/pip /usr/local/bin/pip
 RUN pip install --no-cache-dir poetry==1.7.1
 
 # Copy dependency files first for layer caching
@@ -35,7 +34,8 @@ RUN poetry config virtualenvs.create false \
     && poetry install --no-interaction --no-ansi --no-root --only main
 
 # Copy application code (layer invalidated on code change)
-COPY src/ ./src/
+COPY main.py routes.py schemas.py ./
+COPY clone_detection/ ./clone_detection/
 COPY scripts/ ./scripts/
 
 # Build tree-sitter parsers
@@ -50,8 +50,7 @@ WORKDIR /app
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PATH="/app/.venv/bin:$PATH"
+    PYTHONUNBUFFERED=1
 
 # Install runtime dependencies only
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -65,7 +64,8 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code
-COPY --from=builder /app/src ./src
+COPY --from=builder /app/main.py /app/routes.py /app/schemas.py ./
+COPY --from=builder /app/clone_detection ./clone_detection
 COPY --from=builder /app/scripts ./scripts
 
 # Create non-root user for security
@@ -82,7 +82,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8085/health || exit 1
 
 # Run with uvicorn
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8085", "--workers", "1"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8085", "--workers", "1"]
 
 # -----------------------------------------------------------------------------
 # Stage 3: Development (optional)
@@ -95,10 +95,12 @@ WORKDIR /app
 RUN poetry install --no-interaction --no-ansi --no-root
 
 # Copy application code
-COPY src/ ./src/
+COPY main.py routes.py schemas.py ./
+COPY clone_detection/ ./clone_detection/
+COPY scripts/ ./scripts/
 
 # Expose port
 EXPOSE 8085
 
 # Run with reload
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8085", "--reload"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8085", "--reload"]

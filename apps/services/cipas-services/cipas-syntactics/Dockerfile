@@ -33,7 +33,8 @@ RUN poetry config virtualenvs.create false \
     && poetry install --no-interaction --no-ansi --no-root --only main
 
 # Copy application code
-COPY src/ ./src/
+COPY main.py routes.py schemas.py ./
+COPY clone_detection/ ./clone_detection/
 
 # Verify tree-sitter tokenizer installation
 RUN python -c "from clone_detection.tokenizers.tree_sitter_tokenizer import TreeSitterTokenizer; TreeSitterTokenizer(); print('Tree-sitter parsers loaded successfully')" 2>/dev/null || true
@@ -60,7 +61,8 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code
-COPY --from=builder /app/src ./src
+COPY --from=builder /app/main.py /app/routes.py /app/schemas.py ./
+COPY --from=builder /app/clone_detection ./clone_detection
 
 # Create models directory and non-root user
 RUN mkdir -p /app/models \
@@ -76,7 +78,7 @@ EXPOSE 8086
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8086/health || exit 1
 
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8086", "--workers", "1"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8086", "--workers", "1"]
 
 # -----------------------------------------------------------------------------
 # Stage 3: Development
@@ -87,8 +89,9 @@ WORKDIR /app
 
 RUN poetry install --no-interaction --no-ansi --no-root
 
-COPY src/ ./src/
+COPY main.py routes.py schemas.py ./
+COPY clone_detection/ ./clone_detection/
 
 EXPOSE 8086
 
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8086", "--reload"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8086", "--reload"]
