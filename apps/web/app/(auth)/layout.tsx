@@ -5,7 +5,7 @@
  * 
  * Provides a common structure for authentication pages with:
  * - A vibrant, brand-aligned animated background
- * - Top navigation (Home link, Help Center, Sign Up toggles)
+ * - Top navigation (Home link, Help Center)
  * - Focused authentication card container
  * - Footer with legal and support links
  */
@@ -82,7 +82,7 @@ export default function AuthLayout({
           <div className="flex items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform">
             <GraduationCap className="w-5 h-5 md:w-6 md:h-6" />
           </div>
-          <span className="text-xl md:text-2xl font-bold tracking-tight text-foreground/90 group-hover:text-primary transition-colors">
+          <span className="text-xl md:text-2xl font-heading font-bold tracking-tight text-foreground/90 group-hover:text-primary transition-colors">
             Gradeloop
           </span>
         </Link>
@@ -91,13 +91,7 @@ export default function AuthLayout({
           <Link href="/help" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors hidden sm:block">
             Help Center
           </Link>
-          {isLoginPage ? (
-            <Link href="/signup">
-              <Button variant="outline" className="rounded-xl font-semibold px-6 border-2 hover:bg-secondary">
-                Sign Up
-              </Button>
-            </Link>
-          ) : (
+          {!isLoginPage && (
             <Link href="/login">
               <Button className="rounded-xl font-semibold px-6 shadow-md hover:shadow-lg transition-all">
                 Sign In

@@ -16,6 +16,7 @@
    ========================================================================== */
 
 @layer base {
+
     /* -----------------------------------------------------------------------
        LIGHT THEME  (:root)
        Clean, modern aesthetic with vibrant indigo/purple brand colors
@@ -75,7 +76,7 @@
         /* Indigo focus rings */
 
         /* --- Border Radius --- */
-        --radius: 0.75rem;
+        --radius: 0.3rem;
 
         /* -------------------------------------------------------------------
            FEEDBACK STATES — Light
@@ -389,7 +390,7 @@
         background-color: hsl(var(--background));
         color: hsl(var(--foreground));
         font-family:
-            var(--font-geist-sans), "Geist", ui-sans-serif, system-ui,
+            var(--font-inter), ui-sans-serif, system-ui,
             sans-serif;
         font-feature-settings:
             "rlig" 1,
@@ -398,13 +399,28 @@
         -moz-osx-font-smoothing: grayscale;
     }
 
+    .font-body {
+        font-family: var(--font-inter), sans-serif;
+    }
+
+    /* Headings — Montserrat */
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    .font-heading {
+        font-family: var(--font-montserrat), sans-serif;
+    }
+
     /* Monospace — code blocks, logs, diffs */
     code,
     pre,
     kbd,
     samp {
         font-family:
-            var(--font-geist-mono), "Geist Mono", ui-monospace, "Cascadia Code",
+            ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Monaco, Consolas,
             monospace;
     }
 
@@ -455,6 +471,10 @@
    ========================================================================== */
 
 @theme inline {
+    /* Fonts */
+    --font-heading: var(--font-montserrat);
+    --font-body: var(--font-inter);
+
     /* Core surfaces */
     --color-background: hsl(var(--background));
     --color-foreground: hsl(var(--foreground));
@@ -599,6 +619,6 @@
         color: hsl(var(--code-foreground));
         border-color: hsl(var(--code-border));
         font-family:
-            var(--font-geist-mono), "Geist Mono", ui-monospace, monospace;
+            ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Monaco, Consolas, monospace;
     }
 }

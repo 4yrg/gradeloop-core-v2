@@ -64,20 +64,20 @@ export default function ForgotPasswordPage() {
 
   if (isSubmitted) {
     return (
-      <div className="w-full max-w-md animate-in fade-in zoom-in duration-500">
+      <div className="w-full max-w-md animate-in fade-in zoom-in duration-500 px-4">
         <Card className="border-none shadow-2xl shadow-indigo-200/50 dark:shadow-none bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl">
-          <CardHeader className="space-y-4 pb-8 text-center border-b border-muted/50 mb-6">
+          <CardHeader className="space-y-4 pb-6 pt-8 text-center">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-success/10 text-success">
               <CheckCircle2 className="h-10 w-10" />
             </div>
             <div className="space-y-1">
               <CardTitle className="text-3xl font-bold tracking-tight">Check your email</CardTitle>
-              <CardDescription className="text-base">
+              <CardDescription className="text-base text-muted-foreground">
                 We&apos;ve sent instructions to <span className="font-bold text-foreground">{email}</span>
               </CardDescription>
             </div>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-4 pb-2">
             <div className="rounded-xl border border-muted/50 bg-muted/30 p-5">
               <p className="text-sm text-center text-muted-foreground leading-relaxed">
                 Click the link in the email to reset your password. If you
@@ -91,17 +91,17 @@ export default function ForgotPasswordPage() {
               </div>
             )}
           </CardContent>
-          <CardFooter className="flex flex-col gap-4">
+          <CardFooter className="flex flex-col gap-4 pb-10 pt-4">
             <Button
               variant="outline"
-              className="w-full h-12 rounded-xl font-bold border-2"
+              className="w-full h-12 rounded-xl font-bold border-2 border-muted-foreground/10 hover:bg-muted/50 transition-colors"
               onClick={handleResend}
               disabled={isLoading}
             >
               {isLoading ? "Sending..." : "Resend Email"}
             </Button>
             <Link href="/login" className="w-full">
-              <Button variant="ghost" className="w-full h-12 rounded-xl font-semibold gap-2">
+              <Button variant="ghost" className="w-full h-11 rounded-xl font-semibold gap-2 text-muted-foreground hover:text-foreground">
                 <ArrowLeft className="h-4 w-4" /> Back to Login
               </Button>
             </Link>
@@ -112,17 +112,17 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="w-full max-w-md animate-in fade-in zoom-in duration-500">
+    <div className="w-full max-w-md animate-in fade-in zoom-in duration-500 px-4">
       <Card className="border-none shadow-2xl shadow-indigo-200/50 dark:shadow-none bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl">
-        <CardHeader className="space-y-2 pb-8 text-center">
+        <CardHeader className="space-y-1 pb-6 pt-8 text-center">
           <CardTitle className="text-3xl font-bold tracking-tight">Forgot Password?</CardTitle>
-          <CardDescription className="text-base">
-            Don&apos;t worry! It happens. Please enter your email to receive a reset link.
+          <CardDescription className="text-base text-muted-foreground">
+            Don&apos;t worry! It happens. Enter your email to receive a reset link.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pb-2">
           <form onSubmit={handleSubmit} id="forgot-password-form">
-            <div className="space-y-5">
+            <div className="space-y-4">
               {error && (
                 <div className="flex items-center gap-2 rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-destructive animate-in slide-in-from-top-2">
                   <AlertCircle className="h-4 w-4" />
@@ -130,8 +130,8 @@ export default function ForgotPasswordPage() {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-semibold">
+              <div className="space-y-1.5">
+                <Label htmlFor="email" className="text-sm font-semibold ml-1">
                   Email Address
                 </Label>
                 <div className="relative group">
@@ -145,36 +145,40 @@ export default function ForgotPasswordPage() {
                     placeholder="name@example.com"
                     required
                     disabled={isLoading}
-                    className="pl-10 h-12 bg-muted/50 border-muted-foreground/10 focus:bg-background transition-all rounded-xl"
+                    className="pl-10 h-11 bg-muted/40 border-muted-foreground/10 focus:bg-background transition-all rounded-xl"
                     autoComplete="email"
                   />
                 </div>
               </div>
 
               <div className="rounded-xl border border-primary/10 bg-primary/5 p-4">
-                <p className="text-xs text-center text-primary font-medium leading-relaxed">
-                  You will receive an email with instructions on how to reset
-                  your password in a few minutes.
+                <p className="text-[11px] text-center text-primary/80 font-medium leading-relaxed uppercase tracking-wider">
+                  You will receive instructions in a few minutes.
                 </p>
               </div>
             </div>
           </form>
         </CardContent>
-        <CardFooter className="flex flex-col gap-4 mt-2">
+        <CardFooter className="flex flex-col gap-4 pb-10 pt-4">
           <Button
             type="submit"
             form="forgot-password-form"
             className="w-full h-12 rounded-xl font-bold text-base shadow-lg shadow-primary/25 hover:shadow-primary/35 transition-all active:scale-[0.98]"
             disabled={isLoading}
           >
-            {isLoading ? "Sending link..." : (
+            {isLoading ? (
+              <span className="flex items-center gap-2">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent" />
+                Sending...
+              </span>
+            ) : (
               <span className="flex items-center gap-2">
                 Send Reset Link <ArrowRight className="h-4 w-4" />
               </span>
             )}
           </Button>
           <Link href="/login" className="w-full">
-            <Button variant="ghost" className="w-full h-12 rounded-xl font-semibold gap-2 text-muted-foreground hover:text-foreground">
+            <Button variant="ghost" className="w-full h-11 rounded-xl font-semibold gap-2 text-muted-foreground hover:text-foreground">
               <ArrowLeft className="h-4 w-4" /> Back to Login
             </Button>
           </Link>
