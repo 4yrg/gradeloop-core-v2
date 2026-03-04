@@ -16,7 +16,9 @@ import type {
     SubmissionResponse,
     ListSubmissionsResponse,
     GroupResponse,
-    CreateGroupRequest
+    CreateGroupRequest,
+    RunCodeRequest,
+    RunCodeResponse
 } from '@/types/assessments.types';
 
 
@@ -162,8 +164,9 @@ export const assessmentsApi = {
         const { data } = await axiosInstance.post<GroupResponse>('/groups', req);
         return data;
     },
-}
 
-
-
-
+    runCode: async (req: RunCodeRequest): Promise<RunCodeResponse> => {
+        const { data } = await axiosInstance.post<RunCodeResponse>('/submissions/run-code', req);
+        return data;
+    },
+};
