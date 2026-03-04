@@ -32,6 +32,7 @@ import {
   Menu,
   UserCog,
   Key,
+  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -137,19 +138,9 @@ const studentNavItems: NavItem[] = [
     icon: FileText,
   },
   {
-    title: "Grades",
-    href: "/student/grades",
-    icon: BarChart3,
-  },
-  {
-    title: "Calendar",
-    href: "/student/calendar",
-    icon: Calendar,
-  },
-  {
-    title: "Settings",
-    href: "/student/settings",
-    icon: Settings,
+    title: "Profile",
+    href: "/student/profile",
+    icon: User,
   },
 ];
 
