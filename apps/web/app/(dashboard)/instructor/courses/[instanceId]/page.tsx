@@ -1,234 +1,206 @@
 "use client";
 
 import * as React from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { instructorCoursesApi } from "@/lib/api/academics";
+import { instructorAssessmentsApi } from "@/lib/api/assessments";
 import type { Enrollment, CourseInstructor } from "@/types/academics.types";
 import { handleApiError } from "@/lib/api/axios";
-import { Loader2, GraduationCap, Users, ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+    GraduationCap,
+    Users,
+    FileText,
+    Calendar,
+    AlertCircle,
+    LayoutDashboard,
+} from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
+import { SectionHeader } from "@/components/instructor/section-header";
+import { StatsCard } from "@/components/instructor/stats-card";
+import { StatusBadge } from "@/components/instructor/status-badge";
 
 export default function InstructorCourseDetailsPage() {
-  const params = useParams();
-  const router = useRouter();
-  const instanceId = params.instanceId as string;
+    const params = useParams();
+    const instanceId = params.instanceId as string;
 
-  const [students, setStudents] = React.useState<Enrollment[]>([]);
-  const [instructors, setInstructors] = React.useState<CourseInstructor[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
+    const [students, setStudents] = React.useState<Enrollment[]>([]);
+    const [instructors, setInstructors] = React.useState<CourseInstructor[]>([]);
+    const [assignmentCount, setAssignmentCount] = React.useState(0);
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [error, setError] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    let mounted = true;
+    React.useEffect(() => {
+        let mounted = true;
 
-    async function fetchData() {
-      try {
-        setIsLoading(true);
-        const [studs, insts] = await Promise.all([
-          instructorCoursesApi.listMyStudents(instanceId),
-          instructorCoursesApi.listMyInstructors(instanceId),
-        ]);
+        async function fetchData() {
+            try {
+                setIsLoading(true);
+                const [studs, insts, assignments] = await Promise.all([
+                    instructorCoursesApi.listMyStudents(instanceId),
+                    instructorCoursesApi.listMyInstructors(instanceId),
+                    instructorAssessmentsApi.listMyAssignments(),
+                ]);
 
-        if (mounted) {
-          setStudents(studs);
-          setInstructors(insts);
+                if (mounted) {
+                    setStudents(studs);
+                    setInstructors(insts);
+                    setAssignmentCount(
+                        assignments.filter((a) => a.course_instance_id === instanceId).length
+                    );
+                }
+            } catch (err) {
+                if (mounted) setError(handleApiError(err));
+            } finally {
+                if (mounted) setIsLoading(false);
+            }
         }
-      } catch (err) {
-        if (mounted) setError(handleApiError(err));
-      } finally {
-        if (mounted) setIsLoading(false);
-      }
+
+        if (instanceId) fetchData();
+
+        return () => {
+            mounted = false;
+        };
+    }, [instanceId]);
+
+    const enrolledStudents = students.filter((s) =>
+        ["Enrolled", "Completed"].includes(s.status)
+    );
+
+    const courseCode = instructors.length > 0 ? instructors[0].course_code : instanceId;
+
+    if (error) {
+        return (
+            <div className="flex gap-3 p-4 rounded-xl border border-destructive/30 bg-destructive/5 text-destructive text-sm">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>{error}</span>
+            </div>
+        );
     }
 
-    if (instanceId) {
-      fetchData();
-    }
-
-    return () => {
-      mounted = false;
-    };
-  }, [instanceId]);
-
-  if (isLoading) {
     return (
-      <div className="flex justify-center p-20">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+        <div className="flex flex-col gap-8 pb-8">
+            <SectionHeader
+                title="Course Overview"
+                description={`${courseCode} — General stats, assigned instructors, and enrollment for this instance.`}
+                icon={LayoutDashboard}
+                action={
+                    isLoading ? (
+                        <Skeleton className="h-6 w-16 rounded-full" />
+                    ) : (
+                        <StatusBadge status="Active" variant="default" className="text-xs px-3 py-1" />
+                    )
+                }
+            />
 
-  if (error) {
-    return (
-      <div className="flex flex-col gap-4 p-8">
-        <Button
-          variant="ghost"
-          className="w-fit mb-4"
-          onClick={() => router.back()}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back
-        </Button>
-        <div className="p-4 rounded-xl border border-red-200 bg-red-50 text-red-800 text-sm">
-          {error}
-        </div>
-      </div>
-    );
-  }
-
-  const enrolledStudents = students.filter((s) =>
-    ["Enrolled", "Completed"].includes(s.status),
-  );
-  // Extract course name from the first instructor's course data
-  const courseName =
-    instructors.length > 0
-      ? `${instructors[0].course_code} - ${instructors[0].course_title}`
-      : instanceId;
-
-  return (
-    <div className="flex flex-col gap-8 pb-8">
-      {/* Header */}
-      <div>
-        <Button
-          variant="ghost"
-          className="mb-4 pl-0 text-muted-foreground hover:bg-transparent hover:text-foreground"
-          onClick={() => router.push("/instructor/courses")}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to My Courses
-        </Button>
-        <div className="flex flex-col gap-4 border-b border-border/40 pb-6">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Badge
-                variant="outline"
-                className="text-secondary-foreground bg-secondary/30 border-secondary/50"
-              >
-                Course Instance
-              </Badge>
-            </div>
-            <h1 className="text-2xl font-black tracking-tight">{courseName}</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Instance ID: <span className="font-mono">{instanceId}</span>
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <Tabs defaultValue="students" className="w-full">
-        <TabsList className="w-full justify-start rounded-none border-b bg-transparent p-0 mb-6">
-          <TabsTrigger
-            value="students"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 pb-3 pt-2 font-semibold"
-          >
-            <GraduationCap className="h-4 w-4 mr-2" />
-            Students
-            <Badge
-              variant="secondary"
-              className="ml-2 bg-muted-foreground/15 text-muted-foreground"
-            >
-              {enrolledStudents.length}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger
-            value="team"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 pb-3 pt-2 font-semibold"
-          >
-            <Users className="h-4 w-4 mr-2" />
-            Team
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="students" className="mt-0 outline-none">
-          {students.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center border rounded-xl border-dashed">
-              <GraduationCap className="h-12 w-12 text-muted-foreground/50 mb-4" />
-              <p className="font-semibold text-lg">No students enrolled</p>
-              <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-                There are currently no students enrolled in this course
-                instance.
-              </p>
-            </div>
-          ) : (
+            {/* KPI Stats */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {students.map((student) => (
-                <Card
-                  key={student.user_id}
-                  className="border-border/60 hover:border-primary/30 transition-all bg-card flex flex-col items-center p-6 gap-4 text-center"
-                >
-                  <div className="h-16 w-16 bg-muted rounded-full flex items-center justify-center border-4 border-background shadow-sm">
-                    <GraduationCap className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <p
-                      className="font-semibold truncate w-full"
-                      title={student.full_name || student.student_id}
-                    >
-                      {student.full_name || student.student_id}
-                    </p>
-                    <p
-                      className="text-xs font-mono text-muted-foreground mt-1 truncate max-w-[200px]"
-                      title={student.student_id}
-                    >
-                      {student.student_id}
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-2 mt-2 w-full">
-                    <div className="flex justify-between items-center text-sm border-b pb-2">
-                      <span className="text-muted-foreground">Status</span>
-                      <Badge
-                        variant={
-                          student.status === "Enrolled"
-                            ? "default"
-                            : "secondary"
-                        }
-                      >
-                        {student.status}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between items-center text-sm pt-1">
-                      <span className="text-muted-foreground">Enrolled</span>
-                      <span>
-                        {format(new Date(student.enrolled_at), "MMM d, yyyy")}
-                      </span>
-                    </div>
-                  </div>
-                </Card>
-              ))}
+                <StatsCard
+                    title="Enrolled Students"
+                    icon={GraduationCap}
+                    value={enrolledStudents.length.toString()}
+                    subtitle="Active students in this instance"
+                    isLoading={isLoading}
+                />
+                <StatsCard
+                    title="Assignments"
+                    icon={FileText}
+                    value={assignmentCount.toString()}
+                    subtitle="Created for this course"
+                    isLoading={isLoading}
+                />
+                <StatsCard
+                    title="Teaching Team"
+                    icon={Users}
+                    value={instructors.length.toString()}
+                    subtitle="Instructors and TAs"
+                    isLoading={isLoading}
+                />
             </div>
-          )}
-        </TabsContent>
 
-        <TabsContent value="team" className="mt-0 outline-none">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {instructors.map((instructor) => (
-              <Card
-                key={instructor.user_id}
-                className="border-border/60 bg-card p-6 flex items-start gap-4"
-              >
-                <div className="h-12 w-12 bg-primary/10 rounded-full flex shrink-0 items-center justify-center text-primary font-bold">
-                  {instructor.role.substring(0, 1)}
-                </div>
-                <div className="overflow-hidden">
-                  <p className="font-semibold truncate">
-                    {instructor.full_name || "Instructor"}
-                  </p>
-                  <p
-                    className="text-xs text-muted-foreground truncate"
-                    title={instructor.designation}
-                  >
-                    {instructor.designation}
-                  </p>
-                  <Badge variant="secondary" className="mt-2 text-xs">
-                    {instructor.role}
-                  </Badge>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
+            {/* Course Info card */}
+            <Card className="border-border/60 bg-background">
+                <CardContent className="p-6">
+                    <h3 className="font-bold font-heading text-lg mb-4">Course Information</h3>
+                    <div className="grid sm:grid-cols-2 gap-y-3 gap-x-8 text-sm">
+                        <div className="flex justify-between items-center py-2 border-b border-border/40">
+                            <span className="text-muted-foreground">Course Code</span>
+                            <span className="font-mono font-bold text-primary">{courseCode}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-border/40">
+                            <span className="text-muted-foreground">Status</span>
+                            <StatusBadge status="Active" />
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-border/40">
+                            <span className="text-muted-foreground">Total Students</span>
+                            <span className="font-semibold">{isLoading ? "—" : students.length}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-border/40">
+                            <span className="text-muted-foreground">Enrolled</span>
+                            <span className="font-semibold">{isLoading ? "—" : enrolledStudents.length}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2">
+                            <span className="text-muted-foreground">Semester</span>
+                            <div className="flex items-center gap-1.5 text-muted-foreground">
+                                <Calendar className="h-3.5 w-3.5" />
+                                <span className="font-medium text-foreground">Current Term</span>
+                            </div>
+                        </div>
+                        <div className="flex justify-between items-center py-2">
+                            <span className="text-muted-foreground">Assignments Created</span>
+                            <span className="font-semibold">{isLoading ? "—" : assignmentCount}</span>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Teaching Team */}
+            <div className="flex flex-col gap-4">
+                <h2 className="text-lg font-bold font-heading">Teaching Team</h2>
+
+                {isLoading ? (
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {[1, 2].map((i) => (
+                            <Skeleton key={i} className="h-32 rounded-xl" />
+                        ))}
+                    </div>
+                ) : instructors.length === 0 ? (
+                    <div className="p-8 border border-dashed border-border/60 rounded-xl text-center">
+                        <p className="text-sm text-muted-foreground">No instructor data available for this instance.</p>
+                    </div>
+                ) : (
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {instructors.map((instructor) => (
+                            <Card
+                                key={instructor.user_id}
+                                className="border-border/60 bg-card hover:border-primary/30 transition-colors"
+                            >
+                                <CardContent className="p-5 flex flex-col gap-3">
+                                    <div className="flex items-start justify-between">
+                                        <div className="h-11 w-11 bg-primary/10 rounded-full flex shrink-0 items-center justify-center text-primary font-bold text-base">
+                                            {(instructor.full_name || instructor.role || "?")
+                                                .charAt(0)
+                                                .toUpperCase()}
+                                        </div>
+                                        <StatusBadge status={instructor.role} />
+                                    </div>
+                                    <div className="overflow-hidden">
+                                        <p className="font-bold text-base truncate">
+                                            {instructor.full_name || "Instructor"}
+                                        </p>
+                                        <p
+                                            className="text-sm text-muted-foreground truncate mt-0.5"
+                                            title={instructor.designation}
+                                        >
+                                            {instructor.designation || "—"}
+                                        </p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 }

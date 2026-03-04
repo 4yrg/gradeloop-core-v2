@@ -28,6 +28,7 @@ export interface AssignmentResponse {
     title: string;
     description: string;
     code: string;
+    assessment_type?: string;
     release_at?: string;
     due_at?: string;
     late_due_at?: string;
@@ -42,6 +43,14 @@ export interface AssignmentResponse {
     created_by: string;
     created_at: string;
     updated_at: string;
+    total_marks?: number;
+    submission_config?: {
+        submission_allowed: boolean;
+        max_attempts?: number;
+    };
+    ai_grading_config?: {
+        plagiarism_check_enabled: boolean;
+    };
 }
 
 export interface ListAssignmentsResponse {
