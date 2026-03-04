@@ -3,14 +3,34 @@
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import { instructorAssessmentsApi } from "@/lib/api/assessments";
-import type { AssignmentResponse, SubmissionResponse } from "@/types/assessments.types";
+import type { AssignmentResponse } from "@/types/assessments.types";
+import type { SubmissionResponse } from "@/types/assessments.types";
 import { handleApiError } from "@/lib/api/axios";
-import { Loader2, ArrowLeft, Terminal, Calendar, Users, Clock, AlertCircle } from "lucide-react";
+import { Loader2, ArrowLeft, Terminal, Calendar, Users, Clock, AlertCircle, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import Link from "next/link";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
 
 export default function InstructorAssignmentDetailsPage() {
     const params = useParams();
@@ -21,6 +41,53 @@ export default function InstructorAssignmentDetailsPage() {
     const [submissions, setSubmissions] = React.useState<SubmissionResponse[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
+
+    // ── Edit dialog state ────────────────────────────────────────────────────
+    const [isEditOpen, setIsEditOpen] = React.useState(false);
+    const [isSaving, setIsSaving] = React.useState(false);
+    const [editTitle, setEditTitle] = React.useState("");
+    const [editDescription, setEditDescription] = React.useState("");
+    const [editCode, setEditCode] = React.useState("");
+    const [editDueAt, setEditDueAt] = React.useState("");
+    const [editAllowLate, setEditAllowLate] = React.useState(false);
+    const [editAllowGroup, setEditAllowGroup] = React.useState(false);
+    const [editMaxGroupSize, setEditMaxGroupSize] = React.useState(2);
+
+    const openEditDialog = () => {
+        if (!assignment) return;
+        setEditTitle(assignment.title);
+        setEditDescription(assignment.description ?? "");
+        setEditCode(assignment.code);
+        setEditDueAt(assignment.due_at ? assignment.due_at.slice(0, 16) : "");
+        setEditAllowLate(assignment.allow_late_submissions);
+        setEditAllowGroup(assignment.allow_group_submission);
+        setEditMaxGroupSize(assignment.max_group_size || 2);
+        setIsEditOpen(true);
+    };
+
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!assignment) return;
+        try {
+            setIsSaving(true);
+            const updated = await instructorAssessmentsApi.updateAssignment(assignment.id, {
+                title: editTitle,
+                description: editDescription,
+                code: editCode,
+                due_at: editDueAt ? new Date(editDueAt).toISOString() : null,
+                allow_late_submissions: editAllowLate,
+                allow_group_submission: editAllowGroup,
+                max_group_size: editAllowGroup ? editMaxGroupSize : null,
+            });
+            setAssignment(updated);
+            setIsEditOpen(false);
+            toast.success("Assignment updated successfully");
+        } catch (err) {
+            toast.error(handleApiError(err));
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     React.useEffect(() => {
         let mounted = true;
@@ -195,7 +262,13 @@ export default function InstructorAssignmentDetailsPage() {
                 <div className="flex flex-col gap-4">
                     <Card>
                         <CardHeader className="pb-3 border-b border-border/40">
-                            <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground font-bold">Configuration</CardTitle>
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground font-bold">Configuration</CardTitle>
+                                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1" onClick={openEditDialog}>
+                                    <Pencil className="h-3 w-3" />
+                                    Edit
+                                </Button>
+                            </div>
                         </CardHeader>
                         <CardContent className="pt-4 flex flex-col gap-4">
                             <div className="flex items-center gap-3">
@@ -244,6 +317,114 @@ export default function InstructorAssignmentDetailsPage() {
                     </Card>
                 </div>
             </div>
+
+            {/* ── Edit Dialog ─────────────────────────────────────────────────── */}
+            <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+                <DialogContent className="sm:max-w-[480px]">
+                    <form onSubmit={handleSave}>
+                        <DialogHeader>
+                            <DialogTitle>Edit Assignment</DialogTitle>
+                            <DialogDescription>
+                                Update the configuration for this assignment.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="flex flex-col gap-4 py-4">
+                            {/* Title */}
+                            <div className="flex flex-col gap-1.5">
+                                <Label htmlFor="edit-title">Title</Label>
+                                <Input
+                                    id="edit-title"
+                                    value={editTitle}
+                                    onChange={e => setEditTitle(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            {/* Description */}
+                            <div className="flex flex-col gap-1.5">
+                                <Label htmlFor="edit-desc">Description</Label>
+                                <Input
+                                    id="edit-desc"
+                                    value={editDescription}
+                                    onChange={e => setEditDescription(e.target.value)}
+                                />
+                            </div>
+                            {/* Language */}
+                            <div className="flex flex-col gap-1.5">
+                                <Label htmlFor="edit-lang">Language</Label>
+                                <Select value={editCode} onValueChange={setEditCode}>
+                                    <SelectTrigger id="edit-lang">
+                                        <SelectValue placeholder="Select language" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="go">Go</SelectItem>
+                                        <SelectItem value="python">Python</SelectItem>
+                                        <SelectItem value="java">Java</SelectItem>
+                                        <SelectItem value="javascript">JavaScript</SelectItem>
+                                        <SelectItem value="typescript">TypeScript</SelectItem>
+                                        <SelectItem value="c">C</SelectItem>
+                                        <SelectItem value="cpp">C++</SelectItem>
+                                        <SelectItem value="rust">Rust</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            {/* Due Date */}
+                            <div className="flex flex-col gap-1.5">
+                                <Label htmlFor="edit-due">Due Date</Label>
+                                <Input
+                                    id="edit-due"
+                                    type="datetime-local"
+                                    value={editDueAt}
+                                    onChange={e => setEditDueAt(e.target.value)}
+                                />
+                            </div>
+                            {/* Late Submissions */}
+                            <div className="flex items-center justify-between rounded-lg border p-3">
+                                <div className="text-sm">
+                                    <p className="font-medium">Allow Late Submissions</p>
+                                    <p className="text-xs text-muted-foreground">Students can submit after the due date</p>
+                                </div>
+                                <Switch
+                                    checked={editAllowLate}
+                                    onCheckedChange={setEditAllowLate}
+                                />
+                            </div>
+                            {/* Group Work */}
+                            <div className="flex items-center justify-between rounded-lg border p-3">
+                                <div className="text-sm">
+                                    <p className="font-medium">Allow Group Submission</p>
+                                    <p className="text-xs text-muted-foreground">Students can submit as a group</p>
+                                </div>
+                                <Switch
+                                    checked={editAllowGroup}
+                                    onCheckedChange={setEditAllowGroup}
+                                />
+                            </div>
+                            {editAllowGroup && (
+                                <div className="flex flex-col gap-1.5">
+                                    <Label htmlFor="edit-group-size">Max Group Size</Label>
+                                    <Input
+                                        id="edit-group-size"
+                                        type="number"
+                                        min={2}
+                                        max={10}
+                                        value={editMaxGroupSize}
+                                        onChange={e => setEditMaxGroupSize(Number(e.target.value))}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)} disabled={isSaving}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={isSaving}>
+                                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Save Changes
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

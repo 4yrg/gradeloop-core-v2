@@ -185,6 +185,14 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	instructorCourses.Get("/:id/students", cfg.InstructorHandler.GetMyStudents)
 	instructorCourses.Get("/:id/instructors", cfg.InstructorHandler.GetMyInstructors)
 
+	// ─────────────────────────────────────────────────────────────────────────
+	// Student-scoped routes (Student + Employee + Admin + Super Admin)
+	// PathPrefix: /api/v1/student-courses — routed by Traefik to academic-service
+	// ─────────────────────────────────────────────────────────────────────────
+	studentCourses := protected.Group("/student-courses",
+		middleware.RequireAnyRole("Student", "Employee", "Admin", "Super Admin"))
+	studentCourses.Get("/me", cfg.InstructorHandler.GetMyEnrolledCourses)
+
 	app.Get("/", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"service": "academic-service",

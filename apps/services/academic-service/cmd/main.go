@@ -142,7 +142,7 @@ func run() error {
 	})
 
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{cfg.FrontendURL},
+		AllowOrigins:     []string{cfg.FrontendURL, "http://localhost:3001"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Request-ID", "X-Requested-With"},
 		AllowCredentials: true,

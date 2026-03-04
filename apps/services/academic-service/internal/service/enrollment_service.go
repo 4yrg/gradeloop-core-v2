@@ -18,7 +18,13 @@ type EnrollmentService interface {
 	EnrollStudent(req *dto.EnrollmentRequest, username, ipAddress, userAgent string) (*domain.Enrollment, error)
 	UpdateEnrollment(instanceID, userID uuid.UUID, req *dto.UpdateEnrollmentRequest, username, ipAddress, userAgent string) (*domain.Enrollment, error)
 	GetEnrollments(instanceID uuid.UUID) ([]domain.Enrollment, error)
+
+	// Student-facing
+	GetMyEnrollments(userID uuid.UUID) ([]domain.Enrollment, error)
+
+	// Admin/Instructor-facing
 	GetEnrollmentsDetailed(ctx context.Context, instanceID uuid.UUID, token string) ([]dto.EnrollmentResponse, error)
+
 	RemoveEnrollment(instanceID, userID uuid.UUID, username, ipAddress, userAgent string) error
 }
 
@@ -246,11 +252,30 @@ func (s *enrollmentService) GetEnrollments(instanceID uuid.UUID) ([]domain.Enrol
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GetMyEnrollments
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GetMyEnrollments returns all course-instance enrollments for the given student.
+// GetMyEnrollments returns all course-instance enrollments for the given student.
+func (s *enrollmentService) GetMyEnrollments(userID uuid.UUID) ([]domain.Enrollment, error) {
+	enrollments, err := s.enrollmentRepo.GetEnrollmentsByUserID(userID)
+	if err != nil {
+		s.logger.Error("failed to list enrollments by user", zap.Error(err))
+		return nil, utils.ErrInternal("failed to list enrollments", err)
+	}
+	return enrollments, nil
+}
+
 // GetEnrollmentsDetailed
 // ─────────────────────────────────────────────────────────────────────────────
 
 // GetEnrollmentsDetailed fetches enrollments with their user details from IAM
-func (s *enrollmentService) GetEnrollmentsDetailed(ctx context.Context, instanceID uuid.UUID, token string) ([]dto.EnrollmentResponse, error) {
+func (s *enrollmentService) GetEnrollmentsDetailed(
+	ctx context.Context,
+	instanceID uuid.UUID,
+	token string,
+) ([]dto.EnrollmentResponse, error) {
+
 	enrollments, err := s.GetEnrollments(instanceID)
 	if err != nil {
 		return nil, err
@@ -261,29 +286,28 @@ func (s *enrollmentService) GetEnrollmentsDetailed(ctx context.Context, instance
 	}
 
 	// Extract User IDs
-	var userIDs []string
+	userIDs := make([]string, 0, len(enrollments))
 	for _, e := range enrollments {
 		userIDs = append(userIDs, e.UserID.String())
 	}
 
-	// Fetch detailed info from IAM
+	// Fetch user info from IAM
 	userInfo, err := s.iamClient.GetUsersInfo(ctx, token, userIDs)
 	if err != nil {
 		s.logger.Error("failed to fetch user info from IAM", zap.Error(err))
-		// Return error as we need user details for display
 		return nil, utils.ErrInternal("failed to fetch user details", err)
 	}
 
-	// Map user info by ID
-	infoMap := make(map[string]client.UserInfoResponse)
+	// Map IAM response
+	infoMap := make(map[string]client.UserInfoResponse, len(userInfo))
 	for _, info := range userInfo {
 		infoMap[info.ID] = info
 	}
 
-	// Build detailed responses
-	var results []dto.EnrollmentResponse
+	// Build response
+	results := make([]dto.EnrollmentResponse, 0, len(enrollments))
 	for _, e := range enrollments {
-		detail := dto.EnrollmentResponse{
+		r := dto.EnrollmentResponse{
 			CourseInstanceID: e.CourseInstanceID,
 			UserID:           e.UserID,
 			Status:           e.Status,
@@ -292,12 +316,12 @@ func (s *enrollmentService) GetEnrollmentsDetailed(ctx context.Context, instance
 		}
 
 		if info, ok := infoMap[e.UserID.String()]; ok {
-			detail.FullName = info.FullName
-			detail.Email = info.Email
-			detail.StudentID = info.StudentID
+			r.FullName = info.FullName
+			r.Email = info.Email
+			r.StudentID = info.StudentID
 		}
 
-		results = append(results, detail)
+		results = append(results, r)
 	}
 
 	return results, nil

@@ -125,6 +125,50 @@ const instructorNavItems: NavItem[] = [
   },
 ];
 
+const studentNavItems: NavItem[] = [
+  {
+    title: "Dashboard",
+    href: "/student",
+    icon: LayoutDashboard,
+  },
+  {
+    title: "Assignments",
+    href: "/student/assignments",
+    icon: FileText,
+  },
+  {
+    title: "Grades",
+    href: "/student/grades",
+    icon: BarChart3,
+  },
+  {
+    title: "Calendar",
+    href: "/student/calendar",
+    icon: Calendar,
+  },
+  {
+    title: "Settings",
+    href: "/student/settings",
+    icon: Settings,
+  },
+];
+
+// Returns the correct nav list and home href based on role_name
+function resolveRoleConfig(roleName: string | undefined): {
+  navItems: NavItem[];
+  homeHref: string;
+} {
+  const role = roleName?.toLowerCase().trim() ?? "";
+  if (["student", "learner"].includes(role)) {
+    return { navItems: studentNavItems, homeHref: "/student" };
+  }
+  if (["employee", "instructor", "teacher"].includes(role)) {
+    return { navItems: instructorNavItems, homeHref: "/instructor" };
+  }
+  // admin / super_admin / administrator / superadmin / fallback
+  return { navItems: adminNavItems, homeHref: "/admin" };
+}
+
 interface SidebarProps {
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
@@ -135,9 +179,7 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
   const user = useAuthStore((s) => s.user);
   const { mutate: logout, isLoading: isLoggingOut } = useLogoutMutation();
 
-  const isEmployee = user?.role_name?.toLowerCase().trim() === "employee";
-  const navItems = isEmployee ? instructorNavItems : adminNavItems;
-  const homeHref = isEmployee ? "/instructor" : "/admin";
+  const { navItems, homeHref } = resolveRoleConfig(user?.role_name);
 
   const displayName = user?.full_name || user?.email || "—";
   const initials = user?.full_name

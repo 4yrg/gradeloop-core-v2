@@ -44,6 +44,22 @@ export interface AssignmentResponse {
     updated_at: string;
 }
 
+export interface UpdateAssignmentRequest {
+    title?: string;
+    description?: string;
+    code?: string;
+    due_at?: string | null;
+    late_due_at?: string | null;
+    release_at?: string | null;
+    allow_late_submissions?: boolean;
+    allow_group_submission?: boolean;
+    max_group_size?: number | null;
+    enforce_time_limit?: number | null;
+    enable_ai_assistant?: boolean;
+    enable_socratic_feedback?: boolean;
+    allow_regenerate?: boolean;
+}
+
 export interface ListAssignmentsResponse {
     assignments: AssignmentResponse[];
     count: number;
