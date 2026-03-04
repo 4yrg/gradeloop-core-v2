@@ -67,6 +67,7 @@ const FullScreenDialogHeader = ({
   onMaximize,
   isMaximized,
   showMaximize,
+  ...props
 }: React.HTMLAttributes<HTMLDivElement> & {
   onClose?: () => void;
   onMaximize?: () => void;
