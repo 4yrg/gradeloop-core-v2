@@ -620,3 +620,23 @@ export const instructorCoursesApi = {
     return [];
   },
 };
+
+// ── Student Courses ───────────────────────────────────────────────────────────
+
+export interface StudentCourse {
+  course_instance_id: string;
+  course_code: string;
+  course_title: string;
+  status: string;
+}
+
+export const studentCoursesApi = {
+  /** GET /api/v1/student-courses/me — returns all course instances the logged-in
+   *  student is enrolled in, with course code and title. */
+  listMyCourses: async (): Promise<StudentCourse[]> => {
+    const { data } = await axiosInstance.get("/student-courses/me");
+    if (Array.isArray(data)) return data as StudentCourse[];
+    if (Array.isArray(data?.courses)) return data.courses as StudentCourse[];
+    return [];
+  },
+};

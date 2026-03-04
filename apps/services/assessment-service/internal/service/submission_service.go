@@ -388,9 +388,9 @@ func (s *submissionService) ListSubmissions(
 	if assignmentID == uuid.Nil {
 		return nil, utils.ErrBadRequest("assignment_id is required")
 	}
-	if userID == nil && groupID == nil {
-		return nil, utils.ErrBadRequest("one of user_id or group_id query parameter is required")
-	}
+	// nil, nil is valid from instructor-scoped endpoints: return all submissions
+	// for the assignment. The repo correctly handles this case by only filtering
+	// on assignment_id when both owner pointers are absent.
 
 	submissions, err := s.submissionRepo.ListSubmissions(assignmentID, userID, groupID)
 	if err != nil {

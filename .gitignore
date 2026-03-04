@@ -300,3 +300,5 @@ final_status.txt
 # CIPAS
 #apps/services/cipas-service/datasets
 #datasets
+
+seed_test_data.py

@@ -14,6 +14,7 @@ type EnrollmentRepository interface {
 	UpdateEnrollment(enrollment *domain.Enrollment) error
 	GetEnrollments(instanceID uuid.UUID) ([]domain.Enrollment, error)
 	GetEnrollment(instanceID, userID uuid.UUID) (*domain.Enrollment, error)
+	GetEnrollmentsByUserID(userID uuid.UUID) ([]domain.Enrollment, error)
 	RemoveEnrollment(instanceID, userID uuid.UUID) error
 }
 
@@ -71,6 +72,16 @@ func (r *enrollmentRepository) GetEnrollment(instanceID, userID uuid.UUID) (*dom
 	}
 
 	return &enrollment, nil
+}
+
+// GetEnrollmentsByUserID returns all active enrollments for the given student.
+func (r *enrollmentRepository) GetEnrollmentsByUserID(userID uuid.UUID) ([]domain.Enrollment, error) {
+	var enrollments []domain.Enrollment
+	err := r.db.
+		Where("user_id = ?", userID).
+		Order("enrolled_at DESC").
+		Find(&enrollments).Error
+	return enrollments, err
 }
 
 // RemoveEnrollment hard-deletes the enrollment record identified by the

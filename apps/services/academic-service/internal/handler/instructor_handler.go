@@ -279,3 +279,61 @@ func (h *InstructorHandler) GetMyInstructors(c fiber.Ctx) error {
 		"count":       len(responses),
 	})
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/v1/student-courses/me
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GetMyEnrolledCourses returns all course instances the authenticated student
+// is enrolled in, including course code and title.
+func (h *InstructorHandler) GetMyEnrolledCourses(c fiber.Ctx) error {
+	userID, err := instructorUserID(c)
+	if err != nil {
+		return err
+	}
+
+	enrollments, err := h.enrollmentService.GetMyEnrollments(userID)
+	if err != nil {
+		return err
+	}
+
+	type studentCourseResponse struct {
+		CourseInstanceID string `json:"course_instance_id"`
+		CourseCode       string `json:"course_code"`
+		CourseTitle      string `json:"course_title"`
+		Status           string `json:"status"`
+	}
+
+	responses := make([]studentCourseResponse, 0, len(enrollments))
+	for _, e := range enrollments {
+		item := studentCourseResponse{
+			CourseInstanceID: e.CourseInstanceID.String(),
+			Status:           string(e.Status),
+		}
+
+		// Fetch course instance to get course_id.
+		courseInstance, err := h.courseInstructorService.GetCourseInstance(e.CourseInstanceID)
+		if err != nil {
+			h.logger.Warn("failed to fetch course instance for student", zap.Error(err))
+			responses = append(responses, item)
+			continue
+		}
+
+		// Fetch course details.
+		course, err := h.courseService.GetCourse(courseInstance.CourseID)
+		if err != nil {
+			h.logger.Warn("failed to fetch course details for student", zap.Error(err))
+			responses = append(responses, item)
+			continue
+		}
+
+		item.CourseCode = course.Code
+		item.CourseTitle = course.Title
+		responses = append(responses, item)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"courses": responses,
+		"count":   len(responses),
+	})
+}

@@ -1,11 +1,13 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
     BookOpen,
     FileText,
     Trophy,
-    Calendar
+    Calendar,
+    ArrowRight
 } from "lucide-react";
 import {
     Card,
@@ -14,8 +16,11 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 export default function StudentDashboardPage() {
+    const router = useRouter();
+
     return (
         <div className="space-y-8">
             <div>
@@ -37,7 +42,7 @@ export default function StudentDashboardPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="shadow-sm">
+                <Card className="shadow-sm cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/student/assignments')}>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-sm font-medium">Pending Assignments</CardTitle>
                         <FileText className="h-4 w-4 text-orange-600" />
@@ -62,9 +67,21 @@ export default function StudentDashboardPage() {
 
             <div className="grid gap-6 lg:grid-cols-2">
                 <Card className="shadow-sm">
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle>Upcoming Deadlines</CardTitle>
+                            <CardDescription>Don't miss these important dates</CardDescription>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => router.push('/student/assignments')}>
+                            View All
+                            <ArrowRight className="h-4 w-4 ml-2" />
+                        </Button>
+                 </CardHeader>
                     <CardHeader>
+
                         <CardTitle>Upcoming Deadlines</CardTitle>
                         <CardDescription>Don&apos;t miss these important dates</CardDescription>
+
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
@@ -84,6 +101,39 @@ export default function StudentDashboardPage() {
                                 </div>
                             ))}
                         </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="shadow-sm">
+                    <CardHeader>
+                        <CardTitle>Quick Actions</CardTitle>
+                        <CardDescription>Get started with your work</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                        <Button 
+                            variant="outline" 
+                            className="w-full justify-start"
+                            onClick={() => router.push('/student/assignments')}
+                        >
+                            <FileText className="h-4 w-4 mr-2" />
+                            View My Assignments
+                        </Button>
+                        <Button 
+                            variant="outline" 
+                            className="w-full justify-start"
+                            onClick={() => router.push('/student/courses')}
+                        >
+                            <BookOpen className="h-4 w-4 mr-2" />
+                            Browse Courses
+                        </Button>
+                        <Button 
+                            variant="outline" 
+                            className="w-full justify-start"
+                            onClick={() => router.push('/student/grades')}
+                        >
+                            <Trophy className="h-4 w-4 mr-2" />
+                            Check Grades
+                        </Button>
                     </CardContent>
                 </Card>
             </div>
