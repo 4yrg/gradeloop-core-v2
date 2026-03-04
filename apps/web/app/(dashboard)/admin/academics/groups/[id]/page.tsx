@@ -37,14 +37,13 @@ import { handleApiError } from '@/lib/api/axios';
 import { toast } from '@/lib/hooks/use-toast';
 import { useAcademicsAccess } from '@/lib/hooks/useAcademicsAccess';
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
+    SideDialog,
+    SideDialogContent,
+    SideDialogDescription,
+    SideDialogFooter,
+    SideDialogHeader,
+    SideDialogTitle,
+} from '@/components/ui/side-dialog';
 import type { Batch, BatchMemberDetail } from '@/types/academics.types';
 import type { UserListItem } from '@/types/auth.types';
 import { cn } from '@/lib/utils/cn';
@@ -97,6 +96,14 @@ export default function GroupDetailPage() {
     }, [setPageTitle]);
 
     // Search students for bulk add
+    // Reset state when dialog opens
+    React.useEffect(() => {
+        if (addOpen) {
+            setStudentSearch('');
+            setSelectedStudents(new Set());
+        }
+    }, [addOpen]);
+
     React.useEffect(() => {
         if (!addOpen) return;
 
@@ -214,119 +221,123 @@ export default function GroupDetailPage() {
 
                 {canWrite && (
                     <div className="flex items-center gap-2">
-                        <Dialog open={addOpen} onOpenChange={setAddOpen}>
-                            <DialogTrigger asChild>
-                                <Button className="gap-2 font-bold shadow-sm">
-                                    <UserPlus className="h-4 w-4" />
-                                    Enroll Students
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-[500px]">
-                                <DialogHeader>
-                                    <DialogTitle>Enroll Students</DialogTitle>
-                                    <DialogDescription>
-                                        Search and select students to add to {batch.name}.
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4 py-4">
-                                    <div className="relative">
-                                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                                        <Input
-                                            placeholder="Search by name, email or student ID..."
-                                            className="pl-9"
-                                            value={studentSearch}
-                                            onChange={(e) => setStudentSearch(e.target.value)}
-                                        />
-                                    </div>
-                                    <div className="max-h-[300px] overflow-y-auto space-y-2 rounded-md border border-zinc-200 dark:border-zinc-800 p-2">
-                                        {searchingStudents ? (
-                                            <div className="flex items-center justify-center py-8">
-                                                <Loader2 className="h-6 w-6 animate-spin text-zinc-300" />
-                                            </div>
-                                        ) : availableStudents.length > 0 ? (
-                                            availableStudents.map((student) => {
-                                                const isSelected = selectedStudents.has(student.id);
-                                                const isAlreadyMember = members.some(m => m.user_id === student.id);
-
-                                                return (
-                                                    <div
-                                                        key={student.id}
-                                                        className={cn(
-                                                            "flex items-center justify-between p-3 rounded-lg border transition-all",
-                                                            isSelected
-                                                                ? "bg-primary/5 border-primary shadow-sm"
-                                                                : "bg-white dark:bg-zinc-950 border-zinc-100 dark:border-zinc-900 hover:border-zinc-300",
-                                                            isAlreadyMember && "opacity-50 pointer-events-none grayscale"
-                                                        )}
-                                                        onClick={() => !isAlreadyMember && toggleStudentSelection(student.id)}
-                                                    >
-                                                        <div className="flex items-center gap-3">
-                                                            <Avatar className="h-8 w-8">
-                                                                <AvatarImage src={student.avatar_url} />
-                                                                <AvatarFallback>{student.full_name.charAt(0)}</AvatarFallback>
-                                                            </Avatar>
-                                                            <div className="flex flex-col">
-                                                                <span className="text-sm font-semibold">{student.full_name}</span>
-                                                                <span className="text-[10px] text-zinc-500">{student.student_id ? student.student_id : student.email}</span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex items-center gap-2">
-                                                            {isAlreadyMember ? (
-                                                                <Badge variant="secondary" className="text-[9px]">Enrolled</Badge>
-                                                            ) : isSelected ? (
-                                                                <div className="h-5 w-5 bg-primary text-white flex items-center justify-center rounded-full">
-                                                                    <Check className="h-3 w-3" />
-                                                                </div>
-                                                            ) : (
-                                                                <div className="h-5 w-5 border-2 border-zinc-200 rounded-full" />
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })
-                                        ) : (
-                                            <div className="text-center py-8 text-zinc-500 text-sm">
-                                                {studentSearch ? 'No students found' : 'Start typing to search students'}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="flex items-center justify-between px-1">
-                                        <span className="text-xs text-zinc-500 font-medium">
-                                            {selectedStudents.size} students selected
-                                        </span>
-                                        {selectedStudents.size > 0 && (
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-7 text-xs text-destructive hover:text-destructive hover:bg-destructive/5"
-                                                onClick={() => setSelectedStudents(new Set())}
-                                            >
-                                                Clear all
-                                            </Button>
-                                        )}
-                                    </div>
-                                </div>
-                                <DialogFooter>
-                                    <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
-                                    <Button
-                                        onClick={handleAddStudents}
-                                        disabled={selectedStudents.size === 0 || addingStudents}
-                                        className="font-bold min-w-[120px]"
-                                    >
-                                        {addingStudents ? (
-                                            <>
-                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                Enrolling...
-                                            </>
-                                        ) : (
-                                            `Enroll ${selectedStudents.size} Students`
-                                        )}
-                                    </Button>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
+                        <Button className="gap-2 font-bold shadow-sm" onClick={() => setAddOpen(true)}>
+                            <UserPlus className="h-4 w-4" />
+                            Enroll Students
+                        </Button>
                     </div>
                 )}
+
+                <SideDialog open={addOpen} onOpenChange={setAddOpen}>
+                    <SideDialogContent className="max-w-md">
+                        <SideDialogHeader>
+                            <SideDialogTitle className="flex items-center gap-2">
+                                <UserPlus className="h-5 w-5 text-primary" />
+                                Enroll Students
+                            </SideDialogTitle>
+                            <SideDialogDescription>
+                                Search and select students to add to {batch.name}.
+                            </SideDialogDescription>
+                        </SideDialogHeader>
+
+                        <div className="space-y-4 flex-1 overflow-y-auto">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                <Input
+                                    placeholder="Search by name, email or student ID..."
+                                    className="pl-9"
+                                    value={studentSearch}
+                                    onChange={(e) => setStudentSearch(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-2 rounded-md border border-zinc-200 dark:border-zinc-800 p-2 min-h-[200px]">
+                                {searchingStudents ? (
+                                    <div className="flex items-center justify-center py-8">
+                                        <Loader2 className="h-6 w-6 animate-spin text-zinc-300" />
+                                    </div>
+                                ) : availableStudents.length > 0 ? (
+                                    availableStudents.map((student) => {
+                                        const isSelected = selectedStudents.has(student.id);
+                                        const isAlreadyMember = members.some(m => m.user_id === student.id);
+
+                                        return (
+                                            <div
+                                                key={student.id}
+                                                className={cn(
+                                                    "flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer",
+                                                    isSelected
+                                                        ? "bg-primary/5 border-primary shadow-sm"
+                                                        : "bg-white dark:bg-zinc-950 border-zinc-100 dark:border-zinc-900 hover:border-zinc-300",
+                                                    isAlreadyMember && "opacity-50 pointer-events-none grayscale"
+                                                )}
+                                                onClick={() => !isAlreadyMember && toggleStudentSelection(student.id)}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <Avatar className="h-8 w-8">
+                                                        <AvatarImage src={student.avatar_url} />
+                                                        <AvatarFallback>{student.full_name.charAt(0)}</AvatarFallback>
+                                                    </Avatar>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-semibold">{student.full_name}</span>
+                                                        <span className="text-[10px] text-zinc-500">{student.student_id ? student.student_id : student.email}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    {isAlreadyMember ? (
+                                                        <Badge variant="secondary" className="text-[9px]">Enrolled</Badge>
+                                                    ) : isSelected ? (
+                                                        <div className="h-5 w-5 bg-primary text-white flex items-center justify-center rounded-full">
+                                                            <Check className="h-3 w-3" />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="h-5 w-5 border-2 border-zinc-200 rounded-full" />
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                ) : (
+                                    <div className="text-center py-8 text-zinc-500 text-sm">
+                                        {studentSearch ? 'No students found' : 'No students available'}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex items-center justify-between px-1">
+                                <span className="text-xs text-zinc-500 font-medium">
+                                    {selectedStudents.size} students selected
+                                </span>
+                                {selectedStudents.size > 0 && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 text-xs text-destructive hover:text-destructive hover:bg-destructive/5"
+                                        onClick={() => setSelectedStudents(new Set())}
+                                    >
+                                        Clear all
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+
+                        <SideDialogFooter>
+                            <Button variant="ghost" onClick={() => setAddOpen(false)}>Cancel</Button>
+                            <Button
+                                onClick={handleAddStudents}
+                                disabled={selectedStudents.size === 0 || addingStudents}
+                                className="font-bold min-w-[120px]"
+                            >
+                                {addingStudents ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Enrolling...
+                                    </>
+                                ) : (
+                                    `Enroll ${selectedStudents.size} Students`
+                                )}
+                            </Button>
+                        </SideDialogFooter>
+                    </SideDialogContent>
+                </SideDialog>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">

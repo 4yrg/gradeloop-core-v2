@@ -1,4 +1,4 @@
-# CIPAS Syntactics Service - Setup, Training & Evaluation Guide
+# CIPAS Syntactics Service — Setup, Training & Evaluation Guide
 
 ## Overview
 

@@ -27,12 +27,11 @@ import {
   Archive,
   LayoutTemplate,
   Star,
-  Plus,
   ChevronLeft,
   ChevronRight,
   Menu,
   UserCog,
-  Key
+  Key,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -215,44 +214,51 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
         </nav>
 
         {/* Bottom Primary Actions */}
-        <div className={cn("mt-auto flex flex-col gap-3 w-full", isPrimaryCollapsed ? "px-2 items-center" : "px-4 items-stretch")}>
-          <Button variant="ghost" className={cn("h-12 w-full rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground", isPrimaryCollapsed ? "justify-center p-0" : "justify-start px-4 gap-3")}>
-            <Plus className="h-5 w-5 shrink-0" />
-            {!isPrimaryCollapsed && <span className="truncate">Create New</span>}
-          </Button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className={cn("h-12 w-full rounded-xl hover:bg-sidebar-accent border-0", isPrimaryCollapsed ? "p-0 justify-center" : "px-3 justify-start gap-3")}>
-                <Avatar className="h-8 w-8 ring-2 ring-primary/20 shrink-0">
-                  <AvatarFallback className="bg-primary/20 text-xs text-primary">{initials}</AvatarFallback>
-                </Avatar>
-                {!isPrimaryCollapsed && (
-                  <div className="flex flex-col items-start overflow-hidden text-left flex-1">
-                    <span className="text-sm font-medium text-foreground truncate w-full">{displayName}</span>
-                    {isEmployee && <span className="text-xs text-muted-foreground truncate w-full">Instructor</span>}
-                  </div>
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" side="right" className="w-56 mb-2 ml-2">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/profile" className="flex w-full cursor-pointer items-center">Profile</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem>Settings</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => logout()}
-                disabled={isLoggingOut}
-                className="text-red-600 gap-2 cursor-pointer"
-              >
-                <LogOut className="h-4 w-4" />
-                {isLoggingOut ? "Logging out…" : "Log out"}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        <div className={cn("mt-auto w-full", isPrimaryCollapsed ? "px-2 flex flex-col items-center gap-2" : "px-4")}>
+          <div className={cn("flex items-center gap-1 w-full", isPrimaryCollapsed ? "flex-col" : "flex-row")}>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className={cn("h-12 rounded-xl hover:bg-sidebar-accent border-0", isPrimaryCollapsed ? "w-12 p-0 justify-center" : "flex-1 min-w-0 px-3 justify-start gap-3")}>
+                  <Avatar className="h-8 w-8 ring-2 ring-primary/20 shrink-0">
+                    <AvatarFallback className="bg-primary/20 text-xs text-primary">{initials}</AvatarFallback>
+                  </Avatar>
+                  {!isPrimaryCollapsed && (
+                    <div className="flex flex-col items-start overflow-hidden text-left flex-1 min-w-0">
+                      <span className="text-sm font-medium text-foreground truncate w-full">{displayName}</span>
+                      {isEmployee && <span className="text-xs text-muted-foreground truncate w-full">Instructor</span>}
+                    </div>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" side="right" className="w-56 mb-2 ml-2">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/profile" className="flex w-full cursor-pointer items-center">Profile</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem>Settings</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => logout()}
+                  disabled={isLoggingOut}
+                  className="text-red-600 gap-2 cursor-pointer"
+                >
+                  <LogOut className="h-4 w-4" />
+                  {isLoggingOut ? "Logging out…" : "Log out"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 shrink-0 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              onClick={() => logout()}
+              disabled={isLoggingOut}
+              title="Log out"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
       {/* Secondary Sidebar Area */}
