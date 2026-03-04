@@ -6,6 +6,7 @@ import {
     ArrowLeft,
     Users,
     UserCheck,
+    UserPlus,
     Search,
     MoreHorizontal,
     Mail,
@@ -22,6 +23,7 @@ import {
     Save,
     GraduationCap,
     UserMinus,
+    UserX,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -41,15 +43,17 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-import { courseInstancesApi, coursesApi, semestersApi, batchesApi } from '@/lib/api/academics';
+import { courseInstancesApi, coursesApi, semestersApi, batchesApi, enrollmentsApi } from '@/lib/api/academics';
 import { useAcademicsAccess } from '@/lib/hooks/useAcademicsAccess';
 import { handleApiError } from '@/lib/api/axios';
 import { toast } from '@/lib/hooks/use-toast';
 import { useUIStore } from '@/lib/stores/uiStore';
-import { EditCourseInstanceDialog } from '@/components/admin/academics/course-instance-dialogs';
+import { EditCourseInstanceDialog, EnrollStudentsDialog } from '@/components/admin/academics/course-instance-dialogs';
 import type { CourseInstance, CourseInstructor, Enrollment, Course, Semester, Batch, BatchMemberDetail, CourseInstanceStatus } from '@/types/academics.types';
 
 const STATUSES: CourseInstanceStatus[] = ['Planned', 'Active', 'Completed', 'Cancelled'];
@@ -110,6 +114,7 @@ export default function CourseInstancePage() {
 
     // ── Settings state ──────────────────────────────────────────────────
     const [editDialogOpen, setEditDialogOpen] = React.useState(false);
+    const [enrollStudentsOpen, setEnrollStudentsOpen] = React.useState(false);
     const [deleteConfirm, setDeleteConfirm] = React.useState(false);
     const [savingSettings, setSavingSettings] = React.useState(false);
     const [deleting, setDeleting] = React.useState(false);
@@ -427,17 +432,32 @@ export default function CourseInstancePage() {
                             ({enrollments.length} enrolled)
                         </span>
                     </h2>
-                    {/* Global search */}
-                    <div className="relative max-w-xs w-full">
-                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                            placeholder="Search by name, email or ID…"
-                            className="pl-9 h-8 text-sm"
-                            value={search}
-                            onChange={(e) => { setSearch(e.target.value); setRosterPage(1); }}
-                        />
-                    </div>
                 </div>
+
+                {/* Filter row — matches user management layout */}
+                <Card className="shadow-sm">
+                    <CardContent className="flex items-center gap-3 p-3">
+                        <div className="relative flex-1 min-w-0">
+                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                placeholder="Search by name, email or ID…"
+                                className="pl-9 h-8 text-sm"
+                                value={search}
+                                onChange={(e) => { setSearch(e.target.value); setRosterPage(1); }}
+                            />
+                        </div>
+                        {canWrite && (
+                            <Button
+                                size="sm"
+                                className="gap-2 shrink-0"
+                                onClick={() => setEnrollStudentsOpen(true)}
+                            >
+                                <UserPlus className="h-4 w-4" />
+                                Add Student
+                            </Button>
+                        )}
+                    </CardContent>
+                </Card>
 
                 {/* ── Batch Students ─────────────────────────────────────── */}
                 {(batchMembers.length > 0 || batch) && (
@@ -526,7 +546,9 @@ export default function CourseInstancePage() {
                                                                     <span className="sr-only">Open menu</span>
                                                                 </Button>
                                                             </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="end" className="w-40">
+                                                            <DropdownMenuContent align="end" className="w-44">
+                                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                                <DropdownMenuSeparator />
                                                                 <DropdownMenuItem className="gap-2" asChild>
                                                                     <a href={`mailto:${m.email}`}>
                                                                         <Mail className="h-4 w-4" />
@@ -620,12 +642,30 @@ export default function CourseInstancePage() {
                                                             <span className="sr-only">Open menu</span>
                                                         </Button>
                                                     </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end" className="w-40">
+                                                    <DropdownMenuContent align="end" className="w-44">
+                                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                        <DropdownMenuSeparator />
                                                         <DropdownMenuItem className="gap-2" asChild>
                                                             <a href={`mailto:${e.email}`}>
                                                                 <Mail className="h-4 w-4" />
                                                                 Email Student
                                                             </a>
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            className="gap-2 text-destructive focus:text-destructive"
+                                                            onClick={async () => {
+                                                                try {
+                                                                    await enrollmentsApi.update(instanceId, e.user_id, { status: 'Dropped' });
+                                                                    toast.success('Student unenrolled', `${e.full_name || e.email} has been unenrolled.`);
+                                                                    fetchAll();
+                                                                } catch (err) {
+                                                                    toast.error('Failed to unenroll', handleApiError(err));
+                                                                }
+                                                            }}
+                                                        >
+                                                            <UserX className="h-4 w-4" />
+                                                            Unenroll
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
@@ -854,6 +894,15 @@ export default function CourseInstancePage() {
                     }}
                 />
             )}
+
+            {/* Enroll Students Dialog */}
+            <EnrollStudentsDialog
+                open={enrollStudentsOpen}
+                onOpenChange={setEnrollStudentsOpen}
+                courseInstanceId={instanceId}
+                enrolledUserIds={enrollments.map((e) => e.user_id)}
+                onSuccess={fetchAll}
+            />
         </div>
     );
 }

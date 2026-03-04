@@ -7,7 +7,7 @@
 import * as React from 'react';
 import {
   Calendar, Loader2, Search, X, GraduationCap, BookOpen, Users,
-  Settings2, ChevronRight, ChevronLeft, Check,
+  Settings2, ChevronRight, ChevronLeft, Check, UserPlus,
 } from 'lucide-react';
 import {
   SideDialog,
@@ -20,6 +20,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Select,
   SelectContent,
@@ -31,6 +32,7 @@ import {
   courseInstancesApi,
   semestersApi,
   batchesApi,
+  enrollmentsApi,
 } from '@/lib/api/academics';
 import { usersApi } from '@/lib/api/users';
 import { handleApiError } from '@/lib/api/axios';
@@ -43,6 +45,7 @@ import type {
   UpdateCourseInstanceRequest,
   CourseInstanceStatus,
   AcademicFormErrors,
+  EnrollStudentRequest,
 } from '@/types/academics.types';
 import type { UserListItem } from '@/types/auth.types';
 
@@ -924,3 +927,249 @@ export function EditCourseInstanceDialog({
   );
 }
 
+// ── Enroll Students ───────────────────────────────────────────────────────────
+
+interface EnrollStudentsDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  courseInstanceId: string;
+  /** Already-enrolled user IDs, used to filter out suggestions */
+  enrolledUserIds?: string[];
+  onSuccess: () => void;
+}
+
+function getEnrollInitials(name: string, email: string) {
+  const src = name || email;
+  return src
+    .split(/[.\-_\s@]/)
+    .map((p) => p[0]?.toUpperCase() ?? '')
+    .slice(0, 2)
+    .join('');
+}
+
+export function EnrollStudentsDialog({
+  open,
+  onOpenChange,
+  courseInstanceId,
+  enrolledUserIds = [],
+  onSuccess,
+}: EnrollStudentsDialogProps) {
+  const [query, setQuery] = React.useState('');
+  const [results, setResults] = React.useState<UserListItem[]>([]);
+  const [searching, setSearching] = React.useState(false);
+  const [selected, setSelected] = React.useState<UserListItem[]>([]);
+  const [dropdownOpen, setDropdownOpen] = React.useState(false);
+  const [submitting, setSubmitting] = React.useState(false);
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Reset when dialog opens/closes
+  React.useEffect(() => {
+    if (!open) {
+      setQuery('');
+      setResults([]);
+      setSelected([]);
+      setDropdownOpen(false);
+    }
+  }, [open]);
+
+  const selectedIds = React.useMemo(() => new Set(selected.map((u) => u.id)), [selected]);
+
+  React.useEffect(() => {
+    if (!query.trim()) { setResults([]); setDropdownOpen(false); return; }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await usersApi.list({ search: query, user_type: 'student', limit: 10 });
+        const filtered = res.data.filter(
+          (u) => !selectedIds.has(u.id) && !enrolledUserIds.includes(u.id),
+        );
+        setResults(filtered);
+        setDropdownOpen(filtered.length > 0);
+      } catch {
+        setResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
+
+  function addStudent(u: UserListItem) {
+    setSelected((prev) => [...prev, u]);
+    setQuery('');
+    setResults([]);
+    setDropdownOpen(false);
+  }
+
+  function removeStudent(id: string) {
+    setSelected((prev) => prev.filter((u) => u.id !== id));
+  }
+
+  async function handleEnroll() {
+    if (selected.length === 0) return;
+    setSubmitting(true);
+    const errors: string[] = [];
+    for (const student of selected) {
+      try {
+        await enrollmentsApi.enroll({
+          course_instance_id: courseInstanceId,
+          user_id: student.id,
+          status: 'Enrolled',
+        } satisfies EnrollStudentRequest);
+      } catch {
+        errors.push(student.full_name || student.email);
+      }
+    }
+    setSubmitting(false);
+    if (errors.length > 0) {
+      if (errors.length < selected.length) {
+        // partial success
+        const succeeded = selected.length - errors.length;
+        onSuccess();
+        onOpenChange(false);
+        // import toast lazily to avoid circular deps — use dynamic import
+        (await import('@/lib/hooks/use-toast')).toast.warning(
+          `${succeeded} student(s) enrolled`,
+          `Failed to enroll: ${errors.join(', ')}`,
+        );
+      } else {
+        // all failed
+        (await import('@/lib/hooks/use-toast')).toast.error(
+          'Enrollment failed',
+          `Could not enroll: ${errors.join(', ')}`,
+        );
+      }
+    } else {
+      onSuccess();
+      onOpenChange(false);
+      (await import('@/lib/hooks/use-toast')).toast.success(
+        `${selected.length} student(s) enrolled`,
+        'Students have been added to this course instance.',
+      );
+    }
+  }
+
+  return (
+    <SideDialog open={open} onOpenChange={onOpenChange}>
+      <SideDialogContent>
+        <SideDialogHeader>
+          <SideDialogTitle className="flex items-center gap-2">
+            <UserPlus className="h-5 w-5 text-primary" />
+            Enroll Students
+          </SideDialogTitle>
+          <SideDialogDescription>
+            Search for students and add them individually to this course instance.
+          </SideDialogDescription>
+        </SideDialogHeader>
+
+        <div className="flex flex-col gap-4 flex-1 overflow-y-auto">
+
+          {/* ── Search input ── */}
+          <SectionHeader icon={<Search className="h-3 w-3" />} label="Find Students" variant="primary" />
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Search by name, email or student ID…"
+              className="pl-9 pr-9"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onBlur={() => setTimeout(() => setDropdownOpen(false), 150)}
+              onFocus={() => results.length > 0 && setDropdownOpen(true)}
+              autoFocus
+            />
+            {searching && (
+              <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+            )}
+            {/* Suggestions dropdown */}
+            {dropdownOpen && results.length > 0 && (
+              <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
+                {results.map((u) => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-sm hover:bg-accent transition-colors text-left"
+                    onMouseDown={() => addStudent(u)}
+                  >
+                    <Avatar className="h-8 w-8 shrink-0">
+                      <AvatarFallback className="bg-success/10 text-success text-xs">
+                        {getEnrollInitials(u.full_name, u.email)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate text-sm">{u.full_name || u.email}</p>
+                      <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                    </div>
+                    {u.student_id && (
+                      <span className="text-xs text-muted-foreground shrink-0 font-mono">
+                        #{u.student_id}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+            {!searching && query.trim() && results.length === 0 && !dropdownOpen && (
+              <p className="mt-2 text-xs text-muted-foreground">No students found matching &ldquo;{query}&rdquo;.</p>
+            )}
+          </div>
+
+          {/* ── Selected students ── */}
+          {selected.length > 0 && (
+            <>
+              <SectionHeader
+                icon={<GraduationCap className="h-3 w-3" />}
+                label={`Selected (${selected.length})`}
+                variant="success"
+              />
+              <div className="rounded-lg border border-border overflow-hidden divide-y divide-border">
+                {selected.map((u) => (
+                  <div key={u.id} className="flex items-center gap-3 px-3 py-2.5">
+                    <Avatar className="h-8 w-8 shrink-0">
+                      <AvatarFallback className="bg-success/10 text-success text-xs">
+                        {getEnrollInitials(u.full_name, u.email)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{u.full_name || u.email}</p>
+                      <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                    </div>
+                    {u.student_id && (
+                      <span className="text-xs text-muted-foreground font-mono shrink-0">
+                        #{u.student_id}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeStudent(u.id)}
+                      className="ml-1 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        <SideDialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            disabled={selected.length === 0 || submitting}
+            className="gap-1.5"
+            onClick={handleEnroll}
+          >
+            {submitting
+              ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Enrolling…</>
+              : <><UserPlus className="h-3.5 w-3.5" />Enroll {selected.length > 0 ? `${selected.length} Student${selected.length > 1 ? 's' : ''}` : 'Students'}</>
+            }
+          </Button>
+        </SideDialogFooter>
+      </SideDialogContent>
+    </SideDialog>
+  );
+}
