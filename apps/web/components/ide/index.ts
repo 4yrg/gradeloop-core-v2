@@ -1,4 +1,5 @@
 export { CodeIDE } from "./code-ide";
+export { CodeEditorDialog } from "./code-editor-dialog";
 export { EditorPanel } from "./editor-panel";
 export { LanguageSelector } from "./language-selector";
 export { ExecutionPanel } from "./execution-panel";

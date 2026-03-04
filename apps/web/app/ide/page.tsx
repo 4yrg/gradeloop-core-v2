@@ -1,8 +1,8 @@
 "use client";
 
-import { CodeIDE } from "@/components/ide";
+import { CodeEditorDialog } from "@/components/ide";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Code2, Github } from "lucide-react";
+import { ArrowLeft, Code2 } from "lucide-react";
 import Link from "next/link";
 
 export default function PublicIDEPage() {
@@ -12,11 +12,7 @@ export default function PublicIDEPage() {
       <div className="flex items-center justify-between border-b bg-background px-6 py-3 shadow-sm">
         <div className="flex items-center gap-4">
           <Link href="/">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-2"
-            >
+            <Button variant="ghost" size="sm" className="gap-2">
               <ArrowLeft className="h-4 w-4" />
               Home
             </Button>
@@ -33,33 +29,31 @@ export default function PublicIDEPage() {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
-            <kbd className="px-2 py-1 rounded bg-muted border text-xs font-mono">
-              Cmd+Enter
-            </kbd>
-            <span>to run code</span>
+      </div>
+
+      {/* Content - Show info about the IDE */}
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center space-y-6 max-w-md">
+          <div className="flex justify-center">
+            <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10">
+              <Code2 className="h-10 w-10 text-primary" />
+            </div>
           </div>
-        </div>
-      </div>
-
-      {/* IDE Container */}
-      <div className="flex-1 overflow-hidden">
-        <CodeIDE
-          showSubmitButton={false}
-          showAIAssistant={true}
-        />
-      </div>
-
-      {/* Footer */}
-      <div className="border-t bg-muted/30 px-6 py-2">
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
           <div>
+            <h2 className="text-2xl font-bold">Open Code Editor</h2>
+            <p className="text-muted-foreground mt-2">
+              Start coding in our online IDE with support for 20+ programming
+              languages
+            </p>
+          </div>
+          <CodeEditorDialog
+            title="GradeLoop Code Editor"
+            description="Practice coding with instant feedback"
+            showAIAssistant={true}
+          />
+          <div className="text-xs text-muted-foreground">
             Powered by <span className="font-semibold">Judge0</span> and{" "}
             <span className="font-semibold">Monaco Editor</span>
-          </div>
-          <div>
-            No account required • Free to use
           </div>
         </div>
       </div>
