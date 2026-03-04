@@ -1,11 +1,14 @@
 'use client';
 
 /**
- * Course Instance dialogs: Create + Edit
- * Uses SideDialog for consistent layout with user management UIs.
+ * Course Instance dialogs: Create (2-step) + Edit (with Settings section)
+ * Uses SideDialog + brand tokens from globals.css
  */
 import * as React from 'react';
-import { Calendar, Loader2 } from 'lucide-react';
+import {
+  Calendar, Loader2, Search, X, GraduationCap, BookOpen, Users,
+  Settings2, ChevronRight, ChevronLeft, Check,
+} from 'lucide-react';
 import {
   SideDialog,
   SideDialogContent,
@@ -29,6 +32,7 @@ import {
   semestersApi,
   batchesApi,
 } from '@/lib/api/academics';
+import { usersApi } from '@/lib/api/users';
 import { handleApiError } from '@/lib/api/axios';
 import { toast } from '@/lib/hooks/use-toast';
 import type {
@@ -38,11 +42,393 @@ import type {
   CreateCourseInstanceRequest,
   UpdateCourseInstanceRequest,
   CourseInstanceStatus,
-  COURSE_INSTANCE_STATUSES,
   AcademicFormErrors,
 } from '@/types/academics.types';
+import type { UserListItem } from '@/types/auth.types';
 
 const STATUSES: CourseInstanceStatus[] = ['Planned', 'Active', 'Completed', 'Cancelled'];
+
+// ── Palette-mapped Section Header ─────────────────────────────────────────────
+
+type SectionVariant = 'primary' | 'success' | 'info' | 'warning';
+
+const sectionVariantClasses: Record<SectionVariant, { icon: string }> = {
+  primary: { icon: 'bg-primary/10 text-primary' },
+  success: { icon: 'bg-success/15 text-success' },
+  info:    { icon: 'bg-info/10 text-info' },
+  warning: { icon: 'bg-warning/10 text-warning' },
+};
+
+function SectionHeader({
+  icon,
+  label,
+  variant = 'primary',
+}: {
+  icon: React.ReactNode;
+  label: string;
+  variant?: SectionVariant;
+}) {
+  const cls = sectionVariantClasses[variant];
+  return (
+    <div className="flex items-center gap-2.5 mb-4 mt-2">
+      <div className={`flex h-6 w-6 items-center justify-center rounded-full shrink-0 ${cls.icon}`}>
+        {icon}
+      </div>
+      <span className="text-sm font-semibold text-foreground">{label}</span>
+      <div className="flex-1 h-px bg-border" />
+    </div>
+  );
+}
+
+// ── Step Indicator ────────────────────────────────────────────────────────────
+
+function StepIndicator({ step, steps }: { step: number; steps: string[] }) {
+  return (
+    <div className="flex items-center gap-0 mb-6">
+      {steps.map((label, idx) => {
+        const num = idx + 1;
+        const done = num < step;
+        const active = num === step;
+        return (
+          <React.Fragment key={num}>
+            <div className="flex flex-col items-center gap-1 min-w-[5rem]">
+              <div
+                className={[
+                  'h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors',
+                  done
+                    ? 'bg-success text-success-foreground'
+                    : active
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground',
+                ].join(' ')}
+              >
+                {done ? <Check className="h-3.5 w-3.5" /> : num}
+              </div>
+              <span
+                className={`text-[11px] font-medium leading-tight text-center ${
+                  active ? 'text-primary' : done ? 'text-success' : 'text-muted-foreground'
+                }`}
+              >
+                {label}
+              </span>
+            </div>
+            {idx < steps.length - 1 && (
+              <div className={`flex-1 h-px mb-4 mx-1 transition-colors ${done ? 'bg-success' : 'bg-border'}`} />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Instructor Search ─────────────────────────────────────────────────────────
+
+function InstructorSearchInput({
+  placeholder,
+  value,
+  onSelect,
+  excludeIds = [],
+}: {
+  placeholder: string;
+  value: UserListItem | null;
+  onSelect: (user: UserListItem | null) => void;
+  excludeIds?: string[];
+}) {
+  const [query, setQuery] = React.useState('');
+  const [results, setResults] = React.useState<UserListItem[]>([]);
+  const [searching, setSearching] = React.useState(false);
+  const [open, setOpen] = React.useState(false);
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  React.useEffect(() => {
+    if (!query.trim()) { setResults([]); setOpen(false); return; }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await usersApi.list({ search: query, user_type: 'employee', limit: 8 });
+        const filtered = res.data.filter((u) => !excludeIds.includes(u.id));
+        setResults(filtered);
+        setOpen(filtered.length > 0);
+      } catch {
+        setResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+  }, [query, excludeIds]);
+
+  if (value) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm">
+        <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold shrink-0">
+          {(value.full_name || value.email)[0]?.toUpperCase()}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-foreground truncate">{value.full_name || value.email}</p>
+          <p className="text-xs text-muted-foreground truncate">{value.designation || value.role_name}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onSelect(null)}
+          className="ml-1 text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <div className="relative flex items-center">
+        <Search className="absolute left-3 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+        <Input
+          className="pl-9 pr-4 h-9 text-sm"
+          placeholder={placeholder}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          onFocus={() => results.length > 0 && setOpen(true)}
+        />
+        {searching && (
+          <Loader2 className="absolute right-3 h-3.5 w-3.5 animate-spin text-muted-foreground" />
+        )}
+      </div>
+      {open && results.length > 0 && (
+        <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
+          {results.map((u) => (
+            <button
+              key={u.id}
+              type="button"
+              className="flex w-full items-center gap-2.5 px-3 py-2 text-sm hover:bg-accent transition-colors text-left"
+              onMouseDown={() => { onSelect(u); setQuery(''); setOpen(false); }}
+            >
+              <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold shrink-0">
+                {(u.full_name || u.email)[0]?.toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{u.full_name || u.email}</p>
+                <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+              </div>
+              <span className="text-xs text-muted-foreground shrink-0">
+                {u.designation || u.role_name}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── TA Multi-Select Chips ─────────────────────────────────────────────────────
+
+function TaChipInput({
+  value,
+  onChange,
+  excludeIds = [],
+}: {
+  value: UserListItem[];
+  onChange: (users: UserListItem[]) => void;
+  excludeIds?: string[];
+}) {
+  const [query, setQuery] = React.useState('');
+  const [results, setResults] = React.useState<UserListItem[]>([]);
+  const [searching, setSearching] = React.useState(false);
+  const [open, setOpen] = React.useState(false);
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const existingIds = value.map((u) => u.id).concat(excludeIds);
+
+  React.useEffect(() => {
+    if (!query.trim()) { setResults([]); setOpen(false); return; }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await usersApi.list({ search: query, user_type: 'employee', limit: 8 });
+        const filtered = res.data.filter((u) => !existingIds.includes(u.id));
+        setResults(filtered);
+        setOpen(filtered.length > 0);
+      } catch {
+        setResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+  }, [query, existingIds.join(',')]);
+
+  return (
+    <div className="relative">
+      <div className="min-h-[2.5rem] flex flex-wrap gap-1.5 items-center rounded-lg border border-border bg-background px-2 py-1.5">
+        {value.map((ta) => (
+          <span
+            key={ta.id}
+            className="inline-flex items-center gap-1 rounded-full bg-info/10 text-info-muted-foreground border border-info/20 px-2.5 py-0.5 text-xs font-medium"
+          >
+            {ta.full_name || ta.email}
+            <button
+              type="button"
+              onClick={() => onChange(value.filter((t) => t.id !== ta.id))}
+              className="ml-0.5 hover:opacity-70 transition-opacity"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+        <input
+          className="flex-1 min-w-[120px] bg-transparent text-sm outline-none placeholder:text-muted-foreground py-0.5 px-1"
+          placeholder={value.length === 0 ? 'Search by name...' : 'Add more...'}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          onFocus={() => results.length > 0 && setOpen(true)}
+        />
+        {searching && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground ml-1" />}
+      </div>
+      {open && results.length > 0 && (
+        <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
+          {results.map((u) => (
+            <button
+              key={u.id}
+              type="button"
+              className="flex w-full items-center gap-2.5 px-3 py-2 text-sm hover:bg-accent transition-colors text-left"
+              onMouseDown={() => {
+                onChange([...value, u]);
+                setQuery('');
+                setOpen(false);
+              }}
+            >
+              <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold shrink-0">
+                {(u.full_name || u.email)[0]?.toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{u.full_name || u.email}</p>
+                <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+      <p className="mt-1.5 text-xs text-muted-foreground">
+        You can select multiple teaching assistants.
+      </p>
+    </div>
+  );
+}
+
+// ── Student Multi-Select Chips ────────────────────────────────────────────────
+
+function StudentChipInput({
+  value,
+  onChange,
+}: {
+  value: UserListItem[];
+  onChange: (users: UserListItem[]) => void;
+}) {
+  const [query, setQuery] = React.useState('');
+  const [results, setResults] = React.useState<UserListItem[]>([]);
+  const [searching, setSearching] = React.useState(false);
+  const [open, setOpen] = React.useState(false);
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const existingIds = value.map((u) => u.id);
+
+  React.useEffect(() => {
+    if (!query.trim()) { setResults([]); setOpen(false); return; }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await usersApi.list({ search: query, user_type: 'student', limit: 10 });
+        const filtered = res.data.filter((u) => !existingIds.includes(u.id));
+        setResults(filtered);
+        setOpen(filtered.length > 0);
+      } catch {
+        setResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, existingIds.join(',')]);
+
+  return (
+    <div className="relative">
+      <div className="min-h-[2.5rem] flex flex-wrap gap-1.5 items-center rounded-lg border border-border bg-background px-2 py-1.5">
+        {value.map((s) => (
+          <span
+            key={s.id}
+            className="inline-flex items-center gap-1 rounded-full bg-success/10 text-success-muted-foreground border border-success/20 px-2.5 py-0.5 text-xs font-medium"
+          >
+            {s.full_name || s.email}
+            {s.student_id && (
+              <span className="opacity-60 ml-0.5">#{s.student_id}</span>
+            )}
+            <button
+              type="button"
+              onClick={() => onChange(value.filter((t) => t.id !== s.id))}
+              className="ml-0.5 hover:opacity-70 transition-opacity"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+        <input
+          className="flex-1 min-w-[160px] bg-transparent text-sm outline-none placeholder:text-muted-foreground py-0.5 px-1"
+          placeholder={value.length === 0 ? 'Search by name or student ID...' : 'Add more...'}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          onFocus={() => results.length > 0 && setOpen(true)}
+        />
+        {searching && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground ml-1" />}
+      </div>
+      {open && results.length > 0 && (
+        <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
+          {results.map((u) => (
+            <button
+              key={u.id}
+              type="button"
+              className="flex w-full items-center gap-2.5 px-3 py-2 text-sm hover:bg-accent transition-colors text-left"
+              onMouseDown={() => { onChange([...value, u]); setQuery(''); setOpen(false); }}
+            >
+              <div className="h-7 w-7 rounded-full bg-success/10 flex items-center justify-center text-success text-xs font-bold shrink-0">
+                {(u.full_name || u.email)[0]?.toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{u.full_name || u.email}</p>
+                <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+              </div>
+              {u.student_id && (
+                <span className="text-xs text-muted-foreground shrink-0 font-mono">
+                  #{u.student_id}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+      <p className="mt-1.5 text-xs text-muted-foreground">
+        Search and select individual students by name or student ID.
+      </p>
+    </div>
+  );
+}
+
+// ── Validation ────────────────────────────────────────────────────────────────
+
+function validateStep1(semesterId: string): AcademicFormErrors {
+  const e: AcademicFormErrors = {};
+  if (!semesterId) e.semester_id = 'Semester is required';
+  return e;
+}
+
+function validateStep2(batchId: string, students: UserListItem[]): AcademicFormErrors {
+  const e: AcademicFormErrors = {};
+  if (!batchId && students.length === 0) e.batch_id = 'Select a batch or add at least one student';
+  return e;
+}
 
 // ── Create ────────────────────────────────────────────────────────────────────
 
@@ -50,29 +436,34 @@ interface CreateCourseInstanceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   courseId: string;
+  courseCode?: string;
   onSuccess: (instance: CourseInstance) => void;
 }
 
-function validateCreate(v: CreateCourseInstanceRequest): AcademicFormErrors {
-  const e: AcademicFormErrors = {};
-  if (!v.semester_id) e.semester_id = 'Semester is required';
-  if (!v.batch_id) e.batch_id = 'Batch is required';
-  if (!v.status) e.status = 'Status is required';
-  if (!v.max_enrollment || v.max_enrollment <= 0)
-    e.max_enrollment = 'Max enrollment must be a positive number';
-  return e;
-}
+const STEP_LABELS = ['General & Staff', 'Enrollment'];
 
 export function CreateCourseInstanceDialog({
   open,
   onOpenChange,
   courseId,
+  courseCode,
   onSuccess,
 }: CreateCourseInstanceDialogProps) {
+  // Step state
+  const [step, setStep] = React.useState(1);
+
+  // Step 1 fields
+  const [instanceName, setInstanceName] = React.useState('');
   const [semesterId, setSemesterId] = React.useState('');
+  const [customCourseCode, setCustomCourseCode] = React.useState(courseCode ?? '');
+  const [leadInstructor, setLeadInstructor] = React.useState<UserListItem | null>(null);
+  const [tas, setTas] = React.useState<UserListItem[]>([]);
+
+  // Step 2 fields
   const [batchId, setBatchId] = React.useState('');
-  const [status, setStatus] = React.useState<CourseInstanceStatus>('Planned');
+  const [students, setStudents] = React.useState<UserListItem[]>([]);
   const [maxEnrollment, setMaxEnrollment] = React.useState(30);
+
   const [errors, setErrors] = React.useState<AcademicFormErrors>({});
   const [submitting, setSubmitting] = React.useState(false);
 
@@ -82,43 +473,49 @@ export function CreateCourseInstanceDialog({
 
   React.useEffect(() => {
     if (open) {
+      setStep(1);
+      setInstanceName('');
       setSemesterId('');
+      setCustomCourseCode(courseCode ?? '');
+      setLeadInstructor(null);
+      setTas([]);
       setBatchId('');
-      setStatus('Planned');
+      setStudents([]);
       setMaxEnrollment(30);
       setErrors({});
       setMetaLoading(true);
       Promise.all([semestersApi.list(), batchesApi.list()])
-        .then(([sems, bats]) => {
-          setSemesters(sems);
-          setBatches(bats);
-        })
-        .catch(() => {
-          toast.error('Failed to load options', 'Could not fetch semesters or batches.');
-        })
+        .then(([sems, bats]) => { setSemesters(sems); setBatches(bats); })
+        .catch(() => toast.error('Failed to load options', 'Could not fetch semesters or batches.'))
         .finally(() => setMetaLoading(false));
     }
-  }, [open]);
+  }, [open, courseCode]);
+
+  function handleNext() {
+    const errs = validateStep1(semesterId);
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    setErrors({});
+    setStep(2);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const errs = validateStep2(batchId, students);
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    setErrors({});
+
     const req: CreateCourseInstanceRequest = {
       course_id: courseId,
       semester_id: semesterId,
       batch_id: batchId,
-      status,
+      status: 'Planned',
       max_enrollment: maxEnrollment,
     };
-    const errs = validateCreate(req);
-    if (Object.keys(errs).length > 0) {
-      setErrors(errs);
-      return;
-    }
 
     setSubmitting(true);
     try {
       const instance = await courseInstancesApi.create(req);
-      toast.success('Instance created', `Course instance has been scheduled.`);
+      toast.success('Instance created', 'Course instance has been scheduled.');
       onOpenChange(false);
       onSuccess(instance);
     } catch (err) {
@@ -128,6 +525,9 @@ export function CreateCourseInstanceDialog({
     }
   }
 
+  const leadInstructorId = leadInstructor ? [leadInstructor.id] : [];
+  const taIds = tas.map((t) => t.id);
+
   return (
     <SideDialog open={open} onOpenChange={onOpenChange}>
       <SideDialogContent>
@@ -136,116 +536,213 @@ export function CreateCourseInstanceDialog({
             <Calendar className="h-5 w-5 text-primary" />
             Create Course Instance
           </SideDialogTitle>
-          <SideDialogDescription>
-            Schedule this course for a specific semester and batch.
-          </SideDialogDescription>
+          <SideDialogDescription>Setup details for the new academic session</SideDialogDescription>
         </SideDialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 flex-1">
-          {/* Semester */}
-          <div className="space-y-1.5">
-            <Label htmlFor="ci_semester">Semester</Label>
-            {metaLoading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading semesters…
+        {/* Step Indicator */}
+        <StepIndicator step={step} steps={STEP_LABELS} />
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-0 flex-1">
+
+          {/* ── STEP 1: General Info + Staff Assignment ──────────── */}
+          {step === 1 && (
+            <>
+              <SectionHeader icon={<BookOpen className="h-3 w-3" />} label="General Info" variant="primary" />
+
+              <div className="space-y-4 mb-6">
+                <div className="space-y-1.5">
+                  <Label htmlFor="ci_name">Instance Name</Label>
+                  <Input
+                    id="ci_name"
+                    placeholder="e.g. CS101 Fall 2026"
+                    value={instanceName}
+                    onChange={(e) => setInstanceName(e.target.value)}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ci_semester">
+                      Semester <span className="text-destructive">*</span>
+                    </Label>
+                    {metaLoading ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground h-9">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…
+                      </div>
+                    ) : (
+                      <Select
+                        value={semesterId}
+                        onValueChange={(v) => {
+                          setSemesterId(v);
+                          setErrors((p) => ({ ...p, semester_id: undefined }));
+                        }}
+                      >
+                        <SelectTrigger id="ci_semester">
+                          <SelectValue placeholder="Select Semester" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {semesters.length === 0 ? (
+                            <SelectItem value="__none" disabled>No semesters available</SelectItem>
+                          ) : (
+                            semesters.map((s) => (
+                              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    {errors.semester_id && (
+                      <p className="text-xs text-destructive">{errors.semester_id}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ci_code">Course Code</Label>
+                    <Input
+                      id="ci_code"
+                      placeholder="e.g. CS-101"
+                      value={customCourseCode}
+                      onChange={(e) => setCustomCourseCode(e.target.value)}
+                    />
+                  </div>
+                </div>
               </div>
-            ) : (
-              <Select value={semesterId} onValueChange={setSemesterId}>
-                <SelectTrigger id="ci_semester">
-                  <SelectValue placeholder="Select a semester…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {semesters.length === 0 ? (
-                    <SelectItem value="__none" disabled>No semesters available</SelectItem>
-                  ) : (
-                    semesters.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name} ({s.term_type})
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            )}
-            {errors.semester_id && (
-              <p className="text-xs text-destructive">{errors.semester_id}</p>
-            )}
-          </div>
 
-          {/* Batch */}
-          <div className="space-y-1.5">
-            <Label htmlFor="ci_batch">Batch / Group</Label>
-            {metaLoading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading batches…
+              <SectionHeader icon={<Users className="h-3 w-3" />} label="Staff Assignment" variant="info" />
+
+              <div className="space-y-4 mb-6">
+                <div className="space-y-1.5">
+                  <Label>Lead Instructor</Label>
+                  <InstructorSearchInput
+                    placeholder="Search for instructor by name..."
+                    value={leadInstructor}
+                    onSelect={setLeadInstructor}
+                    excludeIds={taIds}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Teaching Assistants</Label>
+                  <TaChipInput value={tas} onChange={setTas} excludeIds={leadInstructorId} />
+                </div>
               </div>
-            ) : (
-              <Select value={batchId} onValueChange={setBatchId}>
-                <SelectTrigger id="ci_batch">
-                  <SelectValue placeholder="Select a batch…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {batches.length === 0 ? (
-                    <SelectItem value="__none" disabled>No batches available</SelectItem>
+
+              <SideDialogFooter>
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                  Cancel
+                </Button>
+                <Button type="button" onClick={handleNext} className="gap-1.5">
+                  Next <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </SideDialogFooter>
+            </>
+          )}
+
+          {/* ── STEP 2: Student Enrollment + Instance Settings ───── */}
+          {step === 2 && (
+            <>
+              <SectionHeader icon={<GraduationCap className="h-3 w-3" />} label="Student Enrollment" variant="success" />
+
+              <div className="space-y-4 mb-6">
+                <div className="space-y-1.5">
+                  <Label htmlFor="ci_batch">Select Batch / Group</Label>
+                  {metaLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground h-9">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…
+                    </div>
                   ) : (
-                    batches.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>
-                        {b.name} ({b.code})
-                      </SelectItem>
-                    ))
+                    <Select
+                      value={batchId}
+                      onValueChange={(v) => {
+                        setBatchId(v);
+                        setErrors((p) => ({ ...p, batch_id: undefined }));
+                      }}
+                    >
+                      <SelectTrigger id="ci_batch">
+                        <SelectValue placeholder="Choose a student batch" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {batches.length === 0 ? (
+                          <SelectItem value="__none" disabled>No batches available</SelectItem>
+                        ) : (
+                          batches.map((b) => (
+                            <SelectItem key={b.id} value={b.id}>
+                              {b.name} ({b.code})
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
                   )}
-                </SelectContent>
-              </Select>
-            )}
-            {errors.batch_id && (
-              <p className="text-xs text-destructive">{errors.batch_id}</p>
-            )}
-          </div>
+                </div>
 
-          {/* Status */}
-          <div className="space-y-1.5">
-            <Label htmlFor="ci_status">Status</Label>
-            <Select value={status} onValueChange={(v) => setStatus(v as CourseInstanceStatus)}>
-              <SelectTrigger id="ci_status">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUSES.map((s) => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.status && (
-              <p className="text-xs text-destructive">{errors.status}</p>
-            )}
-          </div>
+                {/* OR divider */}
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-border" />
+                  <span className="text-xs text-muted-foreground">or add individually</span>
+                  <div className="flex-1 h-px bg-border" />
+                </div>
 
-          {/* Max Enrollment */}
-          <div className="space-y-1.5">
-            <Label htmlFor="ci_max">Max Enrollment</Label>
-            <Input
-              id="ci_max"
-              type="number"
-              min={1}
-              value={maxEnrollment}
-              onChange={(e) => setMaxEnrollment(parseInt(e.target.value, 10) || 1)}
-            />
-            {errors.max_enrollment && (
-              <p className="text-xs text-destructive">{errors.max_enrollment}</p>
-            )}
-          </div>
+                <div className="space-y-1.5">
+                  <Label>Add Individual Students</Label>
+                  <StudentChipInput value={students} onChange={setStudents} />
+                </div>
 
-          <SideDialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={submitting || metaLoading}>
-              {submitting
-                ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Creating…</>
-                : 'Create Instance'
-              }
-            </Button>
-          </SideDialogFooter>
+                {errors.batch_id && (
+                  <p className="text-xs text-destructive">{errors.batch_id}</p>
+                )}
+              </div>
+
+              {/* Settings section */}
+              <SectionHeader icon={<Settings2 className="h-3 w-3" />} label="Instance Settings" variant="warning" />
+
+              <div className="space-y-4 mb-6">
+                <div className="rounded-lg border border-border bg-muted/30 divide-y divide-border">
+                  {/* Max Enrollment */}
+                  <div className="flex items-center justify-between gap-4 px-4 py-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground">Max Enrollment</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Maximum students allowed in this instance
+                      </p>
+                    </div>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={maxEnrollment}
+                      onChange={(e) => setMaxEnrollment(parseInt(e.target.value, 10) || 1)}
+                      className="w-20 text-center text-sm h-8"
+                    />
+                  </div>
+
+                  {/* Initial Status (read-only) */}
+                  <div className="flex items-center justify-between gap-4 px-4 py-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground">Initial Status</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Status when the instance is created
+                      </p>
+                    </div>
+                    <span className="inline-flex items-center rounded-full bg-warning/10 text-warning-muted-foreground border border-warning/20 px-2.5 py-0.5 text-xs font-medium">
+                      Planned
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <SideDialogFooter>
+                <Button type="button" variant="outline" onClick={() => setStep(1)} className="gap-1.5">
+                  <ChevronLeft className="h-3.5 w-3.5" /> Back
+                </Button>
+                <Button type="submit" disabled={submitting || metaLoading} className="gap-1.5">
+                  {submitting ? (
+                    <><Loader2 className="h-3.5 w-3.5 animate-spin" />Creating…</>
+                  ) : (
+                    <><Check className="h-3.5 w-3.5" /> Save &amp; Create Instance</>
+                  )}
+                </Button>
+              </SideDialogFooter>
+            </>
+          )}
         </form>
       </SideDialogContent>
     </SideDialog>
@@ -284,6 +781,13 @@ export function EditCourseInstanceDialog({
     }
   }, [open, instance]);
 
+  const statusVariant: Record<CourseInstanceStatus, { badge: string; dot: string }> = {
+    Planned:   { badge: 'bg-warning/10 text-warning-muted-foreground border-warning/20',   dot: 'bg-warning' },
+    Active:    { badge: 'bg-success/10 text-success-muted-foreground border-success/20',   dot: 'bg-success' },
+    Completed: { badge: 'bg-info/10 text-info-muted-foreground border-info/20',             dot: 'bg-info' },
+    Cancelled: { badge: 'bg-destructive/10 text-destructive border-destructive/20',         dot: 'bg-destructive' },
+  };
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const errs: AcademicFormErrors = {};
@@ -321,45 +825,96 @@ export function EditCourseInstanceDialog({
           </SideDialogDescription>
         </SideDialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 flex-1">
-          {/* Status */}
-          <div className="space-y-1.5">
-            <Label htmlFor="edit_ci_status">Status</Label>
-            <Select value={status} onValueChange={(v) => setStatus(v as CourseInstanceStatus)}>
-              <SelectTrigger id="edit_ci_status">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUSES.map((s) => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {/* Instance overview card */}
+        <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 mb-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground truncate">
+                {semesterName || 'Unknown Semester'}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {batchName ? `Batch: ${batchName}` : `ID: ${instance.id.slice(0, 8)}`}
+              </p>
+            </div>
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium shrink-0 ${statusVariant[instance.status].badge}`}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${statusVariant[instance.status].dot}`} />
+              {instance.status}
+            </span>
           </div>
+        </div>
 
-          {/* Max Enrollment */}
-          <div className="space-y-1.5">
-            <Label htmlFor="edit_ci_max">Max Enrollment</Label>
-            <Input
-              id="edit_ci_max"
-              type="number"
-              min={1}
-              value={maxEnrollment}
-              onChange={(e) => setMaxEnrollment(parseInt(e.target.value, 10) || 1)}
-            />
-            {errors.max_enrollment && (
-              <p className="text-xs text-destructive">{errors.max_enrollment}</p>
-            )}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-0 flex-1">
+
+          {/* Settings section */}
+          <SectionHeader icon={<Settings2 className="h-3 w-3" />} label="Instance Settings" variant="warning" />
+
+          <div className="rounded-lg border border-border bg-muted/30 divide-y divide-border mb-6">
+            {/* Status */}
+            <div className="flex items-center justify-between gap-4 px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground">Status</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Current operational state of this instance
+                </p>
+              </div>
+              <Select value={status} onValueChange={(v) => setStatus(v as CourseInstanceStatus)}>
+                <SelectTrigger className="w-32 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUSES.map((s) => (
+                    <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Max Enrollment */}
+            <div className="flex items-center justify-between gap-4 px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground">Max Enrollment</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Maximum number of students for this instance
+                </p>
+              </div>
+              <div className="flex flex-col items-end gap-1">
+                <Input
+                  type="number"
+                  min={1}
+                  value={maxEnrollment}
+                  onChange={(e) => setMaxEnrollment(parseInt(e.target.value, 10) || 1)}
+                  className="w-20 text-center text-sm h-8"
+                />
+                {errors.max_enrollment && (
+                  <p className="text-xs text-destructive">{errors.max_enrollment}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Instance ID (read-only) */}
+            <div className="flex items-center justify-between gap-4 px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground">Instance ID</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Unique identifier for this course instance
+                </p>
+              </div>
+              <span className="text-xs font-mono text-muted-foreground bg-muted px-2 py-1 rounded">
+                {instance.id.slice(0, 8)}…
+              </span>
+            </div>
           </div>
 
           <SideDialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={submitting}>
+            <Button type="submit" disabled={submitting} className="gap-1.5">
               {submitting
-                ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Saving…</>
-                : 'Save Changes'
+                ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Saving…</>
+                : <><Check className="h-3.5 w-3.5" />Save Changes</>
               }
             </Button>
           </SideDialogFooter>
@@ -368,3 +923,4 @@ export function EditCourseInstanceDialog({
     </SideDialog>
   );
 }
+

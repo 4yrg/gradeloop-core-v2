@@ -157,7 +157,7 @@ export default function CourseDetailPage() {
     );
 
     return (
-        <div className="space-y-8 max-w-6xl">
+        <div className="space-y-8 w-full">
             {/* Breadcrumbs */}
             <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
                 <Link href="/admin/academics/courses" className="hover:text-primary transition-colors">Courses</Link>
@@ -204,11 +204,11 @@ export default function CourseDetailPage() {
             </div>
 
             {/* Course Description Card */}
-            <Card className="bg-foreground dark:bg-card border-none text-background dark:text-foreground overflow-hidden relative shadow-lg rounded-2xl">
-                <span className="absolute -bottom-8 right-0 text-[180px] font-black leading-none text-white/5 select-none tracking-tighter">
+            <Card className="bg-foreground dark:bg-card border-none text-background dark:text-foreground overflow-hidden relative shadow-lg rounded-xl">
+                <span className="absolute -bottom-8 right-0 text-[180px] font-black leading-none text-primary-foreground/5 select-none tracking-tighter">
                     COURSE
                 </span>
-                <CardContent className="p-8 md:p-10 relative z-10 flex flex-col items-start gap-4 max-w-4xl">
+                <CardContent className="p-8 md:p-10 relative z-10 flex flex-col items-start gap-4 w-full">
                     <h3 className="text-xl font-bold tracking-tight">Course Description</h3>
                     <p className="text-sm leading-relaxed opacity-80">
                         {course.description || 'No description provided for this course.'}
@@ -410,6 +410,7 @@ export default function CourseDetailPage() {
                 open={createInstanceOpen}
                 onOpenChange={setCreateInstanceOpen}
                 courseId={id}
+                courseCode={course?.code}
                 onSuccess={(newInstance) => {
                     setInstances((prev) => [newInstance, ...prev]);
                 }}
