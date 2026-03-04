@@ -1,6 +1,6 @@
 module github.com/gradeloop/iam-service
 
-go 1.25.6
+go 1.25.0
 
 require (
 	github.com/gofiber/fiber/v3 v3.0.0-rc.1
@@ -36,6 +36,7 @@ require (
 	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/richardlehane/mscfb v1.0.4 // indirect
 	github.com/richardlehane/msoleps v1.0.4 // indirect
+	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/tiendc/go-deepcopy v1.7.1 // indirect
 	github.com/tinylib/msgp v1.6.1 // indirect

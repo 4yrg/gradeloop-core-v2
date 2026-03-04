@@ -141,14 +141,15 @@ func run() error {
 		ErrorHandler: utils.ErrorHandler,
 	})
 
-	app.Use(middleware.Recovery())
-	app.Use(middleware.Logger())
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{cfg.FrontendURL, "http://localhost:3000"},
+		AllowOrigins:     []string{cfg.FrontendURL},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Request-ID"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Request-ID", "X-Requested-With"},
 		AllowCredentials: true,
 	}))
+
+	app.Use(middleware.Recovery())
+	app.Use(middleware.Logger())
 
 	router.SetupRoutes(app, router.Config{
 		HealthHandler:           healthHandler,

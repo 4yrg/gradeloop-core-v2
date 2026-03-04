@@ -6,7 +6,7 @@
 # -----------------------------------------------------------------------------
 # Stage 1: Builder
 # -----------------------------------------------------------------------------
-FROM python:3.14-slim AS builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
@@ -56,7 +56,7 @@ RUN python -c "from clone_detection.tokenizers.tree_sitter_tokenizer import Tree
 # -----------------------------------------------------------------------------
 # Stage 2: Production Runtime
 # -----------------------------------------------------------------------------
-FROM python:3.14-slim AS production
+FROM python:3.11-slim AS production
 
 WORKDIR /app
 
@@ -71,7 +71,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean
 
 # Copy installed packages from builder
-COPY --from=builder /usr/local/lib/python3.14/site-packages /usr/local/lib/python3.14/site-packages
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code
