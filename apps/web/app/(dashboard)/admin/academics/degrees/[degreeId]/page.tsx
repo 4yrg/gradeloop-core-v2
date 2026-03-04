@@ -544,7 +544,9 @@ export default function DegreeDetailPage() {
             </div>
           )}
         </div>
-      ) : (
+          )}
+
+          {activeTab === 'settings' && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <Card className="border-border">
             <CardHeader className="border-b border-border bg-muted/30">
@@ -614,9 +616,8 @@ export default function DegreeDetailPage() {
             }}
           />
         </div>
-      )}
+          )}
         </AcademicsDetailLayout>
-      )}
       )}
 
       {/* Dialogs */}
