@@ -297,3 +297,5 @@ final_status.txt
 .mcp.json
 
 datasets/
+apps/services/*/tmp/main
+apps/services/*/tmp/air
