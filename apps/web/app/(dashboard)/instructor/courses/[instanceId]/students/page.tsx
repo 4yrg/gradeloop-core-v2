@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { instructorCoursesApi } from "@/lib/api/academics";
 import type { Enrollment } from "@/types/academics.types";
 import { handleApiError } from "@/lib/api/axios";
-import { Users, AlertCircle, FileDown } from "lucide-react";
+import { AlertCircle, FileDown } from "lucide-react";
 import { SectionHeader } from "@/components/instructor/section-header";
 import { DataTable, type ColumnDef } from "@/components/instructor/data-table";
 import { StatusBadge } from "@/components/instructor/status-badge";
@@ -131,7 +131,6 @@ export default function InstructorStudentsPage() {
             <SectionHeader
                 title="Student Management"
                 description="View enrolled students for this course instance."
-                icon={Users}
                 action={
                     <div className="flex items-center gap-2">
                         {!isLoading && students.length > 0 && (
