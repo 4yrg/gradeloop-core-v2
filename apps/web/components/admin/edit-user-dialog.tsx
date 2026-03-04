@@ -3,13 +3,13 @@
 import * as React from "react";
 import { UserCog } from "lucide-react";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  SideDialog,
+  SideDialogContent,
+  SideDialogDescription,
+  SideDialogFooter,
+  SideDialogHeader,
+  SideDialogTitle,
+} from "@/components/ui/side-dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -58,14 +58,9 @@ export function EditUserDialog({ user, open, onOpenChange, onSuccess }: Props) {
     }
   }, [user, open, fetchRoles]);
 
-  // Only show roles compatible with the user's type so admins can't accidentally
-  // assign a student-only role to an employee, etc.
-  const compatibleRoles = React.useMemo(() => {
-    if (!user?.user_type) return roles;
-    return roles.filter(
-      (r) => r.user_type === user.user_type || r.user_type === "all",
-    );
-  }, [roles, user?.user_type]);
+  // User type is tied to the role, so any role can be selected.
+  const selectedRole = roles.find((r) => r.id === values.role_id);
+  const displayUserType = selectedRole?.user_type || user?.user_type || "—";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -114,21 +109,21 @@ export function EditUserDialog({ user, open, onOpenChange, onSuccess }: Props) {
   if (!user) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
+    <SideDialog open={open} onOpenChange={onOpenChange}>
+      <SideDialogContent className="max-w-md">
+        <SideDialogHeader>
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
               <UserCog className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
             </div>
             <div>
-              <DialogTitle>Edit User</DialogTitle>
-              <DialogDescription>
+              <SideDialogTitle>Edit User</SideDialogTitle>
+              <SideDialogDescription>
                 Editing <strong>{user.full_name || "No Name"}</strong>
-              </DialogDescription>
+              </SideDialogDescription>
             </div>
           </div>
-        </DialogHeader>
+        </SideDialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           {/* Read-only info */}
@@ -146,7 +141,7 @@ export function EditUserDialog({ user, open, onOpenChange, onSuccess }: Props) {
             <div className="flex justify-between text-sm">
               <span className="text-zinc-500">User Type</span>
               <span className="font-medium capitalize">
-                {user.user_type || "—"}
+                {displayUserType}
               </span>
             </div>
           </div>
@@ -172,7 +167,7 @@ export function EditUserDialog({ user, open, onOpenChange, onSuccess }: Props) {
                     ? "Roles unavailable"
                     : "Select role"}
               </option>
-              {compatibleRoles.map((r) => (
+              {roles.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.name}
                 </option>
@@ -209,7 +204,7 @@ export function EditUserDialog({ user, open, onOpenChange, onSuccess }: Props) {
             />
           </div>
 
-          <DialogFooter className="pt-2">
+          <SideDialogFooter className="pt-2">
             <Button
               type="button"
               variant="outline"
@@ -221,9 +216,9 @@ export function EditUserDialog({ user, open, onOpenChange, onSuccess }: Props) {
             <Button type="submit" disabled={submitting}>
               {submitting ? "Saving…" : "Save Changes"}
             </Button>
-          </DialogFooter>
+          </SideDialogFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SideDialogContent>
+    </SideDialog>
   );
 }
