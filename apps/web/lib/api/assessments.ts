@@ -8,7 +8,9 @@ import type {
     SubmissionCodeResponse,
     CreateSubmissionRequest,
     GroupResponse,
-    CreateGroupRequest
+    CreateGroupRequest,
+    RunCodeRequest,
+    RunCodeResponse
 } from '@/types/assessments.types';
 
 // ── Instructor-scoped Assessment endpoints ───────────────────────────────────
@@ -55,6 +57,11 @@ export const assessmentsApi = {
 
     createGroup: async (req: CreateGroupRequest): Promise<GroupResponse> => {
         const { data } = await axiosInstance.post<GroupResponse>('/groups', req);
+        return data;
+    },
+
+    runCode: async (req: RunCodeRequest): Promise<RunCodeResponse> => {
+        const { data } = await axiosInstance.post<RunCodeResponse>('/submissions/run-code', req);
         return data;
     },
 };
