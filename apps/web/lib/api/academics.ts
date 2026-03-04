@@ -545,6 +545,10 @@ export const courseInstancesApi = {
       return data.enrollments as Enrollment[];
     return [];
   },
+
+  delete: async (instanceId: string): Promise<void> => {
+    await axiosInstance.delete(`/course-instances/${instanceId}`);
+  },
 };
 
 // ── Course Instructors ────────────────────────────────────────────────────────
