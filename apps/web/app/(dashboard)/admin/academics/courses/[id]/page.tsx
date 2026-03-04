@@ -16,11 +16,19 @@ import {
     BookOpen,
     RefreshCw,
     Pencil,
+    Settings,
+    CalendarDays,
+    Save,
+    ArrowLeft,
+    CheckCircle2,
+    XCircle,
+    Award,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
     Table,
@@ -43,7 +51,9 @@ import { handleApiError } from '@/lib/api/axios';
 import { useUIStore } from '@/lib/stores/uiStore';
 import { EditCourseDialog } from '@/components/admin/academics/course-dialogs';
 import { CreateCourseInstanceDialog, EditCourseInstanceDialog } from '@/components/admin/academics/course-instance-dialogs';
-import type { Course, CourseInstance, Semester, Batch } from '@/types/academics.types';
+import { AcademicsDetailLayout } from '@/components/admin/academics/AcademicsDetailLayout';
+import { DangerZone } from '@/components/admin/academics/DangerZone';
+import type { Course, CourseInstance, Semester, Batch, UpdateCourseRequest } from '@/types/academics.types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -85,6 +95,11 @@ export default function CourseDetailPage() {
     const [createInstanceOpen, setCreateInstanceOpen] = React.useState(false);
     const [editInstance, setEditInstance] = React.useState<CourseInstance | null>(null);
 
+    // ── Tab & Settings state ──────────────────────────────────────────────
+    const [activeTab, setActiveTab] = React.useState<'overview' | 'instances' | 'settings'>('overview');
+    const [editValues, setEditValues] = React.useState<UpdateCourseRequest>({});
+    const [saving, setSaving] = React.useState(false);
+
     const fetchCourse = React.useCallback(async () => {
         setLoading(true);
         setError('');
@@ -92,6 +107,7 @@ export default function CourseDetailPage() {
             const data = await coursesApi.get(id);
             setCourse(data);
             setPageTitle(data.title);
+            setEditValues({ title: data.title, code: data.code, credits: data.credits, description: data.description ?? '' });
         } catch (err) {
             setError(handleApiError(err));
             toast.error('Failed to load course details');
@@ -127,6 +143,22 @@ export default function CourseDetailPage() {
 
     React.useEffect(() => { return () => setPageTitle(null); }, [setPageTitle]);
 
+    async function handleSaveCourse(e: React.FormEvent) {
+        e.preventDefault();
+        if (!course) return;
+        setSaving(true);
+        try {
+            const updated = await coursesApi.update(course.id, editValues);
+            setCourse(updated);
+            setPageTitle(updated.title);
+            toast.success('Course updated', updated.title);
+        } catch (err) {
+            toast.error('Update failed', handleApiError(err));
+        } finally {
+            setSaving(false);
+        }
+    }
+
     if (!canAccess) return null;
 
     if (loading && !course) {
@@ -140,7 +172,7 @@ export default function CourseDetailPage() {
     if (!course && !loading) {
         return (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
-                <AlertTriangle className="h-10 w-10 text-error" />
+                <AlertTriangle className="h-10 w-10 text-destructive" />
                 <p className="text-sm text-muted-foreground">{error || 'Course not found'}</p>
                 <Button variant="outline" onClick={fetchCourse}>Try again</Button>
             </div>
@@ -156,97 +188,181 @@ export default function CourseDetailPage() {
         instancesPage * INSTANCES_PER_PAGE,
     );
 
+    const tabs = [
+        { id: 'overview' as const, label: 'Overview', icon: BookOpen },
+        { id: 'instances' as const, label: 'Instances', icon: CalendarDays },
+        { id: 'settings' as const, label: 'Settings', icon: Settings },
+    ];
+
     return (
-        <div className="space-y-8 w-full">
+        <div className="space-y-6 w-full">
             {/* Breadcrumbs */}
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+            <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Link href="/admin/academics" className="hover:text-foreground transition-colors">Academics</Link>
+                <ChevronRight className="h-3.5 w-3.5" />
                 <Link href="/admin/academics/courses" className="hover:text-primary transition-colors">Courses</Link>
-                <span className="text-border">/</span>
-                <span className="text-foreground">{course.code}</span>
-            </div>
+                <ChevronRight className="h-3.5 w-3.5" />
+                <span className="text-foreground font-medium">{course.code}</span>
+            </nav>
 
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                <div className="space-y-3">
-                    <h1 className="text-3xl font-bold tracking-tight">
+            <div className="flex items-center gap-4">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => router.push('/admin/academics/courses')}
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <div className="flex-1 min-w-0">
+                    <h1 className="text-3xl font-bold tracking-tight truncate">
                         {course.code} — {course.title}
                     </h1>
-                    <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                        <Badge variant={course.is_active ? 'success' : 'secondary'}>
-                            {course.is_active ? 'Active' : 'Inactive'}
-                        </Badge>
-                        <span className="flex items-center gap-1">
-                            <Star className="h-3.5 w-3.5 fill-warning text-warning" />
-                            {course.credits} {course.credits === 1 ? 'credit' : 'credits'}
-                        </span>
-                    </div>
                 </div>
-
-                {canWrite && (
-                    <div className="flex items-center gap-3 shrink-0">
-                        <Button
-                            variant="outline"
-                            className="gap-2 shadow-sm"
-                            onClick={() => setEditCourseOpen(true)}
-                        >
-                            <Edit3 className="h-4 w-4" />
-                            Edit Course
-                        </Button>
-                        <Button
-                            className="gap-2 shadow-sm"
-                            onClick={() => setCreateInstanceOpen(true)}
-                        >
-                            <Plus className="h-4 w-4" />
-                            Create Instance
-                        </Button>
-                    </div>
+                {canWrite && activeTab === 'instances' && (
+                    <Button
+                        className="gap-2 shadow-sm"
+                        onClick={() => setCreateInstanceOpen(true)}
+                    >
+                        <Plus className="h-4 w-4" />
+                        Create Instance
+                    </Button>
                 )}
             </div>
 
-            {/* Course Description Card */}
-            <Card className="bg-foreground dark:bg-card border-none text-background dark:text-foreground overflow-hidden relative shadow-lg rounded-xl">
-                <span className="absolute -bottom-8 right-0 text-[180px] font-black leading-none text-primary-foreground/5 select-none tracking-tighter">
-                    COURSE
-                </span>
-                <CardContent className="p-8 md:p-10 relative z-10 flex flex-col items-start gap-4 w-full">
-                    <h3 className="text-xl font-bold tracking-tight">Course Description</h3>
-                    <p className="text-sm leading-relaxed opacity-80">
-                        {course.description || 'No description provided for this course.'}
-                    </p>
-                </CardContent>
-            </Card>
+            {/* Tabbed Layout */}
+            <AcademicsDetailLayout
+                tabs={tabs}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+            >
+                {/* Overview Tab */}
+                {activeTab === 'overview' && (
+                    <div className="space-y-6">
+                        {/* Stats Grid */}
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                            <Card>
+                                <CardHeader className="pb-3">
+                                    <CardDescription className="text-xs">Course Code</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="flex items-center gap-2">
+                                        <Award className="h-4 w-4 text-muted-foreground" />
+                                        <span className="text-lg font-semibold">{course.code}</span>
+                                    </div>
+                                </CardContent>
+                            </Card>
 
-            {/* Instances Section */}
-            <div className="space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-border">
-                    <div className="flex items-center gap-2">
-                        <Calendar className="h-5 w-5 text-primary" />
-                        <h2 className="text-xl font-bold tracking-tight">Course Instances</h2>
-                        {!instancesLoading && (
-                            <Badge variant="secondary" className="ml-1">{instances.length}</Badge>
-                        )}
-                    </div>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground"
-                        onClick={fetchInstances}
-                        disabled={instancesLoading}
-                        title="Refresh instances"
-                    >
-                        <RefreshCw className={`h-4 w-4 ${instancesLoading ? 'animate-spin' : ''}`} />
-                    </Button>
-                </div>
+                            <Card>
+                                <CardHeader className="pb-3">
+                                    <CardDescription className="text-xs">Course Title</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="flex items-center gap-2">
+                                        <BookOpen className="h-4 w-4 text-muted-foreground" />
+                                        <span className="text-lg font-semibold truncate">{course.title}</span>
+                                    </div>
+                                </CardContent>
+                            </Card>
 
-                {instancesError && (
-                    <div className="flex items-center gap-3 rounded-lg border border-warning-border bg-warning-muted px-4 py-3 text-sm text-warning-muted-foreground">
-                        <AlertTriangle className="h-4 w-4 shrink-0" />
-                        <span>{instancesError}</span>
-                        <Button variant="ghost" size="sm" onClick={fetchInstances} className="ml-auto shrink-0">Retry</Button>
+                            <Card>
+                                <CardHeader className="pb-3">
+                                    <CardDescription className="text-xs">Credits</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="flex items-center gap-2">
+                                        <Star className="h-4 w-4 text-warning fill-warning" />
+                                        <span className="text-lg font-semibold">{course.credits}</span>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card>
+                                <CardHeader className="pb-3">
+                                    <CardDescription className="text-xs">Total Instances</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="flex items-center gap-2">
+                                        <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                                        <span className="text-lg font-semibold">{instances.length}</span>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card>
+                                <CardHeader className="pb-3">
+                                    <CardDescription className="text-xs">Status</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <Badge variant={course.is_active ? 'success' : 'secondary'}>
+                                        {course.is_active ? (
+                                            <><CheckCircle2 className="h-3 w-3 mr-1" /> Active</>
+                                        ) : (
+                                            <><XCircle className="h-3 w-3 mr-1" /> Inactive</>
+                                        )}
+                                    </Badge>
+                                </CardContent>
+                            </Card>
+
+                            <Card>
+                                <CardHeader className="pb-3">
+                                    <CardDescription className="text-xs">Created</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <span className="text-sm text-muted-foreground">
+                                        {new Date(course.created_at).toLocaleDateString('en-US', { dateStyle: 'medium' })}
+                                    </span>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Description Card */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-lg">Course Description</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                                    {course.description || 'No description provided for this course.'}
+                                </p>
+                            </CardContent>
+                        </Card>
                     </div>
                 )}
 
-                <Card className="shadow-sm overflow-hidden">
+                {/* Instances Tab */}
+                {activeTab === 'instances' && (
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between pb-2 border-b border-border">
+                            <div className="flex items-center gap-2">
+                                <Calendar className="h-5 w-5 text-primary" />
+                                <h2 className="text-xl font-bold tracking-tight">Course Instances</h2>
+                                {!instancesLoading && (
+                                    <Badge variant="secondary" className="ml-1">{instances.length}</Badge>
+                                )}
+                            </div>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground"
+                                onClick={fetchInstances}
+                                disabled={instancesLoading}
+                                title="Refresh instances"
+                            >
+                                <RefreshCw className={`h-4 w-4 ${instancesLoading ? 'animate-spin' : ''}`} />
+                            </Button>
+                        </div>
+
+                        {instancesError && (
+                            <div className="flex items-center gap-3 rounded-lg border border-warning-border bg-warning-muted px-4 py-3 text-sm text-warning-muted-foreground">
+                                <AlertTriangle className="h-4 w-4 shrink-0" />
+                                <span>{instancesError}</span>
+                                <Button variant="ghost" size="sm" onClick={fetchInstances} className="ml-auto shrink-0">Retry</Button>
+                            </div>
+                        )}
+
+                        <Card className="shadow-sm overflow-hidden">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -394,7 +510,123 @@ export default function CourseDetailPage() {
                         </div>
                     )}
                 </Card>
-            </div>
+                    </div>
+                )}
+
+                {/* Settings Tab */}
+                {activeTab === 'settings' && (
+                    <div className="space-y-6">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Course Settings</CardTitle>
+                                <CardDescription>
+                                    Update course information
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <form onSubmit={handleSaveCourse} className="space-y-4">
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="code">Course Code *</Label>
+                                            <input
+                                                id="code"
+                                                type="text"
+                                                required
+                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                placeholder="e.g., CS101"
+                                                value={editValues.code ?? ''}
+                                                onChange={(e) => setEditValues({ ...editValues, code: e.target.value })}
+                                                disabled={!canWrite}
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label htmlFor="credits">Credits *</Label>
+                                            <input
+                                                id="credits"
+                                                type="number"
+                                                required
+                                                min="0"
+                                                step="0.5"
+                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                placeholder="e.g., 3"
+                                                value={editValues.credits ?? ''}
+                                                onChange={(e) => setEditValues({ ...editValues, credits: parseFloat(e.target.value) })}
+                                                disabled={!canWrite}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="title">Course Title *</Label>
+                                        <input
+                                            id="title"
+                                            type="text"
+                                            required
+                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                            placeholder="e.g., Introduction to Programming"
+                                            value={editValues.title ?? ''}
+                                            onChange={(e) => setEditValues({ ...editValues, title: e.target.value })}
+                                            disabled={!canWrite}
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="description">Description</Label>
+                                        <textarea
+                                            id="description"
+                                            rows={4}
+                                            className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+                                            placeholder="Provide a detailed description of the course"
+                                            value={editValues.description ?? ''}
+                                            onChange={(e) => setEditValues({ ...editValues, description: e.target.value })}
+                                            disabled={!canWrite}
+                                        />
+                                    </div>
+
+                                    {canWrite && (
+                                        <div className="flex justify-end pt-2">
+                                            <Button type="submit" disabled={saving} className="gap-2">
+                                                {saving ? (
+                                                    <>
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                        Saving...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Save className="h-4 w-4" />
+                                                        Save Changes
+                                                    </>
+                                                )}
+                                            </Button>
+                                        </div>
+                                    )}
+                                </form>
+                            </CardContent>
+                        </Card>
+
+                        {canWrite && (
+                            <DangerZone
+                                entityName={course.title}
+                                entityType="course"
+                                isActive={course.is_active}
+                                onDeactivate={async () => {
+                                    await coursesApi.deactivate(course.id);
+                                    const updated = { ...course, is_active: false };
+                                    setCourse(updated);
+                                    toast.success('Course deactivated', course.title);
+                                }}
+                                onReactivate={async () => {
+                                    await coursesApi.reactivate(course.id);
+                                    const updated = { ...course, is_active: true };
+                                    setCourse(updated);
+                                    toast.success('Course reactivated', course.title);
+                                }}
+                            />
+                        )}
+                    </div>
+                )}
+            </AcademicsDetailLayout>
 
             {/* Dialogs */}
             <EditCourseDialog

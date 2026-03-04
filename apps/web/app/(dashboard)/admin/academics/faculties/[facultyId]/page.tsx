@@ -23,6 +23,7 @@ import {
   Save,
   ShieldAlert,
   Loader2,
+  Layers,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -55,6 +56,8 @@ import {
   EditDepartmentDialog,
 } from '@/components/admin/academics/department-dialogs';
 import { EditFacultyDialog } from '@/components/admin/academics/faculty-dialogs';
+import { AcademicsDetailLayout } from '@/components/admin/academics/AcademicsDetailLayout';
+import { DangerZone } from '@/components/admin/academics/DangerZone';
 import type { Faculty, Department, UpdateFacultyRequest } from '@/types/academics.types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -125,7 +128,7 @@ export default function FacultyDetailPage() {
   const [editFacultyOpen, setEditFacultyOpen] = React.useState(false);
 
   // Settings
-  const [activeTab, setActiveTab] = React.useState<'departments' | 'settings'>('departments');
+  const [activeTab, setActiveTab] = React.useState<'overview' | 'departments' | 'settings'>('overview');
   const [editValues, setEditValues] = React.useState<UpdateFacultyRequest>({});
   const [saving, setSaving] = React.useState(false);
 
@@ -170,23 +173,6 @@ export default function FacultyDetailPage() {
       toast.error('Update failed', handleApiError(err));
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function handleToggleFacultyStatus() {
-    if (!faculty) return;
-    try {
-      if (faculty.is_active) {
-        await facultiesApi.deactivate(faculty.id);
-        setFaculty((prev) => prev ? { ...prev, is_active: false } : prev);
-        toast.success('Faculty deactivated', faculty.name);
-      } else {
-        await facultiesApi.reactivate(faculty.id);
-        setFaculty((prev) => prev ? { ...prev, is_active: true } : prev);
-        toast.success('Faculty reactivated', faculty.name);
-      }
-    } catch (err) {
-      toast.error('Action failed', handleApiError(err));
     }
   }
 
@@ -332,38 +318,66 @@ export default function FacultyDetailPage() {
         </div>
       )}
 
-      {/* Tab layout */}
+      {/* Tabbed Content */}
       {faculty && (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* LHS Sidebar */}
-          <div className="lg:col-span-1 space-y-3">
-            <Button
-              variant={activeTab === 'departments' ? 'default' : 'ghost'}
-              className={cn(
-                'justify-start font-semibold w-full',
-                activeTab === 'departments' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'text-muted-foreground hover:text-foreground',
-              )}
-              onClick={() => setActiveTab('departments')}
-            >
-              <Building2 className="h-4 w-4 mr-2" />
-              Departments
-            </Button>
-            <Button
-              variant={activeTab === 'settings' ? 'default' : 'ghost'}
-              className={cn(
-                'justify-start font-semibold w-full',
-                activeTab === 'settings' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'text-muted-foreground hover:text-foreground',
-              )}
-              onClick={() => setActiveTab('settings')}
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </Button>
-          </div>
+        <AcademicsDetailLayout
+          tabs={[
+            { id: 'overview', label: 'Overview', icon: Landmark },
+            { id: 'departments', label: 'Departments', icon: Layers },
+            { id: 'settings', label: 'Settings', icon: Settings },
+          ]}
+          activeTab={activeTab}
+          onTabChange={(tab) => setActiveTab(tab as 'overview' | 'departments' | 'settings')}
+        >
+          {activeTab === 'overview' && (
+            <Card className="shadow-sm border-border">
+              <CardHeader className="border-b border-border bg-muted/30">
+                <CardTitle className="text-base font-bold">Faculty Overview</CardTitle>
+                <CardDescription className="text-xs">Key information about this faculty.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Faculty Name</Label>
+                    <p className="text-sm font-semibold text-foreground">{faculty.name}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Faculty Code</Label>
+                    <p className="text-sm font-mono font-medium text-foreground bg-muted px-2 py-1 rounded w-fit">{faculty.code}</p>
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Description</Label>
+                    <p className="text-sm text-muted-foreground">
+                      {faculty.description || 'No description provided.'}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Total Departments</Label>
+                    <p className="text-sm font-semibold text-foreground">
+                      {departments.length} ({departments.filter((d) => d.is_active).length} active)
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Status</Label>
+                    <div>
+                      <Badge variant={faculty.is_active ? 'success' : 'secondary'} className="text-sm">
+                        {faculty.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Last Updated</Label>
+                    <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      {fmt(faculty.updated_at)}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-          {/* RHS Content */}
-          <div className="lg:col-span-3 space-y-6">
-          {activeTab === 'departments' ? (
+          {activeTab === 'departments' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -558,42 +572,24 @@ export default function FacultyDetailPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-red-100 dark:border-red-900/30 overflow-hidden">
-            <CardHeader className="bg-red-50/50 dark:bg-red-900/10 border-b border-red-100 dark:border-red-900/20">
-              <div className="flex items-center gap-3 text-red-600 dark:text-red-400">
-                <ShieldAlert className="h-5 w-5" />
-                <div>
-                  <CardTitle className="text-base font-bold">Danger Zone</CardTitle>
-                  <CardDescription className="text-xs text-red-500/70">Proceed with caution. These actions may affect all departments under this faculty.</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-bold text-foreground">
-                    {faculty.is_active ? 'Deactivate Faculty' : 'Reactivate Faculty'}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {faculty.is_active
-                      ? 'All departments under this faculty will be affected.'
-                      : 'Restore visibility and access for this faculty and its departments.'}
-                  </p>
-                </div>
-                <Button
-                  variant={faculty.is_active ? 'destructive' : 'secondary'}
-                  className="font-bold whitespace-nowrap"
-                  onClick={handleToggleFacultyStatus}
-                >
-                  {faculty.is_active ? 'Deactivate' : 'Reactivate'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <DangerZone
+            entityName={faculty.name}
+            entityType="faculty"
+            isActive={faculty.is_active}
+            onDeactivate={async () => {
+              await facultiesApi.deactivate(faculty.id);
+              setFaculty((prev) => prev ? { ...prev, is_active: false } : prev);
+              toast.success('Faculty deactivated', faculty.name);
+            }}
+            onReactivate={async () => {
+              await facultiesApi.reactivate(faculty.id);
+              setFaculty((prev) => prev ? { ...prev, is_active: true } : prev);
+              toast.success('Faculty reactivated', faculty.name);
+            }}
+          />
         </div>
       )}
-          </div>
-        </div>
+        </AcademicsDetailLayout>
       )}
 
       {/* Dialogs */}

@@ -73,7 +73,6 @@ const adminNavItems: NavItem[] = [
     icon: Users,
     subItems: [
       { title: "Users", href: "/admin/users", icon: Users },
-      { title: "Groups & Batches", href: "/admin/academics/groups", icon: Users },
       { title: "Roles & Permissions", href: "/admin/roles", icon: UserCog },
     ],
   },
@@ -88,6 +87,7 @@ const adminNavItems: NavItem[] = [
       { title: "Specializations", href: "/admin/academics/specializations" },
       { title: "Courses", href: "/admin/academics/courses" },
       { title: "Semesters", href: "/admin/academics/semesters" },
+      { title: "Groups & Batches", href: "/admin/academics/groups", icon: Users2 },
     ],
   },
   {

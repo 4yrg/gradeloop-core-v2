@@ -53,7 +53,9 @@ import { useAcademicsAccess } from '@/lib/hooks/useAcademicsAccess';
 import { handleApiError } from '@/lib/api/axios';
 import { toast } from '@/lib/hooks/use-toast';
 import { useUIStore } from '@/lib/stores/uiStore';
-import { EditCourseInstanceDialog, EnrollStudentsDialog } from '@/components/admin/academics/course-instance-dialogs';
+import { EnrollStudentsDialog } from '@/components/admin/academics/course-instance-dialogs';
+import { AcademicsDetailLayout } from '@/components/admin/academics/AcademicsDetailLayout';
+import { DangerZone } from '@/components/admin/academics/DangerZone';
 import type { CourseInstance, CourseInstructor, Enrollment, Course, Semester, Batch, BatchMemberDetail, CourseInstanceStatus } from '@/types/academics.types';
 
 const STATUSES: CourseInstanceStatus[] = ['Planned', 'Active', 'Completed', 'Cancelled'];
@@ -113,17 +115,17 @@ export default function CourseInstancePage() {
     const [error, setError] = React.useState('');
 
     // ── Settings state ──────────────────────────────────────────────────
-    const [editDialogOpen, setEditDialogOpen] = React.useState(false);
     const [enrollStudentsOpen, setEnrollStudentsOpen] = React.useState(false);
-    const [deleteConfirm, setDeleteConfirm] = React.useState(false);
     const [savingSettings, setSavingSettings] = React.useState(false);
-    const [deleting, setDeleting] = React.useState(false);
     const [settingsStatus, setSettingsStatus] = React.useState<CourseInstanceStatus>('Planned');
     const [settingsMaxEnrollment, setSettingsMaxEnrollment] = React.useState(30);
 
     // ── Search & pagination ─────────────────────────────────────────────
     const [search, setSearch] = React.useState('');
     const [rosterPage, setRosterPage] = React.useState(1);
+
+    // ── Tab state ───────────────────────────────────────────────────────
+    const [activeTab, setActiveTab] = React.useState<'overview' | 'roster' | 'instructors' | 'settings'>('overview');
 
     const fetchAll = React.useCallback(async () => {
         setLoading(true);
@@ -197,19 +199,6 @@ export default function CourseInstancePage() {
         }
     }
 
-    async function handleDelete() {
-        if (!instance) return;
-        setDeleting(true);
-        try {
-            await courseInstancesApi.delete(instance.id);
-            toast.success('Instance deleted', 'Course instance has been removed.');
-            router.back();
-        } catch (err) {
-            toast.error('Failed to delete instance', handleApiError(err));
-            setDeleting(false);
-        }
-    }
-
     if (!canAccess) return null;
 
     if (loading) {
@@ -280,24 +269,31 @@ export default function CourseInstancePage() {
     const settingsDirty = instance &&
         (settingsStatus !== instance.status || settingsMaxEnrollment !== instance.max_enrollment);
 
+    const tabs = [
+        { id: 'overview' as const, label: 'Overview', icon: BookOpen },
+        { id: 'roster' as const, label: 'Roster', icon: Users },
+        { id: 'instructors' as const, label: 'Instructors', icon: GraduationCap },
+        { id: 'settings' as const, label: 'Settings', icon: Settings2 },
+    ];
+
     return (
         <div className="space-y-6">
-            {/* Header */}
+            {/* Breadcrumb & Header */}
             <div className="space-y-4">
                 <Button
                     variant="ghost"
                     size="sm"
                     className="-ml-2 h-8 gap-1.5 text-muted-foreground hover:text-primary transition-colors"
-                    onClick={() => router.back()}
+                    onClick={() => router.push(`/admin/academics/courses/${id}`)}
                 >
                     <ArrowLeft className="h-4 w-4" />
                     Back to Course
                 </Button>
 
-                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                    <div className="space-y-2">
-                        <h1 className="text-2xl font-bold tracking-tight">{pageTitle}</h1>
-                        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                        <h1 className="text-2xl font-bold tracking-tight truncate">{pageTitle}</h1>
+                        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground mt-2">
                             <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusVariantClasses[instance.status].badge}`}>
                                 <span className={`h-1.5 w-1.5 rounded-full ${statusVariantClasses[instance.status].dot}`} />
                                 {instance.status}
@@ -316,33 +312,29 @@ export default function CourseInstancePage() {
                             )}
                         </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                        {canWrite && (
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="gap-2"
-                                onClick={() => setEditDialogOpen(true)}
-                            >
-                                <Settings2 className="h-4 w-4" />
-                                Settings
-                            </Button>
-                        )}
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-2"
-                            onClick={fetchAll}
-                        >
-                            <RefreshCw className="h-4 w-4" />
-                            Refresh
-                        </Button>
-                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2 shrink-0"
+                        onClick={fetchAll}
+                    >
+                        <RefreshCw className="h-4 w-4" />
+                        Refresh
+                    </Button>
                 </div>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {/* Tabbed Layout */}
+            <AcademicsDetailLayout
+                tabs={tabs}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+            >
+                {/* Overview Tab */}
+                {activeTab === 'overview' && (
+                    <div className="space-y-6">
+                        {/* Stats Grid */}
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <Card className="shadow-sm">
                     <CardContent className="flex items-center gap-3 p-4">
                         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
@@ -387,10 +379,81 @@ export default function CourseInstancePage() {
                         </div>
                     </CardContent>
                 </Card>
-            </div>
+                        </div>
 
-            {/* Instructors */}
-            {instructors.length > 0 && (
+                        {/* Instance Details */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-lg">Instance Information</CardTitle>
+                            </CardHeader>
+                            <CardContent className="grid gap-4 md:grid-cols-2">
+                                {course && (
+                                    <div className="space-y-1">
+                                        <p className="text-xs text-muted-foreground">Course</p>
+                                        <p className="text-sm font-medium">{course.code} — {course.title}</p>
+                                    </div>
+                                )}
+                                {semester && (
+                                    <div className="space-y-1">
+                                        <p className="text-xs text-muted-foreground">Semester</p>
+                                        <p className="text-sm font-medium">{semester.name} ({semester.term_type})</p>
+                                    </div>
+                                )}
+                                {batch && (
+                                    <div className="space-y-1">
+                                        <p className="text-xs text-muted-foreground">Batch</p>
+                                        <p className="text-sm font-medium">{batch.name} ({batch.code})</p>
+                                    </div>
+                                )}
+                                <div className="space-y-1">
+                                    <p className="text-xs text-muted-foreground">Created</p>
+                                    <p className="text-sm font-medium">
+                                        {new Date(instance.created_at).toLocaleDateString('en-US', { dateStyle: 'medium' })}
+                                    </p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xs text-muted-foreground">Instance ID</p>
+                                    <p className="text-xs font-mono text-muted-foreground">{instance.id}</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+
+                {/* Roster Tab */}
+                {activeTab === 'roster' && (
+                    <div className="space-y-4">
+                        {/* Search & Actions */}
+                        <Card className="shadow-sm">
+                            <CardContent className="flex items-center gap-3 p-3">
+                                <div className="relative flex-1 min-w-0">
+                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search by name, email or ID…"
+                                        className="pl-9 h-8 text-sm"
+                                        value={search}
+                                        onChange={(e) => { setSearch(e.target.value); setRosterPage(1); }}
+                                    />
+                                </div>
+                                {canWrite && (
+                                    <Button
+                                        size="sm"
+                                        className="gap-2 shrink-0"
+                                        onClick={() => setEnrollStudentsOpen(true)}
+                                    >
+                                        <UserPlus className="h-4 w-4" />
+                                        Add Student
+                                    </Button>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        <div className="flex items-center justify-between text-sm text-muted-foreground">
+                            <span>{enrollments.length} student{enrollments.length !== 1 ? 's' : ''} enrolled</span>
+                        </div>
+
+                        {/* ── Batch Students ─────────────────────────────────────── */}
+                        {(batchMembers.length > 0 || batch) && (
                 <Card className="shadow-sm">
                     <CardHeader className="pb-3">
                         <CardTitle className="text-base font-semibold">Instructors</CardTitle>
@@ -710,20 +773,61 @@ export default function CourseInstancePage() {
                         </div>
                     )}
                 </Card>
-            </div>
-
-            {/* ── Settings Section ─────────────────────────────────────────── */}
-            {canWrite && (
-                <div className="space-y-3">
-                    <div className="flex items-center gap-2.5">
-                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-warning/10 text-warning shrink-0">
-                            <Settings2 className="h-3 w-3" />
-                        </div>
-                        <h2 className="text-sm font-semibold text-foreground">Instance Settings</h2>
-                        <div className="flex-1 h-px bg-border" />
                     </div>
+                )}
 
-                    <Card className="shadow-sm">
+                {/* Instructors Tab */}
+                {activeTab === 'instructors' && (
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between text-sm text-muted-foreground">
+                            <span>{instructors.length} instructor{instructors.length !== 1 ? 's' : ''} assigned</span>
+                        </div>
+
+                        {instructors.length === 0 ? (
+                            <Card>
+                                <CardContent className="flex flex-col items-center justify-center py-16">
+                                    <GraduationCap className="h-10 w-10 text-muted-foreground/40 mb-3" />
+                                    <p className="text-sm text-muted-foreground">No instructors assigned yet</p>
+                                </CardContent>
+                            </Card>
+                        ) : (
+                            <Card className="shadow-sm">
+                                <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
+                                    {instructors.map((instr) => (
+                                        <div
+                                            key={instr.user_id}
+                                            className="flex items-center gap-3 rounded-lg border border-border p-3"
+                                        >
+                                            <Avatar className="h-10 w-10 shrink-0">
+                                                <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                                                    {getInitials(instr.full_name, instr.email)}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="font-medium text-sm truncate">{instr.full_name}</p>
+                                                <p className="text-xs text-muted-foreground truncate">{instr.role}</p>
+                                            </div>
+                                            <a
+                                                href={`mailto:${instr.email}`}
+                                                className="shrink-0 text-muted-foreground hover:text-primary transition-colors"
+                                                title={instr.email}
+                                            >
+                                                <Mail className="h-4 w-4" />
+                                            </a>
+                                        </div>
+                                    ))}
+                                </CardContent>
+                            </Card>
+                        )}
+                    </div>
+                )}
+
+                {/* Settings Tab */}
+                {activeTab === 'settings' && (
+                    <div className="space-y-6">
+                        {canWrite ? (
+                            <>
+                                <Card className="shadow-sm">
                         <div className="divide-y divide-border">
                             {/* Status row */}
                             <div className="flex items-center justify-between gap-4 px-4 py-3">
@@ -792,108 +896,34 @@ export default function CourseInstancePage() {
                         </div>
                     </Card>
 
-                    {/* Danger Zone */}
-                    <Card className="shadow-sm border-destructive/30">
-                        <div className="divide-y divide-destructive/20">
-                            {/* Deactivate (set Cancelled) */}
-                            <div className="flex items-center justify-between gap-4 px-4 py-3">
-                                <div className="min-w-0">
-                                    <p className="text-sm font-medium text-foreground">Cancel Instance</p>
-                                    <p className="text-xs text-muted-foreground mt-0.5">
-                                        Sets the status to Cancelled. Students remain enrolled but the instance becomes inactive.
-                                    </p>
-                                </div>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={instance.status === 'Cancelled' || savingSettings}
-                                    className="gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10 shrink-0"
-                                    onClick={async () => {
-                                        setSavingSettings(true);
-                                        try {
-                                            const updated = await courseInstancesApi.update(instance.id, { status: 'Cancelled' });
-                                            setInstance(updated);
-                                            setSettingsStatus('Cancelled');
-                                            toast.success('Instance cancelled');
-                                        } catch (err) {
-                                            toast.error('Failed to cancel instance', handleApiError(err));
-                                        } finally {
-                                            setSavingSettings(false);
-                                        }
+                                <DangerZone
+                                    entityName={pageTitle}
+                                    entityType="course instance"
+                                    isActive={instance.status !== 'Cancelled'}
+                                    onDeactivate={async () => {
+                                        const updated = await courseInstancesApi.update(instance.id, { status: 'Cancelled' });
+                                        setInstance(updated);
+                                        setSettingsStatus('Cancelled');
+                                        toast.success('Instance cancelled', 'This course instance has been cancelled.');
                                     }}
-                                >
-                                    <XCircle className="h-3.5 w-3.5" />
-                                    Cancel Instance
-                                </Button>
-                            </div>
-
-                            {/* Delete */}
-                            <div className="flex items-center justify-between gap-4 px-4 py-3">
-                                <div className="min-w-0">
-                                    <p className="text-sm font-medium text-foreground">Delete Instance</p>
-                                    <p className="text-xs text-muted-foreground mt-0.5">
-                                        Permanently removes this course instance and all associated enrollments. This cannot be undone.
-                                    </p>
-                                </div>
-                                {deleteConfirm ? (
-                                    <div className="flex items-center gap-2 shrink-0">
-                                        <span className="text-xs text-destructive font-medium">Are you sure?</span>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => setDeleteConfirm(false)}
-                                            disabled={deleting}
-                                        >
-                                            Cancel
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            disabled={deleting}
-                                            className="gap-1.5 bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                            onClick={handleDelete}
-                                        >
-                                            {deleting
-                                                ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Deleting…</>
-                                                : <><Trash2 className="h-3.5 w-3.5" />Yes, Delete</>
-                                            }
-                                        </Button>
-                                    </div>
-                                ) : (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        className="gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10 shrink-0"
-                                        onClick={() => setDeleteConfirm(true)}
-                                    >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                        Delete Instance
-                                    </Button>
-                                )}
-                            </div>
-                        </div>
-                    </Card>
-                </div>
-            )}
-
-            {/* Edit Dialog */}
-            {instance && (
-                <EditCourseInstanceDialog
-                    open={editDialogOpen}
-                    onOpenChange={setEditDialogOpen}
-                    instance={instance}
-                    semesterName={semester?.name}
-                    batchName={batch?.name}
-                    onSuccess={(updated) => {
-                        setInstance(updated);
-                        setSettingsStatus(updated.status);
-                        setSettingsMaxEnrollment(updated.max_enrollment);
-                    }}
-                />
-            )}
+                                    onDelete={async () => {
+                                        await courseInstancesApi.delete(instance.id);
+                                        toast.success('Instance deleted', 'Course instance has been permanently removed.');
+                                        router.push(`/admin/academics/courses/${id}`);
+                                    }}
+                                />
+                            </>
+                        ) : (
+                            <Card>
+                                <CardContent className="flex flex-col items-center justify-center py-16">
+                                    <Settings2 className="h-10 w-10 text-muted-foreground/40 mb-3" />
+                                    <p className="text-sm text-muted-foreground">You don't have permission to modify settings</p>
+                                </CardContent>
+                            </Card>
+                        )}
+                    </div>
+                )}
+            </AcademicsDetailLayout>
 
             {/* Enroll Students Dialog */}
             <EnrollStudentsDialog

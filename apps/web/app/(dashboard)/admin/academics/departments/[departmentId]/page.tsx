@@ -23,6 +23,7 @@ import {
   Save,
   ShieldAlert,
   Loader2,
+  GraduationCap,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -55,6 +56,8 @@ import {
   EditDegreeDialog,
 } from '@/components/admin/academics/degree-dialogs';
 import { EditDepartmentDialog } from '@/components/admin/academics/department-dialogs';
+import { AcademicsDetailLayout } from '@/components/admin/academics/AcademicsDetailLayout';
+import { DangerZone } from '@/components/admin/academics/DangerZone';
 import type { Department, Degree, DegreeLevel, Faculty, UpdateDepartmentRequest } from '@/types/academics.types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -135,7 +138,7 @@ export default function DepartmentDetailPage() {
   const [editDeptOpen, setEditDeptOpen] = React.useState(false);
 
   // Settings
-  const [activeTab, setActiveTab] = React.useState<'degrees' | 'settings'>('degrees');
+  const [activeTab, setActiveTab] = React.useState<'overview' | 'degrees' | 'settings'>('overview');
   const [editValues, setEditValues] = React.useState<UpdateDepartmentRequest>({});
   const [saving, setSaving] = React.useState(false);
 
@@ -184,23 +187,6 @@ export default function DepartmentDetailPage() {
       toast.error('Update failed', handleApiError(err));
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function handleToggleDepartmentStatus() {
-    if (!department) return;
-    try {
-      if (department.is_active) {
-        await departmentsApi.deactivate(department.id);
-        setDepartment((prev) => prev ? { ...prev, is_active: false } : prev);
-        toast.success('Department deactivated', department.name);
-      } else {
-        await departmentsApi.reactivate(department.id);
-        setDepartment((prev) => prev ? { ...prev, is_active: true } : prev);
-        toast.success('Department reactivated', department.name);
-      }
-    } catch (err) {
-      toast.error('Action failed', handleApiError(err));
     }
   }
 
@@ -364,38 +350,79 @@ export default function DepartmentDetailPage() {
         </div>
       )}
 
-      {/* Tab layout */}
+      {/* Tabbed Content */}
       {department && (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* LHS Sidebar */}
-          <div className="lg:col-span-1 space-y-3">
-            <Button
-              variant={activeTab === 'degrees' ? 'default' : 'ghost'}
-              className={cn(
-                'justify-start font-semibold w-full',
-                activeTab === 'degrees' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'text-muted-foreground hover:text-foreground',
-              )}
-              onClick={() => setActiveTab('degrees')}
-            >
-              <Award className="h-4 w-4 mr-2" />
-              Degrees &amp; Programs
-            </Button>
-            <Button
-              variant={activeTab === 'settings' ? 'default' : 'ghost'}
-              className={cn(
-                'justify-start font-semibold w-full',
-                activeTab === 'settings' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'text-muted-foreground hover:text-foreground',
-              )}
-              onClick={() => setActiveTab('settings')}
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </Button>
-          </div>
+        <AcademicsDetailLayout
+          tabs={[
+            { id: 'overview', label: 'Overview', icon: Building2 },
+            { id: 'degrees', label: 'Degrees', icon: GraduationCap },
+            { id: 'settings', label: 'Settings', icon: Settings },
+          ]}
+          activeTab={activeTab}
+          onTabChange={(tab) => setActiveTab(tab as 'overview' | 'degrees' | 'settings')}
+        >
+          {activeTab === 'overview' && (
+            <Card className="shadow-sm border-border">
+              <CardHeader className="border-b border-border bg-muted/30">
+                <CardTitle className="text-base font-bold">Department Overview</CardTitle>
+                <CardDescription className="text-xs">Key information about this department.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Department Name</Label>
+                    <p className="text-sm font-semibold text-foreground">{department.name}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Department Code</Label>
+                    <p className="text-sm font-mono font-medium text-foreground bg-muted px-2 py-1 rounded w-fit">{department.code}</p>
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Description</Label>
+                    <p className="text-sm text-muted-foreground">
+                      {department.description || 'No description provided.'}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Parent Faculty</Label>
+                    {faculty ? (
+                      <Link
+                        href={`/admin/academics/faculties/${faculty.id}`}
+                        className="text-sm font-semibold text-primary hover:underline"
+                      >
+                        {faculty.name}
+                      </Link>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">—</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Total Degrees</Label>
+                    <p className="text-sm font-semibold text-foreground">
+                      {degrees.length} ({degrees.filter((d) => d.is_active).length} active)
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Status</Label>
+                    <div>
+                      <Badge variant={department.is_active ? 'success' : 'secondary'} className="text-sm">
+                        {department.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Last Updated</Label>
+                    <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      {fmt(department.updated_at)}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-          {/* RHS Content */}
-          <div className="lg:col-span-3 space-y-6">
-          {activeTab === 'degrees' ? (
+          {activeTab === 'degrees' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
@@ -573,42 +600,24 @@ export default function DepartmentDetailPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-red-100 dark:border-red-900/30 overflow-hidden">
-            <CardHeader className="bg-red-50/50 dark:bg-red-900/10 border-b border-red-100 dark:border-red-900/20">
-              <div className="flex items-center gap-3 text-red-600 dark:text-red-400">
-                <ShieldAlert className="h-5 w-5" />
-                <div>
-                  <CardTitle className="text-base font-bold">Danger Zone</CardTitle>
-                  <CardDescription className="text-xs text-red-500/70">Proceed with caution. These actions may affect all degrees under this department.</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-bold text-foreground">
-                    {department.is_active ? 'Deactivate Department' : 'Reactivate Department'}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {department.is_active
-                      ? 'All degrees under this department will be affected.'
-                      : 'Restore visibility and access for this department and its degrees.'}
-                  </p>
-                </div>
-                <Button
-                  variant={department.is_active ? 'destructive' : 'secondary'}
-                  className="font-bold whitespace-nowrap"
-                  onClick={handleToggleDepartmentStatus}
-                >
-                  {department.is_active ? 'Deactivate' : 'Reactivate'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <DangerZone
+            entityName={department.name}
+            entityType="department"
+            isActive={department.is_active}
+            onDeactivate={async () => {
+              await departmentsApi.deactivate(department.id);
+              setDepartment((prev) => prev ? { ...prev, is_active: false } : prev);
+              toast.success('Department deactivated', department.name);
+            }}
+            onReactivate={async () => {
+              await departmentsApi.reactivate(department.id);
+              setDepartment((prev) => prev ? { ...prev, is_active: true } : prev);
+              toast.success('Department reactivated', department.name);
+            }}
+          />
         </div>
       )}
-          </div>
-        </div>
+        </AcademicsDetailLayout>
       )}
 
       {/* Dialogs */}
