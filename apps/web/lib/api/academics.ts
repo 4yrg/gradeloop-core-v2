@@ -28,6 +28,8 @@ import type {
   Batch,
   BatchTreeNode,
   BatchMember,
+  BatchMemberDetail,
+  BulkAddBatchMembersRequest,
   Semester,
   CourseInstance,
   CourseInstructor,
@@ -448,6 +450,16 @@ export const batchesApi = {
     return [];
   },
 
+  getMembersDetailed: async (batchId: string): Promise<BatchMemberDetail[]> => {
+    const { data } = await axiosInstance.get(
+      `/batches/${batchId}/members/detailed`,
+    );
+    if (Array.isArray(data)) return data as BatchMemberDetail[];
+    if (Array.isArray(data?.members))
+      return data.members as BatchMemberDetail[];
+    return [];
+  },
+
   getCourseInstances: async (batchId: string): Promise<CourseInstance[]> => {
     const { data } = await axiosInstance.get(
       `/batches/${batchId}/course-instances`,
@@ -473,11 +485,23 @@ export const batchMembersApi = {
   remove: async (batchId: string, userId: string): Promise<void> => {
     await axiosInstance.delete(`/batch-members/${batchId}/${userId}`);
   },
+
+  addBulk: async (req: BulkAddBatchMembersRequest): Promise<void> => {
+    await axiosInstance.post("/batch-members/bulk", req);
+  },
 };
 
 // ── Course Instances ──────────────────────────────────────────────────────────
 
 export const courseInstancesApi = {
+  listByCourse: async (courseId: string): Promise<CourseInstance[]> => {
+    const { data } = await axiosInstance.get(`/courses/${courseId}/course-instances`);
+    if (Array.isArray(data)) return data as CourseInstance[];
+    if (Array.isArray(data?.course_instances))
+      return data.course_instances as CourseInstance[];
+    return [];
+  },
+
   create: async (req: CreateCourseInstanceRequest): Promise<CourseInstance> => {
     const { data } = await axiosInstance.post<CourseInstance>(
       "/course-instances",
@@ -520,6 +544,10 @@ export const courseInstancesApi = {
     if (Array.isArray(data?.enrollments))
       return data.enrollments as Enrollment[];
     return [];
+  },
+
+  delete: async (instanceId: string): Promise<void> => {
+    await axiosInstance.delete(`/course-instances/${instanceId}`);
   },
 };
 

@@ -1,51 +1,5 @@
 services:
   # =============================================================================
-  # PostgreSQL 16 + pgvector  (CIPAS dedicated database)
-  # =============================================================================
-  cipas-postgres:
-    image: pgvector/pgvector:pg16
-    container_name: cipas-postgres
-    restart: unless-stopped
-
-    environment:
-      POSTGRES_DB: cipas_db
-      POSTGRES_USER: cipas
-      POSTGRES_PASSWORD: ${CIPAS_DB_PASSWORD:-cipas_secret}
-      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
-      # Tuning: raise shared_buffers and work_mem for bulk INSERT workloads.
-      # These are conservative values suitable for a Compose dev environment.
-      # In production, tune via postgresql.conf or environment overrides.
-      POSTGRES_SHARED_BUFFERS: "256MB"
-
-    ports:
-      # Exposed on host port 5435 to avoid colliding with any existing
-      # PostgreSQL instance on the default 5432 port.
-      - "5435:5432"
-
-    volumes:
-      - cipas-pg-data:/var/lib/postgresql/data
-
-    command: >
-      postgres
-        -c shared_buffers=256MB
-        -c work_mem=16MB
-        -c maintenance_work_mem=128MB
-        -c max_connections=100
-        -c log_min_duration_statement=500
-        -c log_statement=none
-        -c timezone=UTC
-
-    networks:
-      - gradeloop-network
-
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        compress: "true"
-
-  # =============================================================================
   # Traefik API Gateway
   # =============================================================================
   traefik:
@@ -98,9 +52,15 @@ services:
       - "traefik.http.middlewares.login-ratelimit.ratelimit.average=20"
       - "traefik.http.middlewares.login-ratelimit.ratelimit.period=1m"
       - "traefik.http.middlewares.login-ratelimit.ratelimit.burst=10"
+      # CORS Middlewares
+      - "traefik.http.middlewares.iam-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,PATCH,OPTIONS"
+      - "traefik.http.middlewares.iam-cors.headers.accesscontrolalloworiginlist=http://localhost:3000"
+      - "traefik.http.middlewares.iam-cors.headers.accesscontrolallowheaders=Origin,Content-Type,Accept,Authorization,X-Request-ID,X-Requested-With,X-HTTP-Method-Override"
+      - "traefik.http.middlewares.iam-cors.headers.accesscontrolallowcredentials=true"
+      - "traefik.http.middlewares.iam-cors.headers.addvaryheader=true"
       # Apply middlewares
-      - "traefik.http.routers.iam.middlewares=limit,global-ratelimit"
-      - "traefik.http.routers.iam-login.middlewares=limit,login-ratelimit"
+      - "traefik.http.routers.iam.middlewares=limit,global-ratelimit,iam-cors"
+      - "traefik.http.routers.iam-login.middlewares=limit,login-ratelimit,iam-cors"
 
     env_file:
       - .env
@@ -215,17 +175,20 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.academic.rule=PathPrefix(`/api/v1/departments`) || PathPrefix(`/api/v1/faculties`) || PathPrefix(`/api/v1/degrees`) || PathPrefix(`/api/v1/specializations`) || PathPrefix(`/api/v1/batches`) || PathPrefix(`/api/v1/batch-members`) || PathPrefix(`/api/v1/course-instances`) || PathPrefix(`/api/v1/course-instructors`) || PathPrefix(`/api/v1/enrollments`) || PathPrefix(`/api/v1/courses`) || PathPrefix(`/api/v1/semesters`) || PathPrefix(`/api/v1/instructor-courses`) || PathPrefix(`/api/v1/debug`)"
-      - "traefik.http.routers.academic.priority=100"
       - "traefik.http.routers.academic.entrypoints=web"
       - "traefik.http.services.academic-service.loadbalancer.server.port=8083"
-      # Request Size Limiting (1MB)
+      # Middlewares
       - "traefik.http.middlewares.academic-limit.buffering.maxRequestBodyBytes=1048576"
-      # Rate Limiting
       - "traefik.http.middlewares.academic-ratelimit.ratelimit.average=500"
       - "traefik.http.middlewares.academic-ratelimit.ratelimit.period=1m"
       - "traefik.http.middlewares.academic-ratelimit.ratelimit.burst=50"
+      - "traefik.http.middlewares.academic-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,PATCH,OPTIONS"
+      - "traefik.http.middlewares.academic-cors.headers.accesscontrolalloworiginlist=http://localhost:3000"
+      - "traefik.http.middlewares.academic-cors.headers.accesscontrolallowheaders=Origin,Content-Type,Accept,Authorization,X-Request-ID,X-Requested-With"
+      - "traefik.http.middlewares.academic-cors.headers.accesscontrolallowcredentials=true"
+      - "traefik.http.middlewares.academic-cors.headers.addvaryheader=true"
       # Apply middlewares
-      - "traefik.http.routers.academic.middlewares=academic-limit,academic-ratelimit"
+      - "traefik.http.routers.academic.middlewares=academic-limit,academic-ratelimit,academic-cors"
 
     env_file:
       - .env
@@ -338,109 +301,6 @@ services:
         compress: "true"
 
   # =============================================================================
-  # CIPAS Service (Python FastAPI — Code Integrity Analysis & Plagiarism-detection)
-  # =============================================================================
-  cipas-service:
-    build:
-      context: ./apps/services/cipas-service
-      dockerfile: Dockerfile
-    volumes:
-      - ./apps/services/cipas-service/src:/app/src
-      # Mount models directory to access pre-trained models
-      - ./apps/services/cipas-service/clone_detection/models:/app/clone_detection/models:ro
-    command:
-      [
-        "/opt/venv/bin/uvicorn",
-        "cipas.main:app",
-        "--host",
-        "0.0.0.0",
-        "--port",
-        "8085",
-        "--loop",
-        "uvloop",
-        "--http",
-        "httptools",
-        "--workers",
-        "1",
-        "--reload",
-      ]
-    container_name: cipas-service
-    restart: unless-stopped
-    labels:
-      - "traefik.enable=true"
-      # Route all /api/v1/cipas/* traffic to this service.
-      # Also expose health and ready endpoints for monitoring.
-      - "traefik.http.routers.cipas.rule=PathPrefix(`/api/v1/cipas`)"
-      - "traefik.http.routers.cipas.entrypoints=web"
-      - "traefik.http.services.cipas-service.loadbalancer.server.port=8085"
-      # Request Size Limiting: 50 MB to accommodate batches of up to 200 × 1 MB files.
-      # This is enforced at the proxy layer BEFORE bytes reach the service.
-      # The service enforces its own per-file (1 MB) and batch (50 MB) limits too.
-      - "traefik.http.middlewares.cipas-limit.buffering.maxRequestBodyBytes=52428800"
-      # Rate Limiting: 200 batch submissions per minute with burst of 20.
-      # Adjust per-deployment based on observed traffic patterns.
-      - "traefik.http.middlewares.cipas-ratelimit.ratelimit.average=200"
-      - "traefik.http.middlewares.cipas-ratelimit.ratelimit.period=1m"
-      - "traefik.http.middlewares.cipas-ratelimit.ratelimit.burst=20"
-      # Apply both middlewares to all CIPAS routes.
-      - "traefik.http.routers.cipas.middlewares=cipas-limit,cipas-ratelimit"
-
-    env_file:
-      - .env
-
-    environment:
-      # ── Runtime ──────────────────────────────────────────────────────────────
-      - CIPAS_ENV=${CIPAS_ENV:-development}
-      - CIPAS_LOG_LEVEL=${CIPAS_LOG_LEVEL:-INFO}
-      - CIPAS_PORT=8085
-      - CIPAS_HOST=0.0.0.0
-      # ── Paths ────────────────────────────────────────────────────────────────
-      - CIPAS_PROJECT_ROOT=/app
-      - CIPAS_DATA_DIR=/app/datasets
-
-      # ── Database ─────────────────────────────────────────────────────────────
-      # Connects to the cipas-postgres service on the internal Compose network.
-      # Uses the service name as the hostname (Docker DNS resolution).
-      - CIPAS_DATABASE_URL=postgresql://cipas:${CIPAS_DB_PASSWORD:-cipas_secret}@cipas-postgres:5432/cipas_db
-      - CIPAS_DB_MIN_POOL_SIZE=${CIPAS_DB_MIN_POOL_SIZE:-5}
-      - CIPAS_DB_MAX_POOL_SIZE=${CIPAS_DB_MAX_POOL_SIZE:-20}
-      - CIPAS_DB_COMMAND_TIMEOUT=30.0
-
-      # ── Process pool ─────────────────────────────────────────────────────────
-      # 0 = os.cpu_count() — auto-detects the number of available CPU cores.
-      # Override explicitly in resource-constrained environments (e.g. 2 for a
-      # 2-core container) to prevent over-subscription.
-      - CIPAS_PARSER_WORKERS=${CIPAS_PARSER_WORKERS:-0}
-      - CIPAS_MAX_CONCURRENT_BATCHES=${CIPAS_MAX_CONCURRENT_BATCHES:-4}
-      - CIPAS_BATCH_SEMAPHORE_TIMEOUT=30.0
-      - CIPAS_PARSE_TASK_TIMEOUT=30.0
-      - CIPAS_WORKER_MAX_TASKS_PER_CHILD=500
-
-      # ── File limits ───────────────────────────────────────────────────────────
-      - CIPAS_MAX_FILES_PER_BATCH=200
-      - CIPAS_MAX_FILE_SIZE_BYTES=1048576
-      - CIPAS_MAX_TOTAL_BATCH_BYTES=52428800
-      - CIPAS_MAX_GRANULE_AST_NODES=10000
-
-    expose:
-      # Port 8085 is the CIPAS HTTP port (avoids collision with Traefik's 8000).
-      # Only exposed internally; Traefik proxies external traffic.
-      - "8085"
-
-    depends_on:
-      - cipas-postgres
-
-    networks:
-      - gradeloop-network
-
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        compress: "true"
-
-  # =============================================================================
   # CIPAS Syntactics Service (Python FastAPI — Syntactic Clone Detection)
   # =============================================================================
   cipas-syntactics:
@@ -477,8 +337,7 @@ services:
       - gradeloop-network
 
     healthcheck:
-      test:
-        ["CMD", "curl", "-f", "http://localhost:${CIPAS_SYN_SVC_PORT}/api/v1/syntactics/ready"]
+      test: [ "CMD", "curl", "-f", "http://localhost:${CIPAS_SYN_SVC_PORT}/api/v1/syntactics/ready" ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -528,13 +387,7 @@ services:
       - gradeloop-network
 
     healthcheck:
-      test:
-        [
-          "CMD",
-          "curl",
-          "-f",
-          "http://localhost:${CIPAS_SEM_SVC_PORT}/api/v1/semantics/ready",
-        ]
+      test: [ "CMD", "curl", "-f", "http://localhost:${CIPAS_SEM_SVC_PORT}/api/v1/semantics/ready" ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -615,13 +468,7 @@ services:
       - gradeloop-network
 
     healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8086/api/v1/acafs/health')",
-        ]
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8086/api/v1/acafs/health')" ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -733,12 +580,6 @@ networks:
 # =============================================================================
 volumes:
   minio-data:
-    driver: local
-
-  # Persistent volume for CIPAS PostgreSQL data.
-  # Data survives container restarts and re-deployments.
-  # To reset the DB (e.g. during development): docker volume rm cipas-pg-data
-  cipas-pg-data:
     driver: local
 
 #  redis-data:
