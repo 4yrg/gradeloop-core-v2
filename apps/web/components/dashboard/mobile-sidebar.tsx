@@ -20,7 +20,8 @@ import {
   ChevronDown,
   ClipboardList,
   Users2,
-  Plus
+  Plus,
+  User,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/stores/authStore";
 import { useLogoutMutation } from "@/lib/hooks/useAuthMutation";
@@ -132,9 +133,7 @@ const instructorNavItems: NavItem[] = [
 const studentNavItems: NavItem[] = [
   { title: "Dashboard", href: "/student", icon: LayoutDashboard },
   { title: "Assignments", href: "/student/assignments", icon: FileText },
-  { title: "Grades", href: "/student/grades", icon: BarChart3 },
-  { title: "Calendar", href: "/student/calendar", icon: Calendar },
-  { title: "Settings", href: "/student/settings", icon: Settings },
+  { title: "Profile", href: "/student/profile", icon: User },
 ];
 
 function resolveRoleConfig(roleName: string | undefined): {
