@@ -12,8 +12,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [primaryCollapsed, setPrimaryCollapsed] = React.useState(true);
-  const [secondaryCollapsed, setSecondaryCollapsed] = React.useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   return (
@@ -22,10 +21,8 @@ export default function DashboardLayout({
         {/* Desktop Sidebar */}
         <aside className="hidden lg:block">
           <Sidebar
-            primaryCollapsed={primaryCollapsed}
-            onPrimaryCollapsedChange={setPrimaryCollapsed}
-            secondaryCollapsed={secondaryCollapsed}
-            onSecondaryCollapsedChange={setSecondaryCollapsed}
+            collapsed={sidebarCollapsed}
+            onCollapsedChange={setSidebarCollapsed}
           />
         </aside>
 

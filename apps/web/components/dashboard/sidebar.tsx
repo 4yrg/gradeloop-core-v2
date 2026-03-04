@@ -30,7 +30,9 @@ import {
   Plus,
   ChevronLeft,
   ChevronRight,
-  Menu
+  Menu,
+  UserCog,
+  Key
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -67,9 +69,14 @@ const adminNavItems: NavItem[] = [
     icon: LayoutDashboard,
   },
   {
-    title: "Users",
+    title: "Users Management",
     href: "/admin/users",
     icon: Users,
+    subItems: [
+      { title: "Users", href: "/admin/users", icon: Users },
+      { title: "Roles", href: "/admin/users/roles", icon: UserCog },
+      { title: "Permissions", href: "/admin/users/permissions", icon: Key },
+    ],
   },
   {
     title: "Academics",
@@ -141,13 +148,11 @@ const instructorNavItems: NavItem[] = [
 ];
 
 interface SidebarProps {
-  primaryCollapsed: boolean;
-  onPrimaryCollapsedChange: (collapsed: boolean) => void;
-  secondaryCollapsed: boolean;
-  onSecondaryCollapsedChange: (collapsed: boolean) => void;
+  collapsed: boolean;
+  onCollapsedChange: (collapsed: boolean) => void;
 }
 
-export function Sidebar({ primaryCollapsed, onPrimaryCollapsedChange, secondaryCollapsed, onSecondaryCollapsedChange }: SidebarProps) {
+export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
   const { mutate: logout, isLoading: isLoggingOut } = useLogoutMutation();
@@ -178,25 +183,18 @@ export function Sidebar({ primaryCollapsed, onPrimaryCollapsedChange, secondaryC
   return (
     <div className="flex h-screen overflow-hidden text-sidebar-foreground transition-all duration-300">
       {/* Primary Sidebar */}
-      <div className={cn(
-        "relative z-20 flex flex-col items-center border-r bg-sidebar text-sidebar-foreground py-4 transition-all duration-300",
-        primaryCollapsed ? "w-16" : "w-64 items-start"
-      )}>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => onPrimaryCollapsedChange(!primaryCollapsed)}
-          className="absolute -right-3 top-6 z-50 h-6 w-6 rounded-full border bg-background text-foreground shadow-sm hover:bg-accent flex items-center justify-center p-0"
-        >
-          {primaryCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        </Button>
-
+      <div
+        className={cn(
+          "relative z-20 flex flex-col items-center border-r bg-sidebar text-sidebar-foreground py-4 transition-all duration-300",
+          collapsed ? "w-16" : "w-64 items-start"
+        )}
+      >
         {/* Logo */}
-        <div className={cn("flex w-full mb-6", primaryCollapsed ? "justify-center" : "justify-start px-4")}>
+        <div className={cn("flex w-full mb-6", collapsed ? "justify-center" : "justify-start px-4")}>
           <Link href={homeHref} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm transition-transform hover:scale-105">
             <GraduationCap className="h-6 w-6" />
           </Link>
-          {!primaryCollapsed && (
+          {!collapsed && (
             <div className="ml-3 flex flex-col justify-center overflow-hidden">
               <span className="font-bold text-lg leading-tight truncate">Gradeloop</span>
             </div>
@@ -204,7 +202,7 @@ export function Sidebar({ primaryCollapsed, onPrimaryCollapsedChange, secondaryC
         </div>
 
         {/* Primary Navigation Icons */}
-        <nav className={cn("flex flex-1 flex-col gap-3 w-full", primaryCollapsed ? "px-2 items-center" : "px-4 items-stretch overflow-y-auto")}>
+        <nav className={cn("flex flex-1 flex-col gap-3 w-full", collapsed ? "px-2 items-center" : "px-4 items-stretch overflow-y-auto")}>
           {navItems.map((item) => {
             const isActive = activeRoot.title === item.title;
             const Icon = item.icon;
@@ -214,15 +212,15 @@ export function Sidebar({ primaryCollapsed, onPrimaryCollapsedChange, secondaryC
                   variant="ghost"
                   className={cn(
                     "h-12 w-full flex items-center rounded-xl transition-colors",
-                    primaryCollapsed ? "justify-center p-0" : "justify-start px-4 gap-3",
+                    collapsed ? "justify-center p-0" : "justify-start px-4 gap-3",
                     isActive
                       ? "bg-primary/10 text-primary font-semibold"
                       : "text-muted-foreground hover:bg-accent hover:text-foreground"
                   )}
-                  title={primaryCollapsed ? item.title : undefined}
+                  title={collapsed ? item.title : undefined}
                 >
                   <Icon className="h-5 w-5 shrink-0" />
-                  {!primaryCollapsed && <span className="truncate">{item.title}</span>}
+                  {!collapsed && <span className="truncate">{item.title}</span>}
                 </Button>
               </Link>
             );
@@ -230,19 +228,19 @@ export function Sidebar({ primaryCollapsed, onPrimaryCollapsedChange, secondaryC
         </nav>
 
         {/* Bottom Primary Actions */}
-        <div className={cn("mt-auto flex flex-col gap-3 w-full", primaryCollapsed ? "px-2 items-center" : "px-4 items-stretch")}>
-          <Button variant="ghost" className={cn("h-12 w-full rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground", primaryCollapsed ? "justify-center p-0" : "justify-start px-4 gap-3")}>
+        <div className={cn("mt-auto flex flex-col gap-3 w-full", collapsed ? "px-2 items-center" : "px-4 items-stretch")}>
+          <Button variant="ghost" className={cn("h-12 w-full rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground", collapsed ? "justify-center p-0" : "justify-start px-4 gap-3")}>
             <Plus className="h-5 w-5 shrink-0" />
-            {!primaryCollapsed && <span className="truncate">Create New</span>}
+            {!collapsed && <span className="truncate">Create New</span>}
           </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className={cn("h-12 w-full rounded-xl hover:bg-sidebar-accent border-0", primaryCollapsed ? "p-0 justify-center" : "px-3 justify-start gap-3")}>
+              <Button variant="ghost" className={cn("h-12 w-full rounded-xl hover:bg-sidebar-accent border-0", collapsed ? "p-0 justify-center" : "px-3 justify-start gap-3")}>
                 <Avatar className="h-8 w-8 ring-2 ring-primary/20 shrink-0">
                   <AvatarFallback className="bg-primary/20 text-xs text-primary">{initials}</AvatarFallback>
                 </Avatar>
-                {!primaryCollapsed && (
+                {!collapsed && (
                   <div className="flex flex-col items-start overflow-hidden text-left flex-1">
                     <span className="text-sm font-medium text-foreground truncate w-full">{displayName}</span>
                     {isEmployee && <span className="text-xs text-muted-foreground truncate w-full">Instructor</span>}
@@ -272,34 +270,38 @@ export function Sidebar({ primaryCollapsed, onPrimaryCollapsedChange, secondaryC
       </div>
 
       {/* Secondary Sidebar Area */}
-      <div className={cn("relative transition-all duration-300", secondaryCollapsed ? "w-0" : "w-64")}>
+      <div
+        className={cn("relative transition-all duration-300 z-10", collapsed ? "w-12" : "w-64")}
+      >
         <div className={cn(
-          "absolute inset-y-0 left-0 flex w-64 flex-col border-r bg-sidebar-background transition-transform duration-300",
-          secondaryCollapsed ? "-translate-x-full" : "translate-x-0"
+          "absolute inset-y-0 left-0 flex flex-col border-r bg-sidebar-background transition-all duration-300 h-full",
+          collapsed ? "w-12 items-center" : "w-64 items-start"
         )}>
-          <div className="flex h-16 items-center px-6">
-            <h2 className="text-lg font-semibold tracking-tight text-foreground font-heading">{activeRoot?.title || "Overview"}</h2>
+          <div className={cn("flex h-16 items-center w-full", collapsed ? "justify-center" : "px-6")}>
+            {!collapsed && <h2 className="text-lg font-semibold tracking-tight text-foreground font-heading">{activeRoot?.title || "Overview"}</h2>}
           </div>
-          <ScrollArea className="flex-1 px-4">
+          <ScrollArea className={cn("flex-1", collapsed ? "px-1 w-full" : "px-4 w-full")}>
             <div className="flex flex-col gap-6 py-2">
               {/* Contextual Sub-navigation */}
               {hasSecondaryContent ? (
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1 w-full items-center">
                   {activeRoot.subItems!.map((subItem) => {
                     const isChildActive = pathname === subItem.href || pathname.startsWith(subItem.href + "/");
                     return (
-                      <Link key={subItem.title} href={subItem.href}>
+                      <Link key={subItem.title} href={subItem.href} className="w-full text-center">
                         <Button
                           variant="ghost"
                           className={cn(
-                            "w-full justify-start text-sm h-9 rounded-lg px-3 transition-all",
+                            "w-full transition-all rounded-lg",
+                            collapsed ? "h-8 p-0 flex justify-center items-center" : "h-9 justify-start px-3 text-sm",
                             isChildActive
                               ? "bg-primary/10 text-primary font-medium"
                               : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
                           )}
+                          title={collapsed ? subItem.title : undefined}
                         >
-                          {subItem.icon && <subItem.icon className="mr-2 h-4 w-4" />}
-                          {subItem.title}
+                          {subItem.icon && <subItem.icon className={cn("shrink-0", collapsed ? "h-4 w-4" : "h-4 w-4 mr-2")} />}
+                          {!collapsed && <span className="truncate">{subItem.title}</span>}
                         </Button>
                       </Link>
                     )
@@ -310,17 +312,17 @@ export function Sidebar({ primaryCollapsed, onPrimaryCollapsedChange, secondaryC
           </ScrollArea>
         </div>
 
-        {/* Toggle Secondary Sidebar Button */}
+        {/* Toggle Sidebar Button */}
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => onSecondaryCollapsedChange(!secondaryCollapsed)}
+          onClick={() => onCollapsedChange(!collapsed)}
           className={cn(
-            "absolute top-16 z-50 h-6 w-6 rounded-full border bg-background text-foreground shadow-sm hover:bg-accent transition-all duration-300 flex items-center justify-center p-0",
-            secondaryCollapsed ? "left-[-0.75rem]" : "left-[calc(16rem-0.75rem)]"
+            "absolute top-6 z-50 h-6 w-6 rounded-full border bg-background text-foreground shadow-sm hover:bg-accent transition-all duration-300 flex items-center justify-center p-0",
+            collapsed ? "left-[calc(3rem-0.75rem)]" : "left-[calc(16rem-0.75rem)]"
           )}
         >
-          {secondaryCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </Button>
       </div>
     </div>
