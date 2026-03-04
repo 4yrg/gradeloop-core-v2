@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/4yrg/gradeloop-core-v2/assessment-service/internal/client"
 	"github.com/4yrg/gradeloop-core-v2/assessment-service/internal/domain"
 	"github.com/4yrg/gradeloop-core-v2/assessment-service/internal/dto"
@@ -14,6 +13,7 @@ import (
 	"github.com/4yrg/gradeloop-core-v2/assessment-service/internal/repository"
 	"github.com/4yrg/gradeloop-core-v2/assessment-service/internal/storage"
 	"github.com/4yrg/gradeloop-core-v2/assessment-service/internal/utils"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -47,6 +47,13 @@ type SubmissionService interface {
 	ListSubmissions(
 		assignmentID uuid.UUID,
 		userID, groupID *uuid.UUID,
+	) ([]domain.Submission, error)
+
+	// ListAllSubmissionsForAssignment returns every submission for the given
+	// assignment regardless of owner — intended for instructor/admin use where
+	// no user_id or group_id scope is required.
+	ListAllSubmissionsForAssignment(
+		assignmentID uuid.UUID,
 	) ([]domain.Submission, error)
 
 	// GetLatestSubmission returns the submission with is_latest=true for the
@@ -395,6 +402,32 @@ func (s *submissionService) ListSubmissions(
 	submissions, err := s.submissionRepo.ListSubmissions(assignmentID, userID, groupID)
 	if err != nil {
 		s.logger.Error("failed to list submissions",
+			zap.String("assignment_id", assignmentID.String()),
+			zap.Error(err),
+		)
+		return nil, utils.ErrInternal("failed to list submissions", err)
+	}
+
+	return submissions, nil
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ListAllSubmissionsForAssignment
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ListAllSubmissionsForAssignment returns every submission version for the
+// given assignment, across all owners, ordered newest-first.  No user_id or
+// group_id filter is applied — this is the instructor/admin view.
+func (s *submissionService) ListAllSubmissionsForAssignment(
+	assignmentID uuid.UUID,
+) ([]domain.Submission, error) {
+	if assignmentID == uuid.Nil {
+		return nil, utils.ErrBadRequest("assignment_id is required")
+	}
+
+	submissions, err := s.submissionRepo.ListSubmissions(assignmentID, nil, nil)
+	if err != nil {
+		s.logger.Error("failed to list all submissions for assignment",
 			zap.String("assignment_id", assignmentID.String()),
 			zap.Error(err),
 		)
