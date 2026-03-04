@@ -54,9 +54,14 @@ export default function CourseInstanceLayout({
         { name: "Students", href: `${basePath}/students`, icon: Users },
     ];
 
+    // Hide the course-level tab bar when inside an assignment detail page —
+    // the assignment layout renders its own secondary bar there.
+    const isInsideAssignment = /\/assignments\/[^/]+/.test(pathname);
+
     return (
         <div className="flex-1 flex flex-col overflow-hidden w-full animate-in fade-in duration-300">
-            {/* Horizontal Header / Tabs */}
+            {/* Horizontal Header / Tabs — hidden when inside an assignment detail page */}
+            {!isInsideAssignment && (
             <div className="border-b border-border/40 bg-background/95 backdrop-blur z-10 sticky top-0 px-4 md:px-8 pt-6 shrink-0">
                 <div className="max-w-6xl mx-auto w-full">
                     <Button variant="ghost" size="sm" asChild className="mb-4 h-8 px-2 text-muted-foreground hover:text-foreground -ml-2">
@@ -98,6 +103,7 @@ export default function CourseInstanceLayout({
                     </div>
                 </div>
             </div>
+            )}
 
             {/* Content Area */}
             <div className="flex-1 overflow-y-auto w-full bg-muted/5">
