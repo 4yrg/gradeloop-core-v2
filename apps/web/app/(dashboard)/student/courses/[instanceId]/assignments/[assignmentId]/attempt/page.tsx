@@ -135,16 +135,16 @@ export default function StudentAttemptPage() {
 
     if (isLoading) {
         return (
-            <div className="flex flex-col gap-4 h-full p-6">
+            <div className="fixed inset-0 z-50 bg-background flex flex-col gap-4 p-6">
                 <Skeleton className="h-8 w-48" />
-                <Skeleton className="h-full rounded-xl" />
+                <Skeleton className="flex-1 rounded-xl" />
             </div>
         );
     }
 
     if (!assignment) {
         return (
-            <div className="flex flex-col gap-4 p-8">
+            <div className="fixed inset-0 z-50 bg-background flex flex-col gap-4 p-8">
                 <Button variant="ghost" className="w-fit pl-0" onClick={() => router.back()}>
                     <ArrowLeft className="mr-2 h-4 w-4" /> Back
                 </Button>
@@ -160,7 +160,7 @@ export default function StudentAttemptPage() {
     const languageId = getLanguageId(assignment.code);
 
     return (
-        <div className="flex flex-col h-[calc(100vh-4rem)] -mx-6 -mt-6">
+        <div className="fixed inset-0 z-50 bg-background flex flex-col">
             {/* Top bar */}
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/60 bg-background shrink-0">
                 <div className="flex items-center gap-3">
