@@ -422,3 +422,29 @@ export interface BatchListResponse {
 export interface AcademicFormErrors {
   [field: string]: string | undefined;
 }
+
+// ─── Student-facing enriched enrollment ──────────────────────────────────────
+
+/**
+ * Returned by GET /student-courses/me
+ * Enriches the base Enrollment with course + semester metadata.
+ */
+export interface StudentCourseEnrollment {
+  course_instance_id: string;
+  course_id: string;
+  course_code: string;
+  course_title: string;
+  course_description?: string;
+  course_credits?: number;
+  semester_id: string;
+  semester_name: string;
+  semester_term: string;
+  semester_year?: number;
+  semester_start_date?: string;
+  semester_end_date?: string;
+  batch_id?: string;
+  batch_name?: string;
+  status: EnrollmentStatus;
+  final_grade?: string;
+  enrolled_at: string;
+}

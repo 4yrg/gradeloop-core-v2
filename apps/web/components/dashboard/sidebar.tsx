@@ -47,6 +47,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { StudentCourseNav } from "@/components/dashboard/student-course-nav";
 
 interface SubNavLink {
   title: string;
@@ -59,6 +60,8 @@ interface NavItem {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   subItems?: SubNavLink[];
+  /** When true, the secondary panel is rendered dynamically instead of from subItems */
+  hasDynamicSecondary?: boolean;
 }
 
 const adminNavItems: NavItem[] = [
@@ -129,6 +132,25 @@ const instructorNavItems: NavItem[] = [
   },
 ];
 
+const studentNavItems: NavItem[] = [
+  {
+    title: "Dashboard",
+    href: "/student",
+    icon: LayoutDashboard,
+  },
+  {
+    title: "My Courses",
+    href: "/student/courses",
+    icon: BookOpen,
+    hasDynamicSecondary: true,
+  },
+  {
+    title: "Submissions",
+    href: "/student/submissions",
+    icon: ClipboardList,
+  },
+];
+
 interface SidebarProps {
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
@@ -139,9 +161,22 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
   const user = useAuthStore((s) => s.user);
   const { mutate: logout, isLoading: isLoggingOut } = useLogoutMutation();
 
-  const isEmployee = user?.role_name?.toLowerCase().trim() === "employee";
-  const navItems = isEmployee ? instructorNavItems : adminNavItems;
-  const homeHref = isEmployee ? "/instructor" : "/admin";
+  const isStudent = pathname.startsWith("/student");
+  const isEmployee = pathname.startsWith("/instructor");
+
+  const navItems = isEmployee
+    ? instructorNavItems
+    : isStudent
+      ? studentNavItems
+      : adminNavItems;
+
+  const homeHref = isEmployee
+    ? "/instructor"
+    : isStudent
+      ? "/student"
+      : "/admin";
+
+  const roleLabel = isEmployee ? "Instructor" : isStudent ? "Student" : "Admin";
 
   const displayName = user?.full_name || user?.email || "—";
   const initials = user?.full_name
@@ -152,9 +187,6 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
         .slice(0, 2)
         .toUpperCase()
     : user?.email?.slice(0, 2).toUpperCase() || "??";
-  const isEmployee =
-    user?.user_type === "employee" ||
-    user?.role_name?.toLowerCase().includes("instructor");
 
   // Determine active primary item
   const activeRoot =
@@ -169,7 +201,8 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
     }) || navItems[0];
 
   const hasSecondaryContent =
-    activeRoot?.subItems && activeRoot.subItems.length > 0;
+    (activeRoot?.subItems && activeRoot.subItems.length > 0) ||
+    activeRoot?.hasDynamicSecondary === true;
   const [isHovered, setIsHovered] = React.useState(false);
 
   const isPrimaryCollapsed = hasSecondaryContent ? !isHovered : collapsed;
@@ -280,11 +313,9 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
                       <span className="text-sm font-medium text-foreground truncate w-full">
                         {displayName}
                       </span>
-                      {isEmployee && (
-                        <span className="text-xs text-muted-foreground truncate w-full">
-                          Instructor
-                        </span>
-                      )}
+                      <span className="text-xs text-muted-foreground truncate w-full">
+                        {roleLabel}
+                      </span>
                     </div>
                   )}
                 </Button>
@@ -346,32 +377,36 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
               <div className="flex flex-col gap-3 py-2 w-full items-center">
                 {/* Contextual Sub-navigation */}
                 <div className="flex flex-col gap-1 w-full">
-                  {activeRoot.subItems!.map((subItem) => {
-                    const isChildActive =
-                      pathname === subItem.href ||
-                      pathname.startsWith(subItem.href + "/");
-                    return (
-                      <Link
-                        key={subItem.title}
-                        href={subItem.href}
-                        className="w-full text-left"
-                      >
-                        <Button
-                          variant="ghost"
-                          className={cn(
-                            "h-10 w-full flex items-center rounded-lg transition-colors justify-start px-3",
-                            isChildActive
-                              ? "bg-primary/10 text-primary font-medium"
-                              : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
-                          )}
+                  {activeRoot.hasDynamicSecondary ? (
+                    <StudentCourseNav />
+                  ) : (
+                    activeRoot.subItems!.map((subItem) => {
+                      const isChildActive =
+                        pathname === subItem.href ||
+                        pathname.startsWith(subItem.href + "/");
+                      return (
+                        <Link
+                          key={subItem.title}
+                          href={subItem.href}
+                          className="w-full text-left"
                         >
-                          <span className="truncate text-sm">
-                            {subItem.title}
-                          </span>
-                        </Button>
-                      </Link>
-                    );
-                  })}
+                          <Button
+                            variant="ghost"
+                            className={cn(
+                              "h-10 w-full flex items-center rounded-lg transition-colors justify-start px-3",
+                              isChildActive
+                                ? "bg-primary/10 text-primary font-medium"
+                                : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
+                            )}
+                          >
+                            <span className="truncate text-sm">
+                              {subItem.title}
+                            </span>
+                          </Button>
+                        </Link>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </ScrollArea>

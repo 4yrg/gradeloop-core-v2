@@ -16,6 +16,7 @@ type Config struct {
 	SubmissionHandler *handler.SubmissionHandler
 	GroupHandler      *handler.GroupHandler
 	InstructorHandler *handler.InstructorHandler
+	StudentHandler    *handler.StudentHandler
 	JWTSecretKey      []byte
 }
 
@@ -129,6 +130,25 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 
 	instructorSubmissions := protected.Group("/instructor-submissions", requireEmployeeOrAdmin)
 	instructorSubmissions.Get("/assignment/:id", cfg.InstructorHandler.GetSubmissions)
+
+	// ── Student-scoped routes ────────────────────────────────────────────────
+	// Accessible to Student + Admin + Super Admin.
+	// PathPrefix: /api/v1/student-assignments — routed by Traefik
+	// PathPrefix: /api/v1/student-submissions — routed by Traefik
+	requireStudentOrAdmin := middleware.RequireAnyRole("Student", "Admin", "Super Admin")
+
+	studentAssignments := protected.Group("/student-assignments", requireStudentOrAdmin)
+	// NOTE: GET /student-assignments/me/latest must be registered BEFORE
+	// GET /student-assignments/:id so the literal path segments are not
+	// consumed as UUID parameter values.
+	studentAssignments.Get("/", cfg.StudentHandler.ListMyAssignments)
+	studentAssignments.Get("/:id", cfg.StudentHandler.GetAssignment)
+
+	studentSubmissions := protected.Group("/student-submissions", requireStudentOrAdmin)
+	// NOTE: /me/latest must be registered BEFORE /me to avoid Fiber treating
+	// "latest" as a sub-path of the /me route.
+	studentSubmissions.Get("/me/latest", cfg.StudentHandler.GetMyLatestSubmission)
+	studentSubmissions.Get("/me", cfg.StudentHandler.ListMySubmissions)
 
 	// ── Groups ────────────────────────────────────────────────────────────────
 	// Groups are accessible to all authenticated users — a student may create
