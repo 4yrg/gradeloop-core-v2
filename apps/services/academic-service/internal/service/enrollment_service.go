@@ -19,6 +19,7 @@ type EnrollmentService interface {
 	UpdateEnrollment(instanceID, userID uuid.UUID, req *dto.UpdateEnrollmentRequest, username, ipAddress, userAgent string) (*domain.Enrollment, error)
 	GetEnrollments(instanceID uuid.UUID) ([]domain.Enrollment, error)
 	GetEnrollmentsDetailed(ctx context.Context, instanceID uuid.UUID, token string) ([]dto.EnrollmentResponse, error)
+	GetMyEnrollments(userID uuid.UUID) ([]domain.Enrollment, error)
 	RemoveEnrollment(instanceID, userID uuid.UUID, username, ipAddress, userAgent string) error
 }
 
@@ -350,4 +351,23 @@ func (s *enrollmentService) RemoveEnrollment(
 		zap.String("user_id", userID.String()),
 	)
 	return nil
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GetMyEnrollments
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GetMyEnrollments returns all enrollments for the authenticated student.
+func (s *enrollmentService) GetMyEnrollments(userID uuid.UUID) ([]domain.Enrollment, error) {
+	if userID == uuid.Nil {
+		return nil, utils.ErrBadRequest("user_id is required")
+	}
+
+	enrollments, err := s.enrollmentRepo.GetByUserID(userID)
+	if err != nil {
+		s.logger.Error("failed to list student enrollments", zap.Error(err))
+		return nil, utils.ErrInternal("failed to list student enrollments", err)
+	}
+
+	return enrollments, nil
 }

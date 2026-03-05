@@ -56,6 +56,7 @@ import type {
   EnrollStudentRequest,
   UpdateEnrollmentRequest,
   AddPrerequisiteRequest,
+  StudentCourseEnrollment,
 } from "@/types/academics.types";
 
 // ── Faculties (super_admin only) ──────────────────────────────────────────────
@@ -617,6 +618,46 @@ export const instructorCoursesApi = {
     if (Array.isArray(data)) return data as CourseInstructor[];
     if (Array.isArray(data?.instructors))
       return data.instructors as CourseInstructor[];
+    return [];
+  },
+};
+
+// ── Student Courses ───────────────────────────────────────────────────────────
+
+export const studentCoursesApi = {
+  /**
+   * List all course instances the student is enrolled in,
+   * enriched with course + semester metadata.
+   * Backend: GET /student-courses/me
+   */
+  listMyEnrollments: async (): Promise<StudentCourseEnrollment[]> => {
+    const { data } = await axiosInstance.get("/student-courses/me");
+    if (Array.isArray(data)) return data as StudentCourseEnrollment[];
+    if (Array.isArray(data?.enrollments)) return data.enrollments as StudentCourseEnrollment[];
+    if (Array.isArray(data?.courses)) return data.courses as StudentCourseEnrollment[];
+    return [];
+  },
+
+  /**
+   * Get detailed information for a specific course instance
+   * along with the student's enrollment record.
+   * Backend: GET /student-courses/:instanceId
+   */
+  getCourseInstance: async (instanceId: string): Promise<StudentCourseEnrollment> => {
+    const { data } = await axiosInstance.get<StudentCourseEnrollment>(`/student-courses/${instanceId}`);
+    return data;
+  },
+
+  /**
+   * Get the instructor team for a course instance (lecturer + TAs).
+   * Backend: GET /student-courses/:instanceId/instructors
+   */
+  getCourseInstructors: async (instanceId: string): Promise<CourseInstructor[]> => {
+    const { data } = await axiosInstance.get(
+      `/student-courses/${instanceId}/instructors`,
+    );
+    if (Array.isArray(data)) return data as CourseInstructor[];
+    if (Array.isArray(data?.instructors)) return data.instructors as CourseInstructor[];
     return [];
   },
 };

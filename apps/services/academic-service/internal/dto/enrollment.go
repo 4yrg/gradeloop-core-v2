@@ -125,3 +125,28 @@ type EnrollmentResponse struct {
 	FinalGrade       string    `json:"final_grade,omitempty"`
 	EnrolledAt       time.Time `json:"enrolled_at"`
 }
+
+// StudentCourseEnrollmentResponse is returned for student-scoped course endpoints.
+// It enriches the raw enrollment with course, semester, and batch details so the
+// frontend can render a fully populated course card without additional lookups.
+type StudentCourseEnrollmentResponse struct {
+	CourseInstanceID  uuid.UUID `json:"course_instance_id"`
+	CourseID          uuid.UUID `json:"course_id"`
+	CourseCode        string    `json:"course_code"`
+	CourseTitle       string    `json:"course_title"`
+	CourseDescription string    `json:"course_description,omitempty"`
+	CourseCredits     int       `json:"course_credits"`
+
+	SemesterID        uuid.UUID `json:"semester_id"`
+	SemesterName      string    `json:"semester_name"`
+	SemesterTerm      string    `json:"semester_term"`
+	SemesterStartDate string    `json:"semester_start_date,omitempty"`
+	SemesterEndDate   string    `json:"semester_end_date,omitempty"`
+
+	BatchID   uuid.UUID `json:"batch_id,omitempty"`
+	BatchName string    `json:"batch_name,omitempty"`
+
+	Status     string    `json:"status"`
+	FinalGrade string    `json:"final_grade,omitempty"`
+	EnrolledAt time.Time `json:"enrolled_at"`
+}
