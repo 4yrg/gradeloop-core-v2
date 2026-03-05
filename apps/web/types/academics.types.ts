@@ -139,6 +139,7 @@ export interface Batch {
   start_year: number;
   end_year: number;
   is_active: boolean;
+  created_by: string;
   created_at: string;
   updated_at: string;
 }
@@ -153,6 +154,7 @@ export interface BatchTreeNode {
   start_year: number;
   end_year: number;
   is_active: boolean;
+  created_by: string;
   children: BatchTreeNode[];
 }
 
@@ -161,6 +163,21 @@ export interface BatchMember {
   user_id: string;
   status: BatchMemberStatus;
   enrolled_at: string;
+}
+
+export interface BatchMemberDetail {
+  user_id: string;
+  student_id: string;
+  full_name: string;
+  email: string;
+  avatar_url: string;
+  status: BatchMemberStatus;
+  enrolled_at: string;
+}
+
+export interface BulkAddBatchMembersRequest {
+  batch_id: string;
+  user_ids: string[];
 }
 
 export interface Semester {
@@ -356,6 +373,7 @@ export interface EnrollStudentRequest {
   course_instance_id: string;
   user_id: string;
   status: EnrollmentStatus;
+  allow_individual?: boolean; // Skip batch membership check for individual enrollments
 }
 
 export interface UpdateEnrollmentRequest {
@@ -403,4 +421,30 @@ export interface BatchListResponse {
 
 export interface AcademicFormErrors {
   [field: string]: string | undefined;
+}
+
+// ─── Student-facing enriched enrollment ──────────────────────────────────────
+
+/**
+ * Returned by GET /student-courses/me
+ * Enriches the base Enrollment with course + semester metadata.
+ */
+export interface StudentCourseEnrollment {
+  course_instance_id: string;
+  course_id: string;
+  course_code: string;
+  course_title: string;
+  course_description?: string;
+  course_credits?: number;
+  semester_id: string;
+  semester_name: string;
+  semester_term: string;
+  semester_year?: number;
+  semester_start_date?: string;
+  semester_end_date?: string;
+  batch_id?: string;
+  batch_name?: string;
+  status: EnrollmentStatus;
+  final_grade?: string;
+  enrolled_at: string;
 }

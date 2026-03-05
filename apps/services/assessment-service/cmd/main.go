@@ -155,7 +155,7 @@ func run() error {
 	submissionHandler := handler.NewSubmissionHandler(submissionService, logger)
 	groupHandler := handler.NewGroupHandler(groupService, logger)
 	instructorHandler := handler.NewInstructorHandler(assignmentService, submissionService, academicClient, logger)
-
+	studentHandler := handler.NewStudentHandler(assignmentService, submissionService, academicClient, logger)
 	// ── Fiber app ────────────────────────────────────────────────────────────
 	app := fiber.New(fiber.Config{
 		AppName:      "assessment-service",
@@ -177,8 +177,7 @@ func run() error {
 		AssignmentHandler: assignmentHandler,
 		SubmissionHandler: submissionHandler,
 		GroupHandler:      groupHandler,
-		InstructorHandler: instructorHandler,
-		JWTSecretKey:      []byte(cfg.JWT.SecretKey),
+		InstructorHandler: instructorHandler, StudentHandler: studentHandler, JWTSecretKey: []byte(cfg.JWT.SecretKey),
 	})
 
 	// ── Graceful shutdown ────────────────────────────────────────────────────

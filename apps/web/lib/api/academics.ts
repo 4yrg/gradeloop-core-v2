@@ -28,6 +28,8 @@ import type {
   Batch,
   BatchTreeNode,
   BatchMember,
+  BatchMemberDetail,
+  BulkAddBatchMembersRequest,
   Semester,
   CourseInstance,
   CourseInstructor,
@@ -54,6 +56,7 @@ import type {
   EnrollStudentRequest,
   UpdateEnrollmentRequest,
   AddPrerequisiteRequest,
+  StudentCourseEnrollment,
 } from "@/types/academics.types";
 
 // ── Faculties (super_admin only) ──────────────────────────────────────────────
@@ -448,6 +451,16 @@ export const batchesApi = {
     return [];
   },
 
+  getMembersDetailed: async (batchId: string): Promise<BatchMemberDetail[]> => {
+    const { data } = await axiosInstance.get(
+      `/batches/${batchId}/members/detailed`,
+    );
+    if (Array.isArray(data)) return data as BatchMemberDetail[];
+    if (Array.isArray(data?.members))
+      return data.members as BatchMemberDetail[];
+    return [];
+  },
+
   getCourseInstances: async (batchId: string): Promise<CourseInstance[]> => {
     const { data } = await axiosInstance.get(
       `/batches/${batchId}/course-instances`,
@@ -473,11 +486,25 @@ export const batchMembersApi = {
   remove: async (batchId: string, userId: string): Promise<void> => {
     await axiosInstance.delete(`/batch-members/${batchId}/${userId}`);
   },
+
+  addBulk: async (req: BulkAddBatchMembersRequest): Promise<void> => {
+    await axiosInstance.post("/batch-members/bulk", req);
+  },
 };
 
 // ── Course Instances ──────────────────────────────────────────────────────────
 
 export const courseInstancesApi = {
+  listByCourse: async (courseId: string): Promise<CourseInstance[]> => {
+    const { data } = await axiosInstance.get(
+      `/courses/${courseId}/course-instances`,
+    );
+    if (Array.isArray(data)) return data as CourseInstance[];
+    if (Array.isArray(data?.course_instances))
+      return data.course_instances as CourseInstance[];
+    return [];
+  },
+
   create: async (req: CreateCourseInstanceRequest): Promise<CourseInstance> => {
     const { data } = await axiosInstance.post<CourseInstance>(
       "/course-instances",
@@ -521,11 +548,25 @@ export const courseInstancesApi = {
       return data.enrollments as Enrollment[];
     return [];
   },
+
+  delete: async (instanceId: string): Promise<void> => {
+    await axiosInstance.delete(`/course-instances/${instanceId}`);
+  },
 };
 
 // ── Course Instructors ────────────────────────────────────────────────────────
 
 export const courseInstructorsApi = {
+  getByInstance: async (instanceId: string): Promise<CourseInstructor[]> => {
+    const { data } = await axiosInstance.get(
+      `/course-instances/${instanceId}/instructors`,
+    );
+    if (Array.isArray(data)) return data as CourseInstructor[];
+    if (Array.isArray(data?.instructors))
+      return data.instructors as CourseInstructor[];
+    return [];
+  },
+
   assign: async (req: AssignInstructorRequest): Promise<CourseInstructor> => {
     const { data } = await axiosInstance.post<CourseInstructor>(
       "/course-instructors",
@@ -542,6 +583,16 @@ export const courseInstructorsApi = {
 // ── Enrollments ───────────────────────────────────────────────────────────────
 
 export const enrollmentsApi = {
+  list: async (instanceId: string): Promise<Enrollment[]> => {
+    const { data } = await axiosInstance.get(
+      `/course-instances/${instanceId}/enrollments`,
+    );
+    if (Array.isArray(data)) return data as Enrollment[];
+    if (Array.isArray(data?.enrollments))
+      return data.enrollments as Enrollment[];
+    return [];
+  },
+
   enroll: async (req: EnrollStudentRequest): Promise<Enrollment> => {
     const { data } = await axiosInstance.post<Enrollment>("/enrollments", req);
     return data;
@@ -557,6 +608,10 @@ export const enrollmentsApi = {
       req,
     );
     return data;
+  },
+
+  remove: async (instanceId: string, userId: string): Promise<void> => {
+    await axiosInstance.delete(`/enrollments/${instanceId}/${userId}`);
   },
 };
 
@@ -595,20 +650,49 @@ export const instructorCoursesApi = {
 
 // ── Student Courses ───────────────────────────────────────────────────────────
 
-export interface StudentCourse {
-  course_instance_id: string;
-  course_code: string;
-  course_title: string;
-  status: string;
-}
-
 export const studentCoursesApi = {
-  /** GET /api/v1/student-courses/me — returns all course instances the logged-in
-   *  student is enrolled in, with course code and title. */
-  listMyCourses: async (): Promise<StudentCourse[]> => {
+  /**
+   * List all course instances the student is enrolled in,
+   * enriched with course + semester metadata.
+   * Backend: GET /student-courses/me
+   */
+  listMyEnrollments: async (): Promise<StudentCourseEnrollment[]> => {
     const { data } = await axiosInstance.get("/student-courses/me");
-    if (Array.isArray(data)) return data as StudentCourse[];
-    if (Array.isArray(data?.courses)) return data.courses as StudentCourse[];
+    if (Array.isArray(data)) return data as StudentCourseEnrollment[];
+    if (Array.isArray(data?.enrollments))
+      return data.enrollments as StudentCourseEnrollment[];
+    if (Array.isArray(data?.courses))
+      return data.courses as StudentCourseEnrollment[];
+    return [];
+  },
+
+  /**
+   * Get detailed information for a specific course instance
+   * along with the student's enrollment record.
+   * Backend: GET /student-courses/:instanceId
+   */
+  getCourseInstance: async (
+    instanceId: string,
+  ): Promise<StudentCourseEnrollment> => {
+    const { data } = await axiosInstance.get<StudentCourseEnrollment>(
+      `/student-courses/${instanceId}`,
+    );
+    return data;
+  },
+
+  /**
+   * Get the instructor team for a course instance (lecturer + TAs).
+   * Backend: GET /student-courses/:instanceId/instructors
+   */
+  getCourseInstructors: async (
+    instanceId: string,
+  ): Promise<CourseInstructor[]> => {
+    const { data } = await axiosInstance.get(
+      `/student-courses/${instanceId}/instructors`,
+    );
+    if (Array.isArray(data)) return data as CourseInstructor[];
+    if (Array.isArray(data?.instructors))
+      return data.instructors as CourseInstructor[];
     return [];
   },
 };

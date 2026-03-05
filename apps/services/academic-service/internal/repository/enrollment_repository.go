@@ -14,7 +14,7 @@ type EnrollmentRepository interface {
 	UpdateEnrollment(enrollment *domain.Enrollment) error
 	GetEnrollments(instanceID uuid.UUID) ([]domain.Enrollment, error)
 	GetEnrollment(instanceID, userID uuid.UUID) (*domain.Enrollment, error)
-	GetEnrollmentsByUserID(userID uuid.UUID) ([]domain.Enrollment, error)
+	GetByUserID(userID uuid.UUID) ([]domain.Enrollment, error)
 	RemoveEnrollment(instanceID, userID uuid.UUID) error
 }
 
@@ -90,4 +90,15 @@ func (r *enrollmentRepository) RemoveEnrollment(instanceID, userID uuid.UUID) er
 	return r.db.
 		Where("course_instance_id = ? AND user_id = ?", instanceID, userID).
 		Delete(&domain.Enrollment{}).Error
+}
+
+// GetByUserID returns all enrollments for the given user, ordered by enrolled_at
+// descending (most recent first).
+func (r *enrollmentRepository) GetByUserID(userID uuid.UUID) ([]domain.Enrollment, error) {
+	var enrollments []domain.Enrollment
+	err := r.db.
+		Where("user_id = ?", userID).
+		Order("enrolled_at DESC").
+		Find(&enrollments).Error
+	return enrollments, err
 }

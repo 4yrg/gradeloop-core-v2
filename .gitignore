@@ -302,3 +302,6 @@ final_status.txt
 #datasets
 
 seed_test_data.py
+datasets/
+apps/services/*/tmp/main
+apps/services/*/tmp/air

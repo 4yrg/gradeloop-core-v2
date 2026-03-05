@@ -39,14 +39,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { CreateUserDialog } from "@/components/admin/create-user-dialog";
 import { BulkImportDialog } from "@/components/admin/bulk-import-dialog";
 import { EditUserDialog } from "@/components/admin/edit-user-dialog";
 import { UserDetailsDialog } from "@/components/admin/user-details-dialog";
+import { UserProfileSideDialog } from "@/components/admin/user-profile-dialog";
 import { RevokeSessionsDialog } from "@/components/admin/revoke-sessions-dialog";
 import { DeleteUserDialog } from "@/components/admin/delete-user-dialog";
-import { useAdminUsersStore } from "@/lib/stores/adminUsersStore";
 import { usersApi, handleApiError } from "@/lib/api/users";
 import type { UserListItem } from "@/types/auth.types";
 
@@ -61,11 +62,11 @@ function getInitials(fullName: string, email: string) {
     .join("");
 }
 
-function roleBadgeVariant(roleName: string) {
-  const l = roleName.toLowerCase();
+function userTypeBadgeVariant(userType: string) {
+  const l = userType.toLowerCase();
   if (l.includes("admin")) return "purple" as const;
-  if (l.includes("instructor") || l.includes("teacher")) return "info" as const;
-  if (l.includes("student") || l.includes("learner")) return "success" as const;
+  if (l.includes("instructor")) return "info" as const;
+  if (l.includes("student")) return "success" as const;
   return "secondary" as const;
 }
 
@@ -124,8 +125,8 @@ export default function UsersPage() {
   // ── Filter state ────────────────────────────────────────────────────────
   const [search, setSearch] = React.useState("");
   const [debouncedSearch, setDebouncedSearch] = React.useState("");
-  const [roleFilter, setRoleFilter] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("");
+  const [userTypeFilter, setUserTypeFilter] = React.useState("all");
 
   // ── Dialog state ────────────────────────────────────────────────────────
   const [createOpen, setCreateOpen] = React.useState(false);
@@ -134,11 +135,11 @@ export default function UsersPage() {
   const [detailsUser, setDetailsUser] = React.useState<UserListItem | null>(
     null,
   );
+  const [profileUser, setProfileUser] = React.useState<UserListItem | null>(
+    null,
+  );
   const [revokeUser, setRevokeUser] = React.useState<UserListItem | null>(null);
   const [deleteUser, setDeleteUser] = React.useState<UserListItem | null>(null);
-
-  const { roles, rolesLoading, rolesError, fetchRoles, refetchRoles } =
-    useAdminUsersStore();
 
   // ── Debounce search ──────────────────────────────────────────────────────
   React.useEffect(() => {
@@ -148,7 +149,7 @@ export default function UsersPage() {
 
   React.useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, roleFilter, statusFilter]);
+  }, [debouncedSearch, statusFilter, userTypeFilter]);
 
   // ── Fetch users ──────────────────────────────────────────────────────────
   const fetchUsers = React.useCallback(async () => {
@@ -158,27 +159,26 @@ export default function UsersPage() {
       const result = await usersApi.list({
         page,
         limit: PAGE_LIMIT,
-        role_id: roleFilter || undefined,
         search: debouncedSearch || undefined,
+        user_type: userTypeFilter === "all" ? undefined : userTypeFilter,
       });
-      setUsers(result.data);
-      setTotal(result.total);
+      setUsers(result.data || []);
+      setTotal(result.total || 0);
     } catch (err) {
       setError(handleApiError(err));
+      setUsers([]); // Reset to empty array on error
     } finally {
       setLoading(false);
     }
-  }, [page, roleFilter, debouncedSearch]);
+  }, [page, debouncedSearch, userTypeFilter]);
 
   React.useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
-  React.useEffect(() => {
-    fetchRoles();
-  }, [fetchRoles]);
 
-  // ── Client-side filtering (search & status only — role filter is server-side) ──
+  // ── Client-side filtering (status only) ──
   const displayUsers = React.useMemo(() => {
+    if (!users) return [];
     return users.filter((u) => {
       // Status filter is still client-side because backend doesn't support it yet
       if (statusFilter === "active" && !u.is_active) return false;
@@ -188,8 +188,8 @@ export default function UsersPage() {
   }, [users, statusFilter]);
 
   // ── Derived stats ────────────────────────────────────────────────────────────
-  const activeCount = users.filter((u) => u.is_active).length;
-  const inactiveCount = users.filter((u) => !u.is_active).length;
+  const activeCount = users ? users.filter((u) => u.is_active).length : 0;
+  const inactiveCount = users ? users.filter((u) => !u.is_active).length : 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
@@ -211,7 +211,7 @@ export default function UsersPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">User Management</h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-            Manage accounts, roles, and access.
+            Manage user accounts and access.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -232,6 +232,20 @@ export default function UsersPage() {
           </Button>
         </div>
       </div>
+
+      {/* Tabs */}
+      <Tabs
+        defaultValue="all"
+        value={userTypeFilter}
+        onValueChange={setUserTypeFilter}
+      >
+        <TabsList className="mb-4">
+          <TabsTrigger value="all">All Users</TabsTrigger>
+          <TabsTrigger value="student">Students</TabsTrigger>
+          <TabsTrigger value="instructor">Instructors</TabsTrigger>
+          <TabsTrigger value="admin">Administrators</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -283,35 +297,6 @@ export default function UsersPage() {
             />
           </div>
           <SelectNative
-            className="sm:w-44"
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            disabled={rolesLoading}
-            title={rolesError ? `Roles unavailable: ${rolesError}` : undefined}
-          >
-            <option value="">
-              {rolesLoading
-                ? "Loading roles…"
-                : rolesError
-                  ? "Roles unavailable"
-                  : "All roles"}
-            </option>
-            {roles.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-              </option>
-            ))}
-          </SelectNative>
-          {rolesError && (
-            <button
-              type="button"
-              className="text-xs text-red-500 hover:underline shrink-0"
-              onClick={() => refetchRoles()}
-            >
-              Retry roles
-            </button>
-          )}
-          <SelectNative
             className="sm:w-40"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -347,7 +332,7 @@ export default function UsersPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="min-w-[200px]">Full Name</TableHead>
-                  <TableHead>Role</TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="hidden md:table-cell">Joined</TableHead>
                   <TableHead className="hidden lg:table-cell">
@@ -368,7 +353,7 @@ export default function UsersPage() {
                       <Users className="mx-auto h-10 w-10 text-zinc-300 dark:text-zinc-600 mb-3" />
                       <p className="font-medium">No users found</p>
                       <p className="text-sm mt-1">
-                        {debouncedSearch || roleFilter || statusFilter
+                        {debouncedSearch || userTypeFilter !== "all" || statusFilter
                           ? "Try adjusting your search or filters."
                           : "Get started by adding the first user."}
                       </p>
@@ -376,7 +361,11 @@ export default function UsersPage() {
                   </TableRow>
                 ) : (
                   displayUsers.map((user) => (
-                    <TableRow key={user.id}>
+                    <TableRow
+                      key={user.id}
+                      className="cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
+                      onClick={() => setProfileUser(user)}
+                    >
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar className="h-9 w-9 shrink-0">
@@ -395,8 +384,8 @@ export default function UsersPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={roleBadgeVariant(user.role_name)}>
-                          {user.role_name}
+                        <Badge variant={userTypeBadgeVariant(user.user_type)}>
+                          {user.user_type}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -410,15 +399,19 @@ export default function UsersPage() {
                       <TableCell className="hidden lg:table-cell text-sm text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
                         {user.last_login_at
                           ? new Date(user.last_login_at).toLocaleDateString(
-                            "en-US",
-                            { dateStyle: "medium" },
-                          )
+                              "en-US",
+                              { dateStyle: "medium" },
+                            )
                           : "—"}
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <MoreHorizontal className="h-4 w-4" />
                               <span className="sr-only">Open menu</span>
                             </Button>
@@ -543,6 +536,23 @@ export default function UsersPage() {
         }}
         onDelete={(u) => {
           setDetailsUser(null);
+          setDeleteUser(u);
+        }}
+      />
+      <UserProfileSideDialog
+        user={profileUser}
+        open={!!profileUser}
+        onOpenChange={(open) => !open && setProfileUser(null)}
+        onEdit={(u) => {
+          setProfileUser(null);
+          setEditUser(u);
+        }}
+        onRevokeSessions={(u) => {
+          setProfileUser(null);
+          setRevokeUser(u);
+        }}
+        onDelete={(u) => {
+          setProfileUser(null);
           setDeleteUser(u);
         }}
       />

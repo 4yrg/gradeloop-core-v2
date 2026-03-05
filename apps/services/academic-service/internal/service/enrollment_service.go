@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+
 	"github.com/google/uuid"
 	"github.com/gradeloop/academic-service/internal/client"
 	"github.com/gradeloop/academic-service/internal/domain"
@@ -16,6 +18,7 @@ type EnrollmentService interface {
 	EnrollStudent(req *dto.EnrollmentRequest, username, ipAddress, userAgent string) (*domain.Enrollment, error)
 	UpdateEnrollment(instanceID, userID uuid.UUID, req *dto.UpdateEnrollmentRequest, username, ipAddress, userAgent string) (*domain.Enrollment, error)
 	GetEnrollments(instanceID uuid.UUID) ([]domain.Enrollment, error)
+	GetEnrollmentsDetailed(ctx context.Context, instanceID uuid.UUID, token string) ([]dto.EnrollmentResponse, error)
 	GetMyEnrollments(userID uuid.UUID) ([]domain.Enrollment, error)
 	RemoveEnrollment(instanceID, userID uuid.UUID, username, ipAddress, userAgent string) error
 }
@@ -26,6 +29,7 @@ type enrollmentService struct {
 	batchMemberRepo    repository.BatchMemberRepository
 	enrollmentRepo     repository.EnrollmentRepository
 	auditClient        *client.AuditClient
+	iamClient          *client.IAMClient
 	logger             *zap.Logger
 }
 
@@ -35,6 +39,7 @@ func NewEnrollmentService(
 	batchMemberRepo repository.BatchMemberRepository,
 	enrollmentRepo repository.EnrollmentRepository,
 	auditClient *client.AuditClient,
+	iamClient *client.IAMClient,
 	logger *zap.Logger,
 ) EnrollmentService {
 	return &enrollmentService{
@@ -42,6 +47,7 @@ func NewEnrollmentService(
 		batchMemberRepo:    batchMemberRepo,
 		enrollmentRepo:     enrollmentRepo,
 		auditClient:        auditClient,
+		iamClient:          iamClient,
 		logger:             logger,
 	}
 }
@@ -80,15 +86,18 @@ func (s *enrollmentService) EnrollStudent(
 		return nil, utils.ErrNotFound("course instance not found")
 	}
 
-	// 3. Validate the student belongs to the batch that owns this course instance.
+	// 3. Validate the student belongs to the batch that owns this course instance,
+	//    unless allow_individual is explicitly set (for individual enrollments outside batch).
 	//    batch_members.batch_id = instance.batch_id AND user_id = req.UserID
-	membership, err := s.batchMemberRepo.GetMember(instance.BatchID, req.UserID)
-	if err != nil {
-		s.logger.Error("failed to check batch membership", zap.Error(err))
-		return nil, utils.ErrInternal("failed to check batch membership", err)
-	}
-	if membership == nil {
-		return nil, utils.ErrBadRequest("student not in batch")
+	if !req.AllowIndividual {
+		membership, err := s.batchMemberRepo.GetMember(instance.BatchID, req.UserID)
+		if err != nil {
+			s.logger.Error("failed to check batch membership", zap.Error(err))
+			return nil, utils.ErrInternal("failed to check batch membership", err)
+		}
+		if membership == nil {
+			return nil, utils.ErrBadRequest("student not in batch")
+		}
 	}
 
 	// 4. Guard against duplicate enrollment
@@ -238,17 +247,61 @@ func (s *enrollmentService) GetEnrollments(instanceID uuid.UUID) ([]domain.Enrol
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GetMyEnrollments
+// GetEnrollmentsDetailed
 // ─────────────────────────────────────────────────────────────────────────────
 
-// GetMyEnrollments returns all course-instance enrollments for the given student.
-func (s *enrollmentService) GetMyEnrollments(userID uuid.UUID) ([]domain.Enrollment, error) {
-	enrollments, err := s.enrollmentRepo.GetEnrollmentsByUserID(userID)
+// GetEnrollmentsDetailed fetches enrollments with their user details from IAM
+func (s *enrollmentService) GetEnrollmentsDetailed(ctx context.Context, instanceID uuid.UUID, token string) ([]dto.EnrollmentResponse, error) {
+	enrollments, err := s.GetEnrollments(instanceID)
 	if err != nil {
-		s.logger.Error("failed to list enrollments by user", zap.Error(err))
-		return nil, utils.ErrInternal("failed to list enrollments", err)
+		return nil, err
 	}
-	return enrollments, nil
+
+	if len(enrollments) == 0 {
+		return []dto.EnrollmentResponse{}, nil
+	}
+
+	// Extract User IDs
+	var userIDs []string
+	for _, e := range enrollments {
+		userIDs = append(userIDs, e.UserID.String())
+	}
+
+	// Fetch detailed info from IAM
+	userInfo, err := s.iamClient.GetUsersInfo(ctx, token, userIDs)
+	if err != nil {
+		s.logger.Error("failed to fetch user info from IAM", zap.Error(err))
+		// Return error as we need user details for display
+		return nil, utils.ErrInternal("failed to fetch user details", err)
+	}
+
+	// Map user info by ID
+	infoMap := make(map[string]client.UserInfoResponse)
+	for _, info := range userInfo {
+		infoMap[info.ID] = info
+	}
+
+	// Build detailed responses
+	var results []dto.EnrollmentResponse
+	for _, e := range enrollments {
+		detail := dto.EnrollmentResponse{
+			CourseInstanceID: e.CourseInstanceID,
+			UserID:           e.UserID,
+			Status:           e.Status,
+			FinalGrade:       e.FinalGrade,
+			EnrolledAt:       e.EnrolledAt,
+		}
+
+		if info, ok := infoMap[e.UserID.String()]; ok {
+			detail.FullName = info.FullName
+			detail.Email = info.Email
+			detail.StudentID = info.StudentID
+		}
+
+		results = append(results, detail)
+	}
+
+	return results, nil
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -298,4 +351,23 @@ func (s *enrollmentService) RemoveEnrollment(
 		zap.String("user_id", userID.String()),
 	)
 	return nil
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GetMyEnrollments
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GetMyEnrollments returns all enrollments for the authenticated student.
+func (s *enrollmentService) GetMyEnrollments(userID uuid.UUID) ([]domain.Enrollment, error) {
+	if userID == uuid.Nil {
+		return nil, utils.ErrBadRequest("user_id is required")
+	}
+
+	enrollments, err := s.enrollmentRepo.GetByUserID(userID)
+	if err != nil {
+		s.logger.Error("failed to list student enrollments", zap.Error(err))
+		return nil, utils.ErrInternal("failed to list student enrollments", err)
+	}
+
+	return enrollments, nil
 }

@@ -3,21 +3,21 @@
 import * as React from 'react';
 import { UserPlus } from 'lucide-react';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+  SideDialog,
+  SideDialogContent,
+  SideDialogDescription,
+  SideDialogFooter,
+  SideDialogHeader,
+  SideDialogTitle,
+} from '@/components/ui/side-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SelectNative } from '@/components/ui/select-native';
-import { useAdminUsersStore } from '@/lib/stores/adminUsersStore';
 import { usersApi, handleApiError } from '@/lib/api/users';
 import { toast } from '@/lib/hooks/use-toast';
 import type { CreateUserRequest, CreateUserResponse, FormErrors } from '@/types/admin.types';
+import { USER_TYPES } from '@/types/auth.types';
 
 interface Props {
   open: boolean;
@@ -28,8 +28,7 @@ interface Props {
 const EMPTY: CreateUserRequest = {
   full_name: '',
   email: '',
-  role_id: '',
-  user_type: '',
+  user_type: 'student',
 };
 
 function validate(values: CreateUserRequest): FormErrors {
@@ -40,25 +39,18 @@ function validate(values: CreateUserRequest): FormErrors {
   } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
     errors.email = 'Enter a valid email address';
   }
-  if (!values.role_id) errors.role_id = 'Role is required';
-  if (!values.user_type) errors.user_type = 'User type is required';
+  if (!values.user_type) errors.user_type = 'User Type is required';
   if (values.user_type === 'student' && !values.student_id?.trim())
     errors.student_id = 'Student ID is required for student type';
-  if (values.user_type === 'employee' && !values.designation?.trim())
-    errors.designation = 'Designation is required for employee type';
+  if (values.user_type === 'instructor' && !values.designation?.trim())
+    errors.designation = 'Designation is required for instructor type';
   return errors;
 }
 
 export function CreateUserDialog({ open, onOpenChange, onSuccess }: Props) {
-  const { roles, rolesLoading, rolesError, fetchRoles, refetchRoles } = useAdminUsersStore();
   const [values, setValues] = React.useState<CreateUserRequest>(EMPTY);
   const [errors, setErrors] = React.useState<FormErrors>({});
   const [submitting, setSubmitting] = React.useState(false);
-
-  // Fetch roles once when dialog opens
-  React.useEffect(() => {
-    if (open) fetchRoles();
-  }, [open, fetchRoles]);
 
   // Reset form when dialog opens
   React.useEffect(() => {
@@ -68,22 +60,8 @@ export function CreateUserDialog({ open, onOpenChange, onSuccess }: Props) {
     }
   }, [open]);
 
-  // Filter roles to only those compatible with the selected user_type.
-  // A role is compatible when role.user_type matches or role.user_type === 'all'.
-  const compatibleRoles = React.useMemo(() => {
-    if (!values.user_type) return roles;
-    return roles.filter(
-      (r) => r.user_type === values.user_type || r.user_type === 'all',
-    );
-  }, [roles, values.user_type]);
-
   function set(field: keyof CreateUserRequest, value: string) {
-    setValues((prev) => {
-      const next = { ...prev, [field]: value };
-      // When user_type changes the previously selected role may be incompatible—reset it.
-      if (field === 'user_type') next.role_id = '';
-      return next;
-    });
+    setValues((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
   }
 
@@ -109,21 +87,21 @@ export function CreateUserDialog({ open, onOpenChange, onSuccess }: Props) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
+    <SideDialog open={open} onOpenChange={onOpenChange}>
+      <SideDialogContent className="max-w-md">
+        <SideDialogHeader>
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
               <UserPlus className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
             </div>
             <div>
-              <DialogTitle>Create User</DialogTitle>
-              <DialogDescription>
+              <SideDialogTitle>Create User</SideDialogTitle>
+              <SideDialogDescription>
                 Add a new user to the system.
-              </DialogDescription>
+              </SideDialogDescription>
             </div>
           </div>
-        </DialogHeader>
+        </SideDialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           {/* Full Name */}
@@ -165,19 +143,27 @@ export function CreateUserDialog({ open, onOpenChange, onSuccess }: Props) {
 
           {/* User Type */}
           <div className="space-y-1.5">
-            <Label htmlFor="cu-usertype">
+            <Label htmlFor="cu-user-type">
               User Type <span className="text-red-500">*</span>
             </Label>
             <SelectNative
-              id="cu-usertype"
+              id="cu-user-type"
               value={values.user_type}
               onChange={(e) => set('user_type', e.target.value)}
               disabled={submitting}
             >
-              <option value="">Select user type</option>
-              <option value="student">Student</option>
-              <option value="employee">Employee</option>
-              <option value="all">Other / Admin</option>
+              <option value={USER_TYPES.STUDENT} className="capitalize">
+                {USER_TYPES.STUDENT}
+              </option>
+              <option value={USER_TYPES.INSTRUCTOR} className="capitalize">
+                {USER_TYPES.INSTRUCTOR}
+              </option>
+              <option value={USER_TYPES.ADMIN} className="capitalize">
+                {USER_TYPES.ADMIN}
+              </option>
+              <option value={USER_TYPES.SUPER_ADMIN} className="capitalize">
+                Super Admin
+              </option>
             </SelectNative>
             {errors.user_type && (
               <p className="text-xs text-red-500">{errors.user_type}</p>
@@ -204,8 +190,8 @@ export function CreateUserDialog({ open, onOpenChange, onSuccess }: Props) {
             </div>
           )}
 
-          {/* Designation (only for employee type) */}
-          {values.user_type === 'employee' && (
+          {/* Designation (only for instructor type) */}
+          {values.user_type === 'instructor' && (
             <div className="space-y-1.5">
               <Label htmlFor="cu-designation">
                 Designation <span className="text-red-500">*</span>
@@ -224,42 +210,8 @@ export function CreateUserDialog({ open, onOpenChange, onSuccess }: Props) {
             </div>
           )}
 
-          {/* Role */}
-          <div className="space-y-1.5">
-            <Label htmlFor="cu-role">
-              Role <span className="text-red-500">*</span>
-            </Label>
-            <SelectNative
-              id="cu-role"
-              value={values.role_id}
-              onChange={(e) => set('role_id', e.target.value)}
-              disabled={submitting || rolesLoading}
-              title={rolesError ? `Roles unavailable: ${rolesError}` : undefined}
-            >
-              <option value="">
-                {rolesLoading ? 'Loading roles…' : rolesError ? 'Roles unavailable' : 'Select a role'}
-              </option>
-              {compatibleRoles.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </SelectNative>
-            {rolesError && (
-              <button
-                type="button"
-                className="text-xs text-red-500 hover:underline"
-                onClick={() => refetchRoles()}
-              >
-                Retry loading roles
-              </button>
-            )}
-            {errors.role_id && (
-              <p className="text-xs text-red-500">{errors.role_id}</p>
-            )}
-          </div>
 
-          <DialogFooter className="pt-2">
+          <SideDialogFooter className="pt-2">
             <Button
               type="button"
               variant="outline"
@@ -271,9 +223,9 @@ export function CreateUserDialog({ open, onOpenChange, onSuccess }: Props) {
             <Button type="submit" disabled={submitting}>
               {submitting ? 'Creating…' : 'Create User'}
             </Button>
-          </DialogFooter>
+          </SideDialogFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SideDialogContent>
+    </SideDialog>
   );
 }

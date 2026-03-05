@@ -30,13 +30,13 @@ func (h *UserHandler) CreateUser(c fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	// Get actor permissions from context (set by AuthMiddleware)
-	permissions, ok := c.Locals("permissions").([]string)
-	if !ok || permissions == nil {
+	// Get actor user type from context (set by AuthMiddleware)
+	actorUserType, ok := c.Locals("user_type").(string)
+	if !ok || actorUserType == "" {
 		return fiber.NewError(fiber.StatusForbidden, "Permission denied")
 	}
 
-	response, err := h.userService.CreateUser(c.RequestCtx(), &req, permissions)
+	response, err := h.userService.CreateUser(c.RequestCtx(), &req, actorUserType)
 	if err != nil {
 		return handleUserError(err)
 	}
@@ -57,10 +57,9 @@ func (h *UserHandler) GetUsers(c fiber.Ctx) error {
 	}
 
 	userType := c.Query("user_type", "all")
-	roleID := c.Query("role_id", "")
 	search := c.Query("search", "")
 
-	response, err := h.userService.GetUsers(c.RequestCtx(), page, limit, userType, roleID, search)
+	response, err := h.userService.GetUsers(c.RequestCtx(), page, limit, userType, search)
 	if err != nil {
 		return handleUserError(err)
 	}
@@ -166,14 +165,26 @@ func (h *UserHandler) UpdateAvatar(c fiber.Ctx) error {
 	return c.JSON(response)
 }
 
+func (h *UserHandler) GetUsersByIDs(c fiber.Ctx) error {
+	var req dto.GetUsersByIDsRequest
+	if err := c.Bind().JSON(&req); err != nil {
+		return fiber.ErrBadRequest
+	}
+
+	response, err := h.userService.GetUsersByIDs(c.RequestCtx(), req.IDs)
+	if err != nil {
+		return handleUserError(err)
+	}
+
+	return c.JSON(response)
+}
+
 func handleUserError(err error) error {
 	switch err {
 	case service.ErrUnauthorized:
 		return fiber.NewError(fiber.StatusUnauthorized, "Unauthorized")
 	case service.ErrEmailTaken:
 		return fiber.NewError(fiber.StatusConflict, "Email already exists")
-	case service.ErrRoleNotFound:
-		return fiber.NewError(fiber.StatusBadRequest, "Role not found")
 	case service.ErrUserNotFound:
 		return fiber.NewError(fiber.StatusNotFound, "User not found")
 	default:
