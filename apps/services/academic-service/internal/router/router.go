@@ -23,6 +23,7 @@ type Config struct {
 	CourseHandler           *handler.CourseHandler
 	SemesterHandler         *handler.SemesterHandler
 	InstructorHandler       *handler.InstructorHandler
+	StudentHandler          *handler.StudentHandler
 	JWTSecretKey            []byte
 }
 
@@ -163,6 +164,7 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	courses.Post("/:id/prerequisites", cfg.CourseHandler.AddPrerequisite)
 	courses.Get("/:id/prerequisites", cfg.CourseHandler.ListPrerequisites)
 	courses.Delete("/:id/prerequisites/:prereqID", cfg.CourseHandler.RemovePrerequisite)
+	courses.Get("/:id/course-instances", cfg.CourseInstanceHandler.ListCourseInstancesByCourse)
 
 	// ─────────────────────────────────────────────────────────────────────────
 	// Semester routes
@@ -183,6 +185,16 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	instructorCourses.Get("/me", cfg.InstructorHandler.GetMyCourses)
 	instructorCourses.Get("/:id/students", cfg.InstructorHandler.GetMyStudents)
 	instructorCourses.Get("/:id/instructors", cfg.InstructorHandler.GetMyInstructors)
+
+	// ─────────────────────────────────────────────────────────────────────────
+	// Student-scoped routes (Student + Admin + Super Admin)
+	// PathPrefix: /api/v1/student-courses — routed by Traefik to academic-service
+	// ─────────────────────────────────────────────────────────────────────────
+	studentCourses := protected.Group("/student-courses",
+		middleware.RequireAnyRole("Student", "Admin", "Super Admin"))
+	studentCourses.Get("/me", cfg.StudentHandler.GetMyCourses)
+	studentCourses.Get("/:id", cfg.StudentHandler.GetCourseInstance)
+	studentCourses.Get("/:id/instructors", cfg.StudentHandler.GetCourseInstructors)
 
 	app.Get("/", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{

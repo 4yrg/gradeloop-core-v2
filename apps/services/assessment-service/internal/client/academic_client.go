@@ -116,6 +116,69 @@ func (c *AcademicClient) IsEnrolled(userID, courseInstanceID string) (bool, erro
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Student course enrollments
+// ─────────────────────────────────────────────────────────────────────────────
+
+// StudentCourseItem holds the minimal fields the assessment service needs from a
+// student enrollment record.
+type StudentCourseItem struct {
+	CourseInstanceID string `json:"course_instance_id"`
+	CourseCode       string `json:"course_code"`
+	CourseTitle      string `json:"course_title"`
+	Status           string `json:"status"`
+}
+
+// studentCoursesResponse mirrors the response from
+// GET /api/v1/student-courses/me
+type studentCoursesResponse struct {
+	Enrollments []StudentCourseItem `json:"enrollments"`
+	Count       int                 `json:"count"`
+}
+
+// GetStudentCourses calls GET /api/v1/student-courses/me on the Academic
+// Service with the given auth token and returns the list of course instance
+// enrollments for the authenticated student.
+func (c *AcademicClient) GetStudentCourses(token string) ([]StudentCourseItem, error) {
+	url := fmt.Sprintf("%s/api/v1/student-courses/me", c.baseURL)
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		c.logger.Error("academic client: failed to build student courses request",
+			zap.Error(err),
+		)
+		return nil, fmt.Errorf("building student courses request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		c.logger.Warn("academic client: student courses request failed",
+			zap.Error(err),
+		)
+		return nil, fmt.Errorf("student courses request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		c.logger.Warn("academic client: unexpected status on student courses",
+			zap.Int("status", resp.StatusCode),
+		)
+		return nil, fmt.Errorf("student courses returned status %d", resp.StatusCode)
+	}
+
+	// The academic service can return either an envelope {enrollments:[...]}
+	// or a bare array — try the envelope first.
+	var body studentCoursesResponse
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		c.logger.Error("academic client: failed to decode student courses response", zap.Error(err))
+		return nil, fmt.Errorf("decoding student courses response: %w", err)
+	}
+
+	return body.Enrollments, nil
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Instructor course assignments
 // ─────────────────────────────────────────────────────────────────────────────
 

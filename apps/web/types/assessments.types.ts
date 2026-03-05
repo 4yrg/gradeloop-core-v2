@@ -104,3 +104,24 @@ export interface GroupResponse {
     members: string[];
     created_at: string;
 }
+
+export interface RunCodeRequest {
+    assignment_id?: string;
+    language_id: number;
+    source_code: string;
+    stdin?: string;
+}
+
+export interface RunCodeResponse {
+    stdout: string | null;
+    stderr: string | null;
+    compile_output: string | null;
+    status: {
+        id: number;
+        description: string;
+    };
+    time: string | null;
+    memory: number | null;
+    exit_code: number | null;
+    exit_signal: number | null;
+}
