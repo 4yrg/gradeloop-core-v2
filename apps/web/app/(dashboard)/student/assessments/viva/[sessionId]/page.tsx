@@ -13,17 +13,29 @@ import {
     BarChart3,
     CornerDownRight,
     Info,
-    Mic,
     Square,
+    ChevronDown,
+    List,
+    Ear,
+    Activity,
+    BrainCircuit,
+    Mic,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { ivasApi } from "@/lib/ivas-api";
 import { useAuthStore } from "@/lib/stores/authStore";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from "@/components/ui/sheet";
 import type {
     ChatMessage,
     QuestionWithContext,
@@ -65,102 +77,121 @@ function CompetencyBar({ item }: { item: CompetencySummary }) {
     );
 }
 
-// ── Message bubble ─────────────────────────────────────────────────────────────
+// ── Transcript Panel ──────────────────────────────────────────────────────────
 
-function MessageBubble({ msg }: { msg: ChatMessage }) {
-    if (msg.role === "system") {
-        return (
-            <div className="flex justify-center">
-                <span className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
-                    {msg.content}
-                </span>
-            </div>
-        );
-    }
-
-    if (msg.role === "user") {
-        return (
-            <div className="flex justify-end">
-                <div className="max-w-[75%] rounded-2xl rounded-tr-sm bg-primary text-primary-foreground px-4 py-2.5">
-                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                </div>
-            </div>
-        );
-    }
-
-    // assistant
-    const meta = msg.metadata;
-    const isQuestion = !meta?.isFeedback && meta?.questionType !== undefined;
-    const isFeedback = meta?.isFeedback === true;
-
-    if (isFeedback) {
-        // Check if it's a teaching message (teach_and_skip classification — indicated by Info style)
-        return (
-            <div className="flex gap-3">
-                <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                    <Info className="h-3.5 w-3.5 text-primary" />
-                </div>
-                <div className="flex-1 max-w-[80%] rounded-2xl rounded-tl-sm bg-muted/50 px-4 py-3 space-y-2">
-                    {meta?.score !== undefined && (
-                        <ScoreBadge score={meta.score} />
-                    )}
-                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                    {meta?.misconceptions && meta.misconceptions.length > 0 && (
-                        <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/40 px-3 py-2">
-                            <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
-                            <p className="text-xs text-amber-700 dark:text-amber-400">
-                                <span className="font-medium">Misconceptions: </span>
-                                {meta.misconceptions.join(", ")}
-                            </p>
-                        </div>
-                    )}
-                </div>
-            </div>
-        );
-    }
-
-    if (isQuestion) {
-        return (
-            <div className="flex gap-3">
-                <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                    <Mic2 className="h-3.5 w-3.5 text-primary" />
-                </div>
-                <div className="flex-1 max-w-[80%] rounded-2xl rounded-tl-sm bg-card border border-border/60 px-4 py-3 space-y-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                        {meta?.competency && (
-                            <Badge variant="secondary" className="text-xs">{meta.competency}</Badge>
-                        )}
-                        {meta?.difficulty !== undefined && (
-                            <span className="text-xs text-muted-foreground">Difficulty {meta.difficulty}</span>
-                        )}
-                        {meta?.questionType === "follow_up" && (
-                            <span className="inline-flex items-center gap-1 text-xs text-primary/70">
-                                <CornerDownRight className="h-3 w-3" />
-                                Follow-up
-                            </span>
-                        )}
-                        {meta?.questionType === "re_ask" && (
-                            <span className="text-xs text-muted-foreground italic">Let&apos;s try this again</span>
-                        )}
-                    </div>
-                    <p className="text-sm font-medium whitespace-pre-wrap">{msg.content}</p>
-                </div>
-            </div>
-        );
-    }
-
-    // Plain assistant message
+function TranscriptPanel({ messages }: { messages: ChatMessage[] }) {
     return (
-        <div className="flex gap-3">
-            <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                <Mic2 className="h-3.5 w-3.5 text-primary" />
+        <ScrollArea className="h-[calc(100vh-80px)] p-6 z-50">
+            <div className="space-y-6 pb-20">
+                {messages.map((msg, i) => (
+                    <div key={msg.id || i} className={cn("flex flex-col", msg.role === 'user' ? "items-end" : "items-start")}>
+                        <span className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-1.5 ml-1">
+                            {msg.role === 'user' ? 'You' : 'IVAS'}
+                        </span>
+                        <div className={cn(
+                            "px-4 py-3 rounded-2xl max-w-[85%] text-[15px] leading-relaxed",
+                            msg.role === 'user'
+                                ? "bg-emerald-600/20 text-emerald-100 border border-emerald-500/20 rounded-tr-sm"
+                                : "bg-zinc-800/50 text-zinc-300 border border-zinc-700/50 rounded-tl-sm"
+                        )}>
+                            {msg.content}
+                        </div>
+                    </div>
+                ))}
             </div>
-            <div className="max-w-[80%] rounded-2xl rounded-tl-sm bg-muted/50 px-4 py-3">
-                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-            </div>
+        </ScrollArea>
+    );
+}
+
+// ── AI Core Orb ──────────────────────────────────────────────────────────────
+
+interface AICoreOrbProps {
+    state: "idle" | "ai_speaking" | "user_speaking" | "thinking";
+}
+
+function AICoreOrb({ state }: AICoreOrbProps) {
+    return (
+        <div className="relative flex items-center justify-center">
+            {/* Outer Glow */}
+            <motion.div
+                animate={{
+                    scale: state === "user_speaking" ? [1, 1.2, 1] : [1, 1.05, 1],
+                    opacity: state === "idle" ? 0.3 : 0.6,
+                }}
+                transition={{
+                    duration: state === "user_speaking" ? 0.8 : 3,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                }}
+                className={cn(
+                    "absolute h-64 w-64 rounded-full blur-[60px]",
+                    state === "user_speaking" ? "bg-emerald-500/40" :
+                        state === "ai_speaking" ? "bg-teal-500/40" : "bg-emerald-500/20"
+                )}
+            />
+
+            {/* Pulsing Rings */}
+            {[...Array(3)].map((_, i) => (
+                <motion.div
+                    key={i}
+                    animate={{
+                        scale: state === "ai_speaking" ? [1, 1.4 + i * 0.1] : [1, 1.1 + i * 0.05],
+                        opacity: state === "ai_speaking" ? [0.5, 0] : [0.2, 0],
+                    }}
+                    transition={{
+                        duration: state === "user_speaking" ? 1 : 2,
+                        repeat: Infinity,
+                        delay: i * 0.4,
+                        ease: "easeOut",
+                    }}
+                    className="absolute h-48 w-48 rounded-full border border-emerald-500/30"
+                />
+            ))}
+
+            {/* Core Orb */}
+            <motion.div
+                animate={{
+                    rotate: state === "thinking" ? 360 : 0,
+                    scale: state === "user_speaking" ? 1.1 : 1,
+                }}
+                transition={{
+                    rotate: { duration: 10, repeat: Infinity, ease: "linear" },
+                    scale: { duration: 0.5 }
+                }}
+                className={cn(
+                    "relative h-40 w-40 rounded-full flex items-center justify-center border-2 overflow-hidden shadow-[0_0_50px_rgba(16,185,129,0.2)]",
+                    state === "user_speaking"
+                        ? "bg-emerald-500/20 border-emerald-400/50"
+                        : "bg-zinc-900 border-zinc-800"
+                )}
+            >
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-transparent to-teal-500/10" />
+                <BrainCircuit className={cn(
+                    "h-16 w-16 transition-colors duration-500 z-10",
+                    state !== "idle" ? "text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.5)]" : "text-zinc-600"
+                )} />
+            </motion.div>
         </div>
     );
 }
+
+// ── Voice Waveform ───────────────────────────────────────────────────────────
+
+function VoiceWaveform({ audioData }: { audioData: number[] }) {
+    return (
+        <div className="flex items-center gap-1.5 h-12">
+            {audioData.map((h, i) => (
+                <motion.div
+                    key={i}
+                    animate={{ height: h }}
+                    transition={{ type: 'spring', bounce: 0.1, duration: 0.1 }}
+                    className="w-1.5 rounded-full bg-emerald-400/80 shadow-[0_0_10px_rgba(16,185,129,0.5)]"
+                />
+            ))}
+        </div>
+    );
+}
+
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
@@ -190,6 +221,9 @@ export default function VivaSessionPage() {
     const [abandonConfirm, setAbandonConfirm] = React.useState(false);
     const [abandoning, setAbandoning] = React.useState(false);
 
+    // Audio context for visualization
+    const [audioData, setAudioData] = React.useState<number[]>(Array(5).fill(20));
+
     // Keep reference to the active websocket
     const wsRef = React.useRef<WebSocket | null>(null);
 
@@ -199,6 +233,22 @@ export default function VivaSessionPage() {
     const [interimTranscript, setInterimTranscript] = React.useState("");
     const recognitionRef = React.useRef<any>(null);
     const recordingIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+    const visualizerIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+
+    // Simulate audio volume for visuals
+    React.useEffect(() => {
+        if (isRecording || sending) {
+            visualizerIntervalRef.current = setInterval(() => {
+                setAudioData(Array.from({ length: 5 }, () => Math.random() * 40 + 10));
+            }, 100);
+        } else {
+            if (visualizerIntervalRef.current) clearInterval(visualizerIntervalRef.current);
+            setAudioData(Array(5).fill(10));
+        }
+        return () => {
+            if (visualizerIntervalRef.current) clearInterval(visualizerIntervalRef.current);
+        }
+    }, [isRecording, sending]);
 
     // Stop recording timer when component unmounts
     React.useEffect(() => {
@@ -300,15 +350,6 @@ export default function VivaSessionPage() {
     };
 
     const bottomRef = React.useRef<HTMLDivElement>(null);
-    const textareaRef = React.useRef<HTMLTextAreaElement>(null);
-
-    const scrollToBottom = () => {
-        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
-
-    React.useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
 
     const addMessage = (msg: Omit<ChatMessage, "id" | "timestamp">) => {
         setMessages((prev) => [
@@ -650,10 +691,9 @@ export default function VivaSessionPage() {
     }, [sessionId, isComplete, initializing, user?.id]);
 
     const handleSubmit = async (transcribedText?: string) => {
-        if ((!inputValue.trim() && !transcribedText) || !currentQuestion || sending || isComplete) return;
+        if (!transcribedText || !currentQuestion || sending || isComplete) return;
 
-        let responseText = transcribedText || inputValue.trim();
-        let audioBase64: string | undefined = undefined;
+        let responseText = transcribedText;
 
         setSending(true);
 
@@ -661,15 +701,13 @@ export default function VivaSessionPage() {
         addMessage({ role: "user", content: responseText });
 
         try {
-            // If the WebSocket is alive, send over WebSocket exactly as the HTML test does
+            // If the WebSocket is alive, send over WebSocket
             if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
                 wsRef.current.send(JSON.stringify({
                     type: 'message',
                     question_instance_id: currentQuestion.question_instance_id,
                     text: responseText,
                 }));
-
-                // Do NOT set sending(false) here. We will organically clear sending=false when 'evaluation' or 'error' comes back from WS
             } else {
                 addMessage({ role: "system", content: "Error: WebSocket stream is disconnected. Please refresh the page." });
                 setSending(false);
@@ -678,17 +716,9 @@ export default function VivaSessionPage() {
             const message = err instanceof Error ? err.message : "Failed to submit response.";
             addMessage({ role: "system", content: `Error: ${message}` });
             setSending(false);
-        } finally {
-            textareaRef.current?.focus();
         }
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            handleSubmit();
-        }
-    };
 
     const handleAbandon = async () => {
         try {
@@ -731,264 +761,245 @@ export default function VivaSessionPage() {
         : messages.filter((m) => m.role === "assistant" && !m.metadata?.isFeedback).length;
 
     return (
-        <div className="flex flex-col h-[calc(100dvh-120px)] max-h-[900px]">
-            {/* Session Header */}
-            <div className="flex items-center justify-between gap-3 border-b border-border/40 pb-4 mb-4 shrink-0">
-                <div className="flex items-center gap-3">
-                    <div className="relative">
-                        <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                            <Mic2 className="h-5 w-5 text-primary" />
+        <div className="fixed inset-0 z-[100] w-full h-full bg-black text-emerald-50 overflow-hidden font-sans selection:bg-emerald-500/30">
+            {/* Ambient Background Effects */}
+            <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+                <motion.div
+                    animate={{
+                        opacity: sending ? 0.4 : 0.15,
+                        scale: sending ? 1.2 : 1,
+                        x: sending ? [0, 20, 0] : 0,
+                        backgroundColor: sending ? "rgba(20, 184, 166, 0.2)" : "rgba(16, 185, 129, 0.1)"
+                    }}
+                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                    className="absolute -top-[20%] -left-[10%] w-[80vw] h-[80vw] rounded-full blur-[120px]"
+                />
+                <motion.div
+                    animate={{
+                        opacity: isRecording ? 0.5 : 0.15,
+                        scale: isRecording ? 1.3 : 1,
+                        x: isRecording ? [0, -20, 0] : 0,
+                        backgroundColor: isRecording ? "rgba(16, 185, 129, 0.25)" : "rgba(20, 184, 166, 0.1)"
+                    }}
+                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                    className="absolute -bottom-[20%] -right-[10%] w-[70vw] h-[70vw] rounded-full blur-[100px]"
+                />
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
+            </div>
+
+            {/* Top Navigation / HeaderBar */}
+            <div className="relative z-10 flex items-center justify-between px-6 py-5">
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
+                        <span className="text-sm font-semibold tracking-wider text-emerald-400/90 uppercase">IVAS Session</span>
+                    </div>
+                    {session && !isComplete && (
+                        <div className="flex items-center gap-3 ml-4 bg-zinc-900/30 px-3 py-1 rounded-full border border-zinc-800/50">
+                            <span className="text-xs font-medium text-zinc-400">
+                                Q{questionIndex} / {session.total_questions}
+                            </span>
+                            <div className="h-3 w-[1px] bg-zinc-800" />
+                            <span className="text-xs font-mono text-zinc-500">
+                                {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+                            </span>
                         </div>
-                        {!isComplete && (
-                            <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-background animate-pulse" />
-                        )}
-                    </div>
-                    <div>
-                        <h1 className="text-lg font-bold leading-tight">Viva Assessment</h1>
-                        <p className="text-xs text-muted-foreground">
-                            {isComplete ? (
-                                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                                    <CheckCircle2 className="h-3 w-3" /> Completed
-                                </span>
-                            ) : (
-                                `Question ${questionIndex} of ${session?.total_questions ?? "?"}`
-                            )}
-                        </p>
-                    </div>
+                    )}
                 </div>
 
-                <div className="flex items-center gap-2">
-                    {!isComplete && (
-                        <>
+                <div className="flex items-center gap-3">
+                    <Sheet>
+                        <SheetTrigger asChild>
+                            <Button variant="outline" size="sm" className="bg-zinc-900/40 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white backdrop-blur-md rounded-full px-4 transition-all">
+                                <List className="h-4 w-4 mr-2" /> History
+                            </Button>
+                        </SheetTrigger>
+                        <SheetContent className="bg-zinc-950/95 border-zinc-800 text-zinc-100 p-0 sm:max-w-md w-[85vw] backdrop-blur-xl">
+                            <SheetHeader className="p-6 border-b border-zinc-800/60 bg-zinc-900/20">
+                                <SheetTitle className="text-zinc-100 flex items-center gap-2">
+                                    <Activity className="h-4 w-4 text-emerald-500" />
+                                    Session History
+                                </SheetTitle>
+                            </SheetHeader>
+                            <TranscriptPanel messages={messages} />
+                        </SheetContent>
+                    </Sheet>
+
+                    {!isComplete ? (
+                        <div className="flex gap-2">
                             {abandonConfirm ? (
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xs text-muted-foreground">Abandon this session?</span>
-                                    <Button
-                                        size="sm"
-                                        variant="destructive"
-                                        onClick={handleAbandon}
-                                        disabled={abandoning}
-                                    >
-                                        {abandoning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Yes, abandon"}
+                                <div className="flex items-center bg-red-950/40 border border-red-900/50 rounded-full pl-3 pr-1 py-1 backdrop-blur-md">
+                                    <Button size="sm" variant="destructive" className="h-7 px-3 text-xs rounded-full bg-red-600/80 hover:bg-red-600" onClick={handleAbandon} disabled={abandoning}>
+                                        {abandoning ? <Loader2 className="h-3 w-3 animate-spin" /> : "Confirm End"}
                                     </Button>
-                                    <Button size="sm" variant="ghost" onClick={() => setAbandonConfirm(false)}>
-                                        Cancel
+                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-red-300 hover:text-red-100 hover:bg-white/10 rounded-full" onClick={() => setAbandonConfirm(false)}>
+                                        <XCircle className="h-4 w-4" />
                                     </Button>
                                 </div>
                             ) : (
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-muted-foreground"
-                                    onClick={() => setAbandonConfirm(true)}
-                                >
-                                    <XCircle className="h-3.5 w-3.5 mr-1" />
-                                    Abandon
+                                <Button size="sm" variant="ghost" className="text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-colors" onClick={() => setAbandonConfirm(true)}>
+                                    <XCircle className="h-4 w-4" />
                                 </Button>
                             )}
-                        </>
-                    )}
-                    {isComplete && (
-                        <Button asChild size="sm" variant="outline">
+                        </div>
+                    ) : (
+                        <Button asChild size="sm" className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-full shadow-[0_0_15px_rgba(16,185,129,0.3)]">
                             <Link href={`/student/assessments/results/${sessionId}`}>
-                                <BarChart3 className="h-3.5 w-3.5 mr-1" />
-                                View Results
+                                <BarChart3 className="h-4 w-4 mr-2" /> Results
                             </Link>
                         </Button>
                     )}
                 </div>
             </div>
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto space-y-4 pr-1">
-                {messages.map((msg) => (
-                    <MessageBubble key={msg.id} msg={msg} />
-                ))}
+            {/* CenterStage */}
+            <main className="flex-1 relative z-10 flex flex-col items-center justify-center px-6 w-full max-w-5xl mx-auto h-full overflow-y-auto pt-10 pb-32">
+                <AICoreOrb state={isComplete ? "idle" : sending ? "thinking" : isRecording ? "user_speaking" : "ai_speaking"} />
 
-                {/* Typing indicator */}
-                {sending && (
-                    <div className="flex gap-3">
-                        <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                            <Loader2 className="h-3.5 w-3.5 text-primary animate-spin" />
-                        </div>
-                        <div className="rounded-2xl rounded-tl-sm bg-muted/50 px-4 py-3">
-                            <p className="text-sm text-muted-foreground italic">AI is evaluating your response…</p>
-                        </div>
-                    </div>
-                )}
-
-                {/* Completion card */}
-                {isComplete && finalData && (
-                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-900/20 p-5 space-y-4">
-                        <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-semibold">
-                            <CheckCircle2 className="h-5 w-5" />
-                            Assessment Complete!
-                        </div>
-                        {finalData.final_score !== null && finalData.max_score !== null && (
-                            <div>
-                                <p className="text-3xl font-black text-emerald-700 dark:text-emerald-400">
-                                    {finalData.final_score}/{finalData.max_score}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                    {Math.round((finalData.final_score / finalData.max_score) * 100)}% overall
-                                </p>
-                            </div>
-                        )}
-                        {finalData.competency_summary && finalData.competency_summary.length > 0 && (
-                            <div className="space-y-2">
-                                {finalData.competency_summary.map((item) => (
-                                    <CompetencyBar key={item.competency} item={item} />
-                                ))}
-                            </div>
-                        )}
-                        <Button asChild className="w-full">
-                            <Link href={`/student/assessments/results/${sessionId}`}>
-                                <BarChart3 className="h-4 w-4 mr-2" />
-                                View Full Results
-                            </Link>
-                        </Button>
-                    </div>
-                )}
-
-                <div ref={bottomRef} />
-            </div>
-
-            {/* Input Area */}
-            <div className="shrink-0 mt-4 border-t border-border/40 pt-4">
-                {isComplete ? (
-                    <div className="rounded-xl border border-dashed border-border/60 p-4 text-center text-sm text-muted-foreground">
-                        This session has ended.
-                    </div>
-                ) : (
-                    <div className="flex gap-3 items-end">
-                        <AnimatePresence mode="popLayout">
-                            {isRecording ? (
-                                <motion.div
-                                    key="recording"
-                                    initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                                    exit={{ opacity: 0, scale: 0.95, filter: "blur(4px)" }}
-                                    transition={{ duration: 0.3, ease: "easeOut" }}
-                                    className="flex-1 flex flex-col gap-2 relative bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-950/40 dark:to-emerald-900/10 border border-emerald-200 dark:border-emerald-800/60 rounded-2xl p-4 overflow-hidden shadow-inner"
-                                >
-                                    {/* Pulsating background circles for "live" feel */}
-                                    <motion.div
-                                        animate={{ scale: [1, 1.05, 1], opacity: [0.1, 0.2, 0.1] }}
-                                        transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-                                        className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-emerald-500/20 blur-3xl pointer-events-none"
-                                    />
-                                    <motion.div
-                                        animate={{ scale: [1, 1.1, 1], opacity: [0.1, 0.15, 0.1] }}
-                                        transition={{ repeat: Infinity, duration: 3, ease: "easeInOut", delay: 0.5 }}
-                                        className="absolute -left-10 -bottom-10 h-40 w-40 rounded-full bg-teal-500/20 blur-2xl pointer-events-none"
-                                    />
-
-                                    <div className="flex items-center justify-between relative z-10 w-full">
-                                        <div className="flex items-center gap-3">
-                                            <div className="relative flex h-4 w-4 shrink-0 items-center justify-center">
-                                                <motion.span
-                                                    animate={{ scale: [1, 1.5, 1] }}
-                                                    transition={{ repeat: Infinity, duration: 1.5 }}
-                                                    className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"
-                                                />
-                                                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                                            </div>
-                                            <span className="text-emerald-700 dark:text-emerald-400 font-semibold text-sm">
-                                                Listening...
-                                            </span>
-                                            <span className="text-emerald-600/70 dark:text-emerald-500/70 font-mono text-xs ml-1">
-                                                {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
-                                            </span>
-                                        </div>
-
-                                        <Button
-                                            size="sm"
-                                            onClick={() => stopRecording(true)}
-                                            className="shrink-0 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95 px-4"
-                                        >
-                                            <Square className="h-3.5 w-3.5 mr-2 fill-current" />
-                                            Submit
-                                        </Button>
-                                    </div>
-
-                                    <div className="relative z-10 mt-2 h-[48px] overflow-hidden flex items-start">
-                                        <p className="text-emerald-800 dark:text-emerald-200 text-sm font-medium leading-relaxed italic opacity-80 line-clamp-2">
-                                            {interimTranscript || "Speak now..."}
-                                        </p>
-                                    </div>
-                                </motion.div>
+                <div className="mt-16 w-full text-center space-y-8 select-none">
+                    <AnimatePresence mode="wait">
+                        <motion.div
+                            key={currentQuestion?.question_instance_id || 'done'}
+                            initial={{ opacity: 0, y: 20, filter: 'blur(10px)' }}
+                            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                            exit={{ opacity: 0, y: -20, filter: 'blur(10px)' }}
+                            transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
+                            className="max-w-3xl mx-auto"
+                        >
+                            {isComplete ? (
+                                <div className="space-y-6">
+                                    <h2 className="text-4xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 to-teal-400 tracking-tight">
+                                        Session Complete
+                                    </h2>
+                                    <p className="text-zinc-400 text-lg max-w-lg mx-auto leading-relaxed">
+                                        You have successfully finished the viva assessment. View your detailed feedback in the results page.
+                                    </p>
+                                </div>
                             ) : (
+                                <h2 className="text-2xl sm:text-3xl md:text-4xl font-medium text-zinc-100 leading-tight tracking-tight">
+                                    {currentQuestion?.question_text || "I'm preparing the next sequence..."}
+                                </h2>
+                            )}
+                        </motion.div>
+                    </AnimatePresence>
+
+                    {/* Voice Feedback Layer */}
+                    <div className="min-h-[100px] flex flex-col items-center justify-center">
+                        <AnimatePresence>
+                            {isRecording && (
                                 <motion.div
-                                    key="textarea"
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.98 }}
-                                    transition={{ duration: 0.2 }}
-                                    className="flex-1"
+                                    className="max-w-2xl px-4"
                                 >
-                                    <Textarea
-                                        ref={textareaRef}
-                                        rows={3}
-                                        placeholder="Type your answer or use the microphone… (Enter to send, Shift+Enter for new line)"
-                                        className="w-full resize-none rounded-2xl bg-muted/30 focus-visible:bg-background transition-colors border-border/50 text-base py-3 px-4 shadow-sm"
-                                        value={inputValue}
-                                        onChange={(e) => setInputValue(e.target.value)}
-                                        onKeyDown={handleKeyDown}
-                                        disabled={sending || isComplete}
-                                    />
+                                    <p className="text-lg sm:text-xl text-emerald-400/70 font-medium leading-normal italic text-center">
+                                        {interimTranscript || "Listening..."}
+                                    </p>
+                                    <div className="mt-4 flex justify-center">
+                                        <VoiceWaveform audioData={audioData} />
+                                    </div>
                                 </motion.div>
                             )}
                         </AnimatePresence>
 
-                        <div className="flex flex-col gap-2 shrink-0 h-[76px] justify-end pb-1">
-                            {inputValue.trim() ? (
-                                <Button
-                                    size="icon"
-                                    className="h-full w-12"
-                                    onClick={() => handleSubmit()}
-                                    disabled={sending || isComplete}
-                                >
-                                    {sending ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                        <Send className="h-4 w-4" />
-                                    )}
-                                </Button>
-                            ) : (
-                                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="h-full">
-                                    <Button
-                                        size="icon"
-                                        variant={isRecording ? "destructive" : "default"}
-                                        className={cn(
-                                            "h-12 w-12 rounded-full shadow-lg transition-all",
-                                            isRecording
-                                                ? "bg-red-500 hover:bg-red-600 shadow-red-500/25"
-                                                : "bg-primary hover:bg-primary/90 shadow-primary/25"
-                                        )}
-                                        onClick={() => {
-                                            if (isRecording) {
-                                                stopRecording(true);
-                                            } else {
-                                                startRecording();
-                                            }
-                                        }}
-                                        disabled={sending || isComplete}
-                                        title={isRecording ? "Stop Recording" : "Start Voice Recording"}
-                                    >
-                                        {sending ? (
-                                            <Loader2 className="h-5 w-5 animate-spin text-white" />
-                                        ) : isRecording ? (
-                                            <Square className="h-5 w-5 fill-current text-white" />
-                                        ) : (
-                                            <Mic className="h-5 w-5 text-white" />
-                                        )}
-                                    </Button>
-                                </motion.div>
-                            )}
-                        </div>
+                        {!isRecording && sending && (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="flex flex-col items-center gap-2"
+                            >
+                                <div className="flex gap-1">
+                                    {[0, 1, 2].map(i => (
+                                        <motion.div
+                                            key={i}
+                                            animate={{ opacity: [0.2, 1, 0.2] }}
+                                            transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+                                            className="h-1.5 w-1.5 rounded-full bg-emerald-500"
+                                        />
+                                    ))}
+                                </div>
+                                <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 font-bold">Processing Neural Response</span>
+                            </motion.div>
+                        )}
                     </div>
-                )}
+                </div>
+            </main>
+
+            {/* VoiceControls (Bottom Dock) */}
+            <div className="fixed bottom-0 left-0 right-0 z-30 pb-10 pt-10 pointer-events-none">
+                <div className="max-w-md mx-auto flex flex-col items-center gap-4 pointer-events-auto">
+                    {!isComplete && (
+                        <div className="relative">
+                            {isRecording && (
+                                <motion.div
+                                    animate={{ scale: [1, 2], opacity: [0.5, 0] }}
+                                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeOut" }}
+                                    className="absolute inset-0 rounded-full bg-red-500/30 -z-10"
+                                />
+                            )}
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => isRecording ? stopRecording(true) : startRecording()}
+                                disabled={sending}
+                                className={cn(
+                                    "flex h-20 w-20 items-center justify-center rounded-full transition-all duration-500 shadow-2xl",
+                                    isRecording
+                                        ? "bg-red-500 text-white"
+                                        : sending
+                                            ? "bg-zinc-800 text-zinc-600 cursor-not-allowed"
+                                            : "bg-zinc-100 hover:bg-white text-zinc-950"
+                                )}
+                            >
+                                {sending ? (
+                                    <Loader2 className="h-8 w-8 animate-spin" />
+                                ) : isRecording ? (
+                                    <Square className="h-8 w-8 fill-current" />
+                                ) : (
+                                    <Mic className="h-9 w-9" />
+                                )}
+                            </motion.button>
+                        </div>
+                    )}
+
+                    <AnimatePresence>
+                        {!isComplete && (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500"
+                            >
+                                {isRecording ? "Active Capture" : sending ? "Synchronizing" : "System Ready"}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
             </div>
+
+
+            {/* Error Overlay */}
+            <AnimatePresence>
+                {initError && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm"
+                    >
+                        <div className="max-w-md w-full bg-red-950/90 border border-red-900/50 p-6 rounded-2xl shadow-2xl backdrop-blur-xl">
+                            <div className="flex items-center gap-3 text-red-400 mb-2">
+                                <AlertTriangle className="h-6 w-6" />
+                                <h3 className="text-xl font-bold">Session Error</h3>
+                            </div>
+                            <p className="text-red-200/80 mb-6">{initError}</p>
+                            <Button asChild className="w-full bg-red-600 hover:bg-red-500 text-white border-0">
+                                <Link href="/student/assessments/dashboard">Return to Dashboard</Link>
+                            </Button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
