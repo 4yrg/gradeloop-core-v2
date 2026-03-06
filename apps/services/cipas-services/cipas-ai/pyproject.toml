@@ -33,10 +33,10 @@ scipy = "^1.11.0"
 pandas = "^2.1.0"
 
 # Tree-sitter for code parsing
-tree-sitter = "^0.20.0"
-tree-sitter-python = "^0.20.0"
-tree-sitter-java = "^0.20.0"
-tree-sitter-c = "^0.20.0"
+tree-sitter = ">=0.21.0"
+    tree-sitter-python = ">=0.21.0"
+    tree-sitter-java = ">=0.21.0"
+    tree-sitter-c = ">=0.21.0"
 
 # Model optimization and quantization (CUDA-enabled)
 bitsandbytes = "^0.41.0"
