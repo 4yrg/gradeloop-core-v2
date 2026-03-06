@@ -35,6 +35,10 @@ models:
     early_stopping_rounds: 100
     eval_metric: "AUC"
     device: "gpu"  # gpu, cpu, or auto
+    random_seed: 42
+    verbose: false
+    task_type: "GPU"  # GPU or CPU (passed directly to CatBoost)
+    devices: "0"      # GPU device index
     
   droiddetect:
     # DroidDetect Stage 2 (Deep-path) parameters  
@@ -140,6 +144,7 @@ grammar:
     cpp: "tree-sitter-cpp.so"
     javascript: "tree-sitter-javascript.so"
     go: "tree-sitter-go.so"
+    csharp: "tree-sitter-c-sharp.so"
 
 # CLI Run Configuration
 # Controls what train.py and evaluate.py do when executed directly.
@@ -159,4 +164,4 @@ cli:
     batch_size: 8
     output_file: null       # null = auto-generated inside output.results_dir
     verbose: false
-    csharp: "tree-sitter-c-sharp.so"
+   

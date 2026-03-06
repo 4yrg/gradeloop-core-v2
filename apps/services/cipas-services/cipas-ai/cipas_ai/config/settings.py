@@ -32,6 +32,10 @@ class CatBoostConfig(BaseModel):
     early_stopping_rounds: int = 100
     eval_metric: str = "AUC"
     device: str = "gpu"
+    random_seed: int = 42
+    verbose: bool = False
+    task_type: str = "GPU"   # GPU or CPU (passed to CatBoost)
+    devices: str = "0"       # GPU device index
 
 class DroidDetectConfig(BaseModel):
     """DroidDetect Stage 2 configuration"""
