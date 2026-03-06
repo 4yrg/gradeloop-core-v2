@@ -208,9 +208,6 @@ Examples:
         or model_config.get("name", "type4_xgb_codenet.pkl"),
         "model_dir": args.model_dir or model_config.get("dir", "./models"),
         "sample_size": args.sample_size or training_config.get("sample_size"),
-        "full_dataset": args.full_dataset
-        if args.full_dataset is not None
-        else training_config.get("full_dataset", False),
         "clone_ratio": args.clone_ratio or training_config.get("clone_ratio", 0.5),
         "hard_negative_ratio": args.hard_negative_ratio
         or training_config.get("hard_negative_ratio", 0.20),
@@ -229,15 +226,15 @@ Examples:
         "visualize": not args.no_visualize and training_config.get("visualize", True),
         "cross_validation": not args.no_cv
         and training_config.get("cross_validation", True),
-        "log_level": args.log_level or training_config.get("log_level", "INFO"),
         "xgboost_params": xgboost_config if xgboost_config else None,
     }
 
     # Set logging level
-    logging.getLogger().setLevel(getattr(logging, params["log_level"]))
+    log_level = args.log_level or training_config.get("log_level", "INFO")
+    logging.getLogger().setLevel(getattr(logging, log_level))
 
     # Handle full_dataset flag
-    if params["full_dataset"]:
+    if args.full_dataset:
         params["sample_size"] = None
         logger.info("Using FULL dataset (no sampling)")
 

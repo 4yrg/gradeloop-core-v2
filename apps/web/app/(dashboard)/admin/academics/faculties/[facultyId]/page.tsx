@@ -24,6 +24,9 @@ import {
   ShieldAlert,
   Loader2,
   Layers,
+  UserPlus,
+  Trash2,
+  ChevronDown,
 } from "lucide-react";
 import {
   Card,
@@ -33,6 +36,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils/cn";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -53,6 +57,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { facultiesApi, departmentsApi } from "@/lib/api/academics";
+import { usersApi } from "@/lib/api/users";
 import { useUIStore } from "@/lib/stores/uiStore";
 import { handleApiError } from "@/lib/api/axios";
 import { useAcademicsAccess } from "@/lib/hooks/useAcademicsAccess";
@@ -61,14 +66,15 @@ import {
   CreateDepartmentDialog,
   EditDepartmentDialog,
 } from "@/components/admin/academics/department-dialogs";
-import { EditFacultyDialog } from "@/components/admin/academics/faculty-dialogs";
 import { AcademicsDetailLayout } from "@/components/admin/academics/AcademicsDetailLayout";
 import { DangerZone } from "@/components/admin/academics/DangerZone";
 import type {
   Faculty,
   Department,
   UpdateFacultyRequest,
+  CreateLeadershipRequest,
 } from "@/types/academics.types";
+import type { UserListItem } from "@/types/auth.types";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -143,13 +149,15 @@ export default function FacultyDetailPage() {
   const [editDeptTarget, setEditDeptTarget] = React.useState<Department | null>(
     null,
   );
-  const [editFacultyOpen, setEditFacultyOpen] = React.useState(false);
 
   // Settings
   const [activeTab, setActiveTab] = React.useState<
     "overview" | "departments" | "settings"
   >("overview");
   const [editValues, setEditValues] = React.useState<UpdateFacultyRequest>({});
+  const [leaders, setLeaders] = React.useState<CreateLeadershipRequest[]>([]);
+  const [employees, setEmployees] = React.useState<UserListItem[]>([]);
+  const [employeesLoading, setEmployeesLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
 
   React.useEffect(() => {
@@ -173,12 +181,23 @@ export default function FacultyDetailPage() {
         code: fac.code,
         description: fac.description ?? "",
       });
+      // Initialize leaders from faculty data
+      if (fac.leaders && fac.leaders.length > 0) {
+        setLeaders(
+          fac.leaders.map((l) => ({
+            user_id: l.user_id,
+            role: l.role,
+          }))
+        );
+      } else {
+        setLeaders([{ user_id: "", role: "" }]); // At least one empty leader
+      }
     } catch (err) {
       setError(handleApiError(err));
     } finally {
       setLoading(false);
     }
-  }, [params.facultyId]);
+  }, [params.facultyId, setPageTitle]);
 
   React.useEffect(() => {
     load();
@@ -186,12 +205,44 @@ export default function FacultyDetailPage() {
 
   React.useEffect(() => () => setPageTitle(null), [setPageTitle]);
 
+  // Load employees when Settings tab is active
+  React.useEffect(() => {
+    if (activeTab === "settings" && employees.length === 0) {
+      setEmployeesLoading(true);
+      usersApi
+        .list({ user_type: "instructor", limit: 1000 })
+        .then((result) => {
+          setEmployees(result.data || []);
+        })
+        .catch((err) => {
+          console.error("Failed to load employees:", err);
+        })
+        .finally(() => {
+          setEmployeesLoading(false);
+        });
+    }
+  }, [activeTab, employees.length]);
+
   async function handleSaveFaculty(e: React.FormEvent) {
     e.preventDefault();
     if (!faculty) return;
+    
+    // Validate leaders
+    const validLeaders = leaders.filter(
+      (l) => l.user_id && l.role
+    );
+    
+    if (validLeaders.length === 0) {
+      toast.error("Validation failed", "At least one leader is required");
+      return;
+    }
+    
     setSaving(true);
     try {
-      const updated = await facultiesApi.update(faculty.id, editValues);
+      const updated = await facultiesApi.update(faculty.id, {
+        ...editValues,
+        leaders: validLeaders,
+      });
       setFaculty(updated);
       setPageTitle(updated.name);
       toast.success("Faculty updated", updated.name);
@@ -220,6 +271,26 @@ export default function FacultyDetailPage() {
     } catch (err) {
       toast.error("Action failed", handleApiError(err));
     }
+  }
+
+  // Leadership management functions
+  function setLeader(
+    index: number,
+    field: keyof CreateLeadershipRequest,
+    value: string
+  ) {
+    const next = leaders.map((l, i) =>
+      i === index ? { ...l, [field]: value } : l
+    );
+    setLeaders(next);
+  }
+
+  function addLeader() {
+    setLeaders([...leaders, { user_id: "", role: "" }]);
+  }
+
+  function removeLeader(index: number) {
+    setLeaders(leaders.filter((_, i) => i !== index));
   }
 
   if (!canAccess) return null;
@@ -745,6 +816,112 @@ export default function FacultyDetailPage() {
                         }
                       />
                     </div>
+
+                    {/* Leadership Management */}
+                    <div className="space-y-3 pt-4 border-t border-border">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-bold uppercase text-muted-foreground">
+                          Faculty Leadership{" "}
+                          <span className="text-zinc-400 font-normal normal-case">
+                            (Instructors only)
+                          </span>
+                        </Label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={addLeader}
+                          className="h-7 gap-1.5 text-xs"
+                        >
+                          <UserPlus className="h-3.5 w-3.5" />
+                          Add Leader
+                        </Button>
+                      </div>
+
+                      {leaders.length === 0 ? (
+                        <div className="flex items-center justify-center rounded-lg border border-dashed border-zinc-200 dark:border-zinc-800 py-4 text-sm text-zinc-400">
+                          No leaders added yet — at least one required
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {leaders.map((leader, i) => (
+                            <div
+                              key={i}
+                              className="grid grid-cols-[1fr_auto] gap-2 items-start rounded-lg border border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30 p-3"
+                            >
+                              <div className="grid grid-cols-2 gap-2">
+                                {/* Employee select */}
+                                <div className="space-y-1">
+                                  <p className="text-[11px] text-zinc-500 font-medium uppercase tracking-wide">
+                                    Instructor
+                                  </p>
+                                  {employeesLoading ? (
+                                    <div className="flex h-9 items-center px-3 text-xs text-zinc-400 border rounded-md bg-white dark:bg-zinc-950">
+                                      Loading instructors…
+                                    </div>
+                                  ) : employees.length > 0 ? (
+                                    <div className="relative">
+                                      <select
+                                        className="flex h-9 w-full appearance-none rounded-md border border-zinc-200 bg-white px-3 py-1 pr-8 text-sm text-zinc-900 dark:text-zinc-50 shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-950 dark:border-zinc-800 dark:bg-zinc-950 dark:focus-visible:ring-zinc-300"
+                                        value={leader.user_id}
+                                        onChange={(e) =>
+                                          setLeader(i, "user_id", e.target.value)
+                                        }
+                                      >
+                                        <option value="">Select instructor…</option>
+                                        {employees.map((emp) => (
+                                          <option key={emp.id} value={emp.id}>
+                                            {emp.email}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <ChevronDown className="pointer-events-none absolute right-2.5 top-2.5 h-4 w-4 text-zinc-400" />
+                                    </div>
+                                  ) : (
+                                    <Input
+                                      placeholder="Instructor UUID"
+                                      value={leader.user_id}
+                                      onChange={(e) =>
+                                        setLeader(i, "user_id", e.target.value)
+                                      }
+                                    />
+                                  )}
+                                </div>
+
+                                {/* Role input */}
+                                <div className="space-y-1">
+                                  <p className="text-[11px] text-zinc-500 font-medium uppercase tracking-wide">
+                                    Role
+                                  </p>
+                                  <Input
+                                    placeholder="e.g. Dean"
+                                    value={leader.role}
+                                    onChange={(e) =>
+                                      setLeader(i, "role", e.target.value)
+                                    }
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Remove */}
+                              <div className="pt-5">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-zinc-400 hover:text-red-600"
+                                  onClick={() => removeLeader(i)}
+                                  title="Remove leader"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
                     <div className="flex justify-end pt-2">
                       <Button disabled={saving} className="font-bold gap-2">
                         {saving ? (
@@ -777,6 +954,13 @@ export default function FacultyDetailPage() {
                   );
                   toast.success("Faculty reactivated", faculty.name);
                 }}
+                showDelete={true}
+                onDelete={async () => {
+                  await facultiesApi.delete(faculty.id);
+                  toast.success("Faculty deleted", faculty.name);
+                  router.push("/admin/academics/faculties");
+                }}
+                deleteDescription={`This will permanently mark "${faculty.name}" as inactive. The faculty and all its data will be preserved but unavailable for use.`}
               />
             </div>
           )}
@@ -808,17 +992,6 @@ export default function FacultyDetailPage() {
                   prev.map((d) => (d.id === updated.id ? updated : d)),
                 );
                 setEditDeptTarget(null);
-              }}
-            />
-          )}
-          {isSuperAdmin && (
-            <EditFacultyDialog
-              open={editFacultyOpen}
-              onOpenChange={setEditFacultyOpen}
-              faculty={faculty}
-              onSuccess={(updated) => {
-                setFaculty(updated);
-                setEditFacultyOpen(false);
               }}
             />
           )}

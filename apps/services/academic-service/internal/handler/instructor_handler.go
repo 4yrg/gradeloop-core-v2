@@ -83,13 +83,19 @@ func (h *InstructorHandler) verifyInstructorAssignment(instanceID, userID uuid.U
 func (h *InstructorHandler) GetMyCourses(c fiber.Ctx) error {
 	userID, err := instructorUserID(c)
 	if err != nil {
+		h.logger.Error("failed to get instructor user ID", zap.Error(err))
 		return err
 	}
 
+	h.logger.Info("fetching instructor courses", zap.String("user_id", userID.String()))
+
 	assignments, err := h.courseInstructorService.GetMyInstances(userID)
 	if err != nil {
+		h.logger.Error("failed to fetch instructor course instances", zap.Error(err), zap.String("user_id", userID.String()))
 		return err
 	}
+
+	h.logger.Info("fetched instructor course instances", zap.Int("count", len(assignments)), zap.String("user_id", userID.String()))
 
 	responses := make([]dto.CourseInstructorResponse, len(assignments))
 	for i, a := range assignments {

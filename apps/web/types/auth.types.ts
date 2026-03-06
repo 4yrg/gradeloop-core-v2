@@ -21,6 +21,8 @@ export const USER_TYPES = {
   SUPER_ADMIN: 'super_admin',
 } as const;
 
+export const USER_TYPES_ARRAY = Object.values(USER_TYPES);
+
 export type UserType = typeof USER_TYPES[keyof typeof USER_TYPES];
 
 // ── Auth endpoint types ───────────────────────────────────────────────────────

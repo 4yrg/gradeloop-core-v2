@@ -56,7 +56,6 @@ import {
   CreateSpecializationDialog,
   EditSpecializationDialog,
 } from '@/components/admin/academics/specialization-dialogs';
-import { EditDegreeDialog } from '@/components/admin/academics/degree-dialogs';
 import { AcademicsDetailLayout } from '@/components/admin/academics/AcademicsDetailLayout';
 import { DangerZone } from '@/components/admin/academics/DangerZone';
 import type { Degree, Specialization, DegreeLevel, Department, UpdateDegreeRequest } from '@/types/academics.types';
@@ -139,7 +138,6 @@ export default function DegreeDetailPage() {
   // Dialogs
   const [createSpecOpen, setCreateSpecOpen] = React.useState(false);
   const [editSpecTarget, setEditSpecTarget] = React.useState<Specialization | null>(null);
-  const [editDegreeOpen, setEditDegreeOpen] = React.useState(false);
 
   // Settings
   const [activeTab, setActiveTab] = React.useState<'overview' | 'specializations' | 'settings'>('overview');
@@ -486,7 +484,11 @@ export default function DegreeDetailPage() {
                 </TableHeader>
                 <TableBody>
                   {visibleSpecs.map((spec) => (
-                    <TableRow key={spec.id} className="hover:bg-muted/30 transition-colors">
+                    <TableRow 
+                      key={spec.id} 
+                      className="hover:bg-muted/30 transition-colors cursor-pointer"
+                      onClick={() => router.push(`/admin/academics/specializations/${spec.id}`)}
+                    >
                       <TableCell className="pl-4">
                         <div className="flex items-center gap-3">
                           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0">
@@ -509,7 +511,7 @@ export default function DegreeDetailPage() {
                         {fmt(spec.created_at)}
                       </TableCell>
                       {canWrite && (
-                        <TableCell className="text-right pr-2">
+                        <TableCell className="text-right pr-2" onClick={(e) => e.stopPropagation()}>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -614,6 +616,13 @@ export default function DegreeDetailPage() {
               setDegree((prev) => prev ? { ...prev, is_active: true } : prev);
               toast.success('Degree reactivated', degree.name);
             }}
+            showDelete={true}
+            onDelete={async () => {
+              await degreesApi.delete(degree.id);
+              toast.success('Degree deleted', degree.name);
+              router.push('/admin/academics/degrees');
+            }}
+            deleteDescription={`This will permanently mark "${degree.name}" as inactive. The degree and all its data will be preserved but unavailable for use.`}
           />
         </div>
           )}
@@ -641,17 +650,6 @@ export default function DegreeDetailPage() {
               onSuccess={(updated) => {
                 setSpecializations((prev) => prev.map((s) => s.id === updated.id ? updated : s));
                 setEditSpecTarget(null);
-              }}
-            />
-          )}
-          {canWrite && (
-            <EditDegreeDialog
-              open={editDegreeOpen}
-              onOpenChange={setEditDegreeOpen}
-              degree={degree}
-              onSuccess={(updated) => {
-                setDegree(updated);
-                setEditDegreeOpen(false);
               }}
             />
           )}

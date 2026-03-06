@@ -182,7 +182,8 @@ export default function SemestersPage() {
                     {filtered.map((sem) => (
                         <Card
                             key={sem.id}
-                            className={`transition-all hover:shadow-md ${!sem.is_active ? 'opacity-60' : ''}`}
+                            className={`transition-all hover:shadow-md cursor-pointer ${!sem.is_active ? 'opacity-60' : ''}`}
+                            onClick={() => window.location.href = `/admin/academics/semesters/${sem.id}`}
                         >
                             <CardContent className="p-5">
                                 <div className="flex items-start justify-between mb-3">
@@ -197,16 +198,16 @@ export default function SemestersPage() {
                                     </div>
                                     {canWrite && (
                                         <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
+                                            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                                                 <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
                                                     <MoreVertical className="h-4 w-4" />
                                                 </Button>
                                             </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => setEditTarget(sem)}>
+                                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditTarget(sem); }}>
                                                     Edit
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => toggleActive(sem)}>
+                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toggleActive(sem); }}>
                                                     {sem.is_active ? 'Deactivate' : 'Reactivate'}
                                                 </DropdownMenuItem>
                                             </DropdownMenuContent>
