@@ -47,20 +47,34 @@ system:
 
 **Train models:**
 ```bash
-# Train CatBoost model
-python train.py --model catboost --dataset synthetic
+# Train the full pipeline (CatBoost → DroidDetect, all configured datasets)
+python train.py
 
-# Train DroidDetect model  
-python train.py --model droiddetect --dataset aicd-bench --verbose
+# Train a specific stage
+python train.py --model catboost
+python train.py --model droiddetect
+
+# Target a specific dataset
+python train.py --dataset DroidCollection
+
+# Limit samples (quick sanity run)
+python train.py --max-samples 2000 --verbose
 ```
 
 **Evaluate models:**
 ```bash
-# Evaluate pipeline (CatBoost + DroidDetect)
-python evaluate.py --dataset aicd-bench --stage pipeline
+# Evaluate the full pipeline against aicd-bench (default)
+python evaluate.py
 
-# Evaluate specific model
-python evaluate.py --dataset aicd-bench --stage catboost --max-samples 1000
+# Evaluate a specific stage
+python evaluate.py --stage catboost
+python evaluate.py --stage droiddetect
+
+# Evaluate on a different dataset or limit samples
+python evaluate.py --dataset DroidCollection --max-samples 500
+
+# Save detailed results to a file
+python evaluate.py --output results/my_run.json --verbose
 ```
 
 ### FastAPI Service
