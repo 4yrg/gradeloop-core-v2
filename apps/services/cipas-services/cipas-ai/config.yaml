@@ -140,4 +140,23 @@ grammar:
     cpp: "tree-sitter-cpp.so"
     javascript: "tree-sitter-javascript.so"
     go: "tree-sitter-go.so"
+
+# CLI Run Configuration
+# Controls what train.py and evaluate.py do when executed directly.
+# Edit these instead of passing command-line flags.
+cli:
+  train:
+    model: "pipeline"       # pipeline | catboost | droiddetect
+    dataset: null           # null = all datasets listed in datasets.default_training
+    max_samples: null       # null = no limit; e.g. 2000 for a quick test run
+    verbose: false
+
+  evaluate:
+    stage: "pipeline"       # pipeline | catboost | droiddetect
+    dataset: null           # null = datasets.evaluation_dataset (aicd-bench)
+    model_dir: null         # null = output.models_dir
+    max_samples: null       # null = no limit
+    batch_size: 8
+    output_file: null       # null = auto-generated inside output.results_dir
+    verbose: false
     csharp: "tree-sitter-c-sharp.so"

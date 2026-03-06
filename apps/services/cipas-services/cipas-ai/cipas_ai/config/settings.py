@@ -143,6 +143,28 @@ class GrammarConfig(BaseModel):
         "csharp": "tree-sitter-c-sharp.so"
     })
 
+class CLITrainConfig(BaseModel):
+    """CLI training run settings (controlled via config.yaml cli.train)"""
+    model: str = "pipeline"           # pipeline | catboost | droiddetect
+    dataset: Optional[str] = None     # null = all default_training datasets
+    max_samples: Optional[int] = None # null = no limit
+    verbose: bool = False
+
+class CLIEvaluateConfig(BaseModel):
+    """CLI evaluation run settings (controlled via config.yaml cli.evaluate)"""
+    stage: str = "pipeline"           # pipeline | catboost | droiddetect
+    dataset: Optional[str] = None     # null = datasets.evaluation_dataset
+    model_dir: Optional[str] = None   # null = output.models_dir
+    max_samples: Optional[int] = None # null = no limit
+    batch_size: int = 8
+    output_file: Optional[str] = None # null = auto-generated in results_dir
+    verbose: bool = False
+
+class CLIConfig(BaseModel):
+    """CLI run configuration (train + evaluate)"""
+    train: CLITrainConfig = Field(default_factory=CLITrainConfig)
+    evaluate: CLIEvaluateConfig = Field(default_factory=CLIEvaluateConfig)
+
 class Settings(BaseSettings):
     """Main settings class with environment variable support"""
     
@@ -156,6 +178,7 @@ class Settings(BaseSettings):
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     features: FeaturesConfig = Field(default_factory=FeaturesConfig)
     grammar: GrammarConfig = Field(default_factory=GrammarConfig)
+    cli: CLIConfig = Field(default_factory=CLIConfig)
     
     # Environment variables
     config_file: str = Field(default="config.yaml", env="CIPAS_AI_CONFIG_FILE")
@@ -199,6 +222,12 @@ class Settings(BaseSettings):
                     self.features = FeaturesConfig(**yaml_data['features'])
                 if 'grammar' in yaml_data:
                     self.grammar = GrammarConfig(**yaml_data['grammar'])
+                if 'cli' in yaml_data:
+                    cli_data = yaml_data['cli']
+                    self.cli = CLIConfig(
+                        train=CLITrainConfig(**cli_data.get('train', {})),
+                        evaluate=CLIEvaluateConfig(**cli_data.get('evaluate', {})),
+                    )
                     
             except Exception as e:
                 logger.warning(f"Failed to load YAML config: {e}. Using defaults.")
@@ -224,4 +253,5 @@ def get_settings() -> Settings:
 def load_config(config_path: str = "config.yaml") -> Settings:
     """Load configuration from a specific YAML file"""
     settings = Settings(config_file=config_path)
+    return settings
     return settings

@@ -45,36 +45,36 @@ system:
 
 ### CLI Interface
 
+All CLI behaviour is controlled through `config.yaml` (the `cli:` section).
+No flags are needed — just edit the config and run the script.
+
 **Train models:**
 ```bash
-# Train the full pipeline (CatBoost → DroidDetect, all configured datasets)
 python train.py
-
-# Train a specific stage
-python train.py --model catboost
-python train.py --model droiddetect
-
-# Target a specific dataset
-python train.py --dataset DroidCollection
-
-# Limit samples (quick sanity run)
-python train.py --max-samples 2000 --verbose
 ```
 
 **Evaluate models:**
 ```bash
-# Evaluate the full pipeline against aicd-bench (default)
 python evaluate.py
+```
 
-# Evaluate a specific stage
-python evaluate.py --stage catboost
-python evaluate.py --stage droiddetect
+**To change what runs, edit `config.yaml`:**
+```yaml
+cli:
+  train:
+    model: pipeline          # pipeline | catboost | droiddetect
+    dataset: null            # null = all default_training datasets
+    max_samples: null        # null = no limit; e.g. 2000 for quick tests
+    verbose: false
 
-# Evaluate on a different dataset or limit samples
-python evaluate.py --dataset DroidCollection --max-samples 500
-
-# Save detailed results to a file
-python evaluate.py --output results/my_run.json --verbose
+  evaluate:
+    stage: pipeline          # pipeline | catboost | droiddetect
+    dataset: null            # null = datasets.evaluation_dataset (aicd-bench)
+    model_dir: null          # null = output.models_dir
+    max_samples: null        # null = no limit
+    batch_size: 8
+    output_file: null        # null = auto-generated in output.results_dir
+    verbose: false
 ```
 
 ### FastAPI Service
