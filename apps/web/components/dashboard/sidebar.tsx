@@ -40,6 +40,7 @@ import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/lib/stores/authStore";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAssignmentCreateStore } from "@/lib/stores/assignmentCreateStore";
+import { useUIStore } from "@/lib/stores/uiStore";
 import { useLogoutMutation } from "@/lib/hooks/useAuthMutation";
 import {
   DropdownMenu,
@@ -157,6 +158,7 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
   const { currentStep, steps, setStep, highestStepVisited } = useAssignmentCreateStore();
+  const uiSecondarySidebar = useUIStore((s) => s.secondarySidebar);
   const { mutate: logout, isLoading: isLoggingOut } = useLogoutMutation();
 
   // Determine user role from user_type, not from pathname
@@ -201,7 +203,7 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
       return false;
     }) || navItems[0];
 
-  const hasSecondaryContent = activeRoot?.subItems && activeRoot.subItems.length > 0;
+  const hasSecondaryContent = (activeRoot?.subItems && activeRoot.subItems.length > 0) || !!uiSecondarySidebar;
   const isCreateAssignment = pathname.includes('/assignments/create');
   const [isHovered, setIsHovered] = React.useState(false);
 
