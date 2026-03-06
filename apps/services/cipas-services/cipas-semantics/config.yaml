@@ -26,26 +26,31 @@ training:
 
   # Dataset selection
   dataset:
-    path: null  # null = use datasets.codenet.path
+    path: null # null = use datasets.codenet.path
     language: "java"
-    languages: null  # null = use single language, or ["java", "python", "c", "csharp"]
-    all_languages: false
+    languages: ["java", "python", "c", "csharp"] # Train on all 4 languages
+    all_languages: true # Enable multi-language training
 
   # Sample size (null = full dataset, capped at 500k)
-  sample_size: null
+  # For multi-language: 50000 total (12500 per language)
+  # For single language: 10000-20000 recommended
+  sample_size: 50000
   full_dataset: false
 
   # Data composition
-  clone_ratio: 0.5            # Ratio of clone pairs
-  hard_negative_ratio: 0.20   # Ratio of hard negative pairs
+  clone_ratio: 0.5 # Ratio of clone pairs
+  hard_negative_ratio: 0.20 # Ratio of hard negative pairs
 
   # GPTCloneBench domain adaptation
   include_gptclonebench: false
   gptclonebench:
-    path: null  # null = use datasets.gptclonebench.path
-    ratio: 0.10  # 10% GPTCloneBench samples
+    path: null # null = use datasets.gptclonebench.path
+    ratio: 0.10 # 10% GPTCloneBench samples
 
   # Problem limiting (for faster training)
+  # null = use all available problems (recommended for production)
+  # 100-500 = good for testing
+  # 500-2000 = good for medium-scale training
   max_problems: null
 
   # Train/test split
@@ -54,12 +59,12 @@ training:
   # Feature extraction
   features:
     # Sheneamer et al. (2021) features
-    traditional: true         # LOC, keyword categories
-    syntactic_cst: true       # Tree-sitter node frequencies
-    semantic_pdg: true        # Dependency relationships
-    structural_depth: true    # Nesting, depth, density
-    type_signatures: true     # Parameter/return type patterns
-    api_fingerprinting: true  # Library usage patterns
+    traditional: true # LOC, keyword categories
+    syntactic_cst: true # Tree-sitter node frequencies
+    semantic_pdg: true # Dependency relationships
+    structural_depth: true # Nesting, depth, density
+    type_signatures: true # Parameter/return type patterns
+    api_fingerprinting: true # Library usage patterns
 
   # Cross-validation
   cross_validation: true
@@ -77,7 +82,7 @@ training:
     min_child_weight: 1
     gamma: 0
     reg_lambda: 1.0
-    scale_pos_weight: null  # auto-calculated
+    scale_pos_weight: null # auto-calculated
 
 # =============================================================================
 # EVALUATION CONFIGURATION
@@ -89,12 +94,12 @@ evaluation:
 
   # Dataset selection
   dataset:
-    path: null  # null = use datasets.gptclonebench.path
-    format: "gptclonebench"  # "gptclonebench", "bigclonebench", "toma", "json"
+    path: null # null = use datasets.gptclonebench.path
+    format: "gptclonebench" # "gptclonebench", "bigclonebench", "toma", "json"
 
   # Language selection
-  language: null  # null = all 4 languages, or "java", "python", "c", "csharp"
-  all_languages: false
+  language: null # null = all 4 languages (uses model from model.path)
+  all_languages: true # Evaluate on all 4 languages by default
 
   # Sample size (null = full dataset)
   sample_size: null
