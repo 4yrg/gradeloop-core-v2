@@ -2,13 +2,12 @@
 """
 Core training logic for Type-IV Semantic Clone Detector using Project CodeNet.
 
-This module contains the actual training implementation.
+Supports: Java, C, C#, Python
 """
 
 import json
 import logging
 import random
-from collections import defaultdict
 from pathlib import Path
 from typing import Optional
 
@@ -34,47 +33,95 @@ logger = setup_logging(__name__)
 class CodeNetDataLoader:
     """Load and prepare training data from Project CodeNet dataset."""
 
-    def __init__(self, dataset_path: str, language: str = "java"):
+    def __init__(self, dataset_path: str, language: str = "Java"):
+        """
+        Initialize CodeNet data loader.
+
+        Args:
+            dataset_path: Path to Project CodeNet root directory
+            language: Programming language (Java, C, C#, Python)
+        """
         self.dataset_path = Path(dataset_path)
         self.language = language
         self.data_path = self.dataset_path / "data"
         self.metadata_path = self.dataset_path / "metadata"
 
+        # Language directory mapping (exact names used in CodeNet)
+        self.language_dir_map = {
+            "java": "Java",
+            "Java": "Java",
+            "python": "Python",
+            "Python": "Python",
+            "c": "C",
+            "C": "C",
+            "csharp": "C#",
+            "c#": "C#",
+            "C#": "C#",
+        }
+
+        # File extensions for each language
+        self.language_extensions = {
+            "Java": [".java"],
+            "Python": [".py"],
+            "C": [".c", ".cpp"],
+            "C#": [".cs"],
+        }
+
     def load_problem_submissions(
         self, problem_id: str, status_filter: str = "Accepted"
     ) -> list[str]:
-        """Load all submissions for a problem."""
-        submissions = []
-        metadata_file = self.metadata_path / f"{problem_id}.csv"
+        """
+        Load all submissions for a problem that meet status criteria.
 
+        Args:
+            problem_id: Problem ID (e.g., 'p00001')
+            status_filter: Filter by submission status (default: 'Accepted')
+
+        Returns:
+            List of source code strings
+        """
+        submissions = []
+
+        # Read metadata for this problem
+        metadata_file = self.metadata_path / f"{problem_id}.csv"
         if not metadata_file.exists():
             return submissions
 
         try:
             df = pd.read_csv(metadata_file)
-            mask = df["language"] == self.language
+
+            # Get language directory name
+            lang_dir = self.language_dir_map.get(self.language, self.language)
+
+            # Filter by language and status
+            mask = df["language"] == lang_dir
             if status_filter:
                 mask &= df["status"] == status_filter
 
             filtered_df = df[mask]
 
+            # Load source code for each submission
             for _, row in filtered_df.iterrows():
                 submission_id = row["submission_id"]
-                code_file = (
-                    self.data_path / problem_id / self.language / f"{submission_id}"
+                code_file = self.data_path / problem_id / lang_dir / f"{submission_id}"
+
+                # Try with language-specific extensions
+                exts = self.language_extensions.get(
+                    lang_dir, [".java", ".py", ".c", ".cpp", ".cs"]
                 )
 
-                for ext in ["", ".java", ".py", ".cpp", ".c", ".cs"]:
+                for ext in exts:
                     if code_file.with_suffix(ext).exists():
                         try:
                             code = code_file.with_suffix(ext).read_text(
                                 encoding="utf-8", errors="ignore"
                             )
-                            if len(code.strip()) > 50:
+                            if len(code.strip()) > 50:  # Minimum code length
                                 submissions.append(code)
                         except Exception:
                             pass
                         break
+
         except Exception as e:
             logger.warning(f"Error loading problem {problem_id}: {e}")
 
@@ -86,6 +133,7 @@ class CodeNetDataLoader:
         problem_list_file = self.metadata_path / "problem_list.csv"
 
         if not problem_list_file.exists():
+            # Scan data directory instead
             if self.data_path.exists():
                 problems = [
                     d.name
@@ -101,13 +149,18 @@ class CodeNetDataLoader:
                 if metadata_file.exists():
                     try:
                         problem_df = pd.read_csv(metadata_file)
-                        count = len(problem_df[problem_df["language"] == self.language])
+                        lang_dir = self.language_dir_map.get(
+                            self.language, self.language
+                        )
+                        count = len(problem_df[problem_df["language"] == lang_dir])
                         if count >= min_submissions:
                             problems.append(problem_id)
                     except Exception:
                         pass
+
         except Exception as e:
             logger.warning(f"Error reading problem list: {e}")
+            # Fallback: scan data directory
             if self.data_path.exists():
                 problems = [
                     d.name
@@ -128,15 +181,37 @@ class CodeNetDataLoader:
         gptclonebench_path: Optional[str] = None,
         gptclonebench_ratio: float = 0.05,
     ) -> tuple[list[str], list[str], list[int]]:
-        """Create training pairs from CodeNet dataset."""
+        """
+        Create training pairs from CodeNet dataset with hard negative mining.
+
+        Positive pairs: Solutions to the same problem (semantic clones)
+        Negative pairs: Solutions to different problems (non-clones)
+        Hard negatives: Solutions to similar problems with similar structure
+
+        Args:
+            sample_size: Total number of pairs to create
+            clone_ratio: Ratio of positive (clone) pairs
+            problems: Optional list of problems to use
+            max_problems: Maximum number of problems to load
+            hard_negative_ratio: Ratio of hard negative pairs
+            include_gptclonebench: Whether to include GPTCloneBench samples
+            gptclonebench_path: Path to GPTCloneBench dataset
+            gptclonebench_ratio: Ratio of GPTCloneBench samples
+
+        Returns:
+            Tuple of (code1_list, code2_list, labels)
+        """
         if problems is None:
             logger.info("Loading problem list...")
             problems = self.get_problem_list(min_submissions=5)
-            logger.info(f"Found {len(problems)} problems")
+            logger.info(f"Found {len(problems)} problems with submissions")
 
+            # Limit problems for faster training
             if max_problems is not None:
                 problems = problems[:max_problems]
+                logger.info(f"Using {len(problems)} problems (limited)")
 
+        # Load submissions per problem
         problem_submissions = {}
         logger.info("Loading submissions...")
 
@@ -145,88 +220,136 @@ class CodeNetDataLoader:
             if len(submissions) >= 2:
                 problem_submissions[problem_id] = submissions
 
-        logger.info(f"Loaded {len(problem_submissions)} problems")
+        logger.info(f"Loaded {len(problem_submissions)} problems with submissions")
 
-        code1_list, code2_list, labels = [], [], []
+        # Create pairs
+        code1_list = []
+        code2_list = []
+        labels = []
 
+        # Calculate target pair counts
         if sample_size is None:
-            sample_size = 500000  # Cap at 500k
+            sample_size = 500000  # Cap at 500k pairs
+            logger.info(f"Using estimated {sample_size:,} pairs from full dataset")
 
+        # Calculate pair counts
         n_clone_pairs = int(sample_size * clone_ratio)
-        n_hard_neg = int(sample_size * hard_negative_ratio)
-        n_easy_neg = sample_size - n_clone_pairs - n_hard_neg
+        n_hard_negative_pairs = int(sample_size * hard_negative_ratio)
+        n_easy_negative_pairs = sample_size - n_clone_pairs - n_hard_negative_pairs
 
-        # Clone pairs (same problem)
-        logger.info(f"Creating {n_clone_pairs:,} clone pairs...")
+        # Ensure non-negative
+        n_easy_negative_pairs = max(0, n_easy_negative_pairs)
+
+        # ========================================
+        # 1. Create clone pairs (same problem) - Label 1
+        # ========================================
+        logger.info(f"Creating {n_clone_pairs:,} clone pairs (same problem)...")
         clone_count = 0
         problem_ids = list(problem_submissions.keys())
 
         while clone_count < n_clone_pairs and problem_ids:
             problem_id = random.choice(problem_ids)
-            subs = problem_submissions[problem_id]
-            if len(subs) >= 2:
-                code1, code2 = random.sample(subs, 2)
+            submissions = problem_submissions[problem_id]
+
+            if len(submissions) >= 2:
+                code1, code2 = random.sample(submissions, 2)
                 code1_list.append(code1)
                 code2_list.append(code2)
-                labels.append(1)
+                labels.append(1)  # Same problem = clone
                 clone_count += 1
 
-        # Hard negatives (similar problems)
-        logger.info(f"Creating {n_hard_neg:,} hard negative pairs...")
-        hard_neg_count = 0
+            if clone_count % 1000 == 0:
+                logger.info(f"  Created {clone_count:,} clone pairs...")
+
+        # ========================================
+        # 2. Create hard negative pairs (similar problems) - Label 0
+        # ========================================
+        logger.info(f"Creating {n_hard_negative_pairs:,} hard negative pairs...")
+        hard_negative_count = 0
         sorted_problems = sorted(problem_ids)
 
-        while hard_neg_count < n_hard_neg and len(sorted_problems) >= 2:
+        while hard_negative_count < n_hard_negative_pairs and len(sorted_problems) >= 2:
+            # Pick adjacent or nearby problems (likely to have similar structure)
             idx = random.randint(0, len(sorted_problems) - 2)
             problem1 = sorted_problems[idx]
             problem2 = sorted_problems[
                 idx + random.randint(1, min(3, len(sorted_problems) - idx - 1))
             ]
 
+            # Verify different problems
             if problem1 != problem2:
-                subs1, subs2 = (
-                    problem_submissions[problem1],
-                    problem_submissions[problem2],
-                )
+                subs1 = problem_submissions[problem1]
+                subs2 = problem_submissions[problem2]
+
                 if subs1 and subs2:
-                    code1, code2 = random.choice(subs1), random.choice(subs2)
+                    code1 = random.choice(subs1)
+                    code2 = random.choice(subs2)
                     code1_list.append(code1)
                     code2_list.append(code2)
-                    labels.append(0)
-                    hard_neg_count += 1
+                    labels.append(0)  # Different problems = non-clone (hard negative)
+                    hard_negative_count += 1
 
-        # Easy negatives (random different problems)
-        logger.info(f"Creating {n_easy_neg:,} easy negative pairs...")
-        easy_neg_count = 0
+            if hard_negative_count % 500 == 0:
+                logger.info(f"  Created {hard_negative_count:,} hard negative pairs...")
 
-        while easy_neg_count < n_easy_neg and len(problem_ids) >= 2:
+        # ========================================
+        # 3. Create easy negative pairs (random different problems) - Label 0
+        # ========================================
+        logger.info(f"Creating {n_easy_negative_pairs:,} easy negative pairs...")
+        easy_negative_count = 0
+
+        while easy_negative_count < n_easy_negative_pairs and len(problem_ids) >= 2:
             problem1, problem2 = random.sample(problem_ids, 2)
-            subs1, subs2 = problem_submissions[problem1], problem_submissions[problem2]
+            subs1 = problem_submissions[problem1]
+            subs2 = problem_submissions[problem2]
+
             if subs1 and subs2:
-                code1, code2 = random.choice(subs1), random.choice(subs2)
+                code1 = random.choice(subs1)
+                code2 = random.choice(subs2)
                 code1_list.append(code1)
                 code2_list.append(code2)
                 labels.append(0)
-                easy_neg_count += 1
+                easy_negative_count += 1
 
-        # GPTCloneBench domain mixing
+            if easy_negative_count % 1000 == 0:
+                logger.info(f"  Created {easy_negative_count:,} easy negative pairs...")
+
+        # ========================================
+        # 4. Add GPTCloneBench domain mixing (optional)
+        # ========================================
         if include_gptclonebench and gptclonebench_path:
             logger.info(f"Adding GPTCloneBench samples...")
             gpt_samples = self._load_gptclonebench_samples(
                 gptclonebench_path, int(sample_size * gptclonebench_ratio)
             )
-            for code1, code2, label in gpt_samples:
-                code1_list.append(code1)
-                code2_list.append(code2)
-                labels.append(label)
 
-        logger.info(f"Created {len(code1_list):,} total pairs")
+            if gpt_samples:
+                logger.info(f"Loaded {len(gpt_samples)} GPTCloneBench pairs")
+                for code1, code2, label in gpt_samples:
+                    code1_list.append(code1)
+                    code2_list.append(code2)
+                    labels.append(label)
+
+        logger.info(
+            f"Created {len(code1_list):,} total pairs "
+            f"({clone_count:,} clones, {hard_negative_count:,} hard negatives, "
+            f"{easy_negative_count:,} easy negatives)"
+        )
+
+        # Label verification
+        clone_pairs = sum(1 for l in labels if l == 1)
+        nonclone_pairs = sum(1 for l in labels if l == 0)
+        logger.info(
+            f"Label distribution: {clone_pairs} clones ({clone_pairs / len(labels) * 100:.1f}%), "
+            f"{nonclone_pairs} non-clones ({nonclone_pairs / len(labels) * 100:.1f}%)"
+        )
+
         return code1_list, code2_list, labels
 
     def _load_gptclonebench_samples(
         self, gptclonebench_path: str, n_samples: int
     ) -> list[tuple[str, str, int]]:
-        """Load samples from GPTCloneBench dataset."""
+        """Load samples from GPTCloneBench dataset for domain mixing."""
         samples = []
         try:
             with open(gptclonebench_path, "r", encoding="utf-8") as f:
@@ -263,18 +386,48 @@ def train_codenet(
     max_problems: Optional[int] = None,
     xgboost_params: Optional[dict] = None,
 ) -> dict:
-    """Train Type-IV clone detector on Project CodeNet."""
+    """
+    Train Type-IV clone detector on Project CodeNet.
 
+    Supports multi-language training: Java, C, C#, Python
+
+    Args:
+        dataset_path: Path to CodeNet dataset
+        language: Primary language (if languages not specified)
+        languages: List of languages to train on
+        model_name: Output model filename
+        model_dir: Directory to save model
+        sample_size: Number of training pairs (None = full dataset)
+        clone_ratio: Ratio of clone pairs
+        hard_negative_ratio: Ratio of hard negative pairs
+        include_gptclonebench: Include GPTCloneBench samples
+        gptclonebench_path: Path to GPTCloneBench dataset
+        gptclonebench_ratio: Ratio of GPTCloneBench samples
+        test_size: Test split ratio
+        cross_validation: Enable cross-validation
+        visualize: Generate visualizations
+        output_dir: Output directory for results
+        max_problems: Maximum problems to use per language
+        xgboost_params: Custom XGBoost parameters
+
+    Returns:
+        Training metrics dictionary
+    """
     logger.info("=" * 70)
     logger.info("TYPE-IV CODE CLONE DETECTOR - TRAINING")
     logger.info("=" * 70)
 
     # Multi-language support
     langs = languages or [language]
+    logger.info(f"Language(s): {langs}")
+
     all_code1, all_code2, all_labels = [], [], []
 
     for lang in langs:
-        logger.info(f"\nProcessing language: {lang}")
+        logger.info(f"\n{'=' * 60}")
+        logger.info(f"Processing language: {lang}")
+        logger.info(f"{'=' * 60}")
+
         loader = CodeNetDataLoader(dataset_path, lang)
         code1, code2, labels = loader.create_training_pairs(
             sample_size=sample_size // len(langs) if sample_size else None,
@@ -289,7 +442,15 @@ def train_codenet(
         all_code2.extend(code2)
         all_labels.extend(labels)
 
-    logger.info(f"\nTotal pairs: {len(all_code1):,}")
+    logger.info(f"\n{'=' * 70}")
+    logger.info(f"Total pairs: {len(all_code1):,}")
+
+    if len(all_code1) == 0:
+        logger.error("No training pairs created! Check dataset structure.")
+        logger.error(
+            f"Ensure CodeNet dataset has data/{lang}/ and metadata/ directories"
+        )
+        return {}
 
     # Extract features
     logger.info("\nExtracting Sheneamer features...")
@@ -326,10 +487,10 @@ def train_codenet(
         min_child_weight=xgboost_params.get("min_child_weight", 1)
         if xgboost_params
         else 1,
-        gamma=xgboost_params.get("gamma", 0) if xgboost_params else 0,
         reg_lambda=xgboost_params.get("reg_lambda", 1.0) if xgboost_params else 1.0,
-        feature_names=extractor.get_feature_names(fused=True),
+        reg_alpha=xgboost_params.get("reg_alpha", 0.1) if xgboost_params else 0.1,
     )
+    classifier.feature_names = extractor.get_feature_names(fused=True)
 
     classifier.fit(X_train, y_train, X_test, y_test, cv=cross_validation)
     classifier.is_trained = True
