@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "cipas-ai"
-version = "0.2.0"
-description = "2-Tier Hybrid Code Detection Service (CatBoost + ModernBERT-Large)"
+version = "0.3.0"
+description = "UniXcoder-based AI Code Detection Service with Multi-Dataset Training"
 authors = ["Gradeloop Team"]
 readme = "README.md"
 package-mode = false
@@ -22,21 +22,25 @@ pydantic-settings = "^2.5.0"
 # For CPU: pip install torch --index-url https://download.pytorch.org/whl/cpu
 torch = "^2.4.0"
 
-# ModernBERT requires transformers from source (not yet in PyPI)
-transformers = { git = "https://github.com/huggingface/transformers.git" }
+# Transformers for UniXcoder support
+transformers = ">=4.36.0"
 accelerate = "^0.34.0"
 
 # Quantization support (4-bit/8-bit for limited VRAM)
 bitsandbytes = "^0.44.0"
 
-# Tree-sitter for CST parsing
+# Tree-sitter for AST parsing (multi-language support)
 tree-sitter = ">=0.21.0,<0.24.0"
+tree-sitter-languages = "^1.10.2"
 tree-sitter-python = ">=0.21.0,<0.24.0"
 tree-sitter-java = ">=0.21.0,<0.22.0"
 tree-sitter-c = ">=0.21.0,<0.22.0"
 tree-sitter-cpp = ">=0.21.0,<0.22.0"
 
-# CatBoost for Tier 1 classifier
+# Metric learning for triplet loss
+pytorch-metric-learning = "^2.4.0"
+
+# CatBoost for Tier 1 classifier (legacy)
 catboost = "^1.2.0"
 
 # Async task handling (optional, for high-throughput deployments)
@@ -47,9 +51,15 @@ redis = "^5.0.0"
 datasets = "^2.20.0"
 huggingface-hub = "^0.25.0"
 
-# Utilities
+# Data processing
+pandas = "^2.1.0"
 numpy = "^1.26.0"
 scikit-learn = "^1.4.0"
+
+# Visualization & metrics
+matplotlib = "^3.8.0"
+seaborn = "^0.13.0"
+tqdm = "^4.66.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"
@@ -107,8 +117,10 @@ warn_unused_ignores = true
 [[tool.mypy.overrides]]
 module = [
     "tree_sitter.*",
+    "tree_sitter_languages.*",
     "catboost.*",
     "bitsandbytes.*",
+    "pytorch_metric_learning.*",
 ]
 ignore_missing_imports = true
 
