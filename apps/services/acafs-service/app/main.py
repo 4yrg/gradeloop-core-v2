@@ -6,13 +6,21 @@ import sys
 from contextlib import asynccontextmanager
 from threading import Thread
 from typing import AsyncGenerator
+from uuid import UUID
 
-from fastapi import APIRouter, FastAPI, status
+from fastapi import APIRouter, FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 from app.logging_config import configure_logging, get_logger
-from app.schemas import SubmissionEvent
+from app.schemas import (
+    ChatHistoryResponse,
+    ChatMessageResponse,
+    ChatRequest,
+    ChatResponse,
+    SubmissionEvent,
+)
+from app.services.feedback.socratic_chat import SocraticChatService
 from app.services.messaging.rabbitmq_consumer import RabbitMQConsumer
 from app.services.storage.minio_client import MinIOClient
 from app.services.storage.postgres_client import PostgresClient
@@ -24,6 +32,7 @@ logger = get_logger(__name__)
 consumer: RabbitMQConsumer | None = None
 worker: EvaluationWorker | None = None
 postgres_client: PostgresClient | None = None
+chat_service: SocraticChatService | None = None
 
 
 async def process_message(event: SubmissionEvent) -> None:
@@ -58,7 +67,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     
     Handles startup and shutdown events.
     """
-    global worker, postgres_client
+    global worker, postgres_client, chat_service
     
     # Startup
     settings = get_settings()
@@ -85,12 +94,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         use_ssl=settings.minio_use_ssl,
     )
     
-    # Initialize evaluation worker
+    # Initialize evaluation worker (includes LLM grader + Judge0 client)
     worker = EvaluationWorker(
         settings=settings,
         minio_client=minio_client,
         postgres_client=postgres_client,
     )
+
+    # Initialize Socratic chat service
+    chat_service = SocraticChatService(settings=settings)
     
     # Start RabbitMQ consumer in background thread
     consumer_thread = Thread(target=run_consumer, daemon=True)
@@ -216,6 +228,213 @@ async def supported_languages() -> JSONResponse:
             "count": len(languages),
         },
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Socratic Chat API  (session scoped to assignment + student)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@api_router.post(
+    "/chat/{assignment_id}/{user_id}",
+    tags=["chat"],
+    response_model=ChatResponse,
+    summary="Send a message to the Socratic tutor",
+    description=(
+        "Creates an active chat session if one does not already exist for this "
+        "assignment+student pair.  The session is automatically closed when the "
+        "student's submission event is processed."
+    ),
+)
+async def send_chat_message(
+    assignment_id: UUID,
+    user_id: str,
+    body: ChatRequest,
+) -> ChatResponse:
+    """Send a student message and receive a Socratic hint."""
+    if postgres_client is None or chat_service is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service not ready.",
+        )
+
+    # 1. Get or create the active session
+    session = await postgres_client.get_or_create_chat_session(
+        assignment_id=assignment_id,
+        user_id=user_id,
+    )
+
+    if session["status"] != "active":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Chat session is closed (submission already processed). "
+                "No further messages are accepted for this assignment."
+            ),
+        )
+
+    session_uuid = UUID(session["id"])
+
+    # 2. Persist student message
+    await postgres_client.append_chat_message(
+        session_id=session_uuid,
+        role="user",
+        content=body.content,
+    )
+
+    # 3. Retrieve full history for context window
+    raw_messages = await postgres_client.get_chat_messages(session_uuid)
+    history = [{"role": m["role"], "content": m["content"]} for m in raw_messages]
+
+    # 4. Build assignment and AST context dicts
+    assignment_ctx: dict = {}
+    if body.assignment_title:
+        assignment_ctx["title"] = body.assignment_title
+    if body.assignment_description:
+        assignment_ctx["assignment_description"] = body.assignment_description
+    if body.rubric_skills:
+        assignment_ctx["rubric_skills"] = body.rubric_skills
+    if body.answer_concepts:
+        assignment_ctx["answer_concepts"] = body.answer_concepts
+
+    ast_ctx: dict | None = None
+    if body.ast_context:
+        ast_ctx = body.ast_context
+    elif body.student_code:
+        # Build a lightweight snapshot from the current code snapshot
+        try:
+            from app.services.evaluation.ast_parser import ASTParser
+            from app.services.evaluation.language_router import LanguageRouter
+            parser_inst = ASTParser()
+            blueprint = parser_inst.parse(code=body.student_code, language="python")
+            ast_ctx = {
+                "valid_syntax": True,
+                "variables": [
+                    v.get("name", "") for v in blueprint.variables[:10]
+                ],
+                "functions": blueprint.functions[:5],
+            }
+        except Exception:
+            pass
+
+    # 5. Call Socratic tutor
+    reply_content, reasoning = await chat_service.get_hint(
+        messages=history,
+        assignment_context=assignment_ctx or None,
+        ast_context=ast_ctx,
+    )
+
+    # 6. Persist assistant reply
+    await postgres_client.append_chat_message(
+        session_id=session_uuid,
+        role="assistant",
+        content=reply_content,
+        reasoning_details=reasoning,
+    )
+
+    # 7. Return full updated history
+    updated_messages = await postgres_client.get_chat_messages(session_uuid)
+    return ChatResponse(
+        session_id=session_uuid,
+        assignment_id=assignment_id,
+        user_id=user_id,
+        status=session["status"],
+        reply=reply_content,
+        messages=[
+            ChatMessageResponse(
+                id=m["id"],
+                role=m["role"],
+                content=m["content"],
+                created_at=m.get("created_at"),
+            )
+            for m in updated_messages
+        ],
+    )
+
+
+@api_router.get(
+    "/chat/{assignment_id}/{user_id}",
+    tags=["chat"],
+    response_model=ChatHistoryResponse,
+    summary="Get chat session history",
+    description=(
+        "Returns the most recent chat session (active or closed) for this "
+        "assignment+student pair, including all messages.  Useful for UI "
+        "restore and instructor analytics."
+    ),
+)
+async def get_chat_history(
+    assignment_id: UUID,
+    user_id: str,
+) -> ChatHistoryResponse:
+    """Retrieve the chat session transcript for a student and assignment."""
+    if postgres_client is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service not ready.",
+        )
+
+    session = await postgres_client.get_chat_session(
+        assignment_id=assignment_id,
+        user_id=user_id,
+    )
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No chat session found for this assignment and student.",
+        )
+
+    session_uuid = UUID(session["id"])
+    messages = await postgres_client.get_chat_messages(session_uuid)
+
+    return ChatHistoryResponse(
+        session_id=session_uuid,
+        assignment_id=assignment_id,
+        user_id=user_id,
+        status=session["status"],
+        created_at=session.get("created_at"),
+        closed_at=session.get("closed_at"),
+        closed_reason=session.get("closed_reason"),
+        messages=[
+            ChatMessageResponse(
+                id=m["id"],
+                role=m["role"],
+                content=m["content"],
+                created_at=m.get("created_at"),
+            )
+            for m in messages
+        ],
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Grade retrieval API  (read-only — grades are written by the worker)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@api_router.get(
+    "/grades/{submission_id}",
+    tags=["grades"],
+    summary="Get grade breakdown for a submission",
+    description=(
+        "Returns the full grading result including per-criterion scores with "
+        "instructor-facing reasons and the student-facing holistic feedback paragraph."
+    ),
+)
+async def get_submission_grade(submission_id: UUID) -> JSONResponse:
+    """Retrieve the persisted grade breakdown for a submission."""
+    if postgres_client is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service not ready.",
+        )
+
+    grade = await postgres_client.get_submission_grade(submission_id)
+    if not grade:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Grade not found. The submission may still be processing.",
+        )
+
+    return JSONResponse(status_code=status.HTTP_200_OK, content=grade)
 
 
 def signal_handler(sig, frame) -> None:
