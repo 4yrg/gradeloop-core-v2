@@ -249,6 +249,7 @@ def train_codenet(
     language: str = "java",
     languages: Optional[list[str]] = None,
     model_name: str = "type4_xgb_codenet.pkl",
+    model_dir: str = "./models",
     sample_size: Optional[int] = None,
     clone_ratio: float = 0.5,
     hard_negative_ratio: float = 0.20,
@@ -353,7 +354,9 @@ def train_codenet(
         logger.info(f"{k:12s}: {v:.4f}")
 
     # Save model
-    model_path = Path(model_name)
+    model_dir_path = Path(model_dir)
+    model_dir_path.mkdir(parents=True, exist_ok=True)
+    model_path = model_dir_path / model_name
     classifier.save(str(model_path))
     logger.info(f"\nModel saved to: {model_path.absolute()}")
 
