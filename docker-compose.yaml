@@ -727,7 +727,7 @@ services:
         compress: "true"
 
   # =============================================================================
-  # CIPAS AI Service (2-Tier Hybrid Code Detection)
+  # CIPAS AI Service (3-Stage Confidence-Based Early Exit Detection)
   # =============================================================================
   cipas-ai:
     build:
@@ -765,18 +765,29 @@ services:
       - CIPAS_AI_HOST=0.0.0.0
       - CIPAS_AI_ENVIRONMENT=${CIPAS_AI_ENVIRONMENT:-development}
 
-      # Model configuration
+      # Model configuration (3-Stage Pipeline)
+      # Stage 1: Stylometry (Fast Layer)
+      - CIPAS_AI_ENABLE_STYLOMETRY_STAGE=${CIPAS_AI_ENABLE_STYLOMETRY:-true}
+      - CIPAS_AI_STYLOMETRY_MODEL_PATH=/app/models/stylometry_classifier.joblib
+      - CIPAS_AI_STYLOMETRY_HIGH_THRESHOLD=0.80
+      - CIPAS_AI_STYLOMETRY_LOW_THRESHOLD=0.40
+      
+      # Stage 2: Structural Analysis (Medium Layer - renamed from Tier 1)
       - CIPAS_AI_TIER1_MODEL_PATH=/app/models/catboost_classifier.cbm
+      - CIPAS_AI_STRUCTURAL_HIGH_THRESHOLD=0.80
+      - CIPAS_AI_STRUCTURAL_LOW_THRESHOLD=0.40
+      
+      # Stage 3: Deep Semantic Analysis (Heavy Layer - renamed from Tier 2)
       - CIPAS_AI_TIER2_MODEL_NAME=project-droid/DroidDetect-Large
       - CIPAS_AI_MODERNBERT_BASE_NAME=answerdotai/ModernBERT-large
+      
+      # Legacy threshold names (for backward compatibility)
+      - CIPAS_AI_TIER1_HIGH_THRESHOLD=0.92
+      - CIPAS_AI_TIER1_LOW_THRESHOLD=0.08
 
       # Quantization (enable for limited VRAM)
       - CIPAS_AI_ENABLE_4BIT_QUANTIZATION=${CIPAS_AI_ENABLE_4BIT:-false}
       - CIPAS_AI_ENABLE_8BIT_QUANTIZATION=${CIPAS_AI_ENABLE_8BIT:-false}
-
-      # Inference thresholds
-      - CIPAS_AI_TIER1_HIGH_THRESHOLD=0.92
-      - CIPAS_AI_TIER1_LOW_THRESHOLD=0.08
 
       # Performance
       - CIPAS_AI_MAX_TOKENS=8192

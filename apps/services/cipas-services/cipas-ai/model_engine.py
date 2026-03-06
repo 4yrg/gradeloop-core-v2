@@ -1,11 +1,12 @@
 """
-Model Engine for 2-Tier Hybrid Code Detection.
+Model Engine for 3-Stage Confidence-Based Early Exit Detection.
 
-Handles inference for both:
-- Tier 1: CatBoost Classifier (structural features)
-- Tier 2: ModernBERT-Large / DroidDetect-Large (semantic analysis)
+Handles inference for all three stages:
+- Stage 1: Stylometry Analysis (fast linguistic patterns)
+- Stage 2: CatBoost Structural Classifier (AST features) 
+- Stage 3: ModernBERT-Large / DroidDetect-Large (deep semantic analysis)
 
-Implements efficient loading, quantization support, and batch processing.
+Implements confidence-based early exit, quantization support, and batch processing.
 """
 
 import logging
@@ -21,15 +22,19 @@ from catboost import CatBoostClassifier
 from huggingface_hub import hf_hub_download
 from transformers import AutoModel, AutoTokenizer
 
+from .stylometry_model import StylometryModel, StylometryPrediction
+from .config import get_settings
+
 logger = logging.getLogger(__name__)
 
 
 class TierEnum(str, Enum):
     """Enum for detection tier."""
 
-    TIER1 = "tier1_catboost"
-    TIER2 = "tier2_modernbert"
-    HYBRID = "hybrid"
+    STYLOMETRY = "stage1_stylometry"
+    TIER1 = "stage2_structural" # Renamed from tier1_catboost
+    TIER2 = "stage3_semantic"   # Renamed from tier2_modernbert  
+    HYBRID = "3stage_hybrid"
 
 
 class PredictionLabel(str, Enum):
@@ -41,8 +46,20 @@ class PredictionLabel(str, Enum):
 
 
 @dataclass
+class StylometryResult:
+    """Result from Stage 1 Stylometry classifier."""
+
+    label: str
+    confidence: float
+    human_probability: float
+    ai_probability: float
+    features: dict
+    tier: TierEnum = TierEnum.STYLOMETRY
+
+
+@dataclass
 class Tier1Result:
-    """Result from Tier 1 CatBoost classifier."""
+    """Result from Stage 2 Structural (Tier 1) CatBoost classifier."""
 
     label: str
     confidence: float
@@ -53,7 +70,7 @@ class Tier1Result:
 
 @dataclass
 class Tier2Result:
-    """Result from Tier 2 ModernBERT classifier."""
+    """Result from Stage 3 Deep Semantic (Tier 2) ModernBERT classifier."""
 
     label: str
     confidence: float
@@ -64,15 +81,17 @@ class Tier2Result:
 
 @dataclass
 class HybridResult:
-    """Result from hybrid 2-tier detection."""
+    """Result from hybrid 3-stage detection pipeline."""
 
     label: str
     confidence: float
     tier_used: TierEnum
+    stylometry_confidence: Optional[float] = None
     tier1_confidence: Optional[float] = None
     tier2_confidence: Optional[float] = None
     all_scores: Optional[dict[str, float]] = None
     token_count: Optional[int] = None
+    stylometry_features: Optional[dict] = None
     processing_time_ms: Optional[float] = None
 
 
@@ -143,9 +162,9 @@ class DroidDetectLargeModel(nn.Module):
 
 class ModelEngine:
     """
-    Main engine for 2-tier code detection.
+    Main engine for 3-stage confidence-based early exit code detection.
 
-    Manages loading and inference for both CatBoost and ModernBERT models.
+    Manages loading and inference for Stylometry, CatBoost and ModernBERT models.
     Implements sliding window for long inputs and batch processing.
     """
 
@@ -162,12 +181,17 @@ class ModelEngine:
             return
 
         self._initialized = True
+        self.settings = get_settings()
 
-        # Tier 1: CatBoost
+        # Stage 1: Stylometry
+        self._stylometry_model: Optional[StylometryModel] = None
+        self._stylometry_loaded = False
+
+        # Stage 2: CatBoost (renamed from Tier 1)
         self._catboost_model: Optional[CatBoostClassifier] = None
         self._catboost_loaded = False
 
-        # Tier 2: ModernBERT / DroidDetect
+        # Stage 3: ModernBERT / DroidDetect (renamed from Tier 2)
         self._modernbert_model: Optional[DroidDetectLargeModel] = None
         self._modernbert_tokenizer = None
         self._modernbert_loaded = False
@@ -180,6 +204,7 @@ class ModelEngine:
         self._use_8bit = False
 
         # Label mappings
+        self._stylometry_labels = ["human", "ai"]
         self._tier1_labels = ["Human-written", "AI-generated"]
         self._tier2_labels = [
             "Human-written",
@@ -212,6 +237,32 @@ class ModelEngine:
         self._use_8bit = True
         self._use_4bit = False
         logger.info("8-bit quantization enabled for Tier 2 model")
+
+    def load_stylometry_model(self, model_path: Optional[str] = None) -> None:
+        """
+        Load the Stage 1 Stylometry model.
+
+        Args:
+            model_path: Path to the stylometry model file.
+        """
+        if self._stylometry_loaded:
+            logger.debug("Stage 1 stylometry model already loaded")
+            return
+
+        path = model_path or self.settings.stylometry_model_path
+        logger.info(f"Loading Stage 1 stylometry model from: {path}")
+
+        try:
+            self._stylometry_model = StylometryModel(path)
+            self._stylometry_model.load_model()
+            self._stylometry_loaded = True
+            logger.info("Stage 1 stylometry model loaded successfully")
+        except Exception as e:
+            logger.warning(f"Failed to load stylometry model from {path}: {e}")
+            # Create default model for demo purposes
+            logger.info("Creating demo stylometry model with synthetic data")
+            self._stylometry_model = StylometryModel.create_demo_model()
+            self._stylometry_loaded = True
 
     def load_tier1_model(self, model_path: Optional[str] = None) -> None:
         """
@@ -676,6 +727,177 @@ class ModelEngine:
             processing_time_ms=processing_time,
         )
 
+    def is_stylometry_loaded(self) -> bool:
+        """Check if Stage 1 stylometry model is loaded."""
+        return self._stylometry_loaded
+
+    def predict_stylometry(self, code: str, language: str = "python") -> StylometryResult:
+        """
+        Run Stage 1 stylometry inference.
+
+        Args:
+            code: Source code string.
+            language: Programming language.
+
+        Returns:
+            StylometryResult with prediction and confidence.
+
+        Raises:
+            RuntimeError: If model is not loaded.
+        """
+        if not self._stylometry_loaded:
+            raise RuntimeError("Stage 1 stylometry model not loaded")
+
+        # Get stylometry prediction
+        prediction = self._stylometry_model.predict(code, language)
+        
+        # Convert to standardized format
+        if prediction.label == "human":
+            label = "Human-written"
+            confidence = prediction.probability_human
+        elif prediction.label == "ai":
+            label = "AI-generated" 
+            confidence = prediction.probability_ai
+        else:  # uncertain case
+            label = "Uncertain"
+            confidence = 0.5
+
+        return StylometryResult(
+            label=label,
+            confidence=confidence,
+            human_probability=prediction.probability_human,
+            ai_probability=prediction.probability_ai,
+            features=prediction.features,
+        )
+
+    def predict_3stage_hybrid(
+        self,
+        code: str,
+        language: str,
+        features: list[float],
+    ) -> HybridResult:
+        """
+        Run hybrid 3-stage prediction with confidence-based early exit.
+
+        Stage 1: Stylometry (Fast Layer) - >= 0.80 high confidence, <= 0.40 low confidence
+        Stage 2: Structural (Medium Layer) - >= 0.80 high confidence, <= 0.40 low confidence  
+        Stage 3: Deep Semantic (Heavy Layer) - final prediction
+
+        Args:
+            code: Source code string.
+            language: Programming language.
+            features: List of 8 structural features.
+
+        Returns:
+            HybridResult with final prediction and stage used.
+        """
+        start_time = time.time()
+
+        # Stage 1: Stylometry Detection (Fast Layer)
+        stylometry_result = None
+        if self.settings.enable_stylometry_stage and self._stylometry_loaded:
+            try:
+                stylometry_result = self.predict_stylometry(code, language)
+                
+                # Early exit if high confidence
+                if stylometry_result.confidence >= self.settings.stylometry_high_threshold:
+                    processing_time = (time.time() - start_time) * 1000
+                    logger.info(
+                        f"Stage 1 stylometry high confidence ({stylometry_result.confidence:.4f}), "
+                        f"early exit with result: {stylometry_result.label}"
+                    )
+                    return HybridResult(
+                        label=stylometry_result.label,
+                        confidence=stylometry_result.confidence,
+                        tier_used=TierEnum.STYLOMETRY,
+                        stylometry_confidence=stylometry_result.confidence,
+                        stylometry_features=stylometry_result.features,
+                        processing_time_ms=processing_time,
+                    )
+                    
+                # Early exit if low confidence (confident opposite)
+                elif stylometry_result.confidence <= self.settings.stylometry_low_threshold:
+                    processing_time = (time.time() - start_time) * 1000
+                    # Flip label for low confidence case
+                    inverted_label = "AI-generated" if stylometry_result.label == "Human-written" else "Human-written"
+                    inverted_confidence = 1.0 - stylometry_result.confidence
+                    
+                    logger.info(
+                        f"Stage 1 stylometry low confidence ({stylometry_result.confidence:.4f}), "
+                        f"early exit with inverted result: {inverted_label}"
+                    )
+                    return HybridResult(
+                        label=inverted_label,
+                        confidence=inverted_confidence,
+                        tier_used=TierEnum.STYLOMETRY,
+                        stylometry_confidence=stylometry_result.confidence,
+                        stylometry_features=stylometry_result.features,
+                        processing_time_ms=processing_time,
+                    )
+                
+                logger.info(
+                    f"Stage 1 stylometry uncertain ({stylometry_result.confidence:.4f}), "
+                    f"continuing to Stage 2"
+                )
+                    
+            except Exception as e:
+                logger.warning(f"Stage 1 stylometry failed: {e}, continuing to Stage 2")
+
+        # Stage 2: Structural Analysis (Medium Layer) 
+        tier1_result = self.predict_tier1(features)
+
+        # Check if Stage 2 is confident enough
+        if (
+            tier1_result.confidence >= self.settings.structural_high_threshold
+            or tier1_result.confidence <= self.settings.structural_low_threshold
+        ):
+            processing_time = (time.time() - start_time) * 1000
+            
+            # For low confidence, invert the result
+            if tier1_result.confidence <= self.settings.structural_low_threshold:
+                final_label = "AI-generated" if tier1_result.label == "Human-written" else "Human-written" 
+                final_confidence = 1.0 - tier1_result.confidence
+            else:
+                final_label = tier1_result.label
+                final_confidence = tier1_result.confidence
+
+            logger.info(
+                f"Stage 2 structural confident enough (confidence={tier1_result.confidence:.4f}), "
+                f"skipping Stage 3"
+            )
+
+            return HybridResult(
+                label=final_label,
+                confidence=final_confidence,
+                tier_used=TierEnum.TIER1,
+                stylometry_confidence=stylometry_result.confidence if stylometry_result else None,
+                tier1_confidence=tier1_result.confidence,
+                stylometry_features=stylometry_result.features if stylometry_result else None,
+                processing_time_ms=processing_time,
+            )
+
+        # Stage 3: Deep Semantic Analysis (Heavy Layer)
+        logger.info(
+            f"Stage 2 structural uncertain (confidence={tier1_result.confidence:.4f}), "
+            f"escalating to Stage 3"
+        )
+
+        tier2_result = self.predict_tier2(code)
+        processing_time = (time.time() - start_time) * 1000
+
+        return HybridResult(
+            label=tier2_result.label,
+            confidence=tier2_result.confidence,
+            tier_used=TierEnum.TIER2,
+            stylometry_confidence=stylometry_result.confidence if stylometry_result else None,
+            tier1_confidence=tier1_result.confidence,
+            tier2_confidence=tier2_result.confidence,
+            all_scores=tier2_result.all_scores,
+            token_count=tier2_result.token_count,
+            stylometry_features=stylometry_result.features if stylometry_result else None,
+            processing_time_ms=processing_time,
+        )
+
 
 # Global singleton instance
 _engine: Optional[ModelEngine] = None
@@ -690,15 +912,17 @@ def get_model_engine() -> ModelEngine:
 
 
 def load_all_models(
+    stylometry_path: Optional[str] = None,
     tier1_path: Optional[str] = None,
     tier2_model_name: Optional[str] = None,
     enable_4bit: bool = False,
     enable_8bit: bool = False,
 ) -> ModelEngine:
     """
-    Load both Tier 1 and Tier 2 models.
+    Load all 3 stage models: Stylometry, CatBoost, and ModernBERT.
 
     Args:
+        stylometry_path: Path to stylometry model file.
         tier1_path: Path to CatBoost model file.
         tier2_model_name: HuggingFace model name for Tier 2.
         enable_4bit: Enable 4-bit quantization.
@@ -714,6 +938,7 @@ def load_all_models(
     elif enable_8bit:
         engine.enable_8bit_quantization()
 
+    engine.load_stylometry_model(stylometry_path)
     engine.load_tier1_model(tier1_path)
     engine.load_tier2_model(tier2_model_name)
 

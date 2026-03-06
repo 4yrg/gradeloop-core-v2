@@ -50,13 +50,27 @@ class Settings(BaseSettings):
     # ======================================================================
     # Model Configuration
     # ======================================================================
+    
+    # Stage 1: Stylometry (Fast Layer)
+    enable_stylometry_stage: bool = Field(
+        default=True,
+        description="Enable Stage 1 stylometry detection",
+    )
+    stylometry_model_path: str = Field(
+        default="models/stylometry_classifier.joblib",
+        description="Path to Stage 1 stylometry model file",
+    )
+    
+    # Stage 2: Structural (Medium Layer) - using existing Tier 1 CatBoost
     tier1_model_path: str = Field(
         default="models/catboost_classifier.cbm",
-        description="Path to Tier 1 CatBoost model file",
+        description="Path to Stage 2 (Tier 1) CatBoost model file",
     )
+    
+    # Stage 3: Deep Semantic (Heavy Layer) - using existing Tier 2
     tier2_model_name: str = Field(
         default="project-droid/DroidDetect-Large",
-        description="HuggingFace model name for Tier 2",
+        description="HuggingFace model name for Stage 3 (Tier 2)",
     )
     modernbert_base_name: str = Field(
         default="answerdotai/ModernBERT-large",
@@ -78,15 +92,45 @@ class Settings(BaseSettings):
     # ======================================================================
     # Inference Configuration
     # ======================================================================
+    
+    # Stage 1: Stylometry thresholds
+    stylometry_high_threshold: float = Field(
+        default=0.80,
+        description="Stage 1 stylometry confidence threshold for early exit (high confidence)",
+        ge=0.5,
+        le=1.0,
+    )
+    stylometry_low_threshold: float = Field(
+        default=0.40,
+        description="Stage 1 stylometry confidence threshold for early exit (low confidence)",
+        ge=0.0,
+        le=0.5,
+    )
+    
+    # Stage 2: Structural thresholds (renaming existing tier1 thresholds)
+    structural_high_threshold: float = Field(
+        default=0.80,
+        description="Stage 2 structural confidence threshold for early exit (high confidence)", 
+        ge=0.5,
+        le=1.0,
+    )
+    structural_low_threshold: float = Field(
+        default=0.40,
+        description="Stage 2 structural confidence threshold for early exit (low confidence)",
+        ge=0.0,
+        le=0.5,
+    )
+    
+    # Stage 3: Deep semantic (keeping existing tier1 naming for compatibility)
     tier1_high_threshold: float = Field(
         default=0.92,
-        description="Tier 1 confidence threshold for immediate human verdict",
+        description="Stage 2 (Tier 1) confidence threshold for immediate human verdict",
         ge=0.5,
         le=1.0,
     )
     tier1_low_threshold: float = Field(
         default=0.08,
-        description="Tier 1 confidence threshold for immediate AI verdict",
+        description="Stage 2 (Tier 1) confidence threshold for immediate AI verdict",
         ge=0.0,
         le=0.5,
     )
