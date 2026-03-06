@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  cipas-ai-training:
+    build:
+      context: .
+      dockerfile: apps/services/cipas-services/cipas-ai/Dockerfile.train
+    volumes:
+      - ./datasets:/app/datasets:ro
+      - ./apps/services/cipas-services/cipas-ai/models:/app/models
+      - ./apps/services/cipas-services/cipas-ai:/app/cipas-ai
+      - ./shared:/app/shared:ro
+    environment:
+      - CIPAS_AI_TRAINING_DEVICE=gpu
+      - CIPAS_AI_DATASETS=DroidCollection,Zendoo,aigcodeset,humanvsai-code
+      - CIPAS_AI_ITERATIONS=2000
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    working_dir: /app/cipas-ai
+    profiles:
+      - training
+    
+  # Optional service for CPU-only training (fallback)
+  cipas-ai-training-cpu:
+    build:
+      context: .
+      dockerfile: apps/services/cipas-services/cipas-ai/Dockerfile
+    volumes:
+      - ./datasets:/app/datasets:ro
+      - ./apps/services/cipas-services/cipas-ai/models:/app/models
+      - ./apps/services/cipas-services/cipas-ai:/app/cipas-ai
+      - ./shared:/app/shared:ro
+    environment:
+      - CIPAS_AI_TRAINING_DEVICE=cpu
+      - CIPAS_AI_DATASETS=DroidCollection,Zendoo,aigcodeset,humanvsai-code
+      - CIPAS_AI_ITERATIONS=1000  # Reduced for CPU
+    working_dir: /app/cipas-ai
+    profiles:
+      - training-cpu
+
+  # Evaluation service (uses aicd-bench for final evaluation)
+  cipas-ai-evaluation:
+    build:
+      context: .
+      dockerfile: apps/services/cipas-services/cipas-ai/Dockerfile
+    volumes:
+      - ./datasets:/app/datasets:ro
+      - ./apps/services/cipas-services/cipas-ai/models:/app/models:ro
+      - ./apps/services/cipas-services/cipas-ai:/app/cipas-ai
+      - ./results:/app/results  # For evaluation output
+    environment:
+      - CIPAS_AI_INFERENCE_DEVICE=cpu
+      - CIPAS_AI_EVAL_DATASET=aicd-bench
+    working_dir: /app/cipas-ai
+    profiles:
+      - evaluation
+
+networks:
+  default:
+    external: false
+
+# Usage:
+# Training with GPU: docker-compose --profile training up cipas-ai-training
+# Training with CPU: docker-compose --profile training-cpu up cipas-ai-training-cpu  
+# Evaluation: docker-compose --profile evaluation up cipas-ai-evaluation
