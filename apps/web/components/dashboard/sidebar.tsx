@@ -203,7 +203,8 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
       return false;
     }) || navItems[0];
 
-  const hasSecondaryContent = (activeRoot?.subItems && activeRoot.subItems.length > 0) || !!uiSecondarySidebar;
+  const hasSubItems = !!(activeRoot?.subItems && activeRoot.subItems.length > 0);
+  const hasSecondaryContent = hasSubItems || !!uiSecondarySidebar;
   const isCreateAssignment = pathname.includes('/assignments/create');
   const [isHovered, setIsHovered] = React.useState(false);
 
@@ -363,7 +364,7 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
         </div>
       </div>
       {/* Secondary Sidebar Area */}
-      {hasSecondaryContent && (
+      {hasSubItems && (
         <div className={cn("relative transition-all duration-300 z-10 w-64")}>
           <div
             className={cn(
