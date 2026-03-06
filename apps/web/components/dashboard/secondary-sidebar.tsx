@@ -31,26 +31,25 @@ export function SecondarySidebar() {
 
     return (
         <aside className="hidden lg:flex flex-col w-64 shrink-0 border-r bg-sidebar-background h-full overflow-hidden">
-            {/* Spacer that exactly matches the topbar height so the right-side
-                border-r lines up flush — no border-b drawn here */}
-            <div className="h-[72px] shrink-0" />
+            {/* Header — matches topbar height, no border-b, houses the back button */}
+            <div className="flex h-[72px] items-center px-3 shrink-0">
+                <Link
+                    href={config.backHref}
+                    className="group flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:font-semibold hover:bg-sidebar-accent transition-all"
+                >
+                    <ArrowLeft className="h-4 w-4 shrink-0 transition-transform group-hover:-translate-x-1" />
+                    {config.backLabel}
+                </Link>
+            </div>
 
             {isStepsMode ? (
                 /* ── Steps / progress mode ── */
                 <ScrollArea className="flex-1 w-full px-4">
                     <div className="flex flex-col gap-1 w-full py-4 relative">
-                        {/* Back button at the top of the steps list */}
-                        <Link
-                            href={config.backHref}
-                            className="flex items-center gap-2 px-3 py-2 mb-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors group"
-                        >
-                            <ArrowLeft className="h-4 w-4 shrink-0 transition-transform group-hover:-translate-x-0.5" />
-                            {config.backLabel}
-                        </Link>
                         {/* Vertical connector line */}
-                        <div className="absolute left-[27px] top-[72px] bottom-8 w-0.5 bg-border/60 -z-10" />
+                        <div className="absolute left-[27px] top-8 bottom-8 w-0.5 bg-border/60 -z-10" />
                         <div
-                            className="absolute left-[27px] top-[72px] w-0.5 bg-primary -z-10 transition-all duration-300"
+                            className="absolute left-[27px] top-8 w-0.5 bg-primary -z-10 transition-all duration-300"
                             style={{
                                 height: `calc(${((currentStep - 1) / Math.max(steps.length - 1, 1)) * 100}% - 16px)`,
                             }}
@@ -105,16 +104,6 @@ export function SecondarySidebar() {
                 /* ── Nav mode (default) ── */
                 <ScrollArea className="flex-1 w-full px-4">
                     <div className="flex flex-col gap-1 w-full py-3">
-                        {/* Back button */}
-                        <Link
-                            href={config.backHref}
-                            className="flex items-center gap-2 px-3 py-2 mb-1 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors group"
-                        >
-                            <ArrowLeft className="h-4 w-4 shrink-0 transition-transform group-hover:-translate-x-0.5" />
-                            {config.backLabel}
-                        </Link>
-                        {/* Divider */}
-                        <div className="h-px bg-border/40 mx-1 mb-1" />
                         {config.items.map(({ name, href }) => {
                             const isFirst = href === config.basePath;
                             const isActive = isFirst
