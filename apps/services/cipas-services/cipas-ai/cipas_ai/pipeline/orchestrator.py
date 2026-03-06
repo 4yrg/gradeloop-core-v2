@@ -1,6 +1,7 @@
 """Training and evaluation orchestration pipeline"""
 
 import asyncio
+import json
 import logging
 import time
 from datetime import datetime
@@ -153,7 +154,24 @@ class TrainingOrchestrator:
         if file_path.suffix == '.csv':
             return pd.read_csv(file_path)
         elif file_path.suffix == '.jsonl':
-            return pd.read_json(file_path, lines=True)
+            # pd.read_json with lines=True uses a stricter parser that can fail
+            # on valid JSONL with certain characters; use Python's json module instead.
+            # Malformed lines are skipped with a warning rather than crashing.
+            rows = []
+            skipped = 0
+            with open(file_path, encoding='utf-8') as f:
+                for lineno, line in enumerate(f, 1):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        rows.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        skipped += 1
+                        logger.warning(f"{file_path.name}: skipping malformed line {lineno}")
+            if skipped:
+                logger.warning(f"{file_path.name}: skipped {skipped} malformed line(s), loaded {len(rows)}")
+            return pd.DataFrame(rows)
         else:
             raise ValueError(f"Unsupported file format: {file_path.suffix}")
     
