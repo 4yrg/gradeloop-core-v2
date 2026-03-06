@@ -37,16 +37,16 @@ models:
     device: "gpu"  # gpu, cpu, or auto
     random_seed: 42
     verbose: false
-    task_type: "CPU"  # GPU or CPU (passed directly to CatBoost); use CPU for smoke tests
+    task_type: "GPU"  # GPU or CPU (passed directly to CatBoost)
     devices: "0"      # GPU device index (only used when task_type is GPU)
     
   droiddetect:
     # DroidDetect Stage 2 (Deep-path) parameters  
-    model_name: "distilbert-base-uncased"  # smoke-test model; swap to answerdotai/ModernBERT-base for production
+    model_name: "answerdotai/ModernBERT-base"
     droiddetect_repo: "project-droid/DroidDetect-Large-Binary"
-    max_length: 512  # distilbert max; restore to 2048 for ModernBERT production training
+    max_length: 2048
     epochs: 3
-    batch_size: 2  # keep small for smoke test; increase for production
+    batch_size: 8
     gradient_accumulation_steps: 4
     learning_rate: 2.0e-5
     weight_decay: 0.01
@@ -66,10 +66,10 @@ models:
 
 # Training Configuration
 training:
-  # Sample limits (null = no limit; set small for smoke-testing)
-  max_train_samples: 10
+  # Sample limits (null = no limit)
+  max_train_samples: null
   max_dev_samples: null
-  max_eval_samples: 5
+  max_eval_samples: null
   
   # Quality filtering
   quality_filter:
