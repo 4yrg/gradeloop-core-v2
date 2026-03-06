@@ -2,7 +2,7 @@
 
 import json
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Any, Optional
 from uuid import UUID
 
 import asyncpg
@@ -44,7 +44,7 @@ class PostgresClient:
     async def ensure_tables(self) -> None:
         """Ensure required tables exist."""
         async with self._get_connection() as conn:
-            # Create acafs_results table for storing AST blueprints
+            # ── AST results ───────────────────────────────────────────────
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS acafs_results (
                     id SERIAL PRIMARY KEY,
@@ -58,18 +58,98 @@ class PostgresClient:
                     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                 )
             """)
-            
-            # Create index for faster lookups
             await conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_acafs_submission_id 
+                CREATE INDEX IF NOT EXISTS idx_acafs_submission_id
                 ON acafs_results(submission_id)
             """)
-            
             await conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_acafs_assignment_id 
+                CREATE INDEX IF NOT EXISTS idx_acafs_assignment_id
                 ON acafs_results(assignment_id)
             """)
-            
+
+            # ── Submission grades ─────────────────────────────────────────
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS submission_grades (
+                    id SERIAL PRIMARY KEY,
+                    submission_id UUID NOT NULL UNIQUE,
+                    assignment_id UUID NOT NULL,
+                    total_score NUMERIC(6,2) NOT NULL,
+                    max_total_score NUMERIC(6,2) NOT NULL,
+                    holistic_feedback TEXT NOT NULL,
+                    grading_metadata JSONB,
+                    graded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                )
+            """)
+            await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_grades_submission_id
+                ON submission_grades(submission_id)
+            """)
+            await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_grades_assignment_id
+                ON submission_grades(assignment_id)
+            """)
+
+            # ── Per-criterion scores ──────────────────────────────────────
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS submission_criteria_scores (
+                    id SERIAL PRIMARY KEY,
+                    submission_id UUID NOT NULL,
+                    criterion_name VARCHAR(255) NOT NULL,
+                    score NUMERIC(6,2) NOT NULL,
+                    max_score NUMERIC(6,2) NOT NULL,
+                    grading_mode VARCHAR(50) NOT NULL,
+                    reason TEXT NOT NULL,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    FOREIGN KEY (submission_id)
+                        REFERENCES submission_grades(submission_id)
+                        ON DELETE CASCADE
+                )
+            """)
+            await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_criteria_submission_id
+                ON submission_criteria_scores(submission_id)
+            """)
+
+            # ── Chat sessions ─────────────────────────────────────────────
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS chat_sessions (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    assignment_id UUID NOT NULL,
+                    user_id VARCHAR(255) NOT NULL,
+                    status VARCHAR(50) NOT NULL DEFAULT 'active',
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    closed_at TIMESTAMP WITH TIME ZONE,
+                    closed_reason VARCHAR(50)
+                )
+            """)
+            # Enforce one active session per assignment+student
+            await conn.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_one_active_session
+                ON chat_sessions(assignment_id, user_id)
+                WHERE status = 'active'
+            """)
+            await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_chat_sessions_assignment_user
+                ON chat_sessions(assignment_id, user_id)
+            """)
+
+            # ── Chat messages ─────────────────────────────────────────────
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS chat_messages (
+                    id SERIAL PRIMARY KEY,
+                    session_id UUID NOT NULL
+                        REFERENCES chat_sessions(id) ON DELETE CASCADE,
+                    role VARCHAR(50) NOT NULL,
+                    content TEXT NOT NULL,
+                    reasoning_details JSONB,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                )
+            """)
+            await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id
+                ON chat_messages(session_id)
+            """)
+
             logger.info("acafs_tables_ensured")
 
     @asynccontextmanager
@@ -188,3 +268,286 @@ class PostgresClient:
             if row:
                 return ASTBlueprint.model_validate_json(row["ast_blueprint"])
             return None
+
+    # ── Grade persistence ─────────────────────────────────────────────────────
+
+    async def store_submission_grade(
+        self,
+        *,
+        submission_id: UUID,
+        assignment_id: UUID,
+        total_score: float,
+        max_total_score: float,
+        holistic_feedback: str,
+        criteria_scores: list[dict[str, Any]],
+        grading_metadata: Optional[dict[str, Any]] = None,
+    ) -> None:
+        """Persist a full grade breakdown for a submission.
+
+        ``criteria_scores`` must be a list of dicts with keys:
+        name, score, max_score, grading_mode, reason.
+        """
+        async with self._get_connection() as conn:
+            async with conn.transaction():
+                await conn.execute(
+                    """
+                    INSERT INTO submission_grades
+                        (submission_id, assignment_id, total_score,
+                         max_total_score, holistic_feedback, grading_metadata)
+                    VALUES ($1, $2, $3, $4, $5, $6)
+                    ON CONFLICT (submission_id) DO UPDATE SET
+                        total_score      = EXCLUDED.total_score,
+                        max_total_score  = EXCLUDED.max_total_score,
+                        holistic_feedback = EXCLUDED.holistic_feedback,
+                        grading_metadata  = EXCLUDED.grading_metadata,
+                        graded_at        = NOW()
+                    """,
+                    submission_id,
+                    assignment_id,
+                    total_score,
+                    max_total_score,
+                    holistic_feedback,
+                    json.dumps(grading_metadata) if grading_metadata else None,
+                )
+
+                # Delete stale per-criterion rows then re-insert
+                await conn.execute(
+                    "DELETE FROM submission_criteria_scores WHERE submission_id = $1",
+                    submission_id,
+                )
+                for cs in criteria_scores:
+                    await conn.execute(
+                        """
+                        INSERT INTO submission_criteria_scores
+                            (submission_id, criterion_name, score, max_score,
+                             grading_mode, reason)
+                        VALUES ($1, $2, $3, $4, $5, $6)
+                        """,
+                        submission_id,
+                        cs["name"],
+                        cs["score"],
+                        cs["max_score"],
+                        cs.get("grading_mode", "llm"),
+                        cs.get("reason", ""),
+                    )
+
+        logger.info(
+            "submission_grade_stored",
+            submission_id=str(submission_id),
+            total_score=total_score,
+            criteria_count=len(criteria_scores),
+        )
+
+    async def get_submission_grade(
+        self, submission_id: UUID
+    ) -> Optional[dict[str, Any]]:
+        """Retrieve grade breakdown for a submission."""
+        async with self._get_connection() as conn:
+            grade_row = await conn.fetchrow(
+                """
+                SELECT submission_id, assignment_id, total_score,
+                       max_total_score, holistic_feedback, grading_metadata,
+                       graded_at
+                FROM submission_grades
+                WHERE submission_id = $1
+                """,
+                submission_id,
+            )
+            if not grade_row:
+                return None
+
+            criteria_rows = await conn.fetch(
+                """
+                SELECT criterion_name, score, max_score, grading_mode, reason
+                FROM submission_criteria_scores
+                WHERE submission_id = $1
+                ORDER BY id
+                """,
+                submission_id,
+            )
+
+            return {
+                "submission_id": str(grade_row["submission_id"]),
+                "assignment_id": str(grade_row["assignment_id"]),
+                "total_score": float(grade_row["total_score"]),
+                "max_total_score": float(grade_row["max_total_score"]),
+                "holistic_feedback": grade_row["holistic_feedback"],
+                "grading_metadata": grade_row["grading_metadata"],
+                "graded_at": grade_row["graded_at"].isoformat()
+                if grade_row["graded_at"]
+                else None,
+                "criteria_scores": [
+                    {
+                        "name": r["criterion_name"],
+                        "score": float(r["score"]),
+                        "max_score": float(r["max_score"]),
+                        "grading_mode": r["grading_mode"],
+                        "reason": r["reason"],
+                    }
+                    for r in criteria_rows
+                ],
+            }
+
+    # ── Chat session + message persistence ───────────────────────────────────
+
+    async def get_or_create_chat_session(
+        self,
+        *,
+        assignment_id: UUID,
+        user_id: str,
+    ) -> dict[str, Any]:
+        """Return the active session for assignment+student, creating one if absent."""
+        async with self._get_connection() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT id, status, created_at
+                FROM chat_sessions
+                WHERE assignment_id = $1
+                  AND user_id = $2
+                  AND status = 'active'
+                """,
+                assignment_id,
+                user_id,
+            )
+            if row:
+                return {
+                    "id": str(row["id"]),
+                    "assignment_id": str(assignment_id),
+                    "user_id": user_id,
+                    "status": row["status"],
+                    "created_at": row["created_at"].isoformat(),
+                }
+
+            new_id = await conn.fetchval(
+                """
+                INSERT INTO chat_sessions (assignment_id, user_id, status)
+                VALUES ($1, $2, 'active')
+                RETURNING id
+                """,
+                assignment_id,
+                user_id,
+            )
+            logger.info(
+                "chat_session_created",
+                session_id=str(new_id),
+                assignment_id=str(assignment_id),
+                user_id=user_id,
+            )
+            return {
+                "id": str(new_id),
+                "assignment_id": str(assignment_id),
+                "user_id": user_id,
+                "status": "active",
+            }
+
+    async def append_chat_message(
+        self,
+        *,
+        session_id: UUID,
+        role: str,
+        content: str,
+        reasoning_details: Optional[Any] = None,
+    ) -> int:
+        """Insert a message into a chat session and return its id."""
+        async with self._get_connection() as conn:
+            msg_id = await conn.fetchval(
+                """
+                INSERT INTO chat_messages (session_id, role, content, reasoning_details)
+                VALUES ($1, $2, $3, $4)
+                RETURNING id
+                """,
+                session_id,
+                role,
+                content,
+                json.dumps(reasoning_details) if reasoning_details is not None else None,
+            )
+            return msg_id
+
+    async def get_chat_messages(self, session_id: UUID) -> list[dict[str, Any]]:
+        """Return all messages for a session ordered by creation time."""
+        async with self._get_connection() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT id, role, content, reasoning_details, created_at
+                FROM chat_messages
+                WHERE session_id = $1
+                ORDER BY created_at ASC, id ASC
+                """,
+                session_id,
+            )
+            return [
+                {
+                    "id": r["id"],
+                    "role": r["role"],
+                    "content": r["content"],
+                    "reasoning_details": r["reasoning_details"],
+                    "created_at": r["created_at"].isoformat() if r["created_at"] else None,
+                }
+                for r in rows
+            ]
+
+    async def get_chat_session(
+        self,
+        *,
+        assignment_id: UUID,
+        user_id: str,
+    ) -> Optional[dict[str, Any]]:
+        """Return the most recent session (active or closed) for analytics."""
+        async with self._get_connection() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT id, status, created_at, closed_at, closed_reason
+                FROM chat_sessions
+                WHERE assignment_id = $1 AND user_id = $2
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                assignment_id,
+                user_id,
+            )
+            if not row:
+                return None
+            return {
+                "id": str(row["id"]),
+                "assignment_id": str(assignment_id),
+                "user_id": user_id,
+                "status": row["status"],
+                "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+                "closed_at": row["closed_at"].isoformat() if row["closed_at"] else None,
+                "closed_reason": row["closed_reason"],
+            }
+
+    async def close_chat_session_on_submission(
+        self,
+        *,
+        assignment_id: UUID,
+        user_id: str,
+    ) -> bool:
+        """Close the active chat session when a submission is processed.
+
+        Returns True if a session was closed, False if none was active.
+        """
+        async with self._get_connection() as conn:
+            result = await conn.execute(
+                """
+                UPDATE chat_sessions
+                SET status       = 'closed',
+                    closed_at    = NOW(),
+                    closed_reason = 'submission'
+                WHERE assignment_id = $1
+                  AND user_id       = $2
+                  AND status        = 'active'
+                """,
+                assignment_id,
+                user_id,
+            )
+            # asyncpg returns "UPDATE <n>" as the status string
+            closed = result.endswith("1")
+            if closed:
+                logger.info(
+                    "chat_session_closed_on_submission",
+                    assignment_id=str(assignment_id),
+                    user_id=user_id,
+                )
+            return closed
+
