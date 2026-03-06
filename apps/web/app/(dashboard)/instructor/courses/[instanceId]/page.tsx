@@ -13,7 +13,6 @@ import {
     FileText,
     Calendar,
     AlertCircle,
-    LayoutDashboard,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -84,7 +83,6 @@ export default function InstructorCourseDetailsPage() {
             <SectionHeader
                 title="Course Overview"
                 description={`${courseCode} — General stats, assigned instructors, and enrollment for this instance.`}
-                icon={LayoutDashboard}
                 action={
                     isLoading ? (
                         <Skeleton className="h-6 w-16 rounded-full" />

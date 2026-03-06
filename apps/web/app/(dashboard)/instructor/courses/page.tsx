@@ -155,7 +155,6 @@ export default function InstructorCoursesPage() {
             <SectionHeader
                 title="My Courses"
                 description="Courses you are assigned to instruct this semester."
-                icon={BookOpen}
                 action={
                     <div className="flex items-center p-1 bg-muted/50 rounded-xl border border-border/40 shrink-0">
                         <Button
@@ -186,20 +185,6 @@ export default function InstructorCoursesPage() {
                     <span>{error}</span>
                 </div>
             )}
-
-            {/* Info notice */}
-            <div className="flex gap-3 rounded-xl border border-blue-200 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-950/30 p-4">
-                <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-                <div>
-                    <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">
-                        Course metadata is administrator-managed
-                    </p>
-                    <p className="text-xs text-blue-700 dark:text-blue-400 mt-0.5">
-                        As an instructor you can view your assigned instances and manage assignments and
-                        submissions. Full course metadata is restricted to administrators.
-                    </p>
-                </div>
-            </div>
 
             {/* Loading skeletons */}
             {isLoading ? (

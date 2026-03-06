@@ -90,7 +90,6 @@ export default function InstructorAssignmentDetailsPage() {
             <SectionHeader
                 title="Assignment Overview"
                 description={assignment?.title || "View metrics and key details for this assignment."}
-                icon={LayoutDashboard}
                 action={
                     isLoading ? (
                         <Skeleton className="h-6 w-16 rounded-full" />
