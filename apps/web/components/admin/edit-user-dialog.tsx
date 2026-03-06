@@ -22,7 +22,7 @@ import type {
   FormErrors,
 } from "@/types/admin.types";
 import type { UserListItem } from "@/types/auth.types";
-import { USER_TYPES } from "@/types/auth.types";
+import { USER_TYPES_ARRAY } from "@/types/auth.types";
 
 interface Props {
   user: UserListItem | null;
@@ -55,7 +55,7 @@ export function EditUserDialog({ user, open, onOpenChange, onSuccess }: Props) {
     }
   }, [user, open]);
 
-  // User type is tied to the role, so any role can be selected.
+  // User type determines the account category (student, instructor, admin, super_admin).
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!user) return;
@@ -145,7 +145,7 @@ export function EditUserDialog({ user, open, onOpenChange, onSuccess }: Props) {
               }
               disabled={submitting}
             >
-              {USER_TYPES.map((type) => (
+              {USER_TYPES_ARRAY.map((type) => (
                 <option key={type} value={type} className="capitalize">
                   {type.replace('_', ' ')}
                 </option>

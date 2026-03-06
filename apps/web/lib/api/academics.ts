@@ -100,6 +100,13 @@ export const facultiesApi = {
     });
     return data;
   },
+
+  delete: async (id: string): Promise<void> => {
+    // Soft delete: mark as inactive
+    await axiosInstance.patch(`/faculties/${id}/deactivate`, {
+      is_active: false,
+    });
+  },
 };
 
 // ── Departments ───────────────────────────────────────────────────────────────
@@ -147,6 +154,13 @@ export const departmentsApi = {
       is_active: true,
     });
     return data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    // Soft delete: mark as inactive
+    await axiosInstance.patch(`/departments/${id}/deactivate`, {
+      is_active: false,
+    });
   },
 
   listByFaculty: async (facultyId: string): Promise<Department[]> => {
@@ -198,6 +212,13 @@ export const degreesApi = {
       is_active: true,
     });
     return data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    // Soft delete: mark as inactive
+    await axiosInstance.patch(`/degrees/${id}/deactivate`, {
+      is_active: false,
+    });
   },
 
   listByDepartment: async (departmentId: string): Promise<Degree[]> => {
@@ -270,6 +291,13 @@ export const specializationsApi = {
     );
     return data;
   },
+
+  delete: async (id: string): Promise<void> => {
+    // Soft delete: mark as inactive
+    await axiosInstance.patch(`/specializations/${id}/deactivate`, {
+      is_active: false,
+    });
+  },
 };
 
 // ── Courses ───────────────────────────────────────────────────────────────────
@@ -311,7 +339,12 @@ export const coursesApi = {
     });
     return data;
   },
-
+  delete: async (id: string): Promise<void> => {
+    // Soft delete: mark as inactive
+    await axiosInstance.patch(`/courses/${id}/deactivate`, {
+      is_active: false,
+    });
+  },
   // ── Prerequisites ─────────────────────────────────────────────────
 
   listPrerequisites: async (
@@ -389,6 +422,13 @@ export const semestersApi = {
       is_active: true,
     });
     return data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    // Soft delete: mark as inactive
+    await axiosInstance.patch(`/semesters/${id}/deactivate`, {
+      is_active: false,
+    });
   },
 };
 

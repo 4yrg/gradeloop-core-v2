@@ -61,7 +61,6 @@ import {
   CreateDegreeDialog,
   EditDegreeDialog,
 } from "@/components/admin/academics/degree-dialogs";
-import { EditDepartmentDialog } from "@/components/admin/academics/department-dialogs";
 import { AcademicsDetailLayout } from "@/components/admin/academics/AcademicsDetailLayout";
 import { DangerZone } from "@/components/admin/academics/DangerZone";
 import type {
@@ -158,8 +157,6 @@ export default function DepartmentDetailPage() {
   const [editDegreeTarget, setEditDegreeTarget] = React.useState<Degree | null>(
     null,
   );
-  const [editDeptOpen, setEditDeptOpen] = React.useState(false);
-
   // Settings
   const [activeTab, setActiveTab] = React.useState<
     "overview" | "degrees" | "settings"
@@ -839,6 +836,13 @@ export default function DepartmentDetailPage() {
                   );
                   toast.success("Department reactivated", department.name);
                 }}
+                showDelete={true}
+                onDelete={async () => {
+                  await departmentsApi.delete(department.id);
+                  toast.success("Department deleted", department.name);
+                  router.push("/admin/academics/departments");
+                }}
+                deleteDescription={`This will permanently mark "${department.name}" as inactive. The department and all its data will be preserved but unavailable for use.`}
               />
             </div>
           )}

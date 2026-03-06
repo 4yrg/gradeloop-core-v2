@@ -162,11 +162,27 @@ export default function UsersPage() {
         search: debouncedSearch || undefined,
         user_type: userTypeFilter === "all" ? undefined : userTypeFilter,
       });
-      setUsers(result.data || []);
+      
+      // Debug logging
+      console.log('[Users] API response:', result);
+      console.log('[Users] Data:', result.data);
+      console.log('[Users] Total:', result.total);
+      
+      if (!result || !result.data) {
+        console.warn('[Users] Invalid API response structure:', result);
+        setError('Invalid response from server');
+        setUsers([]);
+        setTotal(0);
+        return;
+      }
+      
+      setUsers(result.data);
       setTotal(result.total || 0);
     } catch (err) {
+      console.error('[Users] API error:', err);
       setError(handleApiError(err));
       setUsers([]); // Reset to empty array on error
+      setTotal(0);
     } finally {
       setLoading(false);
     }
