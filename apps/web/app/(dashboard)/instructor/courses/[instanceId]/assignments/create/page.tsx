@@ -140,6 +140,16 @@ export default function CreateAssignmentPage() {
     const [isRunning, setIsRunning] = React.useState(false);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [submitError, setSubmitError] = React.useState<string | null>(null);
+    const [customStdin, setCustomStdin] = React.useState("");
+    const [isRunningCustom, setIsRunningCustom] = React.useState(false);
+    const [customRunResult, setCustomRunResult] = React.useState<{
+        stdout: string | null;
+        stderr: string | null;
+        compile_output: string | null;
+        status: string;
+        status_id: number;
+        execution_time: string | null;
+    } | null>(null);
 
     // ── Derived rubric weight ──────────────────────────────────────────────────
     const totalWeight = criteria.reduce((acc, c) => acc + (Number(c.weight) || 0), 0);
@@ -248,6 +258,39 @@ export default function CreateAssignmentPage() {
         toast[passed === results.length ? "success" : "warning"](
             `${passed} / ${results.length} test cases passed`,
         );
+    };
+
+    // ── Custom-input runner ────────────────────────────────────────────────────
+    const runWithCustomInput = async () => {
+        if (!sampleAnswer.code.trim()) return;
+        setIsRunningCustom(true);
+        setCustomRunResult(null);
+        try {
+            const res = await assessmentsApi.runCode({
+                language_id: sampleAnswer.language_id,
+                source_code: sampleAnswer.code,
+                stdin: customStdin || undefined,
+            });
+            setCustomRunResult({
+                stdout: res.stdout,
+                stderr: res.stderr,
+                compile_output: res.compile_output,
+                status: res.status ?? "",
+                status_id: res.status_id,
+                execution_time: res.execution_time,
+            });
+        } catch (err) {
+            setCustomRunResult({
+                stdout: null,
+                stderr: handleApiError(err),
+                compile_output: null,
+                status: "Error",
+                status_id: -1,
+                execution_time: null,
+            });
+        } finally {
+            setIsRunningCustom(false);
+        }
     };
 
     // ── Navigation ─────────────────────────────────────────────────────────────
@@ -879,6 +922,84 @@ export default function CreateAssignmentPage() {
                                     theme={editorTheme}
                                     onRun={runSampleAnswer}
                                 />
+                            </div>
+                        </div>
+
+                        {/* Custom input panel */}
+                        <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
+                            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40 bg-muted/20">
+                                <span className="text-xs font-semibold text-muted-foreground">Custom Input</span>
+                                <span className="text-xs text-muted-foreground">Test with arbitrary stdin</span>
+                            </div>
+                            <div className="p-4 space-y-3">
+                                <Textarea
+                                    placeholder="Enter stdin here (leave blank for no input)…"
+                                    value={customStdin}
+                                    onChange={(e) => {
+                                        setCustomStdin(e.target.value);
+                                        setCustomRunResult(null);
+                                    }}
+                                    rows={4}
+                                    className="font-mono text-xs resize-y"
+                                />
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={isRunningCustom || !sampleAnswer.code.trim()}
+                                    onClick={runWithCustomInput}
+                                    className="gap-2"
+                                >
+                                    {isRunningCustom ? (
+                                        <><Loader2 className="h-3.5 w-3.5 animate-spin" />Running…</>
+                                    ) : (
+                                        <><Play className="h-3.5 w-3.5" />Run with input</>
+                                    )}
+                                </Button>
+
+                                {customRunResult && (
+                                    <div className="space-y-2 pt-1">
+                                        <div className="flex items-center gap-2">
+                                            {customRunResult.status_id === 3 ? (
+                                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                                            ) : (
+                                                <AlertCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                                            )}
+                                            <span className="text-xs font-medium">
+                                                {customRunResult.status}
+                                            </span>
+                                            {customRunResult.execution_time && (
+                                                <span className="text-xs text-muted-foreground ml-auto">
+                                                    {customRunResult.execution_time}s
+                                                </span>
+                                            )}
+                                        </div>
+                                        {customRunResult.compile_output && (
+                                            <div>
+                                                <p className="text-xs text-muted-foreground mb-1">Compile output</p>
+                                                <pre className="text-xs font-mono bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded p-2 whitespace-pre-wrap break-all">
+                                                    {customRunResult.compile_output}
+                                                </pre>
+                                            </div>
+                                        )}
+                                        {customRunResult.stdout !== null && (
+                                            <div>
+                                                <p className="text-xs text-muted-foreground mb-1">stdout</p>
+                                                <pre className="text-xs font-mono bg-muted/40 rounded p-2 whitespace-pre-wrap break-all min-h-[2rem]">
+                                                    {customRunResult.stdout || "(empty)"}
+                                                </pre>
+                                            </div>
+                                        )}
+                                        {customRunResult.stderr && (
+                                            <div>
+                                                <p className="text-xs text-muted-foreground mb-1">stderr</p>
+                                                <pre className="text-xs font-mono bg-destructive/5 text-destructive rounded p-2 whitespace-pre-wrap break-all">
+                                                    {customRunResult.stderr}
+                                                </pre>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
