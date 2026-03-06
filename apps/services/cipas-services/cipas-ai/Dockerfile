@@ -1,5 +1,5 @@
 # =============================================================================
-# CIPAS AI - 2-Tier Hybrid Code Detection Service
+# CIPAS AI - Code Intelligence and Plagiarism Assessment Service
 # Multi-stage Dockerfile for production deployment
 # =============================================================================
 
@@ -33,13 +33,12 @@ FROM base AS builder
 RUN pip install --no-cache-dir poetry
 
 # Copy dependency files
-COPY pyproject.toml .
+COPY pyproject.toml poetry.lock ./
 
-# Create virtual environment and install dependencies
+# Create virtual environment and install production dependencies
 RUN poetry config virtualenvs.create true \
     && poetry config virtualenvs.in-project true \
-    && poetry install --no-interaction --no-ansi --no-root \
-    && poetry install --no-interaction --no-ansi --extras async
+    && poetry install --no-interaction --no-ansi --no-dev
 
 # =============================================================================
 # Stage 3: Tree-sitter Parser Builder
@@ -86,7 +85,6 @@ RUN groupadd --gid 1000 appgroup \
 COPY --from=builder /app/.venv /app/.venv
 
 # Copy application code
-COPY --from=builder --chown=appuser:appgroup . /app/
 COPY --chown=appuser:appgroup . /app/
 
 # Copy built parsers
@@ -97,22 +95,21 @@ COPY --from=parser-builder /parsers/tree-sitter-cpp/build/Release/*.so /app/mode
 
 # Set environment variables
 ENV PATH="/app/.venv/bin:$PATH" \
-    PYTHONPATH="/app:$PYTHONPATH" \
-    CIPAS_AI_GRAMMAR_PATH="/app/models" \
-    CIPAS_AI_TIER1_MODEL_PATH="/app/models/catboost_classifier.cbm"
+    PYTHONPATH="/app" \
+    CIPAS_AI_GRAMMAR_PATH="/app/models"
 
 # Switch to non-root user
 USER appuser
 
 # Expose port
-EXPOSE 8087
+EXPOSE 8000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8087/health || exit 1
+    CMD curl -f http://localhost:8000/api/v1/health || exit 1
 
 # Entry point
-ENTRYPOINT ["/app/.venv/bin/uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8087"]
+ENTRYPOINT ["/app/.venv/bin/uvicorn", "cipas_ai.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 # Default command (can be overridden)
 CMD ["--workers", "1"]

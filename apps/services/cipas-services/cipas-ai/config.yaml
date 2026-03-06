@@ -1,0 +1,143 @@
+# CIPAS-AI Central Configuration
+# This file manages all training and evaluation parameters
+
+# Dataset Configuration
+datasets:
+  base_path: "../../../../datasets"  # Relative to cipas-ai directory
+  available:
+    DroidCollection:
+      train: "DroidCollection/Droid_Train.jsonl"
+      dev: "DroidCollection/Droid_Dev.jsonl" 
+      test: "DroidCollection/Droid_Test.jsonl"
+    Zendoo:
+      train: "Zendoo/python_dataset.jsonl"
+      test: "Zendoo/java_dataset.jsonl"
+    aigcodeset:
+      train: "aigcodeset/train.csv"
+    humanvsai-code:
+      train: "humanvsai-code/train.csv"
+  
+  # Training dataset selection
+  default_training: ["DroidCollection", "Zendoo", "aigcodeset", "humanvsai-code"]
+  evaluation_dataset: "aicd-bench"  # Reserved for final evaluation
+
+# Model Configuration  
+models:
+  catboost:
+    # CatBoost Stage 1 (Fast-path) parameters
+    iterations: 2000
+    learning_rate: 0.05
+    depth: 8
+    l2_leaf_reg: 3.0
+    random_strength: 1.0
+    bagging_temperature: 1.0
+    border_count: 128
+    early_stopping_rounds: 100
+    eval_metric: "AUC"
+    device: "gpu"  # gpu, cpu, or auto
+    
+  droiddetect:
+    # DroidDetect Stage 2 (Deep-path) parameters  
+    model_name: "modernbert-base"
+    droiddetect_repo: "project-droid/DroidDetect-Large-Binary"
+    max_length: 2048
+    epochs: 3
+    batch_size: 8
+    gradient_accumulation_steps: 4
+    learning_rate: 2.0e-5
+    weight_decay: 0.01
+    warmup_ratio: 0.1
+    max_grad_norm: 1.0
+    
+  modernbert:
+    # ModernBERT standalone parameters
+    model_name: "answerdotai/ModernBERT-base"
+    num_classes: 2
+    max_length: 1024
+
+# Training Configuration
+training:
+  # Sample limits (null = no limit)
+  max_train_samples: null
+  max_dev_samples: null  
+  max_eval_samples: null
+  
+  # Quality filtering
+  quality_filter:
+    enabled: true
+    ast_depth_min: 2
+    ast_depth_max: 31
+    line_count_min: 6
+    line_count_max: 300
+  
+  # Pipeline thresholds
+  fast_path:
+    high_threshold: 0.95  # P_AI > 0.95 → fast-path AI exit
+    low_threshold: 0.05   # P_AI < 0.05 → fast-path Human exit
+  
+  # Mixed precision and optimization
+  mixed_precision: true
+  quantization:
+    use_4bit: false
+    use_8bit: false
+  
+  # MC Dropout settings
+  mc_dropout:
+    enabled: true
+    noise_fraction: 0.1
+    passes: 10
+    rate: 0.1
+
+# Output Configuration
+output:
+  # Model outputs
+  models_dir: "models"
+  catboost_model: "catboost_classifier.cbm"
+  
+  # Metrics and visualization
+  results_dir: "results" 
+  save_plots: true
+  save_metrics: true
+  plot_format: "png"
+  
+  # Training checkpoints
+  save_steps: 500
+  eval_steps: 100
+
+# System Configuration
+system:
+  random_seed: 42
+  device: "auto"  # auto, gpu, cpu
+  num_workers: 4
+  
+# API Configuration
+api:
+  host: "0.0.0.0"
+  port: 8000
+  reload: false
+  max_concurrent_jobs: 2
+  cors_origins: ["*"]
+  
+# Logging Configuration  
+logging:
+  level: "INFO"
+  format: "%(asctime)s  %(levelname)-8s  %(message)s"
+  
+# Feature Extraction Configuration
+features:
+  # 733 total features for CatBoost
+  token_histogram_bins: 232
+  ngram_size: 2  
+  ngram_bins: 475
+  
+# Grammar paths for tree-sitter
+grammar:
+  base_path: "models"
+  languages:
+    python: "tree-sitter-python.so"
+    java: "tree-sitter-java.so" 
+    c: "tree-sitter-c.so"
+    cpp: "tree-sitter-cpp.so"
+    javascript: "tree-sitter-javascript.so"
+    go: "tree-sitter-go.so"
+    csharp: "tree-sitter-c-sharp.so"
