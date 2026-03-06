@@ -1,8 +1,14 @@
 [tool.poetry]
 name = "cipas-ai"
+<<<<<<< HEAD
 version = "2.0.0"
 description = "Code Intelligence and Plagiarism Assessment System - AI Detection API"
 authors = ["SLIIT Team <team@sliit.lk>"]
+=======
+version = "0.3.0"
+description = "UniXcoder-based AI Code Detection Service with Multi-Dataset Training"
+authors = ["Gradeloop Team"]
+>>>>>>> fa012045d3acdbd08d6820b64b4b612651d736aa
 readme = "README.md"
 packages = [{include = "cipas_ai"}]
 
@@ -23,7 +29,34 @@ accelerate = "^0.25.0"
 datasets = "^2.14.0"
 huggingface-hub = "^0.19.0"
 
-# CatBoost with GPU support  
+# Validation & Settings
+pydantic = "^2.9.0"
+pydantic-settings = "^2.5.0"
+
+# PyTorch & Transformers
+# For GPU: pip install torch --index-url https://download.pytorch.org/whl/cu121
+# For CPU: pip install torch --index-url https://download.pytorch.org/whl/cpu
+torch = "^2.4.0"
+
+# Transformers for UniXcoder support
+transformers = ">=4.36.0"
+accelerate = "^0.34.0"
+
+# Quantization support (4-bit/8-bit for limited VRAM)
+bitsandbytes = "^0.44.0"
+
+# Tree-sitter for AST parsing (multi-language support)
+tree-sitter = ">=0.21.0,<0.24.0"
+tree-sitter-languages = "^1.10.2"
+tree-sitter-python = ">=0.21.0,<0.24.0"
+tree-sitter-java = ">=0.21.0,<0.22.0"
+tree-sitter-c = ">=0.21.0,<0.22.0"
+tree-sitter-cpp = ">=0.21.0,<0.22.0"
+
+# Metric learning for triplet loss
+pytorch-metric-learning = "^2.4.0"
+
+# CatBoost for Tier 1 classifier (legacy)
 catboost = "^1.2.0"
 
 # Scientific computing
@@ -51,6 +84,15 @@ tqdm = "^4.66.0"
 click = "^8.1.0"
 python-dotenv = "^1.0.0"
 redis = "^5.0.0"
+# Data processing
+pandas = "^2.1.0"
+numpy = "^1.26.0"
+scikit-learn = "^1.4.0"
+
+# Visualization & metrics
+matplotlib = "^3.8.0"
+seaborn = "^0.13.0"
+tqdm = "^4.66.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.0"
@@ -119,8 +161,10 @@ warn_unused_ignores = true
 [[tool.mypy.overrides]]
 module = [
     "tree_sitter.*",
+    "tree_sitter_languages.*",
     "catboost.*",
     "bitsandbytes.*",
+    "pytorch_metric_learning.*",
 ]
 ignore_missing_imports = true
 
