@@ -58,28 +58,21 @@ class SubmissionEvent(BaseModel):
     enqueued_at: datetime
 
     # -------------------------------------------------------------------------
-    # TODO [ACAFS – Evaluation Context Fields]
-    #
-    # The following fields must be added once assessment-service stores them.
-    # Uncomment and update the RabbitMQ publisher in assessment-service to
-    # include these in the queue message payload.
-    #
-    # Assignment metadata:
-    # assignment_type: Optional[str] = None        # "lab" | "exam"
-    # assignment_objective: Optional[str] = None   # LLM prompt context
-    #
-    # Rubric (drives per-criterion grading):
-    # rubric: Optional[list[dict[str, Any]]] = None
-    # Structure: [{id, name, description, grading_mode, weight, bands: {...}}]
-    #
-    # Test cases (drives deterministic evaluation):
-    # test_cases: Optional[list[dict[str, Any]]] = None
-    # Structure: [{test_case_id, description, test_case_input, expected_output}]
-    #
-    # Sample answer (LLM reference & deterministic ground-truth):
-    # sample_answer: Optional[dict[str, Any]] = None
-    # Structure: {language_id: int, code: str}
+    # Evaluation context – forwarded from assessment-service via RabbitMQ.
+    # All fields are optional so existing messages without them remain valid.
     # -------------------------------------------------------------------------
+
+    # Assignment metadata (used as LLM prompt context):
+    assessment_type: Optional[str] = None        # "lab" | "exam"
+    objective: Optional[str] = None              # free-text learning objective
+
+    # Test cases that were used for deterministic evaluation in the worker.
+    # Structure: [{id, input, expected_output}]
+    test_cases: Optional[list[dict[str, Any]]] = None
+
+    # Reference implementation / sample answer for similarity comparison.
+    # Structure: {language_id: int, code: str}
+    sample_answer: Optional[dict[str, Any]] = None
 
     class Config:
         """Pydantic config."""

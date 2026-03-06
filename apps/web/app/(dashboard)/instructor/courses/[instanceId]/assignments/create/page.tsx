@@ -226,8 +226,8 @@ export default function CreateAssignmentPage() {
                     test_case_id: tc.test_case_id,
                     passed: actual === expected,
                     actual_output: actual,
-                    status: res.status,
-                    time: res.time,
+                    status: { id: res.status_id, description: res.status ?? "" },
+                    time: res.execution_time,
                 });
             } catch (err) {
                 results.push({
@@ -275,37 +275,39 @@ export default function CreateAssignmentPage() {
                         ? new Date(settings.late_due_date).toISOString()
                         : null,
                 allow_late_submissions: settings.allow_late_submission,
+                // Backend stores enforce_time_limit as minutes — no conversion needed.
                 enforce_time_limit:
                     settings.time_limit_enabled && settings.time_limit_minutes
-                        ? settings.time_limit_minutes * 60
+                        ? settings.time_limit_minutes
                         : null,
                 allow_group_submission: settings.group_submission,
                 max_group_size: settings.group_submission ? 5 : null,
-                // TODO [ACAFS]: enable_ai_assistant will activate rubric-based LLM evaluation.
-                // Requires assessment-service to store & forward rubric to ACAFS queue message.
                 enable_ai_assistant: true,
-                // TODO [ACAFS]: enable_socratic_feedback is pending ACAFS feedback pipeline.
-                // Set to true once ACAFS can generate per-criteria socratic hints.
                 enable_socratic_feedback: false,
                 allow_regenerate: settings.multiple_submissions,
-                // ── Fields not yet supported by assessment-service backend ──────────────
-                // TODO [assessment-service]: Add `assessment_type` column (lab | exam).
-                // assessment_type: assignment.type,
-                //
-                // TODO [assessment-service]: Add `objective` column (LLM context).
-                // objective: assignment.objective,
-                //
-                // TODO [assessment-service]: Store rubric JSON in assignment row or
-                // separate rubric table. POST /instructor-assignments/:id/rubric endpoint.
-                // rubric: { criteria },
-                //
-                // TODO [assessment-service]: Store test_cases JSON or separate table.
-                // POST /instructor-assignments/:id/test-cases endpoint.
-                // test_cases: testCases,
-                //
-                // TODO [assessment-service]: Store sample answer (language + code) in
-                // MinIO or dedicated table. POST /instructor-assignments/:id/sample-answer.
-                // sample_answer: sampleAnswer,
+                assessment_type: assignment.type,
+                objective: assignment.objective || undefined,
+                rubric_criteria: criteria.map((c, i) => ({
+                    name: c.name,
+                    description: c.description,
+                    grading_mode: c.grading_mode,
+                    weight: c.weight,
+                    order_index: i + 1,
+                })),
+                test_cases: testCases.map((tc, i) => ({
+                    description: tc.description,
+                    input: tc.test_case_input,
+                    expected_output: tc.expected_output,
+                    is_hidden: tc.is_hidden,
+                    order_index: i + 1,
+                })),
+                sample_answer: sampleAnswer.code.trim()
+                    ? {
+                          language_id: sampleAnswer.language_id,
+                          language: "",
+                          code: sampleAnswer.code,
+                      }
+                    : undefined,
             });
             reset();
             router.push(`/instructor/courses/${instanceId}/assignments/${result.id}`);

@@ -80,6 +80,7 @@ type submissionService struct {
 	submissionRepo repository.SubmissionRepository
 	groupRepo      repository.GroupRepository
 	assignmentRepo repository.AssignmentRepository
+	contentRepo    repository.AssignmentContentRepository
 	storage        *storage.MinIOStorage
 	publisher      *queue.SubmissionPublisher
 	auditClient    *client.AuditClient
@@ -95,6 +96,7 @@ func NewSubmissionService(
 	submissionRepo repository.SubmissionRepository,
 	groupRepo repository.GroupRepository,
 	assignmentRepo repository.AssignmentRepository,
+	contentRepo repository.AssignmentContentRepository,
 	storage *storage.MinIOStorage,
 	publisher *queue.SubmissionPublisher,
 	auditClient *client.AuditClient,
@@ -108,6 +110,7 @@ func NewSubmissionService(
 		submissionRepo: submissionRepo,
 		groupRepo:      groupRepo,
 		assignmentRepo: assignmentRepo,
+		contentRepo:    contentRepo,
 		storage:        storage,
 		publisher:      publisher,
 		auditClient:    auditClient,
@@ -297,16 +300,41 @@ func (s *submissionService) CreateSubmission(
 	// not blocked.  A separate reconciliation job (or manual retry) can pick
 	// up stuck "queued" rows.
 	job := queue.SubmissionJob{
-		SubmissionID: newSubmission.ID,
-		AssignmentID: req.AssignmentID,
-		Code:         req.Code,
-		Language:     req.Language,
-		LanguageID:   req.LanguageID,
-		StoragePath:  newSubmission.StoragePath,
-		UserID:       userID.String(),
-		Username:     username,
-		IPAddress:    ipAddress,
-		UserAgent:    userAgent,
+		SubmissionID:   newSubmission.ID,
+		AssignmentID:   req.AssignmentID,
+		Code:           req.Code,
+		Language:       req.Language,
+		LanguageID:     req.LanguageID,
+		StoragePath:    newSubmission.StoragePath,
+		UserID:         userID.String(),
+		Username:       username,
+		IPAddress:      ipAddress,
+		UserAgent:      userAgent,
+		AssessmentType: assignment.AssessmentType,
+		Objective:      assignment.Objective,
+	}
+
+	// Load test cases and sample answer so the worker can perform deterministic
+	// evaluation without a second DB round-trip.
+	if dbTestCases, tcErr := s.contentRepo.ListTestCases(req.AssignmentID); tcErr == nil && len(dbTestCases) > 0 {
+		jobTCs := make([]queue.SubmissionTestCase, 0, len(dbTestCases))
+		for _, tc := range dbTestCases {
+			jobTCs = append(jobTCs, queue.SubmissionTestCase{
+				ID:             tc.ID.String(),
+				Input:          tc.Input,
+				ExpectedOutput: tc.ExpectedOutput,
+			})
+		}
+		job.TestCases = jobTCs
+	} else if tcErr != nil {
+		s.logger.Warn("failed to load test cases for submission job", zap.Error(tcErr))
+	}
+
+	if sa, saErr := s.contentRepo.GetSampleAnswer(req.AssignmentID); saErr == nil && sa != nil {
+		job.SampleAnswerCode = sa.Code
+		job.SampleAnswerLanguageID = sa.LanguageID
+	} else if saErr != nil {
+		s.logger.Warn("failed to load sample answer for submission job", zap.Error(saErr))
 	}
 
 	publishCtx, cancel := context.WithTimeout(context.Background(), publishTimeout)
@@ -498,16 +526,16 @@ func (s *submissionService) assertGroupMembership(
 // ─────────────────────────────────────────────────────────────────────────────
 
 // RunCode executes code via Judge0 without creating a persistent submission.
-// It validates that the user is enrolled in the assignment's course instance.
+// When assignment_id is provided, it validates that the user is enrolled in
+// the assignment's course instance. When omitted (e.g. an instructor testing
+// a sample answer before the assignment is published), the enrollment check
+// is skipped entirely.
 func (s *submissionService) RunCode(
 	ctx context.Context,
 	req *dto.RunCodeRequest,
 	userID uuid.UUID,
 ) (*dto.RunCodeResponse, error) {
-	// Validate request
-	if req.AssignmentID == uuid.Nil {
-		return nil, utils.ErrBadRequest("assignment_id is required")
-	}
+	// Validate required fields
 	if req.SourceCode == "" {
 		return nil, utils.ErrBadRequest("source_code is required")
 	}
@@ -520,35 +548,36 @@ func (s *submissionService) RunCode(
 		return nil, utils.ErrBadRequest("source_code exceeds maximum allowed size")
 	}
 
-	// Load and validate the assignment
-	assignment, err := s.assignmentRepo.GetAssignmentByID(req.AssignmentID)
-	if err != nil {
-		s.logger.Error("failed to load assignment for run-code",
-			zap.String("assignment_id", req.AssignmentID.String()),
-			zap.Error(err),
-		)
-		return nil, utils.ErrInternal("failed to load assignment", err)
-	}
-	if assignment == nil {
-		return nil, utils.ErrNotFound("assignment not found")
-	}
-	if !assignment.IsActive {
-		return nil, utils.ErrBadRequest("assignment is not active")
-	}
+	// When an assignment_id is supplied, validate the assignment and check enrollment.
+	if req.AssignmentID != nil && *req.AssignmentID != uuid.Nil {
+		assignment, err := s.assignmentRepo.GetAssignmentByID(*req.AssignmentID)
+		if err != nil {
+			s.logger.Error("failed to load assignment for run-code",
+				zap.String("assignment_id", req.AssignmentID.String()),
+				zap.Error(err),
+			)
+			return nil, utils.ErrInternal("failed to load assignment", err)
+		}
+		if assignment == nil {
+			return nil, utils.ErrNotFound("assignment not found")
+		}
+		if !assignment.IsActive {
+			return nil, utils.ErrBadRequest("assignment is not active")
+		}
 
-	// Check enrollment
-	enrolled, err := s.academicClient.IsEnrolled(
-		userID.String(),
-		assignment.CourseInstanceID.String(),
-	)
-	if err != nil {
-		s.logger.Warn("enrollment check failed for run-code; proceeding without enrollment gate",
-			zap.String("user_id", userID.String()),
-			zap.String("course_instance_id", assignment.CourseInstanceID.String()),
-			zap.Error(err),
+		enrolled, enrollErr := s.academicClient.IsEnrolled(
+			userID.String(),
+			assignment.CourseInstanceID.String(),
 		)
-	} else if !enrolled {
-		return nil, utils.ErrForbidden("not enrolled in the course instance for this assignment")
+		if enrollErr != nil {
+			s.logger.Warn("enrollment check failed for run-code; proceeding without enrollment gate",
+				zap.String("user_id", userID.String()),
+				zap.String("course_instance_id", assignment.CourseInstanceID.String()),
+				zap.Error(enrollErr),
+			)
+		} else if !enrolled {
+			return nil, utils.ErrForbidden("not enrolled in the course instance for this assignment")
+		}
 	}
 
 	// Execute code via Judge0

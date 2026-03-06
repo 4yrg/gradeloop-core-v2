@@ -56,6 +56,7 @@ export interface TestCase {
     description: string;
     test_case_input: string;
     expected_output: string;
+    is_hidden?: boolean;
 }
 
 export interface SampleAnswerDraft {

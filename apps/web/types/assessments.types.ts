@@ -3,56 +3,50 @@
  *
  * These types mirror the backend Go DTOs exactly.
  * Source of truth: apps/services/assessment-service/internal/dto/
- *
- * Fields marked with TODO [assessment-service] are defined here in the frontend
- * data model but are NOT yet accepted by the backend. They must be added to:
- *   apps/services/assessment-service/internal/dto/assignment.go
- *   apps/services/assessment-service/internal/domain/assignment.go  (model)
- *   apps/services/assessment-service/internal/repository/assignment.go (persistence)
  */
 
 // ─── Supporting types for rubric & test cases ─────────────────────────────────
 
-export interface RubricBandDto {
+/** A single performance band within a rubric criterion. */
+export interface RubricBand {
+    level: string;
     description: string;
-    mark_range: string; // e.g. "85-100"
+    min_score: number;
+    max_score: number;
 }
 
+/** One rubric criterion sent when creating/updating an assignment. */
 export interface RubricCriterionDto {
-    id: number;
     name: string;
-    description: string;
-    /** TODO [ACAFS]: grading_mode drives which evaluation pipeline is applied.
-     *  - "llm"          → LLM text evaluation only
-     *  - "llm_ast"      → LLM + AST structural analysis
-     *  - "deterministic" → test-case output matching only
+    description?: string;
+    /**
+     * Evaluation pipeline for this criterion.
+     * "deterministic" | "llm" | "llm_ast" (extensible — kept as string).
      */
-    grading_mode: "deterministic" | "llm" | "llm_ast";
-    weight: number; // must sum to 100 across all criteria
-    bands: {
-        excellent: RubricBandDto;
-        good: RubricBandDto;
-        satisfactory: RubricBandDto;
-        unsatisfactory: RubricBandDto;
-    };
+    grading_mode: string;
+    weight: number;  // must sum to 100 across all criteria
+    bands?: RubricBand[];
+    order_index?: number;
 }
 
+/** One test case sent when creating an assignment. */
 export interface TestCaseDto {
-    test_case_id: number;
-    description: string;
+    description?: string;
     /** stdin passed to Judge0 */
-    test_case_input: string;
+    input: string;
     /** expected stdout from Judge0 */
     expected_output: string;
+    is_hidden?: boolean;
+    order_index?: number;
 }
 
+/** Reference implementation sent when creating an assignment. */
 export interface SampleAnswerDto {
-    /** Judge0 language ID */
     language_id: number;
+    language: string;
     code: string;
 }
 
-// ─── Assignment request / response ────────────────────────────────────────────
 
 export interface CreateAssignmentRequest {
     course_instance_id: string;
@@ -69,16 +63,11 @@ export interface CreateAssignmentRequest {
     enable_ai_assistant: boolean;
     enable_socratic_feedback: boolean;
     allow_regenerate: boolean;
-
-    // ── TODO [assessment-service]: Fields below are NOT yet stored by the backend.
-    // Add the corresponding columns / tables and DTO fields, then remove the
-    // comments so the frontend can start sending them.
-    //
-    // assessment_type?: "lab" | "exam";   // new column: assignments.assessment_type
-    // objective?: string;                 // new column: assignments.objective (LLM context)
-    // rubric?: { criteria: RubricCriterionDto[] };  // new table: rubric_criteria
-    // test_cases?: TestCaseDto[];         // new table: assignment_test_cases
-    // sample_answer?: SampleAnswerDto;    // new table/storage: assignment_sample_answers
+    assessment_type?: "lab" | "exam";
+    objective?: string;
+    rubric_criteria?: RubricCriterionDto[];
+    test_cases?: TestCaseDto[];
+    sample_answer?: SampleAnswerDto;
 }
 
 export interface AssignmentResponse {
@@ -175,12 +164,10 @@ export interface RunCodeResponse {
     stdout: string | null;
     stderr: string | null;
     compile_output: string | null;
-    status: {
-        id: number;
-        description: string;
-    };
-    time: string | null;
-    memory: number | null;
-    exit_code: number | null;
-    exit_signal: number | null;
+    /** Human-readable status from Judge0 (e.g. "Accepted", "Runtime Error") */
+    status: string;
+    status_id: number;
+    execution_time: string | null;
+    memory_used: number | null;
+    message: string | null;
 }
