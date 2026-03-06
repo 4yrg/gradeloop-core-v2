@@ -1,14 +1,16 @@
 """
-CIPAS AI - 2-Tier Hybrid Code Detection Service.
+CIPAS AI - UniXcoder-based AI Code Detection Service.
 
 A FastAPI microservice for AI-generated code detection using:
-- Tier 1: CatBoost Classifier (structural AST features) - Fast gatekeeper
-- Tier 2: ModernBERT-Large / DroidDetect-Large - Deep semantic analysis
+- UniXcoder-base (microsoft/unixcoder-base) - 125M parameter unified code model
+- Multi-modal input: code + docstring + AST sequence
+- Binary classification: Human-written (0) vs AI-generated (1)
+- DroidDetect loss: CrossEntropy + Triplet Loss
 
-Architecture:
-- Tier 1 analyzes structural features (whitespace, nesting, AST density, etc.)
-- If Tier 1 confidence is high (>0.92) or low (<0.08), return immediately
-- Otherwise, escalate to Tier 2 for deep semantic analysis
+Training:
+- 4 datasets: AIGCodeSet, HumanVsAICode, DroidCollection, Zendoo
+- MC Dropout uncertainty filtering (removes noisy labels)
+- Supports C, C#, Python, Java
 """
 
 import logging
@@ -22,14 +24,7 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
-from feature_extractor import extract_features, get_extractor
-from model_engine import (
-    DetectionTier,
-    HybridResult,
-    TierEnum,
-    get_model_engine,
-    load_all_models,
-)
+from model_engine import UniXcoderEngine, load_unixcoder_model
 from schemas import (
     BatchDetectRequest,
     BatchDetectResponse,
@@ -37,13 +32,9 @@ from schemas import (
     DetectRequest,
     DetectResponse,
     ErrorResponse,
-    ExtractFeaturesRequest,
-    ExtractFeaturesResponse,
     HealthResponse,
-    Metadata,
     ModelStatus,
     ReadyResponse,
-    StructuralFeatures,
     Verdict,
 )
 
@@ -65,41 +56,32 @@ async def lifespan(app: FastAPI):
     """
     Application lifespan manager.
 
-    Loads models on startup and performs cleanup on shutdown.
+    Loads UniXcoder model on startup and performs cleanup on shutdown.
     """
     # Startup
     logger.info("=" * 60)
-    logger.info("CIPAS AI - 2-Tier Hybrid Code Detection Service")
+    logger.info("CIPAS AI - UniXcoder Code Detection Service")
     logger.info(f"Version: {settings.service_version}")
     logger.info(f"Environment: {settings.environment}")
     logger.info("=" * 60)
 
-    logger.info("Loading models...")
+    logger.info("Loading UniXcoder model...")
     start_time = time.time()
 
     try:
-        # Load both models
-        engine = load_all_models(
-            tier1_path=settings.tier1_model_path,
-            tier2_model_name=settings.tier2_model_name,
-            enable_4bit=settings.enable_4bit_quantization,
-            enable_8bit=settings.enable_8bit_quantization,
+        # Load UniXcoder model
+        engine = load_unixcoder_model(
+            model_path=settings.unixcoder_model_path,
+            device=settings.device,
         )
-
-        # Load feature extractor (initializes tree-sitter parsers)
-        extractor = get_extractor(settings.grammar_path)
 
         load_time = time.time() - start_time
-        logger.info(f"Models loaded successfully in {load_time:.2f}s")
-        logger.info(
-            f"  - Tier 1 (CatBoost): {'Ready' if engine.is_tier1_loaded() else 'Failed'}"
-        )
-        logger.info(
-            f"  - Tier 2 (ModernBERT): {'Ready' if engine.is_tier2_loaded() else 'Failed'}"
-        )
+        logger.info(f"Model loaded successfully in {load_time:.2f}s")
+        logger.info(f"  - UniXcoder: {'Ready' if engine.is_loaded() else 'Failed'}")
+        logger.info(f"  - Device: {settings.device}")
 
     except Exception as e:
-        logger.error(f"Failed to load models: {e}")
+        logger.error(f"Failed to load model: {e}")
         raise
 
     yield
