@@ -1,11 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { useParams } from "next/navigation";
-import { instructorAssessmentsApi } from "@/lib/api/assessments";
+import { instructorAssessmentsApi, assessmentsApi } from "@/lib/api/assessments";
+import { usersApi } from "@/lib/api/users";
 import type { SubmissionResponse } from "@/types/assessments.types";
-import { handleApiError } from "@/lib/api/axios";
-import { Users, FileDown, SearchX, Filter } from "lucide-react";
+import type { UserListItem } from "@/types/auth.types";
+import { Users, FileDown, SearchX, Filter, Loader2, AlertCircle } from "lucide-react";
 import { SectionHeader } from "@/components/instructor/section-header";
 import { DataTable, type ColumnDef } from "@/components/instructor/data-table";
 import { StatusBadge } from "@/components/instructor/status-badge";
@@ -14,23 +14,14 @@ import { EmptyStateCard } from "@/components/instructor/empty-state";
 import { SideSheetForm } from "@/components/instructor/side-sheet-form";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 
 interface SubmissionWithMeta extends SubmissionResponse {
-    studentName?: string;
+    studentName: string;
     studentId?: string;
 }
-
-// Mock data until real submissions endpoint returns enriched data
-const mockSubmissions: SubmissionWithMeta[] = [
-    { id: "sub-1", assignment_id: "a1", user_id: "u1", storage_path: "/", language: "Python", status: "Pending", version: 1, is_latest: true, submitted_at: "2023-10-24T10:30:00Z", studentName: "Alice Smith", studentId: "CS-2023-001" },
-    { id: "sub-2", assignment_id: "a1", user_id: "u2", storage_path: "/", language: "Java", status: "Graded", version: 1, is_latest: true, submitted_at: "2023-10-23T15:45:00Z", studentName: "Bob Johnson", studentId: "CS-2023-002" },
-    { id: "sub-3", assignment_id: "a1", user_id: "u3", storage_path: "/", language: "C++", status: "Late", version: 1, is_latest: true, submitted_at: "2023-10-25T08:15:00Z", studentName: "Charlie Brown", studentId: "CS-2023-003" },
-    { id: "sub-4", assignment_id: "a1", user_id: "u4", storage_path: "/", language: "Python", status: "Missing", version: 0, is_latest: false, submitted_at: "", studentName: "Diana Prince", studentId: "CS-2023-004" },
-];
 
 export default function AssignmentSubmissionsPage({
     params,
@@ -41,7 +32,10 @@ export default function AssignmentSubmissionsPage({
 
     const [submissions, setSubmissions] = React.useState<SubmissionWithMeta[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
+    const [error, setError] = React.useState<string | null>(null);
     const [selectedSubmission, setSelectedSubmission] = React.useState<SubmissionWithMeta | null>(null);
+    const [submissionCode, setSubmissionCode] = React.useState<string | null>(null);
+    const [isCodeLoading, setIsCodeLoading] = React.useState(false);
     const [filter, setFilter] = React.useState<"all" | "pending" | "graded" | "late" | "missing">("all");
 
     React.useEffect(() => {
@@ -50,17 +44,38 @@ export default function AssignmentSubmissionsPage({
         async function fetchSubmissions() {
             try {
                 setIsLoading(true);
+                setError(null);
                 const subs = await instructorAssessmentsApi.listSubmissions(assignmentId);
-                // Enrich with mock student metadata
-                const enriched = subs.map((s, i) => ({
-                    ...s,
-                    studentName: mockSubmissions[i]?.studentName ?? `Student ${i + 1}`,
-                    studentId: mockSubmissions[i]?.studentId ?? `STU-${String(i + 1).padStart(3, "0")}`,
-                }));
-                if (mounted) setSubmissions(enriched.length > 0 ? enriched : mockSubmissions);
+
+                // Batch-fetch user profiles for all unique user IDs in parallel
+                const uniqueUserIds = [
+                    ...new Set(subs.map((s) => s.user_id).filter(Boolean) as string[]),
+                ];
+                const userMap = new Map<string, UserListItem>();
+                await Promise.allSettled(
+                    uniqueUserIds.map(async (uid) => {
+                        try {
+                            const user = await usersApi.get(uid);
+                            userMap.set(uid, user);
+                        } catch {
+                            // user not found — fall back to placeholder below
+                        }
+                    })
+                );
+
+                const enriched: SubmissionWithMeta[] = subs.map((s, i) => {
+                    const user = s.user_id ? userMap.get(s.user_id) : undefined;
+                    return {
+                        ...s,
+                        studentName: user?.full_name ?? `Student ${i + 1}`,
+                        studentId: user?.student_id,
+                    };
+                });
+
+                if (mounted) setSubmissions(enriched);
             } catch (err) {
                 console.error(err);
-                if (mounted) setSubmissions(mockSubmissions);
+                if (mounted) setError("Failed to load submissions. Please try again.");
             } finally {
                 if (mounted) setIsLoading(false);
             }
@@ -71,6 +86,22 @@ export default function AssignmentSubmissionsPage({
             mounted = false;
         };
     }, [assignmentId]);
+
+    // Load actual submission code when the grading sheet opens
+    React.useEffect(() => {
+        if (!selectedSubmission || selectedSubmission.status === "Missing") {
+            setSubmissionCode(null);
+            return;
+        }
+        let mounted = true;
+        setIsCodeLoading(true);
+        assessmentsApi
+            .getSubmissionCode(selectedSubmission.id)
+            .then((res) => { if (mounted) setSubmissionCode(res.code); })
+            .catch(() => { if (mounted) setSubmissionCode(null); })
+            .finally(() => { if (mounted) setIsCodeLoading(false); });
+        return () => { mounted = false; };
+    }, [selectedSubmission]);
 
     const filtered = React.useMemo(() => {
         if (filter === "all") return submissions;
@@ -84,7 +115,9 @@ export default function AssignmentSubmissionsPage({
             cell: ({ row }) => (
                 <div className="flex flex-col">
                     <span className="font-semibold text-foreground">{row.getValue("studentName")}</span>
-                    <span className="text-xs text-muted-foreground font-mono">{row.original.studentId}</span>
+                    {row.original.studentId && (
+                        <span className="text-xs text-muted-foreground font-mono">{row.original.studentId}</span>
+                    )}
                 </div>
             ),
         },
@@ -94,10 +127,10 @@ export default function AssignmentSubmissionsPage({
             cell: ({ row }) => <StatusBadge status={row.getValue("status")} />,
         },
         {
-            accessorKey: "submittedAt",
+            accessorKey: "submitted_at",
             header: "Submitted",
             cell: ({ row }) => {
-                const date = row.getValue("submittedAt") as string;
+                const date = row.getValue("submitted_at") as string;
                 if (!date) return <span className="text-muted-foreground">—</span>;
                 return <span className="text-sm whitespace-nowrap">{format(new Date(date), "MMM d, yyyy • h:mm a")}</span>;
             },
@@ -182,13 +215,40 @@ export default function AssignmentSubmissionsPage({
                 </div>
             )}
 
-            {submissions.length === 0 && !isLoading ? (
+            {/* Error state */}
+            {!isLoading && error && (
+                <EmptyStateCard
+                    icon={AlertCircle}
+                    title="Something went wrong"
+                    description={error}
+                    action={
+                        <Button variant="outline" onClick={() => window.location.reload()}>
+                            Retry
+                        </Button>
+                    }
+                />
+            )}
+
+            {/* No submissions at all */}
+            {!isLoading && !error && submissions.length === 0 && (
                 <EmptyStateCard
                     icon={SearchX}
-                    title="No submissions found"
-                    description="It looks like there are no students or no submissions available for this assignment yet."
+                    title="No submissions yet"
+                    description="Students haven't submitted any work for this assignment yet. Check back later."
                 />
-            ) : (
+            )}
+
+            {/* Filter returned nothing */}
+            {!isLoading && !error && submissions.length > 0 && filtered.length === 0 && (
+                <EmptyStateCard
+                    icon={SearchX}
+                    title={`No ${filter} submissions`}
+                    description={`There are no submissions with "${filter}" status for this assignment.`}
+                />
+            )}
+
+            {/* Submissions table */}
+            {!error && (isLoading || filtered.length > 0) && (
                 <DataTable
                     columns={columns}
                     data={filtered}
@@ -224,19 +284,31 @@ export default function AssignmentSubmissionsPage({
                             <span className="text-muted-foreground">Language</span>
                             <span className="font-mono text-xs">{selectedSubmission?.language || "—"}</span>
                         </div>
+                        {selectedSubmission?.version !== undefined && (
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-muted-foreground">Version</span>
+                                <span className="font-mono text-xs">v{selectedSubmission.version}</span>
+                            </div>
+                        )}
                     </div>
 
                     {selectedSubmission?.status !== "Missing" && (
                         <div className="space-y-4">
                             <div>
-                                <h4 className="font-bold font-heading mb-2">Submission Content</h4>
-                                <div className="p-4 border border-border/60 rounded-xl bg-card text-sm font-mono h-[300px] overflow-y-auto text-muted-foreground">
-                                    // Simulated submission text or code goes here
-                                    <br /><br />
-                                    function calculateScore() {'{'} <br />
-                                    &nbsp;&nbsp;return 100; <br />
-                                    {'}'}
-                                </div>
+                                <h4 className="font-bold font-heading mb-2">Submission Code</h4>
+                                {isCodeLoading ? (
+                                    <div className="flex items-center justify-center h-[300px] border border-border/60 rounded-xl bg-card">
+                                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                    </div>
+                                ) : submissionCode !== null ? (
+                                    <pre className="p-4 border border-border/60 rounded-xl bg-card text-sm font-mono h-[300px] overflow-y-auto text-foreground whitespace-pre-wrap break-all">
+                                        {submissionCode}
+                                    </pre>
+                                ) : (
+                                    <div className="p-4 border border-border/60 rounded-xl bg-muted/20 text-sm text-muted-foreground h-[300px] flex items-center justify-center">
+                                        Code unavailable
+                                    </div>
+                                )}
                             </div>
 
                             <div>
