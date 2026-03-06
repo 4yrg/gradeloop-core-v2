@@ -60,7 +60,11 @@ class DroidDetectModel(nn.Module):
         
     def forward(self, input_ids, attention_mask):
         outputs = self.backbone(input_ids=input_ids, attention_mask=attention_mask)
-        pooled_output = outputs.pooler_output  # [CLS] token representation
+        # Use pooler_output when available (BERT-family); fall back to CLS token
+        if hasattr(outputs, "pooler_output") and outputs.pooler_output is not None:
+            pooled_output = outputs.pooler_output
+        else:
+            pooled_output = outputs.last_hidden_state[:, 0, :]
         pooled_output = self.dropout(pooled_output)
         logits = self.classifier(pooled_output)
         return logits
@@ -71,7 +75,10 @@ class DroidDetectTrainer:
     def __init__(self, settings: Settings, config_overrides: Optional[Dict[str, Any]] = None):
         self.settings = settings
         self.config = self._merge_config(config_overrides)
-        self.device = torch.device(settings.system.device if torch.cuda.is_available() else 'cpu')
+        device_str = settings.system.device
+        if device_str == "auto":
+            device_str = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = torch.device(device_str)
         self.tokenizer = None
         self.model = None
         
@@ -181,6 +188,10 @@ class DroidDetectTrainer:
         current_step = 0
         
         for epoch in range(self.config["epochs"]):
+            # Free any unreferenced GPU memory before each epoch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
             if progress_callback:
                 progress_callback(
                     20 + (epoch / self.config["epochs"]) * 60,

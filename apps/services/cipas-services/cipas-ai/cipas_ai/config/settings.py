@@ -48,7 +48,12 @@ class DroidDetectConfig(BaseModel):
     learning_rate: float = 2.0e-5
     weight_decay: float = 0.01
     warmup_ratio: float = 0.1
+    warmup_steps: int = 100
     max_grad_norm: float = 1.0
+    dropout_rate: float = 0.1
+    early_stopping_patience: int = 3
+    save_steps: int = 500
+    eval_steps: int = 100
 
 class ModernBertConfig(BaseModel):
     """ModernBERT standalone configuration"""

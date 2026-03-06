@@ -132,6 +132,11 @@ class TrainingOrchestrator:
             train_path = base_path / dataset_config["train"]
             if train_path.exists():
                 train_data = await self._load_data_file(train_path)
+                train_data = self._normalize_dataframe(train_data, dataset)
+                max_train = self.settings.training.max_train_samples
+                if max_train is not None:
+                    train_data = self._stratified_sample(train_data, max_train)
+                    logger.info(f"Limiting training data to {len(train_data)} samples (max_train_samples, stratified)")
                 if progress_callback:
                     progress_callback(15.0, f"Loaded training data: {len(train_data)} samples")
         
@@ -140,6 +145,11 @@ class TrainingOrchestrator:
             test_path = base_path / dataset_config["test"]
             if test_path.exists():
                 test_data = await self._load_data_file(test_path)
+                test_data = self._normalize_dataframe(test_data, dataset)
+                max_eval = self.settings.training.max_eval_samples
+                if max_eval is not None:
+                    test_data = test_data.head(max_eval).reset_index(drop=True)
+                    logger.info(f"Limiting test data to {max_eval} samples (max_eval_samples)")
                 if progress_callback:
                     progress_callback(18.0, f"Loaded test data: {len(test_data)} samples")
         
@@ -148,6 +158,69 @@ class TrainingOrchestrator:
         
         return train_data, test_data
     
+    def _stratified_sample(self, df: pd.DataFrame, n: int) -> pd.DataFrame:
+        """Sample up to n rows while preserving the class distribution.
+        If a class has fewer rows than its fair share, all rows from that class are kept.
+        """
+        if len(df) <= n:
+            return df.reset_index(drop=True)
+        classes = df["label"].unique()
+        per_class = max(1, n // len(classes))
+        parts = []
+        for cls in classes:
+            cls_df = df[df["label"] == cls]
+            parts.append(cls_df.head(per_class))
+        result = pd.concat(parts, ignore_index=True)
+        # If rounding left us short, top up from the remainder
+        if len(result) < n:
+            remainder = df.drop(result.index, errors="ignore").head(n - len(result))
+            result = pd.concat([result, remainder], ignore_index=True)
+        return result.reset_index(drop=True)
+
+    def _normalize_dataframe(self, df: pd.DataFrame, dataset: str) -> pd.DataFrame:
+        """Normalize any dataset to a standard (code: str, label: int) DataFrame.
+
+        Supported schemas:
+        - DroidCollection: Code + Label (string 'MACHINE_GENERATED'/'HUMAN_WRITTEN'/...)
+        - Zendoo / humanvsai-code: pairs format with human_code, chatgpt_code, dsc_code, qwen_code
+        - aigcodeset: already has code + label columns
+        - Generic fallback: case-insensitive column search
+        """
+        cols = set(df.columns)
+
+        # --- Pairs format (Zendoo, humanvsai-code) ---
+        if "human_code" in cols:
+            ai_cols = [c for c in ["chatgpt_code", "dsc_code", "qwen_code"] if c in cols]
+            parts = [pd.DataFrame({"code": df["human_code"], "label": 0})]
+            for ac in ai_cols:
+                parts.append(pd.DataFrame({"code": df[ac], "label": 1}))
+            result = pd.concat(parts, ignore_index=True)
+            result["code"] = result["code"].astype(str)
+            logger.info(f"{dataset}: expanded pairs format → {len(result)} rows")
+            return result
+
+        # --- DroidCollection (capital Code/Label with string labels) ---
+        if "Code" in cols and "Label" in cols:
+            # Human labels: HUMAN_GENERATED, HUMAN_WRITTEN → 0; everything else → 1
+            labels = df["Label"].map(lambda v: 0 if str(v).upper().startswith("HUMAN") else 1)
+            return pd.DataFrame({"code": df["Code"].astype(str), "label": labels.astype(int)})
+
+        # --- aigcodeset and similar (already standard) ---
+        if "code" in cols and "label" in cols:
+            return pd.DataFrame({"code": df["code"].astype(str), "label": pd.to_numeric(df["label"], errors="coerce").fillna(0).astype(int)})
+
+        # --- Generic fallback: case-insensitive match ---
+        col_lower = {c.lower(): c for c in cols}
+        code_col = col_lower.get("code") or col_lower.get("text") or col_lower.get("content")
+        label_col = col_lower.get("label") or col_lower.get("target") or col_lower.get("class")
+        if code_col and label_col:
+            logger.warning(f"{dataset}: using generic fallback column mapping ({code_col} → code, {label_col} → label)")
+            return pd.DataFrame({"code": df[code_col].astype(str), "label": pd.to_numeric(df[label_col], errors="coerce").fillna(0).astype(int)})
+
+        raise ValueError(
+            f"{dataset}: cannot determine code/label columns. Available: {list(cols)}"
+        )
+
     async def _load_data_file(self, file_path: Path) -> pd.DataFrame:
         """Load data file based on extension"""
         

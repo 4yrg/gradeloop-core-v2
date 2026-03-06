@@ -22,18 +22,22 @@ class CatBoostTrainer:
         
     def _merge_config(self, overrides: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         """Merge base config with overrides"""
+        cb = self.settings.models.catboost
+        use_gpu = cb.task_type.upper() == "GPU"
         base_config = {
-            "iterations": self.settings.models.catboost.iterations,
-            "depth": self.settings.models.catboost.depth,
-            "learning_rate": self.settings.models.catboost.learning_rate,
-            "l2_leaf_reg": self.settings.models.catboost.l2_leaf_reg,
-            "border_count": self.settings.models.catboost.border_count,
-            "random_seed": self.settings.models.catboost.random_seed,
-            "verbose": self.settings.models.catboost.verbose,
-            "early_stopping_rounds": self.settings.models.catboost.early_stopping_rounds,
-            "task_type": self.settings.models.catboost.task_type,
-            "devices": self.settings.models.catboost.devices if self.settings.system.device == "cuda" else "CPU"
+            "iterations": cb.iterations,
+            "depth": cb.depth,
+            "learning_rate": cb.learning_rate,
+            "l2_leaf_reg": cb.l2_leaf_reg,
+            "border_count": cb.border_count,
+            "random_seed": cb.random_seed,
+            "verbose": cb.verbose,
+            "early_stopping_rounds": cb.early_stopping_rounds,
+            "task_type": "GPU" if use_gpu else "CPU",
         }
+        # 'devices' is a GPU-only parameter; omit it entirely when using CPU
+        if use_gpu:
+            base_config["devices"] = cb.devices
         
         if overrides:
             base_config.update(overrides)
@@ -158,15 +162,12 @@ class CatBoostTrainer:
         }
     
     def _prepare_data(self, data: pd.DataFrame, fit_vectorizer: bool = True) -> Tuple[np.ndarray, np.ndarray]:
-        """Prepare data for training/evaluation"""
-        
-        # Determine column names
-        code_col = "code" if "code" in data.columns else data.columns[0]
-        label_col = "label" if "label" in data.columns else data.columns[-1]
-        
+        """Prepare data for training/evaluation.
+        Expects data already normalized to (code: str, label: int) by the orchestrator.
+        """
         # Extract code and labels
-        codes = data[code_col].astype(str).tolist()
-        labels = data[label_col].values
+        codes = data["code"].astype(str).tolist()
+        labels = data["label"].values
         
         # Initialize or use existing vectorizer
         if self.vectorizer is None:
