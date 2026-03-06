@@ -75,7 +75,6 @@ import type {
   CreateLeadershipRequest,
 } from "@/types/academics.types";
 import type { UserListItem } from "@/types/auth.types";
-} from "@/types/academics.types";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
