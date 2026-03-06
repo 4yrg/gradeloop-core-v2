@@ -179,14 +179,18 @@ function BatchTab({
                                         )
                                     }
                                 >
-                                    <TableCell>
+                                    <TableCell
+                                        className="cursor-pointer"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedBatchId((prev) =>
+                                                prev === b.batch_id ? null : b.batch_id,
+                                            );
+                                        }}
+                                    >
                                         <Checkbox
                                             checked={selectedBatchId === b.batch_id}
-                                            onCheckedChange={() =>
-                                                setSelectedBatchId((prev) =>
-                                                    prev === b.batch_id ? null : b.batch_id,
-                                                )
-                                            }
+                                            className="pointer-events-none"
                                         />
                                     </TableCell>
                                     <TableCell>
@@ -410,11 +414,17 @@ function StudentsTab({
                                         )}
                                         onClick={() => !alreadyEnrolled && toggle(s.id)}
                                     >
-                                        <TableCell>
+                                        <TableCell
+                                            className={cn(!alreadyEnrolled && "cursor-pointer")}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (!alreadyEnrolled) toggle(s.id);
+                                            }}
+                                        >
                                             <Checkbox
                                                 checked={alreadyEnrolled || selected.has(s.id)}
                                                 disabled={alreadyEnrolled}
-                                                onCheckedChange={() => !alreadyEnrolled && toggle(s.id)}
+                                                className="pointer-events-none"
                                             />
                                         </TableCell>
                                         <TableCell>
