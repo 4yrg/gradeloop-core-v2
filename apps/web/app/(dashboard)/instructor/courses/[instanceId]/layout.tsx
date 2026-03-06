@@ -72,8 +72,8 @@ export default function CourseInstanceLayout({
     React.useEffect(() => {
         setPageTitle(courseTitle);
         updateTopSecondarySidebar({
-            title: courseTitle,
-            subtitle: courseCode || undefined,
+            title: courseCode || "Course",
+            subtitle: undefined,
             backHref: "/instructor/courses",
             backLabel: "My Courses",
             basePath,

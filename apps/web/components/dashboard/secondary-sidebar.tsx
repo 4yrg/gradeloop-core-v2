@@ -31,16 +31,18 @@ export function SecondarySidebar() {
 
     return (
         <aside className="hidden lg:flex flex-col w-64 shrink-0 border-r bg-sidebar-background h-full overflow-hidden">
-            {/* Header */}
-            <div className="flex h-16 flex-col justify-center w-full px-6 border-b border-sidebar-border gap-0.5 shrink-0">
+            {/* Header — height matches topbar (h-[72px]) so border-b aligns */}
+            <div className="flex h-[72px] flex-col justify-center px-4 border-b border-sidebar-border shrink-0 gap-1">
+                {/* Back button — styled as a pill chip for clear affordance */}
                 <Link
                     href={config.backHref}
-                    className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                    className="flex items-center gap-1.5 w-fit px-2 py-1 -ml-1 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
                 >
-                    <ArrowLeft className="h-3 w-3" />
+                    <ArrowLeft className="h-3.5 w-3.5" />
                     {config.backLabel}
                 </Link>
-                <h2 className="text-sm font-semibold tracking-tight text-foreground font-heading truncate leading-snug">
+                {/* Title / identifier */}
+                <h2 className="text-sm font-bold tracking-tight text-foreground font-heading truncate leading-tight">
                     {config.subtitle && (
                         <span className="text-primary font-mono mr-1.5 text-[11px] font-bold uppercase">
                             {config.subtitle}
