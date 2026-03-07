@@ -14,12 +14,15 @@ import {
     CornerDownRight,
     Info,
     Square,
-    ChevronDown,
     List,
-    Ear,
     Activity,
     BrainCircuit,
     Mic,
+    Pause,
+    Play,
+    Lightbulb,
+    Wifi,
+    WifiOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +31,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { ivasApi } from "@/lib/ivas-api";
 import { useAuthStore } from "@/lib/stores/authStore";
+import { useToast } from "@/components/ui/toaster";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Sheet,
@@ -36,6 +40,14 @@ import {
     SheetTitle,
     SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import type {
     ChatMessage,
     QuestionWithContext,
@@ -201,6 +213,7 @@ export default function VivaSessionPage() {
     const router = useRouter();
     const sessionId = params.sessionId;
     const user = useAuthStore((s) => s.user);
+    const { addToast } = useToast();
 
     // assignmentId passed as query param when starting new: ?assignmentId=...
     const assignmentIdFromQuery = searchParams.get("assignmentId");
@@ -220,12 +233,21 @@ export default function VivaSessionPage() {
     const [inputValue, setInputValue] = React.useState("");
     const [abandonConfirm, setAbandonConfirm] = React.useState(false);
     const [abandoning, setAbandoning] = React.useState(false);
+    
+    // Enhanced features state
+    const [isPaused, setIsPaused] = React.useState(false);
+    const [connectionStatus, setConnectionStatus] = React.useState<"connected" | "disconnected" | "reconnecting">("connected");
+    const [showHintDialog, setShowHintDialog] = React.useState(false);
+    const [currentHint, setCurrentHint] = React.useState<string>("");
+    const [hintsUsed, setHintsUsed] = React.useState(0);
+    const [reconnectAttempts, setReconnectAttempts] = React.useState(0);
 
     // Audio context for visualization
     const [audioData, setAudioData] = React.useState<number[]>(Array(5).fill(20));
 
     // Keep reference to the active websocket
     const wsRef = React.useRef<WebSocket | null>(null);
+    const reconnectTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
     // Web Speech API hook logic
     const [isRecording, setIsRecording] = React.useState(false);
@@ -673,11 +695,35 @@ export default function VivaSessionPage() {
 
             ws.onerror = (err) => {
                 console.error("Voice WebSocket error", err);
+                setConnectionStatus("reconnecting");
             };
 
             ws.onclose = () => {
                 console.log("Voice WebSocket closed");
                 if (wsRef.current === ws) wsRef.current = null;
+                
+                // Auto-reconnect if session is still in progress and not paused
+                if (session?.session.status === "in_progress" && !isPaused && !isComplete && reconnectAttempts < 5) {
+                    setConnectionStatus("reconnecting");
+                    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000);
+                    reconnectTimeoutRef.current = setTimeout(() => {
+                        setReconnectAttempts(prev => prev + 1);
+                        connect();
+                    }, delay);
+                    
+                    addToast({
+                        title: "Reconnecting...",
+                        description: `Attempting to reconnect (${reconnectAttempts + 1}/5)`,
+                        variant: "warning"
+                    });
+                } else if (reconnectAttempts >= 5) {
+                    setConnectionStatus("disconnected");
+                    addToast({
+                        title: "Connection Lost",
+                        description: "Failed to reconnect. Please refresh the page.",
+                        variant: "error"
+                    });
+                }
             };
         };
 
@@ -731,6 +777,59 @@ export default function VivaSessionPage() {
             setAbandonConfirm(false);
         } finally {
             setAbandoning(false);
+        }
+    };
+    
+    const handlePauseResume = async () => {
+        try {
+            if (isPaused) {
+                // Resume
+                const result = await ivasApi.resumeSession(sessionId);
+                setIsPaused(false);
+                setCurrentQuestion(result.current_question);
+                addToast({
+                    title: "Session Resumed",
+                    variant: "success",
+                });
+            } else {
+                // Pause
+                await ivasApi.pauseSession(sessionId, "User requested pause");
+                setIsPaused(true);
+                addToast({
+                    title: "Session Paused",
+                    description: "You can resume when you're ready.",
+                    variant: "warning",
+                });
+            }
+        } catch (error) {
+            addToast({
+                title: "Failed to update session",
+                description: error instanceof Error ? error.message : "Please try again.",
+                variant: "error",
+            });
+        }
+    };
+    
+    const handleRequestHint = async () => {
+        if (!currentQuestion?.question_instance_id) return;
+        
+        try {
+            const result = await ivasApi.requestHint(sessionId, currentQuestion.question_instance_id);
+            setCurrentHint(result.hint_text);
+            setHintsUsed(prev => prev + 1);
+            setShowHintDialog(true);
+            
+            addToast({
+                title: "Hint Available",
+                description: `Penalty: ${result.penalty_applied} points`,
+                variant: "default",
+            });
+        } catch (error) {
+            addToast({
+                title: "Failed to get hint",
+                description: error instanceof Error ? error.message : "Please try again.",
+                variant: "error",
+            });
         }
     };
 
@@ -792,8 +891,25 @@ export default function VivaSessionPage() {
             <div className="relative z-10 flex items-center justify-between px-6 py-5">
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
-                        <span className="text-sm font-semibold tracking-wider text-emerald-400/90 uppercase">IVAS Session</span>
+                        {connectionStatus === "connected" ? (
+                            <>
+                                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
+                                <span className="text-sm font-semibold tracking-wider text-emerald-400/90 uppercase">IVAS Session</span>
+                            </>
+                        ) : connectionStatus === "reconnecting" ? (
+                            <>
+                                <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                                <span className="text-sm font-semibold tracking-wider text-amber-400/90 uppercase flex items-center gap-1">
+                                    Reconnecting
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                </span>
+                            </>
+                        ) : (
+                            <>
+                                <WifiOff className="h-4 w-4 text-red-500" />
+                                <span className="text-sm font-semibold tracking-wider text-red-400/90 uppercase">Disconnected</span>
+                            </>
+                        )}
                     </div>
                     {session && !isComplete && (
                         <div className="flex items-center gap-3 ml-4 bg-zinc-900/30 px-3 py-1 rounded-full border border-zinc-800/50">
@@ -809,6 +925,46 @@ export default function VivaSessionPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
+                    {!isComplete && session?.session.status === "in_progress" && (
+                        <>
+                            {/* Hint Button */}
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="bg-zinc-900/40 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white backdrop-blur-md rounded-full px-4 transition-all"
+                                onClick={handleRequestHint}
+                            >
+                                <Lightbulb className="h-4 w-4 mr-2" />
+                                Hint
+                            </Button>
+                            
+                            {/* Pause/Resume Button */}
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className={cn(
+                                    "backdrop-blur-md rounded-full px-4 transition-all",
+                                    isPaused 
+                                        ? "bg-emerald-600/20 border-emerald-500/50 text-emerald-400 hover:bg-emerald-600/30" 
+                                        : "bg-zinc-900/40 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                                )}
+                                onClick={handlePauseResume}
+                            >
+                                {isPaused ? (
+                                    <>
+                                        <Play className="h-4 w-4 mr-2" />
+                                        Resume
+                                    </>
+                                ) : (
+                                    <>
+                                        <Pause className="h-4 w-4 mr-2" />
+                                        Pause
+                                    </>
+                                )}
+                            </Button>
+                        </>
+                    )}
+                    
                     <Sheet>
                         <SheetTrigger asChild>
                             <Button variant="outline" size="sm" className="bg-zinc-900/40 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white backdrop-blur-md rounded-full px-4 transition-all">
@@ -978,6 +1134,37 @@ export default function VivaSessionPage() {
                 </div>
             </div>
 
+
+            {/* Hint Dialog */}
+            <Dialog open={showHintDialog} onOpenChange={setShowHintDialog}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Lightbulb className="h-5 w-5 text-amber-500" />
+                            Hint Available
+                        </DialogTitle>
+                        <DialogDescription>
+                            Use this hint to help answer the current question. Note: Hints may affect your final score.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/40">
+                            <p className="text-sm text-amber-800 dark:text-amber-200 leading-relaxed">
+                                {currentHint}
+                            </p>
+                        </div>
+                        <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
+                            <span>Hints used in this session: {hintsUsed}</span>
+                            <span className="text-amber-600 dark:text-amber-400">Penalty applied</span>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={() => setShowHintDialog(false)}>
+                            Got it
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Error Overlay */}
             <AnimatePresence>
