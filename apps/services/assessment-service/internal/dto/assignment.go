@@ -81,6 +81,13 @@ type CreateAssignmentRequest struct {
 	SampleAnswer   *CreateSampleAnswerRequest     `json:"sample_answer,omitempty"`
 }
 
+// UpdateRubricRequest is the payload for PUT /instructor-assignments/:id/rubric.
+// It replaces all existing rubric criteria for the assignment atomically
+// (delete-then-recreate). Send an empty Criteria slice to clear the rubric.
+type UpdateRubricRequest struct {
+	Criteria []CreateRubricCriterionRequest `json:"criteria"`
+}
+
 // UpdateAssignmentRequest is the payload for PATCH /assignments/:id
 // All fields are optional — only non-nil pointer fields or explicitly set
 // booleans are applied. IsActive allows soft deletion via PATCH.
