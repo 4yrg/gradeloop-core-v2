@@ -23,6 +23,7 @@ import { studentAssessmentsApi } from "@/lib/api/assessments";
 import type { StudentCourseEnrollment, CourseInstructor } from "@/types/academics.types";
 import type { AssignmentResponse } from "@/types/assessments.types";
 import { handleApiError } from "@/lib/api/axios";
+import { useUIStore } from "@/lib/stores/uiStore";
 import { format, isPast, isToday, isTomorrow } from "date-fns";
 
 function dueBadge(dateStr?: string) {
@@ -38,6 +39,7 @@ export default function StudentCourseDetailPage() {
     const params = useParams();
     const router = useRouter();
     const instanceId = params.instanceId as string;
+    const setPageTitle = useUIStore((s) => s.setPageTitle);
 
     const [enrollment, setEnrollment] = React.useState<StudentCourseEnrollment | null>(null);
     const [instructors, setInstructors] = React.useState<CourseInstructor[]>([]);
@@ -60,6 +62,7 @@ export default function StudentCourseDetailPage() {
                     setEnrollment(enrollmentData);
                     setInstructors(instructorData);
                     setAssignments(assignmentData);
+                    setPageTitle(enrollmentData.course_title);
                 }
             } catch (err) {
                 if (mounted) setError(handleApiError(err));
@@ -73,6 +76,9 @@ export default function StudentCourseDetailPage() {
             mounted = false;
         };
     }, [instanceId]);
+
+    // Clear topbar title when leaving this page
+    React.useEffect(() => () => { setPageTitle(null); }, []);
 
     if (isLoading) {
         return (

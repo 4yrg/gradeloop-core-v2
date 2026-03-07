@@ -34,6 +34,7 @@ import {
 import { studentAssessmentsApi, acafsApi } from "@/lib/api/assessments";
 import type { AssignmentResponse, SubmissionResponse, SubmissionGrade } from "@/types/assessments.types";
 import { handleApiError } from "@/lib/api/axios";
+import { useUIStore } from "@/lib/stores/uiStore";
 import { GradeResultPanel } from "@/components/assessments/grade-result-panel";
 import { format, formatDistanceToNow, isPast } from "date-fns";
 
@@ -56,6 +57,7 @@ export default function StudentAssignmentDetailPage() {
     const router = useRouter();
     const instanceId = params.instanceId as string;
     const assignmentId = params.assignmentId as string;
+    const setPageTitle = useUIStore((s) => s.setPageTitle);
 
     const [assignment, setAssignment] = React.useState<AssignmentResponse | null>(null);
     const [submissions, setSubmissions] = React.useState<SubmissionResponse[]>([]);
@@ -79,6 +81,7 @@ export default function StudentAssignmentDetailPage() {
                 ]);
                 if (mounted) {
                     setAssignment(assignmentData);
+                    setPageTitle(assignmentData.title);
                     setSubmissions(submissionsData.sort((a, b) => b.version - a.version));
 
                     // Eagerly fetch grade for the latest submission (may be 404 if not graded yet).
@@ -103,6 +106,9 @@ export default function StudentAssignmentDetailPage() {
             mounted = false;
         };
     }, [assignmentId]);
+
+    // Clear topbar title when leaving this page
+    React.useEffect(() => () => { setPageTitle(null); }, []);
 
     if (isLoading) {
         return (

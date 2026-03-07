@@ -21,6 +21,7 @@ import { studentAssessmentsApi, acafsApi } from "@/lib/api/assessments";
 import type { AssignmentResponse, SubmissionGrade } from "@/types/assessments.types";
 import { handleApiError } from "@/lib/api/axios";
 import { useAuthStore } from "@/lib/stores/authStore";
+import { useUIStore } from "@/lib/stores/uiStore";
 import { toast } from "sonner";
 import { format, isPast } from "date-fns";
 
@@ -88,6 +89,7 @@ export default function StudentAttemptPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { user } = useAuthStore();
+    const setPageTitle = useUIStore((s) => s.setPageTitle);
     const instanceId = params.instanceId as string;
     const assignmentId = params.assignmentId as string;
     const viewSubmissionId = searchParams.get("submission");
@@ -165,6 +167,7 @@ export default function StudentAttemptPage() {
                 const asgn = await studentAssessmentsApi.getAssignment(assignmentId);
                 if (!mounted) return;
                 setAssignment(asgn);
+                setPageTitle(asgn.title);
 
                 if (viewSubmissionId) {
                     // Viewing a specific submission version
@@ -195,6 +198,9 @@ export default function StudentAttemptPage() {
             mounted = false;
         };
     }, [assignmentId, viewSubmissionId]);
+
+    // Clear topbar title when leaving this page
+    React.useEffect(() => () => { setPageTitle(null); }, []);
 
     const handleSubmit = async (code: string, languageId: number) => {
         if (!assignment) return;
