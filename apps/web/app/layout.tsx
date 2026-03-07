@@ -3,8 +3,7 @@ import { Inter, Montserrat } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "sonner";
+import { Toaster, ToastProvider } from "@/components/ui/toaster";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -38,9 +37,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider>{children}</AuthProvider>
-          <Toaster />
-          <Sonner />
+          <ToastProvider>
+            <AuthProvider>{children}</AuthProvider>
+            <Toaster />
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>
