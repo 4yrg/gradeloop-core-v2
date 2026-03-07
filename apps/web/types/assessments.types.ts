@@ -118,6 +118,9 @@ export interface SubmissionResponse {
     storage_path: string;
     language: string;
     status: string;
+    /** Human-readable Judge0 execution result, e.g. "Accepted", "Runtime Error (NZEC)", "Compilation Error" */
+    execution_status?: string;
+    execution_status_id?: number;
     version: number;
     is_latest: boolean;
     judge0_job_id?: string;

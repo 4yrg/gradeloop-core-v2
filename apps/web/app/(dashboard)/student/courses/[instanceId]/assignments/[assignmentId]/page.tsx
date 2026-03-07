@@ -40,17 +40,25 @@ import { useUIStore } from "@/lib/stores/uiStore";
 import { GradeResultPanel } from "@/components/assessments/grade-result-panel";
 import { format, formatDistanceToNow, isPast } from "date-fns";
 
-function submissionStatusBadge(status: string) {
+function submissionStatusBadge(status: string, executionStatus?: string) {
     switch (status.toLowerCase()) {
         case "graded":
         case "marked":
             return <Badge className="bg-success text-success-foreground">{status}</Badge>;
+        case "accepted":
+            return <Badge className="bg-success text-success-foreground">{executionStatus ?? status}</Badge>;
         case "submitted":
             return <Badge variant="secondary">{status}</Badge>;
         case "draft":
             return <Badge variant="outline" className="text-warning-muted-foreground border-warning-border">{status}</Badge>;
+        case "rejected":
+            return (
+                <Badge variant="destructive" className="gap-1">
+                    {executionStatus ?? "Rejected"}
+                </Badge>
+            );
         default:
-            return <Badge variant="outline">{status}</Badge>;
+            return <Badge variant="outline">{executionStatus ?? status}</Badge>;
     }
 }
 
@@ -182,10 +190,7 @@ export default function StudentAssignmentDetailPage() {
                 {/* Assignment Header */}
                 <div className="flex flex-col gap-4 border-b border-border/40 pb-6">
                     <div className="flex items-start justify-between gap-4 flex-wrap">
-                        <div className="flex items-start gap-4">
-                            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                                <FileText className="h-6 w-6 text-primary" />
-                            </div>
+                        <div>
                             <div>
                                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                                     <Badge variant="outline" className="text-xs font-mono">
@@ -320,7 +325,7 @@ export default function StudentAssignmentDetailPage() {
                                             <Separator orientation="vertical" className="h-10" />
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 flex-wrap">
-                                                    {submissionStatusBadge(sub.status)}
+                                                    {submissionStatusBadge(sub.status, sub.execution_status)}
                                                     {sub.is_latest && (
                                                         <Badge variant="outline" className="text-[10px] text-primary border-primary/30">
                                                             Latest

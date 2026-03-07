@@ -270,7 +270,6 @@ export default function StudentAttemptPage() {
                     </Button>
                     <div className="w-px h-5 bg-border" />
                     <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-primary shrink-0" />
                         <span className="font-semibold text-sm truncate max-w-xs">
                             {assignment.title}
                         </span>
