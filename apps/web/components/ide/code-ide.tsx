@@ -21,6 +21,9 @@ import { useTheme } from "next-themes";
 
 export function CodeIDE({
   assignmentId,
+  assignmentTitle,
+  assignmentDescription,
+  userId,
   initialCode,
   initialLanguage = DEFAULT_LANGUAGE_ID,
   onExecute,
@@ -190,7 +193,13 @@ export function CodeIDE({
             
             {showAIAssistant && (
               <TabsContent value="ai-assistant" className="flex-1 m-0 overflow-hidden">
-                <AIAssistantPanel />
+                <AIAssistantPanel
+                  assignmentId={assignmentId}
+                  assignmentTitle={assignmentTitle}
+                  assignmentDescription={assignmentDescription}
+                  userId={userId}
+                  studentCode={code}
+                />
               </TabsContent>
             )}
           </Tabs>

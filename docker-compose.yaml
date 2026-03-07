@@ -470,6 +470,9 @@ services:
       - JUDGE0_URL=${JUDGE0_URL:-http://judge0:2358}
       - JUDGE0_API_KEY=${JUDGE0_API_KEY:-}
 
+    ports:
+      - "8086:8086"
+
     expose:
       - "8086"
 

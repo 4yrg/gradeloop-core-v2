@@ -20,6 +20,7 @@ import { CodeIDE } from "@/components/ide";
 import { studentAssessmentsApi } from "@/lib/api/assessments";
 import type { AssignmentResponse } from "@/types/assessments.types";
 import { handleApiError } from "@/lib/api/axios";
+import { useAuthStore } from "@/lib/stores/authStore";
 import { toast } from "sonner";
 import { format, isPast } from "date-fns";
 
@@ -58,6 +59,7 @@ export default function StudentAttemptPage() {
     const params = useParams();
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { user } = useAuthStore();
     const instanceId = params.instanceId as string;
     const assignmentId = params.assignmentId as string;
     const viewSubmissionId = searchParams.get("submission");
@@ -299,6 +301,9 @@ export default function StudentAttemptPage() {
                 <div className="flex-1 overflow-hidden">
                     <CodeIDE
                         assignmentId={assignment.id}
+                        assignmentTitle={assignment.title}
+                        assignmentDescription={assignment.description}
+                        userId={user?.id ?? "anonymous"}
                         initialCode={initialCode}
                         initialLanguage={languageId}
                         readOnly={isReadOnly}

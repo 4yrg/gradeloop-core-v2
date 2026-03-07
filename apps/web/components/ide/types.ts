@@ -1,5 +1,8 @@
 export interface CodeIDEProps {
   assignmentId?: string;
+  assignmentTitle?: string;
+  assignmentDescription?: string;
+  userId?: string;
   initialCode?: string;
   initialLanguage?: number;
   onExecute?: (result: ExecutionResult) => void;
