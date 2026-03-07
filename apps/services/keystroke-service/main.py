@@ -272,6 +272,8 @@ async def capture_keystrokes(batch: KeystrokeBatch):
             "total_buffered": total_buffered
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
