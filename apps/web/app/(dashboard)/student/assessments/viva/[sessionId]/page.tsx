@@ -233,7 +233,7 @@ export default function VivaSessionPage() {
     const [inputValue, setInputValue] = React.useState("");
     const [abandonConfirm, setAbandonConfirm] = React.useState(false);
     const [abandoning, setAbandoning] = React.useState(false);
-    
+
     // Enhanced features state
     const [isPaused, setIsPaused] = React.useState(false);
     const [connectionStatus, setConnectionStatus] = React.useState<"connected" | "disconnected" | "reconnecting">("connected");
@@ -241,6 +241,9 @@ export default function VivaSessionPage() {
     const [currentHint, setCurrentHint] = React.useState<string>("");
     const [hintsUsed, setHintsUsed] = React.useState(0);
     const [reconnectAttempts, setReconnectAttempts] = React.useState(0);
+
+    // Autoplay policy fix: require user interaction before starting WS/audio
+    const [sessionStarted, setSessionStarted] = React.useState(false);
 
     // Audio context for visualization
     const [audioData, setAudioData] = React.useState<number[]>(Array(5).fill(20));
@@ -325,8 +328,25 @@ export default function VivaSessionPage() {
                 // If the user stops speaking for a while, just stop recording and submit what we have implicitly
                 if (finalTranscript.trim()) {
                     handleSubmit(finalTranscript.trim());
+                } else {
+                    addToast({
+                        title: "No speech detected",
+                        description: "Could not hear anything. Please try again.",
+                        variant: "warning",
+                    });
                 }
+            } else if (event.error === 'not-allowed') {
+                addToast({
+                    title: "Microphone Access Denied",
+                    description: "Please allow microphone permissions in your browser to speak.",
+                    variant: "error",
+                });
             } else if (event.error !== 'aborted') {
+                addToast({
+                    title: "Microphone Error",
+                    description: `Speech recognition failed: ${event.error}`,
+                    variant: "error",
+                });
                 addMessage({ role: "system", content: `Speech recognition error: ${event.error}` });
             }
             stopRecording(false);
@@ -346,6 +366,11 @@ export default function VivaSessionPage() {
             recognition.start();
         } catch (e) {
             console.error("Could not start recognition:", e);
+            addToast({
+                title: "Microphone Error",
+                description: "Could not start recording. Please refresh the page and try again.",
+                variant: "error",
+            });
         }
     };
 
@@ -543,7 +568,7 @@ export default function VivaSessionPage() {
 
     // --- Voice WebSocket Connection ---
     React.useEffect(() => {
-        if (!user?.id || !sessionId || sessionId === "new" || isComplete || initializing) return;
+        if (!user?.id || !sessionId || sessionId === "new" || isComplete || initializing || !sessionStarted) return;
 
         const baseUrl = process.env.NEXT_PUBLIC_IVAS_API_URL || "https://ivas.sudila.com";
         const wsBaseUrl = baseUrl.replace(/^http/, "ws");
@@ -557,6 +582,7 @@ export default function VivaSessionPage() {
 
             ws.onopen = () => {
                 console.log("Voice WebSocket connected");
+                setConnectionStatus("connected");
                 // On open, optionally tell the backend we are here for this question (if supported check first)
                 if (currentQuestion?.question_instance_id) {
                     ws?.send(JSON.stringify({
@@ -701,7 +727,7 @@ export default function VivaSessionPage() {
             ws.onclose = () => {
                 console.log("Voice WebSocket closed");
                 if (wsRef.current === ws) wsRef.current = null;
-                
+
                 // Auto-reconnect if session is still in progress and not paused
                 if (session?.session.status === "in_progress" && !isPaused && !isComplete && reconnectAttempts < 5) {
                     setConnectionStatus("reconnecting");
@@ -710,7 +736,7 @@ export default function VivaSessionPage() {
                         setReconnectAttempts(prev => prev + 1);
                         connect();
                     }, delay);
-                    
+
                     addToast({
                         title: "Reconnecting...",
                         description: `Attempting to reconnect (${reconnectAttempts + 1}/5)`,
@@ -734,7 +760,7 @@ export default function VivaSessionPage() {
                 ws.close();
             }
         };
-    }, [sessionId, isComplete, initializing, user?.id]);
+    }, [sessionId, isComplete, initializing, user?.id, sessionStarted]);
 
     const handleSubmit = async (transcribedText?: string) => {
         if (!transcribedText || !currentQuestion || sending || isComplete) return;
@@ -779,7 +805,7 @@ export default function VivaSessionPage() {
             setAbandoning(false);
         }
     };
-    
+
     const handlePauseResume = async () => {
         try {
             if (isPaused) {
@@ -809,16 +835,16 @@ export default function VivaSessionPage() {
             });
         }
     };
-    
+
     const handleRequestHint = async () => {
         if (!currentQuestion?.question_instance_id) return;
-        
+
         try {
             const result = await ivasApi.requestHint(sessionId, currentQuestion.question_instance_id);
             setCurrentHint(result.hint_text);
             setHintsUsed(prev => prev + 1);
             setShowHintDialog(true);
-            
+
             addToast({
                 title: "Hint Available",
                 description: `Penalty: ${result.penalty_applied} points`,
@@ -851,6 +877,48 @@ export default function VivaSessionPage() {
                     ))}
                 </div>
                 <Skeleton className="h-24 w-full rounded-xl" />
+            </div>
+        );
+    }
+
+    if (!sessionStarted && !initializing && !initError && !isComplete) {
+        return (
+            <div className="fixed inset-0 z-[100] w-full h-full bg-black flex items-center justify-center font-sans">
+                <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+                    <div className="absolute inset-0 bg-emerald-950/20" />
+                    <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
+                </div>
+                <div className="relative z-10 text-center space-y-8 p-6 max-w-md w-full">
+                    <div className="mx-auto w-24 h-24 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30 mb-8">
+                        <BrainCircuit className="h-12 w-12 text-emerald-400" />
+                    </div>
+                    <h1 className="text-3xl font-bold text-emerald-50 tracking-tight">Ready to Begin?</h1>
+                    <p className="text-zinc-400 text-sm leading-relaxed">
+                        The IVAS AI is ready. Please ensure you are in a quiet environment and your microphone is working.
+                    </p>
+                    <Button
+                        onClick={() => {
+                            // Autoplay policy fix: Play a short silent audio snippet immediately on user interaction
+                            // This unlocks the Audio Context for this page so the WebSocket messages can play audio later.
+                            try {
+                                const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+                                if (AudioContext) {
+                                    const ac = new AudioContext();
+                                    ac.resume();
+                                }
+                                const silentAudio = new window.Audio("data:audio/mp3;base64,//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq");
+                                silentAudio.volume = 0;
+                                silentAudio.play().catch(() => { /* ignore */ });
+                            } catch (e) {
+                                console.warn("Failed to initialize silent audio workaround", e);
+                            }
+                            setSessionStarted(true);
+                        }}
+                        className="w-full h-12 text-lg font-medium bg-emerald-600 hover:bg-emerald-500 text-white rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all"
+                    >
+                        Start Session
+                    </Button>
+                </div>
             </div>
         );
     }
@@ -928,24 +996,24 @@ export default function VivaSessionPage() {
                     {!isComplete && session?.session.status === "in_progress" && (
                         <>
                             {/* Hint Button */}
-                            <Button 
-                                variant="outline" 
-                                size="sm" 
+                            <Button
+                                variant="outline"
+                                size="sm"
                                 className="bg-zinc-900/40 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white backdrop-blur-md rounded-full px-4 transition-all"
                                 onClick={handleRequestHint}
                             >
                                 <Lightbulb className="h-4 w-4 mr-2" />
                                 Hint
                             </Button>
-                            
+
                             {/* Pause/Resume Button */}
-                            <Button 
-                                variant="outline" 
-                                size="sm" 
+                            <Button
+                                variant="outline"
+                                size="sm"
                                 className={cn(
                                     "backdrop-blur-md rounded-full px-4 transition-all",
-                                    isPaused 
-                                        ? "bg-emerald-600/20 border-emerald-500/50 text-emerald-400 hover:bg-emerald-600/30" 
+                                    isPaused
+                                        ? "bg-emerald-600/20 border-emerald-500/50 text-emerald-400 hover:bg-emerald-600/30"
                                         : "bg-zinc-900/40 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white"
                                 )}
                                 onClick={handlePauseResume}
@@ -964,7 +1032,7 @@ export default function VivaSessionPage() {
                             </Button>
                         </>
                     )}
-                    
+
                     <Sheet>
                         <SheetTrigger asChild>
                             <Button variant="outline" size="sm" className="bg-zinc-900/40 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white backdrop-blur-md rounded-full px-4 transition-all">
