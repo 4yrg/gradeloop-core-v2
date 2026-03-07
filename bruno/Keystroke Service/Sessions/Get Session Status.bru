@@ -1,0 +1,24 @@
+meta {
+  name: Get Session Status
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{KEYSTROKE_BASE_URL}}/api/keystroke/session/status/{{CURRENT_USER_ID}}/session-001
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+docs {
+  Get the current status of an active monitoring session.
+
+  Returns:
+  - events_captured: number of keystroke events buffered in memory
+  - last_verification: ISO timestamp of the last authentication check
+  - current_risk_score: latest computed risk score [0–1]
+}

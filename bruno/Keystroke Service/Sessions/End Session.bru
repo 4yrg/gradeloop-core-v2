@@ -1,0 +1,20 @@
+meta {
+  name: End Session
+  type: http
+  seq: 2
+}
+
+delete {
+  url: {{KEYSTROKE_BASE_URL}}/api/keystroke/session/{{CURRENT_USER_ID}}/session-001
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+docs {
+  End a monitoring session and free the buffered keystroke events from memory.
+  Should be called when a student finishes an assignment or logs out.
+}

@@ -1,0 +1,20 @@
+meta {
+  name: List Enrolled Users
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{KEYSTROKE_BASE_URL}}/api/keystroke/users/enrolled
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+docs {
+  Returns a list of all user IDs that have a TypeNet biometric template enrolled.
+  Useful for checking enrollment status before running verify or monitor.
+}

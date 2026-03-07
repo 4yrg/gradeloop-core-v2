@@ -1,0 +1,40 @@
+meta {
+  name: Monitor Session
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{KEYSTROKE_BASE_URL}}/api/keystroke/monitor
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+body:json {
+  {
+    "userId": "{{CURRENT_USER_ID}}",
+    "sessionId": "session-001",
+    "assignmentId": "{{ASSIGNMENT_ID}}",
+    "courseId": ""
+  }
+}
+
+docs {
+  Perform continuous authentication on an active session.
+
+  The session must have been started by calling /api/keystroke/capture first.
+  Once 150+ events are buffered the service runs TypeNet over the last 5 sequences
+  and returns a risk score.
+
+  Response statuses:
+  - COLLECTING_DATA: fewer than 150 events buffered, no verdict yet
+  - AUTHENTICATED: user pattern matches enrolled template
+  - SUSPICIOUS: pattern diverges from template (0.5-0.7 risk)
+  - IMPERSONATION_DETECTED: high risk score (> 0.7)
+
+  Auth events are also published to RabbitMQ after each monitor call.
+}

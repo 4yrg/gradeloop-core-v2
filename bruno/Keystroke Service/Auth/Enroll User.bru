@@ -1,0 +1,36 @@
+meta {
+  name: Enroll User
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{KEYSTROKE_BASE_URL}}/api/keystroke/enroll
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+body:json {
+  {
+    "userId": "{{CURRENT_USER_ID}}",
+    "keystrokeEvents": []
+  }
+}
+
+docs {
+  Enroll a user by building a behavioral biometric template from their typing patterns.
+
+  Requires at least 150 keystroke events (roughly 2+ full typing sequences of 70 keystrokes).
+  For reliable enrollment, provide 300+ events captured across multiple typing samples.
+
+  Steps:
+  1. Capture keystroke events from the frontend (use /api/keystroke/capture in parallel).
+  2. Send the accumulated events here once the threshold is met.
+  3. The service creates a TypeNet template and persists it to disk.
+
+  After enrollment, use /api/keystroke/verify to authenticate the user.
+}

@@ -1,0 +1,18 @@
+meta {
+  name: Get Analysis Config
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{KEYSTROKE_BASE_URL}}/api/keystroke/analyze/config
+  body: none
+  auth: inherit
+}
+
+docs {
+  Returns the current behavioral analysis configuration, including:
+  - Whether LLM analysis is enabled (requires GEMINI_API_KEY)
+  - Which Gemini model is configured
+  - The list of analysis features and tracked metrics
+}

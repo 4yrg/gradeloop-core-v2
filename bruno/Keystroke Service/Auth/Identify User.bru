@@ -1,0 +1,30 @@
+meta {
+  name: Identify User
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{KEYSTROKE_BASE_URL}}/api/keystroke/identify
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+body:json {
+  {
+    "keystrokeEvents": [],
+    "topK": 3
+  }
+}
+
+docs {
+  1:N identification — compares the supplied keystroke pattern against ALL enrolled users
+  and returns the top-K most likely matches with confidence scores.
+
+  Useful for detecting account sharing (a student logging in as another student).
+  Requires at least one enrolled user or returns 404.
+}

@@ -1,0 +1,31 @@
+meta {
+  name: Capture Keystrokes
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{KEYSTROKE_BASE_URL}}/api/keystroke/capture
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+body:json {
+  {
+    "events": [
+      {
+        "userId": "{{CURRENT_USER_ID}}",
+        "sessionId": "session-001",
+        "timestamp": 1700000000000,
+        "key": "a",
+        "dwellTime": 85,
+        "flightTime": 120,
+        "keyCode": 65
+      }
+    ]
+  }
+}

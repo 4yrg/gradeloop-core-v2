@@ -1,0 +1,45 @@
+meta {
+  name: Analyze Behavioral Session
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{KEYSTROKE_BASE_URL}}/api/keystroke/analyze
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+body:json {
+  {
+    "sessionId": "session-001",
+    "studentId": "{{CURRENT_USER_ID}}",
+    "events": [],
+    "finalCode": "def hello():\n    print('Hello world')\n\nhello()",
+    "includeReport": true
+  }
+}
+
+docs {
+  Comprehensive behavioral analysis of a complete coding session.
+
+  Analyzes the full event stream (keystroke events captured during a coding session)
+  and the final submitted code to produce:
+
+  - Developmental logic & iteration score
+  - Cognitive load timeline
+  - Authenticity indicators (copy/paste detection, AI-assistance flags)
+  - Friction point map (places where the student struggled)
+  - Pedagogical recommendations for the instructor
+
+  Set includeReport: true to receive a human-readable markdown report alongside
+  the structured JSON analysis object.
+
+  When GEMINI_API_KEY is configured the analysis is enriched with LLM-powered
+  qualitative insights (gemini-2.5-flash). Without the key the service falls back
+  to heuristic analysis only.
+}

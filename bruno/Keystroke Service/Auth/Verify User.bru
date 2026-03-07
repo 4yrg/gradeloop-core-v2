@@ -1,0 +1,37 @@
+meta {
+  name: Verify User
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{KEYSTROKE_BASE_URL}}/api/keystroke/verify
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+body:json {
+  {
+    "userId": "{{CURRENT_USER_ID}}",
+    "keystrokeEvents": [],
+    "threshold": 0.7,
+    "assignmentId": "{{ASSIGNMENT_ID}}",
+    "courseId": ""
+  }
+}
+
+docs {
+  Verify a user's identity by comparing their current typing pattern against their enrolled template.
+
+  Returns:
+  - authenticated (bool): whether the user passed verification
+  - similarity (float): cosine similarity score [0–1]
+  - risk_score (float): inverted similarity; high value = suspicious
+
+  A successful verification also publishes an auth event to RabbitMQ
+  (exchange: keystroke.exchange, routing key: keystroke.auth.result).
+}
