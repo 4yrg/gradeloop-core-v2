@@ -1,0 +1,248 @@
+Integrated Framework for Robust Student Enrollment and Continuous Authentication in Learning Management Systems via Hybrid LSTM-Keystroke Dynamics
+The transition toward digitalized and remote education has necessitated a paradigm shift in the mechanisms used to ensure academic integrity. In the contemporary university landscape, Learning Management Systems (LMS) serve as the primary gateway for high-stakes assessments, yet they remain vulnerable to sophisticated forms of academic dishonesty, including impersonation and credential sharing.1 While traditional authentication methods—such as passwords and multi-factor authentication (MFA) tokens—provide a one-time entry check, they fail to ensure that the individual who initially logged in is the same individual who completes the assessment.1 Behavioral biometrics, particularly keystroke dynamics, offer a compelling solution for continuous, non-intrusive authentication by leveraging the unique timing and rhythmic patterns inherent in a user's interaction with a keyboard or touchscreen.1 However, the deployment of such systems in educational contexts faces a significant hurdle: the discrepancy between the cognitive and emotional states during the enrollment phase and the evaluation phase.
+The phenomenon where authentication accuracy drops significantly during supervised exams or high-pressure lab sessions is primarily attributed to the "affective gap".6 Enrollment typically occurs under calm, non-evaluative conditions, whereas examinations induce acute stress, time pressure, and high cognitive load, all of which alter fine motor control and typing rhythm.6 To address this, a robust enrollment strategy must be designed to capture not only the baseline typing signature but also the behavioral variance associated with various mental states. By utilizing short, constrained coding tests and advanced Long Short-Term Memory (LSTM) network architectures, it is possible to build models that generalize across the emotional spectrum of the student experience.8
+Biomechanical and Temporal Foundations of Keystroke Dynamics
+Keystroke dynamics identifies individuals based on the habitual rhythm patterns they exhibit while typing.1 This behavioral biometric is rooted in neuro-physiological factors similar to those that make written signatures unique; as a user becomes familiar with a keyboard or a specific string of text, the motor sequences become increasingly automated.1 In a university environment, the advantage of this modality is its cost-effectiveness and transparency, as it requires no specialized hardware beyond the standard computer keyboard already in use.4
+The classification of users relies on the precise measurement of timestamps associated with key-down and key-up events, typically recorded with millisecond resolution.4 These raw timestamps are used to derive specific timing features that represent the user's biometric profile.
+Fundamental Keystroke Timing Metrics
+
+Metric Name
+Latency Component
+Mathematical Definition
+Functional Significance
+Dwell Time
+ or 
+
+Represents the duration a key is held down; highly stable across sessions.12
+Down-Down Latency
+
+
+The time between consecutive key presses; reflects overall typing speed.1
+Up-Down Latency
+
+
+Often called "Flight Time"; indicates the interval between keys.9
+Up-Up Latency
+
+
+The interval between key releases; captures terminal rhythmic patterns.9
+Down-Up Latency
+
+
+Represents total time from the start of key  to the end of key .12
+Beyond these primary features, advanced analysis considers n-graphs—sequences of multiple keys—which reveal complex idiosyncratic behaviors.15 For example, letter pairs typed by different hands or fingers are significantly more predictive of an individual's unique speed than simple character repetitions.17 Another critical behavior is "rollover typing," prevalent among fast typists, where the next key is pressed before the previous one is released, resulting in negative  values.1 These nuances allow the construction of a high-dimensional feature space that is difficult for impostors to replicate.7
+Psychological and Physiological Impacts of Stress on Typing Behavior
+The efficacy of biometric authentication in an LMS is frequently compromised by the physiological changes induced by the academic environment. Acute stress is a short-term cognitive burden that impacts engagement, performance, and motor control.6 During examinations, students experience a misalignment between their internal state and the environmental dimensions, often referred to as "technostress".7
+The Stress Response and Motor Control
+The scientific understanding of stress involves the coordination of the Sympathetic Nervous System (SNS) and the Hypothalamus-Pituitary-Adrenal (HPA) axis.6 The SNS triggers the "fight-or-flight" response, which increases heart rate and blood pressure while altering muscle tension and fine motor skills.6 These physiological shifts manifest in typing patterns through several distinct changes:
+    1. Velocity Fluctuations: Stress often increases typing speed as a result of urgency and time pressure, but this speed is frequently inconsistent.6
+    2. Error Propagation: Increased arousal leads to a higher frequency of substitution and transposition errors, which increases the reliance on corrective keys like backspace and delete.6
+    3. Rhythmic Irregularity: The standard deviation of flight times typically increases, as the user oscillates between rapid bursts of typing and contemplative pauses.7
+    4. Dwell Time Variance: While  is traditionally seen as stable, extreme stress can cause "muscle noise," leading to irregular key durations compared to a calm baseline.6
+Cognitive load theory further explains these variations by distinguishing between intrinsic load (the difficulty of the material) and extraneous load (the pressure of the environment).19 High cognitive load slows down typing speed and increases the "pause ratio" as the student diverts mental resources from motor execution to logical reasoning.17 When students are "struggling" to solve a programming problem—defined as failing to make significant progress within a typical time threshold—their trace logs reveal erratic patterns that deviate from their "progressing" state.1
+Designing a Multi-Condition Enrollment Strategy
+To mitigate the performance degradation caused by the affective gap, the enrollment phase must be redefined. Rather than a single "free coding" session, enrollment should be a structured, multi-condition process that exposes the student to varying levels of stress and cognitive demand.8 This allows the LSTM model to learn the student's "behavioral envelope"—the range of rhythms they exhibit under different conditions—rather than just a single point of reference.
+Proposed Enrollment Workflow for LMS Registration
+The enrollment process should be integrated into the first few weeks of a course, utilizing short, time-efficient tasks to minimize student friction while maximizing data diversity.22 Research indicates that a reliable baseline often requires data collected across multiple sessions (at least eight) to account for temporal and psychological variations.3
+
+Phase
+Task Category
+Objective
+Duration
+Baseline
+Standard username/password entry (15 repetitions).9
+Capture static features for initial identity verification.
+2 Minutes
+Transcription
+Transcribing a provided 10-line code snippet.20
+Capture "pure" motor rhythm without the confound of cognitive reasoning.
+5 Minutes
+Stress Induction
+Time-pressured math-integrated coding tasks (e.g., FizzBuzz under a 2-minute timer).6
+Label data with "stress" markers to help the model identify rhythm shifts.
+3 Minutes
+Cognitive Load
+Completing a complex logic function with multiple syntax constraints.17
+Capture keystroke patterns under high mental effort.
+10 Minutes
+Adaptive Update
+Background monitoring during the first supervised lab session.1
+Fine-tune the model to the specific IDE and hardware used in class.
+Ongoing
+By including a "stress-induction" component, the system can learn individual-specific stress indicators. For example, some students may decrease their dwell time but increase their flight time when panicked, while others may exhibit the opposite trend.6 A robust enrollment strategy captures these "personalized modeling" nuances, which has been shown to significantly outperform "one-fits-all" approaches.24
+Task-Specific Enrollment: Guided vs. Natural Coding
+The selection of coding tasks for enrollment is critical. Natural "free coding" is problematic for enrollment because the student's pace is dictated by their problem-solving ability, leading to excessive "thinking pauses" that are not representative of their typing rhythm.23 Guided or constrained coding tasks provide a more stable environment for feature extraction.
+Short Coding Task Recommendations
+    1. Syntactic Boilerplate Repetition: Students are asked to type language-specific structures (e.g., public static void main(String args) in Java or def main(): in Python).26 These sequences are highly rehearsed and highlight habitual motor patterns with minimal interference from logical reasoning.
+    2. Transcription of Code Review Snippets: Asking students to transcribe a code block removes intrinsic cognitive load, focusing purely on the motor "signature" of coding.20
+    3. Fixed Logic Completion: Presenting a student with a function signature and a very specific logic requirement (e.g., "Implement a loop that prints the square root of numbers 1-10 using math.sqrt"). This constrained task ensures that all students are typing similar characters, allowing for a "fixed-text" style analysis which is generally more accurate than "free-text".1
+    4. Error-Correction Challenges: Presenting code with minor syntax errors (missing semicolons, incorrect indentation) and asking for a fix. This captures the student's idiosyncratic "corrective rhythm"—how they use the backspace, arrow keys, and delete key—which is a highly distinctive biometric trait.5
+Task Complexity vs. Feature Stability
+
+Task Type
+Stability
+Distinctiveness
+Best For
+Fixed Password
+Very High
+Moderate
+Initial login authentication.1
+Boilerplate Code
+High
+High
+Capturing habitual syntactic rhythms.26
+Transcription
+High
+High
+Establishing a cognitive "null" baseline.20
+Free Coding
+Low
+Very High
+Long-term identity verification/authorship.29
+Feature Prioritization for Stress Robustness
+In designing a robust system, it is essential to prioritize features that remain stable across emotional states. Research on feature selection for student authentication in online exams suggests that certain timing features are more "noise-resistant" than others.1
+Stress-Invariant Feature Analysis
+    1. Dwell Time (): Generally considered the most stress-invariant feature. While the interval between keys changes under pressure, the duration a key is held is often tied to the physical properties of the keyboard and deeply ingrained muscle memory.5
+    2. Flight Time (): Highly sensitive to cognitive load and stress. However, if flight times are analyzed for specific "highly-familiar" digraphs (like if, for, int), they retain significant predictive power.1
+    3. Error Correction Patterns: The way a student interacts with the backspace key is highly individual. While stress increases the frequency of errors, the rhythmic signature of the correction process often remains stable.5
+    4. Scene-Irrelated Features: Features with a low correlation to the environment or specific task (e.g., the ratio between the first and second  in a pair) are termed "scene-irrelated" and should be fused with "user-related" feat ures to enhance stability.12
+Feature Selection Impact on Accuracy (Empirical Results)
+
+Feature Set
+Accuracy (ACC)
+Equal Error Rate (EER)
+Full Set ()
+93.7%
+6.6%.1
+Optimized Set ()
+94.5%
+5.4%.1
+The removal of  (Up-Up Latency) often improves performance in free-text scenarios, as it tends to be the most volatile and redundant timing metric.1
+Advanced LSTM Architectures and Training Enhancements
+The choice of machine learning architecture is pivotal for handling behavioral variation. Long Short-Term Memory (LSTM) networks are designed specifically to handle sequential data and capture long-term dependencies, making them superior to traditional statistical classifiers in free-text authentication.1
+The Mathematical Advantage of LSTM in Biometrics
+LSTMs solve the vanishing gradient problem inherent in standard RNNs by using a "gating" mechanism. An LSTM cell contains three gates: an input gate (), a forget gate (), and an output gate (). These gates control the flow of information into the cell state (), allowing the network to "remember" a student's rhythmic patterns over a long sequence of keystrokes.
+The hidden state  at time  is calculated as:
+
+Where:
+
+
+
+In the context of student enrollment, the Bi-LSTM (Bidirectional LSTM) is particularly effective as it processes the keystroke sequence in both forward and backward directions, capturing the context of a key press in relation to both what preceded and what followed it.8
+Training Enhancements for Robustness
+To ensure the model is robust across different "scenes" (calm vs. stressed), several training strategies are recommended:
+    1. Custom Loss Functions: Implementing a loss function that penalizes intra-participant prediction variability. This forces the model to learn a "consensus" signature for the student that remains stable across multiple sessions.29
+    2. Triplet Loss Architecture: Using a Siamese network approach with triplet loss ensures that the embedding for a student's "stressed" sample is pulled closer to their "calm" sample in the feature space, while both are pushed away from impostor samples.1
+    3. Data Augmentation (Gaussian and SMOTE): Adding small amounts of Gaussian noise to timing features during training simulates the natural "jitter" of typing, improving model flexibility.1 SMOTE (Synthetic Minority Oversampling Technique) can be used to balance the dataset if the student provides fewer samples during enrollment than the background impostor pool.1
+    4. GAN-VAE Synthetic Generation: Recent advancements describe using hybrid Generative Adversarial Networks (GAN) and Variational Autoencoders (VAE) to generate synthetic behavioral data. This can reduce the physical enrollment threshold by up to 75% while maintaining authentication accuracy above 90%.22
+Comparative Performance of Authentication Models
+
+Model Architecture
+Equal Error Rate (EER)
+Context
+Random Forest
+6.08%
+Mobile CA.1
+GMM-UBM
+5.40%
+Free-text Exams.9
+TypeNet (LSTM)
+4.80%
+50 Keystroke sequences.1
+CNN-Detect
+0.009%
+Deep Feature Synthesis.1
+Hybrid CNN Bi-LSTM
+0.009% - 0.127%
+Multi-session continuous.8
+The hybrid CNN-Bi-LSTM model represents the current state-of-the-art for university-level deployment, as it effectively captures both spatial (digraph) and temporal (session) dependencies.8
+Adaptive Enrollment and Multi-Session Evolution
+A student's typing behavior is not static; it evolves as they become more proficient in a programming language or as they adapt to new hardware.3 A robust LMS system must implement adaptive enrollment, where the user model is continuously updated as new, high-confidence data becomes available.
+Strategies for Long-Term Accuracy
+    1. GMM-UBM Initialization: Enrollment should begin with a Universal Background Model (UBM)—a GMM trained on a massive, diverse pool of students.2 When a new student joins, the UBM is "adapted" to their specific rhythm using Maximum A Posteriori (MAP) estimation. This allows for high accuracy even with very limited initial data.9
+    2. Adaptive Thresholding: Rather than a global threshold, the system should use an individualized threshold for each student, calculated using the Leave-One-Out-Method (LOOM).9 This accounts for the fact that some students are naturally more consistent typists than others.
+    3. Multi-Modal Fusion: To overcome the instability of keystroke dynamics under extreme stress, fusion with other biometrics is recommended. For example, fusing keystrokes with facial recognition or gait patterns (on mobile devices) provides a more resilient "risk-based" authentication model.12
+    4. Context-Aware Weighting: During exams, the system can "shift" the weight of its authentication criteria. If a student is typing a known logic structure, the model can prioritize timing; if they are typing natural language comments, it can shift to linguistic style or authorship verification.30
+Trade-offs: Usability, Security, and Integrity
+Designing an enrollment system for a university LMS involves managing the inherent trade-off between security and student convenience.
+The Security-Usability Matrix
+
+Strategy
+Security Level
+Usability Impact
+Context
+Strict Threshold
+High (Low )
+High  (Lockouts)
+Best for final high-stakes exams.7
+Loose Threshold
+Low (High )
+High Convenience
+Best for daily attendance/homework.1
+Continuous (CA)
+Very High
+Transparent/Passive
+Ideal for ongoing monitoring without prompts.1
+MFA Integration
+Moderate
+High Interruption
+Triggered only when anomaly scores are high.3
+Usability is measured by the amount of time a legitimate student has uninterrupted access to resources ().1 In high-pressure exams, a false rejection can cause significant panic, further degrading the student's typing rhythm and creating a "rejection loop." Therefore, a "risk-based" approach is preferred: if an anomaly is detected, the system should first flag the session for instructor review or trigger a secondary, less-intrusive factor (like a webcam snapshot) before denying access.1
+Implementation Framework for University-Level LMS
+For practical implementation in a university setting, the following technical and operational steps are recommended:
+1. Preprocessing and Feature Engineering
+    • Normalization: Use Min-Max scaling or Z-score normalization to handle the wide range of timing values.1
+    • Outlier Removal: Implement quantile limits for each feature to exclude "thinking pauses" and system lag that do not represent true biometric rhythm.5
+    • Deep Feature Synthesis (DFS): Use DFS to automate the creation of high-dimensional feature matrices (e.g., ), which can be fed into CNN layers for spatial pattern recognition.1
+2. Enrollment Methodology
+    • The 8-Session Baseline: Collect data over the first two weeks of the semester across at least eight different sessions to capture daily temporal variations.3
+    • Bilingual Profiling: For students typing in multiple languages (e.g., English for code and their native language for comments), separate profiles must be created, as language significantly impacts rhythm.7
+3. Model Deployment
+    • Hybrid Architecture: Deploy a hybrid CNN-LSTM model to handle both digraph-level "textures" and session-level "rhythm".8
+    • Privacy-by-Design: Only timing and key-category data (not actual character codes) should be stored. Ideally, authentication should be performed client-side to ensure raw biometric data remains on the student's hardware.1
+4. Continuous Authentication Monitoring
+    • Sliding Windows: Use a sliding window of 50-100 keystrokes to provide real-time confidence scores.1
+    • Instructor Dashboard: Provide instructors with a "struggle vs. anomaly" dashboard. This uses trace log analysis to differentiate between a student who is struggling with the material (logical patterns) and a session that has been hijacked by an impostor (rhythm patterns).1
+Conclusion: Future Outlook for Robust Academic Biometrics
+The successful integration of keystroke dynamics into the LMS ecosystem depends on moving beyond static, calm-state enrollment. By utilizing short, guided coding tasks and multi-condition enrollment, universities can build authentication models that are resilient to the acute stress and high cognitive load characteristic of the exam environment. The combination of LSTM-based sequential modeling with data augmentation techniques like GAN-VAE allows these systems to reach professional-grade accuracy while minimizing the data collection burden on students. As these technologies mature, the goal shifts from simple "gatekeeping" to a holistic "trust-based assessment" environment, where continuous monitoring ensures that the academic achievements of students are both verified and protected in the digital age.
+Works cited
+    1. Using Student Trace Logs To Determine Meaningful.pdf
+    2. Key Considerations for Implementing Biometrics in eLearning - Aware, Inc., accessed on March 4, 2026, https://www.aware.com/implementing-biometrics-in-elearning-blog/
+    3. Behavioral Biometrics: Securing with Human Traits, accessed on March 4, 2026, https://faisalyahya.com/access-control/behavioral-biometrics-revolutionizing-security-with-human-nuances/
+    4. A Survey of Keystroke Dynamics Biometrics - PMC, accessed on March 4, 2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC3835878/
+    5. Exploring Keystroke Dynamics: Enhancing Authentication Through Typing Patterns - Atlantis Press, accessed on March 4, 2026, https://www.atlantis-press.com/article/126017399.pdf
+    6. Analysing and Predicting Acute Stress in Smartphone- based Online Activities using Keystroke Dynamics and Advanced Sensory Features - International Journal of Computer Applications, accessed on March 4, 2026, https://www.ijcaonline.org/archives/volume186/number71/banerjee-2025-ijca-924564.pdf
+    7. (PDF) Biometric Authentication: Stress as a Factor in Keystroke ..., accessed on March 4, 2026, https://www.researchgate.net/publication/397645027_Biometric_Authentication_Stress_as_a_Factor_in_Keystroke_Dynamics
+    8. KEYSTROKE DYNAMICS ON MULTI-SESSION AND UNCONTROLLED SETTINGS USING CNN BI-LSTM, accessed on March 4, 2026, https://www.jatit.org/volumes/Vol103No2/10Vol103No2.pdf
+    9. User Authentication with Adaptive Keystroke Dynamics, accessed on March 4, 2026, https://fci.stafpu.bu.edu.eg/Computer%20Science/838/publications/Mazen%20Mohamed%20selim_paper_1.pdf
+    10. Keystroke Dynamics: Concepts, Techniques, and Applications - arXiv.org, accessed on March 4, 2026, https://arxiv.org/html/2303.04605v2
+    11. User Authentication Using Keystroke Dynamics - Robert Gramacy, accessed on March 4, 2026, https://bobby.gramacy.com/prepo/gra2001-01.pdf
+    12. User Authentication Method Based on Keystroke Dynamics and Mouse Dynamics with Scene-Irrelated Features in Hybrid Scenes - PMC, accessed on March 4, 2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC9460698/
+    13. (PDF) User Authentication with Adaptive Keystroke Dynamics - ResearchGate, accessed on March 4, 2026, https://www.researchgate.net/publication/369367024_User_Authentication_with_Adaptive_Keystroke_Dynamics
+    14. User Verification based on Keystroke Dynamics: Python code | Machine Learning in Action, accessed on March 4, 2026, https://appliedmachinelearning.wordpress.com/2017/07/26/user-verification-based-on-keystroke-dynamics-python-code/
+    15. Biometric Identification with Keystroke Dynamics Using Java - Chanuka's Blog, accessed on March 4, 2026, https://blog.chanukawijayakoon.me/2017/03/biometric-identification-with-keystroke-dynamics-using-java/
+    16. S-Pen Technology and Online Signatures: Cross-Device Variability and Its Implications for Mobile Biometric Authentication - MDPI, accessed on March 4, 2026, https://www.mdpi.com/1424-8220/26/5/1451
+    17. Keystroke-Based Cognitive Load Detection: A Large-Scale Analysis ..., accessed on March 4, 2026, https://www.researchgate.net/publication/398247636_Keystroke-Based_Cognitive_Load_Detection_A_Large-Scale_Analysis_Across_Age-Specific_Cohorts
+    18. Keystroke Pattern Analysis for Cognitive Fatigue Prediction Using Machine Learning - AIJFR, accessed on March 4, 2026, https://www.aijfr.com/papers/2025/5/1370.pdf
+    19. The Impact of a Major Educational Shift on Cognitive Load: A Cross-Sectional Study of UAE University Students, accessed on March 4, 2026, https://scholarworks.waldenu.edu/cgi/viewcontent.cgi?article=1716&context=jsbhs
+    20. Typing Under Pressure: Estimating Cognitive Load from Keystroke Dynamics and Textual Patterns - AIUB, accessed on March 4, 2026, https://www.aiub.edu/Files/student-research/Typing_Under_Pressure_Estimating_Cognitive_Load_from_Keystroke_Dynamics_and_Textual_Patterns.html
+    21. Using Mouse and Keyboard Dynamics to Detect Cognitive Stress During Mental Arithmetic, accessed on March 4, 2026, https://www.researchgate.net/publication/281708893_Using_Mouse_and_Keyboard_Dynamics_to_Detect_Cognitive_Stress_During_Mental_Arithmetic
+    22. Advancing Multi-Modal Behavioral Biometric Authentication: A Deep Learning Approach With Synthetic Data Generation - IEEE Xplore, accessed on March 4, 2026, https://ieeexplore.ieee.org/iel8/6287639/10820123/11206325.pdf
+    23. A primer into Keystroke Recognition Technology - Rootstrap, accessed on March 4, 2026, https://www.rootstrap.com/blog/a-primer-into-keystroke-recognition-technology
+    24. Detecting work-related stress from mouse, keyboard, and cardiac data in the field - medRxiv, accessed on March 4, 2026, https://www.medrxiv.org/content/10.1101/2025.08.02.25332538v1.full.pdf
+    25. LSTM-based Free-Text Keystroke Dynamics for Continuous Authentication - International Journal of Computer Applications, accessed on March 4, 2026, https://ijcaonline.org/archives/volume187/number5/azanguezet-2025-ijca-924780.pdf
+    26. C++ Programming Basics Explained | PDF | Boolean Data Type - Scribd, accessed on March 4, 2026, https://www.scribd.com/document/962257171/c
+    27. Draft of - West Chester University, accessed on March 4, 2026, https://www.wcupa.edu/sciences-mathematics/computerScience/documents/pacise25-proceedings-draft.pdf
+    28. Security Enhancement in Social Media Users using Keystroke Biometrics - GRENZE Scientific Society, accessed on March 4, 2026, https://thegrenze.com/pages/servej.php?fn=186.pdf&name=Security%20Enhancement%20in%20Social%20Media%20Users%20usingKeystroke%20Biometrics&id=2543&association=GRENZE&journal=GIJET&year=2024&volume=10&issue=1
+    29. Exploring Age-Related Patterns in Smartphone Keystroke Dynamics Considering Temporal Variability: Cross-Sectional Study With AI-Based Analysis - PMC, accessed on March 4, 2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC12709153/
+    30. Biometric Technologies for eLearning: State-of-the-Art, Issues and Challenges, accessed on March 4, 2026, https://www.researchgate.net/publication/350294074_Biometric_Technologies_for_eLearning_State-of-the-Art_Issues_and_Challenges
+    31. accessed on January 1, 1970, uploaded:Model-GMM-UBM-Keystroke dynamics for student authentication in online examinations.pdf
+    32. Keystroke Dynamics in Behavioral Biometrics for User Authentication - ijariie, accessed on March 4, 2026, https://ijariie.com/AdminUploadPdf/Keystroke_Dynamics_in_Behavioral_Biometrics_for_User_Authentication_ijariie25533.pdf
+    33. Machine Learning Techniques for Biometric Authentication Based on Keystroke Dynamics, accessed on March 4, 2026, https://epublications.vu.lt/object/elaba:229583288/229583288.pdf
+    34. Enhancing Keystroke Dynamics Authentication with Ensemble Learning and Data Resampling Techniques - MDPI, accessed on March 4, 2026, https://www.mdpi.com/2079-9292/13/22/4559
+    35. (PDF) Advancing Multi-Modal Behavioral Biometric Authentication: A Deep Learning Approach With Synthetic Data Generation - ResearchGate, accessed on March 4, 2026, https://www.researchgate.net/publication/396667668_Advancing_Multi-Modal_Behavioral_Biometric_Authentication_A_Deep_Learning_Approach_with_Synthetic_Data_Generation
+    36. From Fusion to Adaptation: Investigation on Enhancing Multimodal Biometric Authentication Systems - IEEE Xplore, accessed on March 4, 2026, https://ieeexplore.ieee.org/iel8/6287639/10820123/11129097.pdf
+    37. Enhancing security and usability with context aware multi-biometric fusion for continuous user authentication - PMC, accessed on March 4, 2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC12368039/
+    38. Keystroke Dynamics Based Continuous Authentication - Publication Server of Vorarlberg University of Applied Sciences, accessed on March 4, 2026, https://opus.fhv.at/files/7279/Master_Thesis_Adrian_Essig_2026.pdf
+    39. Authentication by Keystroke Dynamics: The Influence of Typing Language - MDPI, accessed on March 4, 2026, https://www.mdpi.com/2076-3417/13/20/11478
+    40. Advancing Multi-Modal Behavioral Biometric Authentication: A Deep Learning Approach With Synthetic Data Generation - IEEE Xplore, accessed on March 4, 2026, https://ieeexplore.ieee.org/document/11206325/
