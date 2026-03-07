@@ -135,6 +135,18 @@ func (s *assignmentService) CreateAssignment(
 		CreatedBy: createdBy,
 	}
 
+	// Propagate language: top-level req.LanguageID (from the "Programming
+	// Language" selector) takes precedence. Fall back to the sample answer's
+	// language, then default to 71 (Python 3.8.1).
+	switch {
+	case req.LanguageID > 0:
+		assignment.LanguageID = req.LanguageID
+	case req.SampleAnswer != nil && req.SampleAnswer.LanguageID > 0:
+		assignment.LanguageID = req.SampleAnswer.LanguageID
+	default:
+		assignment.LanguageID = 71 // default: Python 3.8.1
+	}
+
 	// 5. Persist assignment row
 	if err := s.assignmentRepo.CreateAssignment(assignment); err != nil {
 		s.logger.Error("failed to create assignment", zap.Error(err))
