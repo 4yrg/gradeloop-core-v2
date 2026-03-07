@@ -8,7 +8,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """ACAFS Engine configuration."""
+    """ACAFS Engine configuration.
+
+    All secrets are supplied via environment variables injected from the
+    root-level .env through docker-compose.  No service-local .env files
+    are used in production; the env_file entry below only assists bare
+    local runs where the developer sources the root .env manually.
+    """
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -52,6 +58,40 @@ class Settings(BaseSettings):
     # AST Parser
     ast_max_lines: int = Field(default=5000, alias="AST_MAX_LINES")
     ast_timeout_seconds: int = Field(default=2, alias="AST_TIMEOUT_SECONDS")
+
+    # ── LLM: Gemini (rubric grading) ──────────────────────────────────────────
+    gemini_api_key: str = Field(
+        default="SET_YOUR_API_KEY_HERE",
+        alias="GEMINI_API_KEY",
+    )
+    gemini_model: str = Field(
+        default="gemini-2.5-flash",
+        alias="GEMINI_MODEL",
+    )
+
+    # ── LLM: OpenRouter / Arcee Trinity (Socratic chat) ──────────────────────
+    openrouter_api_key: str = Field(
+        default="SET_YOUR_API_KEY_HERE",
+        alias="OPENROUTER_API_KEY",
+    )
+    openrouter_model: str = Field(
+        default="arcee-ai/trinity-large-preview:free",
+        alias="OPENROUTER_MODEL",
+    )
+    openrouter_base_url: str = Field(
+        default="https://openrouter.ai/api/v1",
+        alias="OPENROUTER_BASE_URL",
+    )
+
+    # ── Judge0 (test-case execution) ──────────────────────────────────────────
+    judge0_url: str = Field(
+        default="http://localhost:2358",
+        alias="JUDGE0_URL",
+    )
+    judge0_api_key: Optional[str] = Field(
+        default=None,
+        alias="JUDGE0_API_KEY",
+    )
 
     @property
     def database_dsn(self) -> str:

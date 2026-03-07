@@ -457,6 +457,19 @@ services:
       - AST_MAX_LINES=${ACAFS_AST_MAX_LINES:-5000}
       - AST_TIMEOUT_SECONDS=${ACAFS_AST_TIMEOUT_SECONDS:-2}
 
+      # LLM – Gemini (rubric grading)
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
+
+      # LLM – OpenRouter / Arcee Trinity (Socratic chat)
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-arcee-ai/trinity-large-preview:free}
+      - OPENROUTER_BASE_URL=${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+
+      # Judge0 (test-case execution)
+      - JUDGE0_URL=${JUDGE0_URL:-http://judge0:2358}
+      - JUDGE0_API_KEY=${JUDGE0_API_KEY:-}
+
     expose:
       - "8086"
 
