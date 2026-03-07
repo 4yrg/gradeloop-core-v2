@@ -7,6 +7,7 @@ import { MobileSidebar } from "@/components/dashboard/mobile-sidebar";
 import { SecondarySidebar } from "@/components/dashboard/secondary-sidebar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { KeystrokeEnrollmentPrompt } from "@/components/keystroke/enrollment-prompt-dialog";
 
 export default function DashboardLayout({
   children,
@@ -18,6 +19,7 @@ export default function DashboardLayout({
 
   return (
     <AuthGuard>
+      <KeystrokeEnrollmentPrompt />
       <div className="flex h-screen overflow-hidden bg-background transition-colors duration-300">
         {/* Desktop Primary Sidebar */}
         <aside className="hidden lg:block">
