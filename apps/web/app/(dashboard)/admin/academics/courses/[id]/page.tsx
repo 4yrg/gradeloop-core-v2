@@ -49,7 +49,6 @@ import { useAcademicsAccess } from '@/lib/hooks/useAcademicsAccess';
 import { toast } from '@/lib/hooks/use-toast';
 import { handleApiError } from '@/lib/api/axios';
 import { useUIStore } from '@/lib/stores/uiStore';
-import { EditCourseDialog } from '@/components/admin/academics/course-dialogs';
 import { CreateCourseInstanceDialog, EditCourseInstanceDialog } from '@/components/admin/academics/course-instance-dialogs';
 import { AcademicsDetailLayout } from '@/components/admin/academics/AcademicsDetailLayout';
 import { DangerZone } from '@/components/admin/academics/DangerZone';
@@ -91,7 +90,6 @@ export default function CourseDetailPage() {
     const [batchMap, setBatchMap] = React.useState<Record<string, Batch>>({});
 
     // ── Dialog state ──────────────────────────────────────────────────────
-    const [editCourseOpen, setEditCourseOpen] = React.useState(false);
     const [createInstanceOpen, setCreateInstanceOpen] = React.useState(false);
     const [editInstance, setEditInstance] = React.useState<CourseInstance | null>(null);
 
@@ -620,6 +618,13 @@ export default function CourseDetailPage() {
                                     setCourse(updated);
                                     toast.success('Course reactivated', course.title);
                                 }}
+                                showDelete={true}
+                                onDelete={async () => {
+                                    await coursesApi.delete(course.id);
+                                    toast.success('Course deleted', course.title);
+                                    router.push('/admin/academics/courses');
+                                }}
+                                deleteDescription={`This will permanently mark "${course.title}" as inactive. The course and all its data will be preserved but unavailable for use.`}
                             />
                         )}
                     </div>
@@ -627,15 +632,6 @@ export default function CourseDetailPage() {
             </AcademicsDetailLayout>
 
             {/* Dialogs */}
-            <EditCourseDialog
-                open={editCourseOpen}
-                onOpenChange={setEditCourseOpen}
-                course={course}
-                onSuccess={(updated) => {
-                    setCourse(updated);
-                    setPageTitle(updated.title);
-                }}
-            />
             <CreateCourseInstanceDialog
                 open={createInstanceOpen}
                 onOpenChange={setCreateInstanceOpen}

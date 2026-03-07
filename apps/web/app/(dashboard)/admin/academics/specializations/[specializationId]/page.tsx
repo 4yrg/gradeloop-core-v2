@@ -404,6 +404,13 @@ export default function SpecializationDetailPage() {
                   setSpecialization((prev) => prev ? { ...prev, is_active: true } : prev);
                   toast.success('Specialization reactivated', specialization.name);
                 }}
+                showDelete={true}
+                onDelete={async () => {
+                  await specializationsApi.delete(specialization.id);
+                  toast.success('Specialization deleted', specialization.name);
+                  router.push('/admin/academics/specializations');
+                }}
+                deleteDescription={`This will permanently mark "${specialization.name}" as inactive. The specialization and all its data will be preserved but unavailable for use.`}
               />
             </div>
           )}

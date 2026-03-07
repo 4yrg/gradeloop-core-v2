@@ -301,7 +301,7 @@ export default function SpecializationsPage() {
                     </Badge>
                   </TableCell>
                   {canWrite && (
-                    <TableCell className="text-right pr-2">
+                    <TableCell className="text-right pr-2" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-8 w-8">

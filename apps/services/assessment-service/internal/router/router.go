@@ -122,6 +122,9 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	instructorAssignments.Get("/me", cfg.InstructorHandler.GetMyAssignments)
 	instructorAssignments.Post("/", cfg.InstructorHandler.CreateAssignment)
 	instructorAssignments.Patch("/:id", cfg.InstructorHandler.UpdateAssignment)
+	instructorAssignments.Get("/:id/rubric", cfg.InstructorHandler.GetAssignmentRubric)
+	instructorAssignments.Get("/:id/test-cases", cfg.InstructorHandler.GetAssignmentTestCases)
+	instructorAssignments.Get("/:id/sample-answer", cfg.InstructorHandler.GetAssignmentSampleAnswer)
 
 	instructorSubmissions := protected.Group("/instructor-submissions", requireInstructorOrAdmin)
 	instructorSubmissions.Get("/assignment/:id", cfg.InstructorHandler.GetSubmissions)
