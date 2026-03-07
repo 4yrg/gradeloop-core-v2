@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { CodeIDE } from "@/components/ide";
 import { assessmentsApi } from "@/lib/api/assessments";
-import type { SubmissionCodeResponse } from "@/types/assessments.types";
+import type { SubmissionCodeResponse } from "@/types/assessment.types";
 import { Loader2, AlertCircle, ArrowLeft, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -116,7 +116,7 @@ export default function InstructorIDEPage() {
         <CodeIDE
           assignmentId={submission.assignment_id}
           initialCode={submission.code}
-          initialLanguage={getLanguageId(submission.language)}
+          initialLanguage={getLanguageId(submission.language ?? '')}
           readOnly={true}
           showSubmitButton={false}
         />

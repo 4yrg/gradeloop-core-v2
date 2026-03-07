@@ -105,3 +105,22 @@ export interface ApiError {
   status?: number;
   errors?: Record<string, string[]>;
 }
+
+// ── RBAC types ───────────────────────────────────────────────────────────────────
+
+/** A permission that can be attached to roles. */
+export interface Permission {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+/** A role that groups permissions together and is assigned to users. */
+export interface Role {
+  id: string;
+  name: string;
+  description?: string;
+  permissions?: Permission[];
+  created_at?: string;
+  updated_at?: string;
+}

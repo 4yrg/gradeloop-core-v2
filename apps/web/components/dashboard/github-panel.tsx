@@ -51,7 +51,7 @@ interface GitHubPanelProps {
 
 export function GitHubPanel({ assignment, onFilesLoaded, currentFiles = [] }: GitHubPanelProps) {
   const { user } = useAuthStore();
-  const studentBranch = useStudentBranchName(assignment, user?.id || '', user?.name);
+  const studentBranch = useStudentBranchName(assignment, user?.id || '', user?.full_name);
 
   const {
     repository,
@@ -76,7 +76,7 @@ export function GitHubPanel({ assignment, onFilesLoaded, currentFiles = [] }: Gi
   const [showCommitDialog, setShowCommitDialog] = React.useState(false);
   const [showPRDialog, setShowPRDialog] = React.useState(false);
   const [localError, setLocalError] = React.useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = React.useState<React.ReactNode>(null);
 
   // Initialize GitHub if token is available
   React.useEffect(() => {

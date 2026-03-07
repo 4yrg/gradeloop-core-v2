@@ -12,6 +12,9 @@ export type FileLanguage =
   | 'json' 
   | 'markdown';
 
+// Alias for compatibility
+export type SupportedLanguage = FileLanguage;
+
 export interface CodeFile {
   id: string;
   name: string;
@@ -26,9 +29,11 @@ export interface CodeProject {
   id: string;
   name: string;
   description?: string;
-  files: CodeFile[];
   assignmentId?: string;
   userId: string;
+  files: CodeFile[];
+  rootPath?: string;
+  language?: SupportedLanguage;
   createdAt: string;
   updatedAt: string;
 }
@@ -46,12 +51,6 @@ export interface SubmissionPayload {
   submittedAt: string;
 }
 
-export interface MinIOUploadResponse {
-  key: string;
-  url: string;
-  bucket: string;
-}
-
 export type EditorTheme = 'vs-dark' | 'hc-black' | 'vs-light';
 
 export interface EditorSettings {
@@ -61,6 +60,8 @@ export interface EditorSettings {
   minimap: boolean;
   lineNumbers: 'on' | 'off' | 'relative';
   theme: EditorTheme;
+  autoSave: boolean;
+  autoSaveDelay: number;
 }
 
 export type UserRole = 'student' | 'lecturer' | 'admin';
@@ -71,20 +72,6 @@ export interface IDEPermissions {
   canReview: boolean;
   canGrade: boolean;
   canCreateTemplates: boolean;
-}
-
-
-export interface CodeProject {
-  id: string;
-  name: string;
-  description?: string;
-  assignmentId?: string;
-  userId: string;
-  files: CodeFile[];
-  rootPath: string;
-  language: SupportedLanguage;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface CodeSubmission {
@@ -104,17 +91,6 @@ export interface CodeSubmission {
   };
 }
 
-export interface EditorSettings {
-  theme: 'vs-dark' | 'vs-light' | 'hc-black';
-  fontSize: number;
-  tabSize: number;
-  wordWrap: 'on' | 'off' | 'wordWrapColumn' | 'bounded';
-  minimap: boolean;
-  lineNumbers: 'on' | 'off' | 'relative';
-  autoSave: boolean;
-  autoSaveDelay: number;
-}
-
 export interface MinIOUploadRequest {
   projectId: string;
   filePath: string;
@@ -126,6 +102,9 @@ export interface MinIOUploadResponse {
   success: boolean;
   fileUrl: string;
   objectName: string;
+  key?: string;
+  url?: string;
+  bucket?: string;
 }
 
 export interface SubmissionQueueRequest {

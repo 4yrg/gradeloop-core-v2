@@ -158,7 +158,6 @@ export const instructorAssessmentsApi = {
     },
 };
 
-  }
 // ── General Assessment endpoints ─────────────────────────────────────────────
 
 export const assessmentsApi = {

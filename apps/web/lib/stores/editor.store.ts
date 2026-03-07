@@ -57,6 +57,8 @@ const defaultSettings: EditorSettings = {
   minimap: true,
   lineNumbers: 'on',
   theme: 'vs-dark',
+  autoSave: false,
+  autoSaveDelay: 2000,
 };
 
 export const useEditorStore = create<EditorState>((set, get) => ({

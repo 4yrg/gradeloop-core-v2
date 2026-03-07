@@ -66,6 +66,7 @@ import {
   CreateDepartmentDialog,
   EditDepartmentDialog,
 } from "@/components/admin/academics/department-dialogs";
+import { EditFacultyDialog } from "@/components/admin/academics/faculty-dialogs";
 import { AcademicsDetailLayout } from "@/components/admin/academics/AcademicsDetailLayout";
 import { DangerZone } from "@/components/admin/academics/DangerZone";
 import type {
@@ -145,6 +146,7 @@ export default function FacultyDetailPage() {
   const [showInactive, setShowInactive] = React.useState(false);
 
   // Dialogs
+  const [editFacultyOpen, setEditFacultyOpen] = React.useState(false);
   const [createDeptOpen, setCreateDeptOpen] = React.useState(false);
   const [editDeptTarget, setEditDeptTarget] = React.useState<Department | null>(
     null,
@@ -995,6 +997,15 @@ export default function FacultyDetailPage() {
               }}
             />
           )}
+          <EditFacultyDialog
+            open={editFacultyOpen}
+            onOpenChange={setEditFacultyOpen}
+            faculty={faculty}
+            onSuccess={(updated) => {
+              setFaculty(updated);
+              setEditFacultyOpen(false);
+            }}
+          />
         </>
       )}
     </div>

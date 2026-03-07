@@ -61,6 +61,7 @@ import {
   CreateDegreeDialog,
   EditDegreeDialog,
 } from "@/components/admin/academics/degree-dialogs";
+import { EditDepartmentDialog } from "@/components/admin/academics/department-dialogs";
 import { AcademicsDetailLayout } from "@/components/admin/academics/AcademicsDetailLayout";
 import { DangerZone } from "@/components/admin/academics/DangerZone";
 import type {
@@ -153,6 +154,7 @@ export default function DepartmentDetailPage() {
   const [showInactive, setShowInactive] = React.useState(false);
 
   // Dialogs
+  const [editDeptOpen, setEditDeptOpen] = React.useState(false);
   const [createDegreeOpen, setCreateDegreeOpen] = React.useState(false);
   const [editDegreeTarget, setEditDegreeTarget] = React.useState<Degree | null>(
     null,

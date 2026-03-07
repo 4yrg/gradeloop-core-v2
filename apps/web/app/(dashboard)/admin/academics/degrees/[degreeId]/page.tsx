@@ -56,6 +56,7 @@ import {
   CreateSpecializationDialog,
   EditSpecializationDialog,
 } from '@/components/admin/academics/specialization-dialogs';
+import { EditDegreeDialog } from '@/components/admin/academics/degree-dialogs';
 import { AcademicsDetailLayout } from '@/components/admin/academics/AcademicsDetailLayout';
 import { DangerZone } from '@/components/admin/academics/DangerZone';
 import type { Degree, Specialization, DegreeLevel, Department, UpdateDegreeRequest } from '@/types/academics.types';
@@ -136,6 +137,7 @@ export default function DegreeDetailPage() {
   const [showInactive, setShowInactive] = React.useState(false);
 
   // Dialogs
+  const [editDegreeOpen, setEditDegreeOpen] = React.useState(false);
   const [createSpecOpen, setCreateSpecOpen] = React.useState(false);
   const [editSpecTarget, setEditSpecTarget] = React.useState<Specialization | null>(null);
 
@@ -653,6 +655,15 @@ export default function DegreeDetailPage() {
               }}
             />
           )}
+          <EditDegreeDialog
+            open={editDegreeOpen}
+            onOpenChange={setEditDegreeOpen}
+            degree={degree}
+            onSuccess={(updated) => {
+              setDegree(updated);
+              setEditDegreeOpen(false);
+            }}
+          />
         </>
       )}
     </div>

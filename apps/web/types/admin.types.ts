@@ -26,6 +26,8 @@ export interface ListUsersParams {
   user_type?: string;
   /** Search by name or email — forwarded as search query to backend */
   search?: string;
+  /** Filter by role ID */
+  role_id?: string;
 }
 
 /** POST /users — backend requires user_type; student/instructor need extra fields. */

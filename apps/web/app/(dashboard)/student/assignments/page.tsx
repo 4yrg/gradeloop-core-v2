@@ -25,7 +25,7 @@ export default function StudentAssignmentsPage() {
         setLoading(true);
 
         // 1. Get all course instances this student is enrolled in.
-        const enrolledCourses = await studentCoursesApi.listMyCourses();
+        const enrolledCourses = await studentCoursesApi.listMyEnrollments();
 
         if (enrolledCourses.length === 0) {
           setAssignments([]);

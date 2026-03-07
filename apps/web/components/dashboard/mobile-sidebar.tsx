@@ -148,14 +148,6 @@ const studentNavItems: NavItem[] = [
   },
 ];
 
-const studentNavItems: NavItem[] = [
-  { title: "Dashboard", href: "/student", icon: LayoutDashboard },
-  { title: "Assignments", href: "/student/assignments", icon: FileText },
-  { title: "Grades", href: "/student/grades", icon: BarChart3 },
-  { title: "Calendar", href: "/student/calendar", icon: Calendar },
-  { title: "Settings", href: "/student/settings", icon: Settings },
-];
-
 function resolveRoleConfig(roleName: string | undefined): {
   navItems: NavItem[];
   homeHref: string;
@@ -348,7 +340,6 @@ export function MobileSidebar({ open, onOpenChange }: MobileSidebarProps) {
             </Avatar>
             <div className="flex flex-col flex-1 overflow-hidden">
               <span className="font-semibold text-sm truncate">{displayName}</span>
-              <span className="text-xs text-muted-foreground truncate capitalize">{user?.user_type || 'Member'}</span>
               <span className="text-xs text-muted-foreground truncate capitalize">{user?.user_type || 'Member'}</span>
             </div>
           </div>
