@@ -19,6 +19,7 @@ import {
     ChevronUp,
     Trophy,
     Users,
+    Mic2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,7 @@ import {
     SheetTitle,
 } from "@/components/ui/sheet";
 import { studentAssessmentsApi, acafsApi } from "@/lib/api/assessments";
+import { useAuthStore } from "@/lib/stores/authStore";
 import type { AssignmentResponse, SubmissionResponse, SubmissionGrade } from "@/types/assessments.types";
 import { handleApiError } from "@/lib/api/axios";
 import { useUIStore } from "@/lib/stores/uiStore";
@@ -58,6 +60,7 @@ export default function StudentAssignmentDetailPage() {
     const instanceId = params.instanceId as string;
     const assignmentId = params.assignmentId as string;
     const setPageTitle = useUIStore((s) => s.setPageTitle);
+    const user = useAuthStore((s) => s.user);
 
     const [assignment, setAssignment] = React.useState<AssignmentResponse | null>(null);
     const [submissions, setSubmissions] = React.useState<SubmissionResponse[]>([]);
@@ -68,6 +71,8 @@ export default function StudentAssignmentDetailPage() {
     const [isGradeLoading, setIsGradeLoading] = React.useState(false);
     const [selectedGrade, setSelectedGrade] = React.useState<SubmissionGrade | null>(null);
     const [selectedGradeLoading, setSelectedGradeLoading] = React.useState(false);
+    const [startingViva, setStartingViva] = React.useState(false);
+    const [vivaError, setVivaError] = React.useState<string | null>(null);
 
     React.useEffect(() => {
         let mounted = true;
@@ -148,6 +153,19 @@ export default function StudentAssignmentDetailPage() {
             .finally(() => setSelectedGradeLoading(false));
     };
 
+    const handleStartViva = async () => {
+        if (!user?.id) return;
+        try {
+            setStartingViva(true);
+            setVivaError(null);
+            // Navigate to the viva page with "new" session — the viva page handles triggering
+            router.push(`/student/assessments/viva/new?assignmentId=${assignmentId}`);
+        } catch (err) {
+            setVivaError(err instanceof Error ? err.message : "Failed to start viva.");
+            setStartingViva(false);
+        }
+    };
+
     return (
         <>
         <div className="flex flex-col gap-8 pb-8">
@@ -187,7 +205,7 @@ export default function StudentAssignmentDetailPage() {
                         </div>
 
                         {/* CTA */}
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                             <Button asChild>
                                 <Link href={`/student/courses/${instanceId}/assignments/${assignmentId}/attempt`} target="_blank" rel="noopener noreferrer">
                                     {latestSubmission?.status?.toLowerCase() === "draft" ? (
@@ -207,6 +225,18 @@ export default function StudentAssignmentDetailPage() {
                                         </>
                                     )}
                                 </Link>
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={handleStartViva}
+                                disabled={startingViva}
+                            >
+                                {startingViva ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                    <Mic2 className="h-4 w-4 mr-2" />
+                                )}
+                                Start Viva
                             </Button>
                         </div>
                     </div>
@@ -428,6 +458,39 @@ export default function StudentAssignmentDetailPage() {
                             </CardContent>
                         </Card>
                     )}
+
+                    {/* Viva Assessment */}
+                    <Card className="border-primary/20 bg-primary/5">
+                        <CardContent className="p-5 flex flex-col gap-3">
+                            <div className="flex items-center gap-2">
+                                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                                    <Mic2 className="h-4 w-4 text-primary" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold">Oral Viva</p>
+                                    <p className="text-xs text-muted-foreground">AI-powered oral assessment</p>
+                                </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Answer questions about your code verbally. The AI will ask follow-up questions based on your responses.
+                            </p>
+                            {vivaError && (
+                                <p className="text-xs text-destructive">{vivaError}</p>
+                            )}
+                            <Button
+                                className="w-full"
+                                onClick={handleStartViva}
+                                disabled={startingViva}
+                            >
+                                {startingViva ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                    <Mic2 className="h-4 w-4 mr-2" />
+                                )}
+                                {startingViva ? "Starting…" : "Start Viva"}
+                            </Button>
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
         </div>
