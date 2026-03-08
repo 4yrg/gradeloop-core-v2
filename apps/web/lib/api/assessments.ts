@@ -12,6 +12,7 @@ import type {
     RunCodeRequest,
     RunCodeResponse,
     SubmissionGrade,
+    GradeOverrideRequest,
     UpdateRubricRequest,
     ListRubricResponse,
 } from '@/types/assessments.types';
@@ -182,6 +183,32 @@ export const acafsApi = {
         });
         if (resp.status === 404) throw new Error('GRADING_PENDING');
         if (!resp.ok) throw new Error(`Grade fetch failed with status ${resp.status}`);
+        return resp.json() as Promise<SubmissionGrade>;
+    },
+
+    /**
+     * Apply instructor overrides to an existing grade.
+     * Proxied through /api/acafs/grades/:submissionId/override → ACAFS PUT endpoint.
+     *
+     * Original ACAFS scores are never mutated — overrides are stored separately.
+     */
+    overrideGrade: async (
+        submissionId: string,
+        body: GradeOverrideRequest,
+    ): Promise<SubmissionGrade> => {
+        const resp = await fetch(
+            `/api/acafs/grades/${encodeURIComponent(submissionId)}/override`,
+            {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+                cache: 'no-store',
+            },
+        );
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({ detail: 'Override failed' }));
+            throw new Error(err.detail ?? `Override failed with status ${resp.status}`);
+        }
         return resp.json() as Promise<SubmissionGrade>;
     },
 };

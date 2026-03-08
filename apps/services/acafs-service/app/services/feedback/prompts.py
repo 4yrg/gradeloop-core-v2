@@ -2,144 +2,239 @@
 
 TWO-AUDIENCE OUTPUT POLICY
 ==========================
-- ``reason`` fields in criteria_scores  → instructor-only analytics (technical)
-- ``holistic_feedback`` paragraph        → student-facing only (plain language)
+- ``reason`` fields            → instructor-only analytics (technical)
+- ``structured_feedback``      → student-facing only, three named sections
+
+Single-call criterion isolation
+================================
+Rather than separate LLM calls per criterion (which would multiply token cost),
+each criterion entry in the JSON output carries its own sequential reasoning
+chain: analysis → band_selected → band_justification → score → reason → confidence.
+
+Because JSON is generated left-to-right, the model must complete its reasoning
+for each criterion before outputting the numeric score — effectively achieving
+chain-of-thought isolation at no extra API cost.
+
+Per-criterion evidence packets
+===============================
+The ``rubric_data`` passed to ``build_rubric_evaluation_prompt`` is pre-enriched
+by the evaluation worker so that each criterion dict carries an ``evidence`` key
+containing only the test results associated with that criterion.  This removes
+the burden of correlation from the LLM and makes evidence explicit.
 
 Grading-mode routing
 ====================
-deterministic  Highly biased to test-case pass/fail counts.  Test results are
-               the primary evidence; LLM justifies the numeric score derived
-               from those results and flags any structural concerns visible in
-               the student code.
+deterministic  Score derived exclusively from evidence.test_results pass/fail counts.
+               Formula: round(weight × passed / total, 2).  AUTHORITATIVE.
 
-llm            Gemini reasons over student code + sample answer + criterion
-               description.  Structural elements (loops, conditions, identifiers)
-               are cited directly from the submitted code.
+llm            Gemini reasons over student code + sample answer.
 
-llm_ast        Same as ``llm`` but the AST blueprint is also injected so the
-               model can cite exact function signatures, control-flow depth, and
-               variable names extracted by tree-sitter.
+llm_ast        Same as llm but the AST blueprint is also injected for structural
+               evidence (function signatures, control flow, identifiers).
 """
 
 import json
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 1 — RUBRIC EVALUATOR GUIDELINES  (prepended to every grading call)
+# SECTION 1 — RUBRIC EVALUATOR GUIDELINES
 # ─────────────────────────────────────────────────────────────────────────────
 
 RUBRIC_EVALUATOR_GUIDELINES = """\
-You produce two distinct audiences of output simultaneously and must NEVER mix them.
+You are an expert programming instructor grading a student submission.
+You produce two distinct audiences of output and MUST NEVER mix them.
 
-━━━ AUDIENCE A: `reason` field in each criterion score (INSTRUCTOR-ONLY ANALYTICS) ━━━
-- Be technically precise. Cite execution pass/fail counts, structural patterns, identifier names.
-- You MAY reference internal analysis signals (code structure, execution telemetry) here.
-- Instructors are experts — use correct technical vocabulary.
-- For DETERMINISTIC criteria: state exact pass/fail counts and map them to the awarded score.
-- For LLM_AST criteria: cite specific function names, control-flow depth, or variable patterns from the AST data.
-- For LLM criteria: cite the specific code construct (identifier, expression, pattern) that drove the band decision.
-- Always conclude the reason with one sentence explaining WHY this specific score (not just what was observed).
+━━━ AUDIENCE A: `reason` field in each criterion (INSTRUCTOR-ONLY ANALYTICS) ━━━
+- Technically precise. Cite test case IDs (pass/fail counts), AST construct names, identifier names.
+- For DETERMINISTIC: state exact pass/fail counts and map them arithmetically to the score.
+- For LLM_AST: cite specific function names, control-flow depth, or variable patterns from AST.
+- For LLM: cite the specific code construct (identifier, expression, pattern) that drove the band.
+- Always conclude with one sentence: WHY this specific score (not just what was observed).
 
-━━━ AUDIENCE B: `holistic_feedback` paragraph (STUDENT-FACING — primary learning output) ━━━
-This is a trained educator writing to a student. Follow ALL rules below without exception:
+━━━ AUDIENCE B: `structured_feedback` (STUDENT-FACING — primary learning output) ━━━
+Three sections, each addressed directly to the student with "you"/"your":
 
-  ABSOLUTE PROHIBITIONS — never appear in holistic_feedback under any circumstances:
-  - Do NOT mention: AST, abstract syntax tree, syntax tree, parse tree, static analysis,
-    parser, parsing, compiler internals, code analysis tools, or any internal system names.
+  what_you_got_right  →  Specific positive evidence. Name the function, variable, or pattern
+                         the student got right. Ground in test results or visible code behaviour.
+                         (e.g. "Your `add_numbers` function correctly handles all four test cases…")
+
+  what_to_work_on     →  Describe the gap between what was submitted and what was required
+                         in plain programming language. Quote the student's own code construct
+                         when pointing out an issue. Explain the *conceptual* reason it matters.
+                         (e.g. "…however, using `s[::-1]` means Python handles the reversal
+                         internally, skipping the character-by-character practice this builds.")
+
+  think_about_this    →  1–2 open-ended Socratic questions guiding toward the missing concept.
+                         Promote metacognition. NEVER give the answer or hint at specific syntax.
+                         (e.g. "What would each step look like reversing one character at a time?
+                         How does knowing each character's position help you?")
+
+  ABSOLUTE PROHIBITIONS in all three sections — never appear under any circumstances:
+  - Do NOT mention: AST, abstract syntax tree, static analysis, parser, compiler internals,
+    or any internal system or tool names.
   - Do NOT paste raw error messages, stack traces, or runtime exception strings.
-  - Do NOT say the analysis "failed", "errored", or "could not be completed" — describe
-    what you CAN observe from the code and execution results instead.
   - Do NOT be vague ("great job", "needs improvement") without citing specific code evidence.
+  - Do NOT give the answer or reveal the sample answer.
+  - Target: 2–4 sentences per section. Plain English. First-year programming student vocabulary.
 
-  WHAT TO DO INSTEAD:
-  - If structural analysis was inconclusive → describe the observable code behaviour directly:
-    e.g. "Your `reverse_string` function produces the correct output for all test cases…"
-  - If the student used a forbidden construct → name it from the code directly:
-    e.g. "In your solution you used `[::-1]`, which shortcuts the manual step-by-step
-    iteration this assignment is designed to help you practise."
-  - Always anchor feedback to specific identifiers, function names, or expressions visible
-    in the submitted code.
+━━━ CRITERION EVALUATION PROTOCOL (MUST follow in order for EACH criterion) ━━━
+For each criterion, produce these fields in order before moving to the next criterion:
 
-━━━ SCORING RULES (must follow exactly) ━━━
-1. Evaluate EVERY criterion listed in the rubric as a separate scored item.
-2. Full marks ONLY when ALL conditions in the criterion description are met with verifiable evidence.
-3. Partial alignment → partial score. When in doubt, deduct.
-4. "deterministic" criteria: score DIRECTLY from test-case pass/fail counts.
-   Formula: score = round(weight × passed_count / total_count, 2)
-   This is the PRIMARY and AUTHORITATIVE signal — do not override with subjective reasoning.
-5. "llm_ast" criteria: require verifiable structural evidence from the AST data before awarding marks.
-6. "llm" criteria: holistic reasoning, but always cite a specific code element from student_code.
-7. total_score = arithmetic sum of all criteria scores (each capped at its rubric weight).
+  1. analysis          — One focused observation about THIS criterion only. Cite specific code,
+                         test results, or structural elements relevant solely to this criterion.
+                         Do NOT reference other criteria here.
 
-EVIDENCE POLICY:
-- Reference ONLY elements present in the provided code, AST data, or execution results.
-- Do NOT infer, assume, or hallucinate code that is not visible in the data.
-- If execution failed or timed out, award 0 for deterministic criteria.
-- If sample_answer is provided, compare student approach vs reference approach for llm/llm_ast criteria.
+  2. band_selected     — Choose EXACTLY ONE band name:
+                           "excellent" | "good" | "satisfactory" | "unsatisfactory"
+                         If the criterion provides `bands` definitions, use those thresholds.
+                         If absent, apply: excellent ≥90%, good ≥70%, satisfactory ≥50%, else unsatisfactory.
 
-━━━ HOLISTIC FEEDBACK FRAMEWORK (Hattie & Timperley — Feed Up / Feed Back / Feed Forward) ━━━
-Write a single, flowing paragraph structured in three movements:
+  3. band_justification — One sentence: why this band and NOT the adjacent higher band.
 
-  1. FEED UP — What was achieved?
-     Open with concrete, positive evidence. Name the specific function, variable, or
-     pattern the student got right. Ground it in test results or visible code behaviour.
-     (e.g. "Your `add_numbers` function correctly handles all four test cases…")
+  4. score             — Number within [band.min_mark, band.max_mark]. MUST be ≤ max_score.
+                         For DETERMINISTIC: score = round(weight × passed_count / total_count, 2).
+                         Use ONLY the test results in evidence.test_results for this criterion.
+                         The score CANNOT fall outside the selected band's numeric range.
 
-  2. FEED BACK — Where is the gap?
-     Describe the difference between what was submitted and what was required, in plain
-     programming language. Quote the student's own code construct when pointing out an issue.
-     Explain the *conceptual* reason it matters, not just that it was wrong.
-     (e.g. "…however, using `s[::-1]` means Python handles the reversal internally,
-     skipping the character-by-character thinking the assignment is building.")
+  5. reason            — Instructor-facing technical justification (≤3 sentences).
+                         Cite evidence. End with WHY this specific score.
 
-  3. FEED FORWARD — What to explore next?
-     Close with 1-2 open-ended Socratic questions that guide the student toward the missing
-     concept. Promote metacognition. Never give the answer or hint at specific syntax.
-     (e.g. "What would each step look like if you were reversing the string one character
-     at a time? How does knowing the position of each character help you?")
+  6. confidence        — Float 0.0–1.0. Assign LOW confidence (< 0.6) when:
+                         no test evidence for this criterion, AST was truncated,
+                         score lands at the boundary between two bands,
+                         or evidence is ambiguous / incomplete.
 
-STYLE RULES for holistic_feedback:
-- Single paragraph, no bullet points, no section headers.
-- Address the student directly using "you" / "your".
-- Tone: honest, encouraging, and specific. Never vague, never condescending.
-- Plain English — vocabulary appropriate for a first-year programming student.
-- Target length: 80–150 words.\
+CROSS-CRITERION INDEPENDENCE:
+  Evaluate each criterion in complete isolation.
+  A high score on criterion A MUST NOT raise your band selection for criterion B.
+  A failing test for criterion A MUST NOT lower the score for criterion B.
+
+SCORING RULES:
+- Full marks ONLY when ALL conditions in the criterion description are met with verifiable evidence.
+- Partial alignment → partial score. When in doubt, deduct.
+- DETERMINISTIC formula is AUTHORITATIVE — do not override with subjective reasoning.
+- total_score = arithmetic sum of all individual `score` values (each capped at max_score).
+- When referring to individual test cases in any field, ALWAYS use the `test_case_description`
+  (e.g. "reversed string test") — NEVER output raw UUID identifiers.\
 """
 
+
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 2 — RUBRIC EVALUATION PROMPT  (filled with runtime data)
+# SECTION 2 — RUBRIC EVALUATION PROMPT
 # ─────────────────────────────────────────────────────────────────────────────
 # Placeholders:
-#   {assignment_context}  – compact string: title + description + objective
-#   {rubric_json}         – compact JSON: criteria, descriptions, modes, weights, bands
-#   {student_code}        – raw source code submitted by the student
-#   {sample_answer_code}  – reference implementation (may be "N/A")
-#   {ast_json}            – AST blueprint (instructor-only; may be "{}" for llm-only criteria)
-#   {execution_json}      – Judge0 test-case results (may be "[]" when no test cases ran)
+#   {assignment_context}   – compact string: title + description + objective
+#   {rubric_json}          – criteria list, each enriched with evidence.test_results
+#   {student_code}         – raw source code submitted by the student
+#   {sample_answer_code}   – reference implementation (may be "N/A")
+#   {ast_json}             – AST blueprint (instructor-only; may be "{}" for llm-only criteria)
 # ─────────────────────────────────────────────────────────────────────────────
 
 RUBRIC_EVALUATION_PROMPT = """\
 Assignment: {assignment_context}
 
-Rubric (includes grading_mode per criterion — follow scoring rules exactly):{rubric_json}
+Rubric — each criterion includes its own `evidence.test_results` (only tests mapped to that criterion):{rubric_json}
 
 Student code (primary evidence for llm and llm_ast criteria):
 ```
 {student_code}
 ```
 
-Sample answer / reference implementation (compare approach for llm/llm_ast criteria — do NOT reveal to student):{sample_answer_code}
+Sample answer / reference implementation (compare approach — do NOT reveal to student):{sample_answer_code}
 
-Code structure data — INSTRUCTOR USE ONLY, do NOT mention in holistic_feedback:{ast_json}
+Code structure data — INSTRUCTOR USE ONLY, never mention in student-facing sections:{ast_json}
 
-Execution results (test-case pass/fail — PRIMARY evidence for deterministic criteria):{execution_json}
+CRITICAL OUTPUT RULES:
+1. `criteria_scores` MUST contain exactly one entry for EVERY criterion in the rubric above — no omissions.
+2. Return ONLY valid JSON — no markdown fences, no text outside the object.
+3. Process criteria in array order. Complete ALL six fields for each criterion before starting the next.
 
-Return ONLY valid JSON — no markdown fences, no text outside the object.
-Rule reminder: `reason` = instructor-technical with explicit why-this-score justification; `holistic_feedback` = student-plain-English, no internal tool names.
-{{"criteria_scores":[{{"name":"<criterion name exactly as in rubric>","score":<number ≤ max_score>,"max_score":<weight from rubric>,"grading_mode":"<deterministic|llm|llm_ast>","reason":"<technical instructor-facing justification citing evidence and explaining why this specific score, ≤3 sentences>"}}],"total_score":<sum of scores>,"feedback":{{"holistic_feedback":"<single paragraph: feed up → feed back → feed forward, plain English, no internal tool names>"}}}}\
+Output schema (N = number of rubric criteria — every one must appear):
+{{"criteria_scores":[{{"name":"<criterion name exactly as in rubric>","analysis":"<focused observation for THIS criterion only>","band_selected":"<excellent|good|satisfactory|unsatisfactory>","band_justification":"<one sentence: why this band not the adjacent higher one>","score":<number ≤ max_score>,"max_score":<weight from rubric>,"grading_mode":"<deterministic|llm|llm_ast>","reason":"<instructor-technical ≤3 sentences citing evidence, ending with WHY this score>","confidence":<float 0.0–1.0>}}, {{"name":"<second criterion>", "...": "..."}}, "<one entry per criterion — repeat for all N criteria>"],"total_score":<sum of all scores>,"holistic_feedback":"<single flowing paragraph with THREE movements separated by a blank line:\n\nParagraph 1 — What you got right: open with specific positive evidence, name functions/patterns the student got correct, ground in test results or visible code behaviour (2–4 sentences).\n\nParagraph 2 — What to work on: describe the gap quoting the student's own code construct, explain the conceptual reason it matters (2–4 sentences).\n\nParagraph 3 — Think about this: 1–2 Socratic questions guiding toward the missing concept, never give the answer.>"}}\
 """
 
+
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 3 — SOCRATIC TUTOR GUIDELINES  (prepended to every chat call)
+# SECTION 3 — PASS-1 REASONING PROMPT  (Qwen / free-form)
+# ─────────────────────────────────────────────────────────────────────────────
+# This prompt is sent to the Qwen reasoner BEFORE Gemini grades.  It asks Qwen
+# to reason freely about each criterion — no JSON, no score, just analysis.
+# Gemini will receive this chain-of-thought as grounding context in Pass 2.
+# ─────────────────────────────────────────────────────────────────────────────
+
+REASONING_PROMPT = """\
+You are an expert programming instructor performing a deep analysis of a student submission.
+Your ONLY job right now is to REASON — you will NOT output any score, JSON, or final grade.
+A separate grading step will happen after you finish.
+
+For EVERY criterion listed below, reason in plain prose:
+
+━━━ FOR DETERMINISTIC CRITERIA (grading_mode = "deterministic") ━━━
+  These have explicit test-case evidence. Reason about:
+  - Which tests passed and which failed, and what that reveals about the student's understanding.
+  - Whether partial passes suggest a partially correct approach or a specific conceptual gap.
+  - If fewer tests ran than expected (e.g. runtime error, compile failure, or missing test cases),
+    reason about what the partial evidence suggests and what score would be fair given the
+    available signal — do NOT refuse to score, provide a justified estimate.
+  - If NO tests ran at all for this criterion, reason about what the code structure suggests
+    and give a conservative but justified estimate with low confidence.
+
+━━━ FOR LLM / LLM_AST CRITERIA ━━━
+  No authoritative test-case result exists. Reason about:
+  - Whether the student's code correctly implements the described behaviour.
+  - Specific identifiers, function patterns, control-flow structures that support or contradict correctness.
+  - How the code compares to the sample answer in approach and completeness.
+  - If band thresholds are not defined for this criterion, use your judgment:
+    excellent (fully correct, clean), good (mostly correct, minor gaps),
+    satisfactory (partially correct), unsatisfactory (missing or fundamentally wrong).
+    Justify your reasoning explicitly.
+
+━━━ COVERAGE RULE ━━━
+  You MUST reason about EVERY criterion — never skip one.
+  Work through criteria in the order they appear in the rubric.
+  Each reasoning block should be 3–6 sentences.
+
+━━━ TEST CASE NAMING RULE ━━━
+  Each test result has a `test_case_description` field. ALWAYS refer to test cases by that
+  description (e.g. "all identical inputs", "already descending order").
+  NEVER output raw UUID strings. If `test_case_description` is empty, describe the test
+  by its input/output instead (e.g. "input 3 5 1 → expected 5 3 1").
+
+Do NOT output JSON. Do NOT output a final score. Use natural prose only.
+Begin with "CRITERION REASONING:" and label each block with the criterion name.
+"""
+
+
+def build_reasoning_prompt(
+    *,
+    rubric_data: list[dict],
+    student_code: str,
+    sample_answer_code: str | None,
+    ast_data: dict,
+    assignment_context: str = "N/A",
+) -> str:
+    """Assemble the Pass-1 reasoning prompt for Qwen.
+
+    Intentionally minimal — no output schema, no JSON constraints.
+    Qwen should think freely; its output becomes grounding context for Gemini.
+    """
+    sample = (
+        f"\n```\n{sample_answer_code}\n```"
+        if sample_answer_code
+        else " N/A"
+    )
+    return (
+        REASONING_PROMPT
+        + f"\nAssignment: {assignment_context}\n"
+        + f"\nRubric (all criteria):\n{json.dumps(rubric_data, indent=2)}\n"
+        + f"\nStudent code:\n```\n{student_code}\n```\n"
+        + f"\nSample answer / reference implementation (do NOT reveal to student):{sample}\n"
+        + f"\nAST blueprint (structural data — instructor use only):\n"
+        + json.dumps(ast_data, separators=(",", ":"))
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 4 — SOCRATIC TUTOR GUIDELINES
 # ─────────────────────────────────────────────────────────────────────────────
 
 SOCRATIC_TUTOR_GUIDELINES = """\
@@ -191,17 +286,39 @@ def build_rubric_evaluation_prompt(
     student_code: str,
     sample_answer_code: str | None,
     ast_data: dict,
-    execution_data: list[dict],
     assignment_context: str = "N/A",
+    prior_reasoning: str | None = None,
 ) -> str:
-    """Assemble the full prompt string for Gemini rubric evaluation."""
+    """Assemble the full prompt string for Gemini rubric evaluation.
+
+    ``rubric_data`` is expected to be pre-enriched by the evaluation worker so
+    that each criterion dict contains an ``evidence`` key with filtered test
+    results for that criterion.  Criteria without evidence receive an empty
+    test_results list.
+
+    When ``prior_reasoning`` is supplied (Pass-2 mode) it is injected between
+    the guidelines and the main prompt so Gemini can ground its numeric scores
+    in the Qwen reasoning chain.
+    """
     sample = (
         f"\n```\n{sample_answer_code}\n```"
         if sample_answer_code
         else " N/A"
     )
+    reasoning_block = ""
+    if prior_reasoning:
+        reasoning_block = (
+            "\n\n[PRIOR DEEP ANALYSIS — use this as grounding context for your scores]\n"
+            "The following reasoning was produced by a separate model that examined the "
+            "submission in detail. Use it to inform your band selection and scores, but "
+            "you are the final grading authority — override it if the evidence contradicts it.\n"
+            "--- BEGIN PRIOR ANALYSIS ---\n"
+            + prior_reasoning.strip()
+            + "\n--- END PRIOR ANALYSIS ---"
+        )
     return (
         RUBRIC_EVALUATOR_GUIDELINES
+        + reasoning_block
         + "\n\n"
         + RUBRIC_EVALUATION_PROMPT.format(
             assignment_context=assignment_context,
@@ -209,7 +326,6 @@ def build_rubric_evaluation_prompt(
             student_code=student_code,
             sample_answer_code=sample,
             ast_json=json.dumps(ast_data, separators=(",", ":")),
-            execution_json=json.dumps(execution_data, separators=(",", ":")),
         )
     )
 

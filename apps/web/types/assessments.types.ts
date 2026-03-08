@@ -152,6 +152,13 @@ export interface CriterionScore {
     grading_mode: string;
     /** Instructor-facing technical justification — never shown to students. */
     reason: string;
+    /** Band chosen during evaluation: excellent | good | satisfactory | unsatisfactory */
+    band_selected?: string;
+    /** Grading certainty 0.0–1.0. Low values flag items for instructor review. */
+    confidence?: number;
+    /** Instructor override — stored alongside original; never overwrites AI score. */
+    instructor_override_score?: number;
+    instructor_override_reason?: string;
 }
 
 /** Complete grading result returned by ACAFS GET /api/v1/acafs/grades/:submissionId */
@@ -161,10 +168,27 @@ export interface SubmissionGrade {
     total_score: number;
     max_total_score: number;
     criteria_scores: CriterionScore[];
-    /** Student-facing holistic feedback paragraph (Hattie & Timperley). */
     holistic_feedback: string;
     graded_at: string;
     grading_metadata?: Record<string, unknown>;
+    // Instructor override fields
+    instructor_override_score?: number;
+    instructor_holistic_feedback?: string;
+    override_by?: string;
+    overridden_at?: string;
+}
+
+/** Payload for PUT /api/acafs/grades/:submissionId/override */
+export interface GradeOverrideRequest {
+    /** Per-criterion overrides: each item has criterion_name, override_score, override_reason */
+    criteria_overrides?: Array<{
+        criterion_name: string;
+        override_score: number;
+        override_reason?: string;
+    }>;
+    instructor_holistic_feedback?: string;
+    /** Instructor user_id or display name recorded for audit. */
+    override_by: string;
 }
 
 export interface CreateSubmissionRequest {
