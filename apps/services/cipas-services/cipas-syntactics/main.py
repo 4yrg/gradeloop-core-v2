@@ -14,7 +14,6 @@ Features:
 - Fast (~65x faster than neural approaches)
 """
 
-import logging
 from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, FastAPI, HTTPException, status
