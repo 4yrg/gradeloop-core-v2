@@ -469,9 +469,6 @@ def evaluate_parallel(
     y_proba_final = []
     clone_type_data = {}  # For per-clone-type metrics
 
-    nicad_routes = 0
-    xgb_routes = 0
-
     # Use ProcessPoolExecutor for parallel processing
     with ProcessPoolExecutor(max_workers=workers) as executor:
         # Submit all tasks
