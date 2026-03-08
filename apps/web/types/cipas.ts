@@ -90,8 +90,8 @@ export interface AnnotationResponse {
   group_id?: string;
   comments?: string;
   action_taken?: string;
-  created_at: string;  // ISO timestamp
-  updated_at: string;  // ISO timestamp
+  created_at: string; // ISO timestamp
+  updated_at: string; // ISO timestamp
 }
 
 export interface AnnotationStatsResponse {
@@ -119,6 +119,26 @@ export interface SimilarityReportMetadata {
   lsh_threshold: number;
   min_confidence: number;
   processing_time_seconds?: number;
-  created_at: string;  // ISO timestamp
-  updated_at: string;  // ISO timestamp
+  created_at: string; // ISO timestamp
+  updated_at: string; // ISO timestamp
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// AI Detection (CIPAS-AI Service)
+// ──────────────────────────────────────────────────────────────────────────
+
+export interface AIDetectionRequest {
+  code: string;
+}
+
+export interface AIDetectionResponse {
+  is_ai_generated: boolean;
+  confidence: number; // 0.0 – 1.0
+  ai_likelihood: number; // 0.0 – 1.0
+  human_likelihood: number; // 0.0 – 1.0
+}
+
+export interface SubmissionWithAI extends SubmissionItem {
+  ai_detection?: AIDetectionResponse;
+  ai_loading?: boolean;
 }
