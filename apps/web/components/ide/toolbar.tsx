@@ -15,15 +15,20 @@ import {
   ZoomOut,
   RotateCcw,
   Send,
+  Terminal,
 } from "lucide-react";
 import { MIN_FONT_SIZE, MAX_FONT_SIZE, DEFAULT_FONT_SIZE } from "./constants";
 import { cn } from "@/lib/utils";
 
 interface ToolbarProps {
   onRun: () => void;
+  /** Run with user's custom stdin (only shown when test cases exist). */
+  onCustomRun?: () => void;
   onSubmit?: () => void;
   onSave?: () => void;
   isExecuting: boolean;
+  /** True while test cases are being evaluated — disables both run buttons. */
+  isRunningTests?: boolean;
   fontSize: number;
   onFontSizeChange: (size: number) => void;
   showSubmitButton?: boolean;
@@ -32,9 +37,11 @@ interface ToolbarProps {
 
 export function Toolbar({
   onRun,
+  onCustomRun,
   onSubmit,
   onSave,
   isExecuting,
+  isRunningTests = false,
   fontSize,
   onFontSizeChange,
   showSubmitButton = false,
@@ -144,17 +151,43 @@ export function Toolbar({
         </div>
       </div>
 
-      {/* Right: Run + Submit (icon-only) */}
+      {/* Right: Custom Run + Run + Submit */}
       <div className="flex items-center gap-2">
+        {/* Custom Run — user's stdin, only shown when test cases are present */}
+        {onCustomRun && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={onCustomRun}
+                  disabled={disabled || isExecuting || isRunningTests}
+                  variant="outline"
+                  size="icon"
+                >
+                  {isExecuting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Terminal className="h-4 w-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Run with custom stdin (Input / Output panel)</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+
+        {/* Primary Run — test cases (or plain I/O when no test cases) */}
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 onClick={onRun}
-                disabled={disabled || isExecuting}
+                disabled={disabled || isExecuting || isRunningTests}
                 size="icon"
               >
-                {isExecuting ? (
+                {isRunningTests || isExecuting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Play className="h-4 w-4" />
@@ -162,7 +195,15 @@ export function Toolbar({
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>{isExecuting ? "Running…" : "Run Code (Cmd/Ctrl + Enter)"}</p>
+              <p>
+                {isRunningTests
+                  ? "Running test cases…"
+                  : isExecuting
+                  ? "Running…"
+                  : onCustomRun
+                  ? "Run test cases (Cmd/Ctrl + Enter)"
+                  : "Run Code (Cmd/Ctrl + Enter)"}
+              </p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -173,7 +214,7 @@ export function Toolbar({
               <TooltipTrigger asChild>
                 <Button
                   onClick={onSubmit}
-                  disabled={disabled || isExecuting}
+                  disabled={disabled || isExecuting || isRunningTests}
                   size="icon"
                 >
                   <Send className="h-4 w-4" />
