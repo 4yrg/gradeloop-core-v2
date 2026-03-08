@@ -20,11 +20,11 @@ import { SummaryStats } from "@/components/instructor/similarity/summary-stats";
 import { SimilarityBadge, SimilarityScore } from "@/components/instructor/similarity/similarity-badge";
 import { ClusterGraphSheet } from "@/components/instructor/similarity/cluster-graph-sheet";
 import { DiffSheet } from "@/components/instructor/similarity/diff-sheet";
-import { 
-  RefreshCw, 
-  Download, 
-  Search, 
-  AlertCircle, 
+import {
+  RefreshCw,
+  Download,
+  Search,
+  AlertCircle,
   Loader2,
   Eye,
   Filter,
@@ -168,7 +168,7 @@ export default function SimilarityOverviewPage() {
     try {
       const { exportSimilarityReport } = await import("@/lib/api/cipas-client");
       const blob = await exportSimilarityReport(assignmentId, "csv");
-      
+
       // Download the file
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -230,7 +230,7 @@ export default function SimilarityOverviewPage() {
       (c) => c.max_confidence >= 0.75 && c.max_confidence < 0.85
     ).length;
     const lowRisk = report.collusion_groups.filter((c) => c.max_confidence < 0.75).length;
-    
+
     // Count unique flagged students
     const flaggedStudents = new Set<string>();
     report.collusion_groups.forEach((group) => {
@@ -248,7 +248,7 @@ export default function SimilarityOverviewPage() {
       cell: ({ row }) => {
         const clusterId = String.fromCharCode(64 + row.original.group_id);
         const annotation = annotations.find((a) => a.group_id === row.original.group_id.toString());
-        
+
         const statusConfig: Record<string, { icon: React.ReactNode; color: string }> = {
           confirmed_plagiarism: { icon: "⚠", color: "text-red-600" },
           false_positive: { icon: "✓", color: "text-green-600" },
