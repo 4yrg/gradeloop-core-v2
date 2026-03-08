@@ -14,7 +14,8 @@ logger = logging.getLogger(__name__)
 
 # Database URL from environment
 DATABASE_URL = os.getenv(
-    "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/gradeloop"
+    "DATABASE_URL",
+    "postgresql://postgres:postgres@localhost:5432/gradeloop"
 )
 
 # Connection pool (initialized on startup)
@@ -27,7 +28,10 @@ async def init_db_pool() -> None:
     if _pool is None:
         logger.info("Initializing database connection pool...")
         _pool = await asyncpg.create_pool(
-            DATABASE_URL, min_size=2, max_size=10, command_timeout=60
+            DATABASE_URL,
+            min_size=2,
+            max_size=10,
+            command_timeout=60
         )
         logger.info("Database connection pool initialized.")
 
@@ -45,23 +49,17 @@ async def close_db_pool() -> None:
 def get_pool() -> asyncpg.Pool:
     """Get the global connection pool."""
     if _pool is None:
-        raise RuntimeError("Database pool not initialized. Call init_db_pool() first.")
+        raise RuntimeError(
+            "Database pool not initialized. Call init_db_pool() first."
+        )
     return _pool
 
 
 @asynccontextmanager
 async def get_db_connection() -> AsyncGenerator[asyncpg.Connection, None]:
-    """Get a database connection from the pool, initialising lazily if needed."""
-    global _pool
-    if _pool is None:
-        logger.warning("DB pool not initialised — attempting lazy init...")
-        try:
-            await init_db_pool()
-        except Exception as exc:
-            raise RuntimeError(
-                f"Database unavailable (lazy init failed): {exc}"
-            ) from exc
-    async with _pool.acquire() as conn:
+    """Get a database connection from the pool."""
+    pool = get_pool()
+    async with pool.acquire() as conn:
         yield conn
 
 
