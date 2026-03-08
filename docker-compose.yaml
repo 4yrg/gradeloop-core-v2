@@ -458,11 +458,12 @@ services:
       - AST_TIMEOUT_SECONDS=${ACAFS_AST_TIMEOUT_SECONDS:-2}
 
       # LLM – Gemini (rubric grading)
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
+      - GEMINI_API_KEY=${ACAFS_GEMINI_API_KEY}
+      - GEMINI_MODEL=${ACAFS_GEMINI_MODEL:-gemini-2.5-flash}
 
-      # LLM – OpenRouter / Arcee Trinity (Socratic chat)
+      # LLM – OpenRouter (Pass-1 Qwen reasoning + Socratic chat)
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_REASONER_MODEL=${OPENROUTER_REASONER_MODEL:-qwen/qwen3-vl-235b-a22b-thinking}
       - OPENROUTER_MODEL=${OPENROUTER_MODEL:-arcee-ai/trinity-large-preview:free}
       - OPENROUTER_BASE_URL=${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
 
