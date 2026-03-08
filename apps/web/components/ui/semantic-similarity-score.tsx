@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import { cn } from "@/lib/utils/cn";
 
 export interface SemanticSimilarityScoreProps {
@@ -152,7 +151,7 @@ export function SemanticSimilarityScore({
           scheme.text,
           currentSize.padding,
           onClick && "cursor-pointer hover:opacity-80 transition-opacity",
-          className
+          className,
         )}
         onClick={onClick}
       >
@@ -162,7 +161,9 @@ export function SemanticSimilarityScore({
             className={cn(
               "flex items-center font-bold",
               currentSize.change,
-              change >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+              change >= 0
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-red-600 dark:text-red-400",
             )}
           >
             {change >= 0 ? "↑" : "↓"}
@@ -180,21 +181,30 @@ export function SemanticSimilarityScore({
         className={cn(
           "flex flex-col gap-1 rounded-xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm",
           onClick && "cursor-pointer hover:shadow-md transition-shadow",
-          className
+          className,
         )}
         onClick={onClick}
       >
-        <p className={cn("text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider", currentSize.label)}>
+        <p
+          className={cn(
+            "text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider",
+            currentSize.label,
+          )}
+        >
           {semanticLabel}
         </p>
         <div className={cn("flex items-baseline gap-2", currentSize.gap)}>
-          <p className={cn("font-bold", scheme.text, currentSize.score)}>{score}%</p>
+          <p className={cn("font-bold", scheme.text, currentSize.score)}>
+            {score}%
+          </p>
           {change !== undefined && showTrend && (
             <p
               className={cn(
                 "font-bold flex items-center gap-0.5",
                 currentSize.change,
-                change >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+                change >= 0
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-red-600 dark:text-red-400",
               )}
             >
               {change >= 0 ? "↑" : "↓"}
@@ -212,18 +222,22 @@ export function SemanticSimilarityScore({
       className={cn(
         "inline-flex items-center gap-2",
         onClick && "cursor-pointer hover:opacity-80 transition-opacity",
-        className
+        className,
       )}
       onClick={onClick}
     >
       <div className={cn("flex items-baseline gap-2", currentSize.gap)}>
-        <span className={cn("font-bold", scheme.text, currentSize.score)}>{score}%</span>
+        <span className={cn("font-bold", scheme.text, currentSize.score)}>
+          {score}%
+        </span>
         {change !== undefined && showTrend && (
           <span
             className={cn(
               "flex items-center font-bold",
               currentSize.change,
-              change >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+              change >= 0
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-red-600 dark:text-red-400",
             )}
           >
             {change >= 0 ? "↑" : "↓"}
@@ -232,7 +246,12 @@ export function SemanticSimilarityScore({
         )}
       </div>
       {!compact && (
-        <span className={cn("text-xs font-medium text-slate-500 dark:text-slate-400", currentSize.label)}>
+        <span
+          className={cn(
+            "text-xs font-medium text-slate-500 dark:text-slate-400",
+            currentSize.label,
+          )}
+        >
           {semanticLabel}
         </span>
       )}
@@ -273,27 +292,34 @@ export function SemanticSimilarityBar({
 
   return (
     <div className={cn("w-full", className)}>
-      <div className={cn("flex items-center justify-between mb-1", !showLabel && "mb-0")}>
+      <div
+        className={cn(
+          "flex items-center justify-between mb-1",
+          !showLabel && "mb-0",
+        )}
+      >
         {showLabel && (
           <>
             <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Semantic Similarity
             </span>
-            <span className={cn("text-sm font-bold", scheme.text)}>{score}%</span>
+            <span className={cn("text-sm font-bold", scheme.text)}>
+              {score}%
+            </span>
           </>
         )}
       </div>
       <div
         className={cn(
           "w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden",
-          barHeight
+          barHeight,
         )}
       >
         <div
           className={cn(
             "h-full rounded-full transition-all duration-500 ease-out",
             `bg-gradient-to-r ${scheme.gradient}`,
-            animated && "animate-pulse"
+            animated && "animate-pulse",
           )}
           style={{ width: `${score}%` }}
         />
@@ -335,7 +361,12 @@ export function SemanticSimilarityGauge({
   const offset = circumference - (score / 100) * circumference;
 
   return (
-    <div className={cn("relative inline-flex items-center justify-center", className)}>
+    <div
+      className={cn(
+        "relative inline-flex items-center justify-center",
+        className,
+      )}
+    >
       <svg
         width={currentSize.width}
         height={currentSize.width}
@@ -366,7 +397,13 @@ export function SemanticSimilarityGauge({
         />
       </svg>
       {showValue && (
-        <div className={cn("absolute font-bold", scheme.text, currentSize.fontSize)}>
+        <div
+          className={cn(
+            "absolute font-bold",
+            scheme.text,
+            currentSize.fontSize,
+          )}
+        >
           {score}%
         </div>
       )}
