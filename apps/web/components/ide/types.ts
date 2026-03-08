@@ -21,6 +21,17 @@ export interface CodeIDEProps {
   grade?: SubmissionGrade | null;
   /** True while the autograder is running (shows a spinner in the Results tab). */
   isGrading?: boolean;
+  /**
+   * Visible (non-hidden) test cases for the assignment.
+   * When provided, pressing Run also executes these test cases via ACAFS
+   * and shows the results in the bottom Test Results panel.
+   */
+  testCases?: Array<{
+    id?: string;
+    input: string;
+    expected_output: string;
+    description?: string;
+  }>;
 }
 
 export interface ExecutionResult {
