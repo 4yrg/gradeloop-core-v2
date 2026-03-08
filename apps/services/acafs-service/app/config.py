@@ -69,7 +69,7 @@ class Settings(BaseSettings):
         alias="GEMINI_MODEL",
     )
 
-    # ── LLM: OpenRouter / Arcee Trinity (Socratic chat) ──────────────────────
+    # ── LLM: OpenRouter (Socratic chat + reasoning pass) ────────────────────
     openrouter_api_key: str = Field(
         default="SET_YOUR_API_KEY_HERE",
         alias="OPENROUTER_API_KEY",
@@ -81,6 +81,11 @@ class Settings(BaseSettings):
     openrouter_base_url: str = Field(
         default="https://openrouter.ai/api/v1",
         alias="OPENROUTER_BASE_URL",
+    )
+    # Pass-1 deep reasoning model — Qwen3 VL 235B thinking by default
+    openrouter_reasoner_model: str = Field(
+        default="qwen/qwen3-vl-235b-a22b-thinking",
+        alias="OPENROUTER_REASONER_MODEL",
     )
 
     # ── Judge0 (test-case execution) ──────────────────────────────────────────

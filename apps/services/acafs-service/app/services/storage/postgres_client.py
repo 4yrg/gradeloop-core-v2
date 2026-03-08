@@ -112,7 +112,24 @@ class PostgresClient:
                 CREATE INDEX IF NOT EXISTS idx_criteria_submission_id
                 ON submission_criteria_scores(submission_id)
             """)
-
+            # ── Idempotent migrations for new columns ────────────────────
+            # submission_grades: structured feedback + instructor override
+            await conn.execute("""
+                ALTER TABLE submission_grades
+                    ADD COLUMN IF NOT EXISTS structured_feedback JSONB,
+                    ADD COLUMN IF NOT EXISTS instructor_override_score NUMERIC(6,2),
+                    ADD COLUMN IF NOT EXISTS instructor_holistic_feedback TEXT,
+                    ADD COLUMN IF NOT EXISTS override_by VARCHAR(255),
+                    ADD COLUMN IF NOT EXISTS overridden_at TIMESTAMP WITH TIME ZONE
+            """)
+            # submission_criteria_scores: band, confidence, instructor override
+            await conn.execute("""
+                ALTER TABLE submission_criteria_scores
+                    ADD COLUMN IF NOT EXISTS band_selected VARCHAR(50),
+                    ADD COLUMN IF NOT EXISTS confidence NUMERIC(3,2),
+                    ADD COLUMN IF NOT EXISTS instructor_override_score NUMERIC(6,2),
+                    ADD COLUMN IF NOT EXISTS instructor_override_reason TEXT
+            """)
             # ── Chat sessions ─────────────────────────────────────────────
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS chat_sessions (
@@ -288,7 +305,8 @@ class PostgresClient:
         """Persist a full grade breakdown for a submission.
 
         ``criteria_scores`` must be a list of dicts with keys:
-        name, score, max_score, grading_mode, reason.
+        name, score, max_score, grading_mode, reason, and optionally
+        band_selected, confidence.
         """
         async with self._get_connection() as conn:
             async with conn.transaction():
@@ -296,14 +314,15 @@ class PostgresClient:
                     """
                     INSERT INTO submission_grades
                         (submission_id, assignment_id, total_score,
-                         max_total_score, holistic_feedback, grading_metadata)
+                         max_total_score, holistic_feedback,
+                         grading_metadata)
                     VALUES ($1, $2, $3, $4, $5, $6)
                     ON CONFLICT (submission_id) DO UPDATE SET
-                        total_score      = EXCLUDED.total_score,
-                        max_total_score  = EXCLUDED.max_total_score,
-                        holistic_feedback = EXCLUDED.holistic_feedback,
-                        grading_metadata  = EXCLUDED.grading_metadata,
-                        graded_at        = NOW()
+                        total_score         = EXCLUDED.total_score,
+                        max_total_score     = EXCLUDED.max_total_score,
+                        holistic_feedback   = EXCLUDED.holistic_feedback,
+                        grading_metadata    = EXCLUDED.grading_metadata,
+                        graded_at           = NOW()
                     """,
                     submission_id,
                     assignment_id,
@@ -323,8 +342,8 @@ class PostgresClient:
                         """
                         INSERT INTO submission_criteria_scores
                             (submission_id, criterion_name, score, max_score,
-                             grading_mode, reason)
-                        VALUES ($1, $2, $3, $4, $5, $6)
+                             grading_mode, reason, band_selected, confidence)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                         """,
                         submission_id,
                         cs["name"],
@@ -332,6 +351,8 @@ class PostgresClient:
                         cs["max_score"],
                         cs.get("grading_mode", "llm"),
                         cs.get("reason", ""),
+                        cs.get("band_selected"),
+                        cs.get("confidence"),
                     )
 
         logger.info(
@@ -349,8 +370,10 @@ class PostgresClient:
             grade_row = await conn.fetchrow(
                 """
                 SELECT submission_id, assignment_id, total_score,
-                       max_total_score, holistic_feedback, grading_metadata,
-                       graded_at
+                       max_total_score, holistic_feedback,
+                       grading_metadata, graded_at,
+                       instructor_override_score, instructor_holistic_feedback,
+                       override_by, overridden_at
                 FROM submission_grades
                 WHERE submission_id = $1
                 """,
@@ -361,7 +384,9 @@ class PostgresClient:
 
             criteria_rows = await conn.fetch(
                 """
-                SELECT criterion_name, score, max_score, grading_mode, reason
+                SELECT criterion_name, score, max_score, grading_mode, reason,
+                       band_selected, confidence,
+                       instructor_override_score, instructor_override_reason
                 FROM submission_criteria_scores
                 WHERE submission_id = $1
                 ORDER BY id
@@ -379,6 +404,12 @@ class PostgresClient:
                 "graded_at": grade_row["graded_at"].isoformat()
                 if grade_row["graded_at"]
                 else None,
+                "instructor_override_score": float(grade_row["instructor_override_score"])
+                if grade_row["instructor_override_score"] is not None else None,
+                "instructor_holistic_feedback": grade_row["instructor_holistic_feedback"],
+                "override_by": grade_row["override_by"],
+                "overridden_at": grade_row["overridden_at"].isoformat()
+                if grade_row["overridden_at"] else None,
                 "criteria_scores": [
                     {
                         "name": r["criterion_name"],
@@ -386,10 +417,96 @@ class PostgresClient:
                         "max_score": float(r["max_score"]),
                         "grading_mode": r["grading_mode"],
                         "reason": r["reason"],
+                        "band_selected": r["band_selected"],
+                        "confidence": float(r["confidence"]) if r["confidence"] is not None else None,
+                        "instructor_override_score": float(r["instructor_override_score"])
+                        if r["instructor_override_score"] is not None else None,
+                        "instructor_override_reason": r["instructor_override_reason"],
                     }
                     for r in criteria_rows
                 ],
             }
+
+    async def override_submission_grade(
+        self,
+        *,
+        submission_id: UUID,
+        criteria_overrides: Optional[list[dict[str, Any]]] = None,
+        instructor_holistic_feedback: Optional[str] = None,
+        override_by: str,
+    ) -> bool:
+        """Apply instructor overrides to an existing grade.
+
+        Stores overrides in separate columns — the original ACAFS-generated
+        scores are never mutated so the AI output is always preserved for audit.
+
+        Returns True if the grade row was found and updated, False otherwise.
+        """
+        async with self._get_connection() as conn:
+            # Check grade exists
+            exists = await conn.fetchval(
+                "SELECT 1 FROM submission_grades WHERE submission_id = $1",
+                submission_id,
+            )
+            if not exists:
+                return False
+
+            async with conn.transaction():
+                # Update grade-level override fields
+                if instructor_holistic_feedback is not None:
+                    await conn.execute(
+                        """
+                        UPDATE submission_grades SET
+                            instructor_holistic_feedback = $1,
+                            override_by                  = $2,
+                            overridden_at                = NOW()
+                        WHERE submission_id = $3
+                        """,
+                        instructor_holistic_feedback,
+                        override_by,
+                        submission_id,
+                    )
+                else:
+                    # Still stamp override_by/overridden_at even for criteria-only overrides
+                    await conn.execute(
+                        """
+                        UPDATE submission_grades SET
+                            override_by   = $1,
+                            overridden_at = NOW()
+                        WHERE submission_id = $2
+                        """,
+                        override_by,
+                        submission_id,
+                    )
+
+                # Per-criterion overrides
+                if criteria_overrides:
+                    for co in criteria_overrides:
+                        cname = co.get("criterion_name")
+                        o_score = co.get("override_score")
+                        o_reason = co.get("override_reason")
+                        if not cname:
+                            continue
+                        await conn.execute(
+                            """
+                            UPDATE submission_criteria_scores SET
+                                instructor_override_score  = $1,
+                                instructor_override_reason = $2
+                            WHERE submission_id = $3 AND criterion_name = $4
+                            """,
+                            o_score,
+                            o_reason,
+                            submission_id,
+                            cname,
+                        )
+
+        logger.info(
+            "submission_grade_overridden",
+            submission_id=str(submission_id),
+            override_by=override_by,
+            criteria_count=len(criteria_overrides or []),
+        )
+        return True
 
     # ── Chat session + message persistence ───────────────────────────────────
 

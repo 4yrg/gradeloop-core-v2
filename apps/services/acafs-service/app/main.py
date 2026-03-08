@@ -18,6 +18,7 @@ from app.schemas import (
     ChatMessageResponse,
     ChatRequest,
     ChatResponse,
+    GradeOverrideRequest,
     SubmissionEvent,
 )
 from app.services.feedback.socratic_chat import SocraticChatService
@@ -438,7 +439,8 @@ async def get_chat_history(
     summary="Get grade breakdown for a submission",
     description=(
         "Returns the full grading result including per-criterion scores with "
-        "instructor-facing reasons and the student-facing holistic feedback paragraph."
+        "instructor-facing reasons, the student-facing structured feedback, and "
+        "any instructor overrides that have been applied."
     ),
 )
 async def get_submission_grade(submission_id: UUID) -> JSONResponse:
@@ -456,6 +458,45 @@ async def get_submission_grade(submission_id: UUID) -> JSONResponse:
             detail="Grade not found. The submission may still be processing.",
         )
 
+    return JSONResponse(status_code=status.HTTP_200_OK, content=grade)
+
+
+@api_router.put(
+    "/grades/{submission_id}/override",
+    tags=["grades"],
+    summary="Apply instructor grade override",
+    description=(
+        "Stores instructor-supplied score overrides and/or holistic feedback alongside "
+        "the original ACAFS-generated grade.  The original AI scores are NEVER mutated "
+        "— overrides are stored in separate columns so the AI output is always preserved "
+        "for audit.  The frontend computes effective_score as: "
+        "instructor_override_score ?? acafs_total_score."
+    ),
+)
+async def override_submission_grade(
+    submission_id: UUID,
+    body: GradeOverrideRequest,
+) -> JSONResponse:
+    """Apply instructor overrides to an existing grade breakdown."""
+    if postgres_client is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service not ready.",
+        )
+
+    updated = await postgres_client.override_submission_grade(
+        submission_id=submission_id,
+        criteria_overrides=body.criteria_overrides,
+        instructor_holistic_feedback=body.instructor_holistic_feedback,
+        override_by=body.override_by,
+    )
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Grade not found. Cannot apply override.",
+        )
+
+    grade = await postgres_client.get_submission_grade(submission_id)
     return JSONResponse(status_code=status.HTTP_200_OK, content=grade)
 
 

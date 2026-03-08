@@ -1,38 +1,66 @@
-"""Gemini-based rubric grader for ACAFS.
+"""Two-pass rubric grader for ACAFS.
 
-Uses google-genai SDK with Gemini 2.5 Flash (thinking enabled by default in
-2.5 Flash).  Evaluates ALL rubric criteria in a single prompt call, returning
-a structured JSON breakdown that maps directly onto the SubmissionGrade schema.
+Pass 1 — Qwen reasoning (OpenRouter)
+======================================
+Qwen3-VL-235B-Thinking performs open-ended analysis of the submission against
+every rubric criterion.  It reasons in plain prose — no JSON, no scores.
+For deterministic criteria it interprets test-case evidence (including partial
+runs) and for LLM/AST criteria it reasons about code quality and patterns.
 
-Grading-mode routing (enforced in prompts.py guidelines):
-  deterministic  → Gemini uses Judge0 test-case pass/fail counts as primary
-                   signal and explains the score arithmetically.
+Pass 2 — Gemini grading (google-genai)
+=======================================
+Gemini 2.5 Flash receives the full grading prompt PLUS the Qwen reasoning chain
+as a [PRIOR DEEP ANALYSIS] block.  It uses that reasoning as grounding context
+to produce the final structured JSON grade.
+
+Fallback
+=========
+If Pass 1 fails (timeout, API error, etc.) the grader logs a warning and
+continues with Pass 2 alone (Gemini without prior reasoning), preserving the
+pre-existing behaviour.
+
+Grading-mode routing:
+  deterministic  → test-case pass/fail counts (authoritative).  Qwen reasons
+                   about evidence quality; Gemini scores; Judge0 overrides.
   llm            → Gemini reasons over student code vs sample answer.
-  llm_ast        → Same as llm but with AST blueprint injected for structural
-                   evidence (function signatures, control flow, identifiers).
+  llm_ast        → Same as llm but with AST blueprint injected.
 """
 
 import asyncio
 import json
 from typing import Any
 
+import httpx
 from google import genai
 
 from app.config import Settings
 from app.logging_config import get_logger
-from app.services.feedback.prompts import build_rubric_evaluation_prompt
+from app.services.feedback.prompts import (
+    build_reasoning_prompt,
+    build_rubric_evaluation_prompt,
+)
 
 logger = get_logger(__name__)
 
-_MOCK_PLACEHOLDER = "SET_YOUR_API_KEY_HERE"
+_MOCK_PLACEHOLDERS = {"SET_YOUR_API_KEY_HERE", "", None}
+_OPENROUTER_TIMEOUT = 120.0  # seconds — Qwen thinking can be slow
 
 
 class LLMGrader:
-    """Rubric evaluation via Gemini 2.5 Flash."""
+    """Two-pass rubric grader: Qwen reasoning (OpenRouter) → Gemini scoring."""
 
     def __init__(self, settings: Settings):
         self.settings = settings
         self._client: genai.Client | None = None
+
+    @property
+    def _is_mock(self) -> bool:
+        return self.settings.gemini_api_key in _MOCK_PLACEHOLDERS
+
+    @property
+    def _has_reasoner(self) -> bool:
+        """True when a valid OpenRouter key is configured for Pass 1."""
+        return self.settings.openrouter_api_key not in _MOCK_PLACEHOLDERS
 
     def _get_client(self) -> genai.Client:
         if self._client is None:
@@ -48,30 +76,107 @@ class LLMGrader:
         student_code: str,
         sample_answer_code: str | None,
         ast_data: dict[str, Any],
-        execution_data: list[dict[str, Any]],
         assignment_context: str = "N/A",
     ) -> dict[str, Any]:
-        """Evaluate a submission against the rubric.
+        """Evaluate a submission against the rubric using a two-pass pipeline.
+
+        Pass 1 (Qwen via OpenRouter): deep free-form reasoning over all criteria.
+          - Deterministic: interprets test-case evidence, handles partial runs.
+          - LLM/AST: analyses code quality, patterns, gaps.
+          - Skipped (with warning) if OPENROUTER_API_KEY is not configured.
+
+        Pass 2 (Gemini): produces structured JSON grade, optionally grounded
+          in the Pass-1 reasoning chain.
 
         Returns a dict with keys:
-          criteria_scores  – list of {name, score, max_score, grading_mode, reason}
+          criteria_scores  – list of {name, analysis, band_selected,
+                              band_justification, score, max_score,
+                              grading_mode, reason, confidence}
           total_score      – arithmetic sum
-          feedback         – {holistic_feedback: str}
-
-        Falls back to a mock response when no API key is configured.
+          holistic_feedback – single string with three \n\n-separated paragraphs
         """
-        if self.settings.gemini_api_key == _MOCK_PLACEHOLDER:
+        if self._is_mock:
+            logger.warning("llm_grading_mock", reason="GEMINI_API_KEY not configured")
             return self._mock_response(rubric_data)
 
-        prompt = build_rubric_evaluation_prompt(
+        # ── Pass 1: Qwen reasoning ──────────────────────────────────────────
+        prior_reasoning: str | None = None
+        if self._has_reasoner:
+            try:
+                reasoning_prompt = build_reasoning_prompt(
+                    rubric_data=rubric_data,
+                    student_code=student_code,
+                    sample_answer_code=sample_answer_code,
+                    ast_data=ast_data,
+                    assignment_context=assignment_context,
+                )
+                prior_reasoning = await self._call_openrouter(
+                    model=self.settings.openrouter_reasoner_model,
+                    prompt=reasoning_prompt,
+                )
+                logger.info(
+                    "reasoning_pass_complete",
+                    model=self.settings.openrouter_reasoner_model,
+                    reasoning_length=len(prior_reasoning),
+                )
+            except Exception as e:
+                logger.warning(
+                    "reasoning_pass_failed",
+                    model=self.settings.openrouter_reasoner_model,
+                    error=str(e),
+                    fallback="proceeding with Gemini-only grading",
+                )
+                prior_reasoning = None
+        else:
+            logger.warning(
+                "reasoning_pass_skipped",
+                reason="OPENROUTER_API_KEY not configured",
+            )
+
+        # ── Pass 2: Gemini grading ──────────────────────────────────────────
+        grading_prompt = build_rubric_evaluation_prompt(
             rubric_data=rubric_data,
             student_code=student_code,
             sample_answer_code=sample_answer_code,
             ast_data=ast_data,
-            execution_data=execution_data,
             assignment_context=assignment_context,
+            prior_reasoning=prior_reasoning,
         )
+        return await self._call_gemini(grading_prompt, rubric_data)
 
+    # ── private: Pass-1 OpenRouter call ────────────────────────────────────
+
+    async def _call_openrouter(self, *, model: str, prompt: str) -> str:
+        """Send a single-turn chat request to OpenRouter and return the reply text.
+
+        Uses httpx directly (OpenAI-compatible /chat/completions endpoint).
+        Raises on non-2xx status or timeout.
+        """
+        headers = {
+            "Authorization": f"Bearer {self.settings.openrouter_api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://gradeloop.app",
+            "X-Title": "GradeLoop ACAFS",
+        }
+        payload = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            # Disable thinking budget cap so Qwen can reason as long as needed
+            "provider": {"allow_fallbacks": False},
+        }
+        url = self.settings.openrouter_base_url.rstrip("/") + "/chat/completions"
+        async with httpx.AsyncClient(timeout=_OPENROUTER_TIMEOUT) as client:
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            data = response.json()
+        return data["choices"][0]["message"]["content"]
+
+    # ── private: Pass-2 Gemini call ─────────────────────────────────────────
+
+    async def _call_gemini(
+        self, prompt: str, rubric_data: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        """Call Gemini with the grading prompt and parse the JSON response."""
         try:
             client = self._get_client()
             response = await asyncio.get_event_loop().run_in_executor(
@@ -82,7 +187,6 @@ class LLMGrader:
                 ),
             )
             text = response.text.strip()
-            # Strip markdown fences the model may still emit
             if text.startswith("```json"):
                 text = text[7:]
             if text.startswith("```"):
@@ -90,6 +194,7 @@ class LLMGrader:
             if text.endswith("```"):
                 text = text[:-3]
             result = json.loads(text.strip())
+            result = self._normalise_feedback(result)
             logger.info(
                 "llm_grading_complete",
                 total_score=result.get("total_score"),
@@ -103,28 +208,71 @@ class LLMGrader:
     # ── helpers ────────────────────────────────────────────────────────────
 
     @staticmethod
+    def _normalise_feedback(result: dict[str, Any]) -> dict[str, Any]:
+        """Normalise the model's feedback output to a flat holistic_feedback string.
+
+        Handles three possible shapes the model may return:
+          1. {"holistic_feedback": "<str>"}                    — new preferred shape
+          2. {"feedback": {"holistic_feedback": "<str>"}}     — legacy nested shape
+          3. {"structured_feedback": {"what_you_got_right": ...}}  — old 3-key shape
+        In all cases the result is normalised so that result["holistic_feedback"] exists
+        and any legacy keys are removed.
+        """
+        # Shape 1 — already correct
+        if result.get("holistic_feedback"):
+            result.pop("feedback", None)
+            result.pop("structured_feedback", None)
+            return result
+        # Shape 2 — nested under feedback
+        nested = result.get("feedback", {})
+        if isinstance(nested, dict) and nested.get("holistic_feedback"):
+            result["holistic_feedback"] = nested["holistic_feedback"]
+            result.pop("feedback", None)
+            result.pop("structured_feedback", None)
+            return result
+        # Shape 3 — old structured_feedback object
+        sf = result.get("structured_feedback")
+        if sf and isinstance(sf, dict):
+            parts = [
+                sf.get("what_you_got_right", ""),
+                sf.get("what_to_work_on", ""),
+                sf.get("think_about_this", ""),
+            ]
+            result["holistic_feedback"] = "\n\n".join(p for p in parts if p)
+            result.pop("feedback", None)
+            result.pop("structured_feedback", None)
+        return result
+
+    @staticmethod
     def _mock_response(rubric_data: list[dict]) -> dict[str, Any]:
-        """Return a deterministic mock for CI / no-key environments."""
-        scores = [
-            {
+        """Return a deterministic mock for CI / no-key environments.
+
+        Assigns 50 % partial credit to every criterion so mock scores are not
+        misleadingly high.
+        """
+        scores = []
+        for c in rubric_data:
+            weight = c.get("weight", 10)
+            partial = round(weight * 0.5, 2)
+            scores.append({
                 "name": c.get("name", "Mock Criterion"),
-                "score": c.get("weight", 10),
-                "max_score": c.get("weight", 10),
+                "analysis": "Mock evaluation — API key not configured.",
+                "band_selected": "satisfactory",
+                "band_justification": "Defaulting to satisfactory band for mock evaluation.",
+                "score": partial,
+                "max_score": weight,
                 "grading_mode": c.get("grading_mode", "llm"),
                 "reason": "Mock evaluation — Gemini API key not configured.",
-            }
-            for c in rubric_data
-        ]
+                "confidence": 0.0,
+            })
         return {
             "criteria_scores": scores,
             "total_score": sum(s["score"] for s in scores),
-            "feedback": {
-                "holistic_feedback": (
-                    "Your submission has been received. "
-                    "This is a mock evaluation — the live grading system is not yet connected. "
-                    "What part of the problem did you find most challenging to implement?"
-                )
-            },
+            "holistic_feedback": (
+                "Your submission has been received.\n\n"
+                "This is a mock evaluation — the live grading system is not yet connected.\n\n"
+                "What part of the problem did you find most challenging to implement?"
+            ),
         }
 
     # ── override deterministic scores from Judge0 results ──────────────────
@@ -136,7 +284,8 @@ class LLMGrader:
         deterministic_scores: dict[str, tuple[float, str]],
     ) -> dict[str, Any]:
         """Replace LLM-computed scores for deterministic criteria with the
-        authoritative Judge0-derived scores.
+        authoritative Judge0-derived scores.  Also updates band_selected and
+        sets confidence to 1.0 when test cases were present.
 
         ``deterministic_scores`` maps criterion_name → (score, reason).
         """
@@ -144,11 +293,29 @@ class LLMGrader:
         total = 0.0
         name_to_det = {name: (sc, rs) for name, (sc, rs) in deterministic_scores.items()}
 
+        # Build weight lookup for band derivation
+        weight_map = {c.get("name", ""): c.get("weight", 10) for c in rubric_data}
+
         for item in llm_result.get("criteria_scores", []):
             name = item.get("name", "")
             if name in name_to_det:
                 score, reason = name_to_det[name]
-                item = {**item, "score": score, "reason": reason}
+                weight = weight_map.get(name, item.get("max_score", 10))
+                pct = score / weight if weight > 0 else 0.0
+                band = (
+                    "excellent" if pct >= 0.90
+                    else "good" if pct >= 0.70
+                    else "satisfactory" if pct >= 0.50
+                    else "unsatisfactory"
+                )
+                item = {
+                    **item,
+                    "score": score,
+                    "reason": reason,
+                    "band_selected": band,
+                    "band_justification": f"Pass rate {pct:.0%} maps to {band} band.",
+                    "confidence": 1.0 if weight > 0 else 0.0,
+                }
             patched.append(item)
             total += item.get("score", 0)
 
