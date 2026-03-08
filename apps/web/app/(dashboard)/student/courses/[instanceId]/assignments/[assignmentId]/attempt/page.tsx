@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CodeIDE } from "@/components/ide";
 import { studentAssessmentsApi, acafsApi } from "@/lib/api/assessments";
-import type { AssignmentResponse, SubmissionGrade } from "@/types/assessments.types";
+import type { AssignmentResponse, SubmissionGrade, TestCaseResponse } from "@/types/assessments.types";
 import { handleApiError } from "@/lib/api/axios";
 import { useAuthStore } from "@/lib/stores/authStore";
 import { useUIStore } from "@/lib/stores/uiStore";
@@ -108,6 +108,7 @@ export default function StudentAttemptPage() {
     );
     const [grade, setGrade] = React.useState<SubmissionGrade | null>(null);
     const [isGrading, setIsGrading] = React.useState(false);
+    const [testCases, setTestCases] = React.useState<TestCaseResponse[]>([]);
 
     // Poll ACAFS for grade results with exponential back-off.
     // ACAFS returns 404 while grading is pending; 200 when complete.
@@ -166,6 +167,14 @@ export default function StudentAttemptPage() {
                 if (!mounted) return;
                 setAssignment(asgn);
                 setPageTitle(asgn.title);
+
+                // Fetch visible test cases for IDE run
+                try {
+                    const tcData = await studentAssessmentsApi.getAssignmentTestCases(assignmentId);
+                    if (mounted) setTestCases(tcData.test_cases);
+                } catch {
+                    // No test cases or endpoint unavailable — degrade gracefully
+                }
 
                 if (viewSubmissionId) {
                     // Viewing a specific submission version
@@ -403,6 +412,7 @@ export default function StudentAttemptPage() {
                         showGradePanel={true}
                         grade={grade}
                         isGrading={isGrading}
+                        testCases={testCases}
                         onSubmit={handleSubmit}
                     />
                 </div>

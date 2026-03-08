@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { CodeIDE } from "@/components/ide";
-import { assessmentsApi } from "@/lib/api/assessments";
-import type { AssignmentResponse } from "@/types/assessments.types";
+import { assessmentsApi, studentAssessmentsApi } from "@/lib/api/assessments";
+import type { AssignmentResponse, TestCaseResponse } from "@/types/assessments.types";
 import { Loader2, AlertCircle, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -54,6 +54,7 @@ export default function StudentIDEPage() {
     code: string;
     language: number;
   } | null>(null);
+  const [testCases, setTestCases] = useState<TestCaseResponse[]>([]);
 
   useEffect(() => {
     const fetchAssignment = async () => {
@@ -67,6 +68,14 @@ export default function StudentIDEPage() {
         setIsLoading(true);
         const data = await assessmentsApi.getAssignment(assignmentId);
         setAssignment(data);
+
+        // Fetch visible test cases for IDE run
+        try {
+          const tcData = await studentAssessmentsApi.getAssignmentTestCases(assignmentId);
+          setTestCases(tcData.test_cases);
+        } catch {
+          // No test cases or not available — degrade gracefully
+        }
       } catch (err) {
         console.error("Failed to fetch assignment:", err);
         setError("Failed to load assignment. Please try again.");
@@ -179,6 +188,7 @@ export default function StudentIDEPage() {
           <CodeIDE
             assignmentId={assignmentId}
             showSubmitButton={true}
+            testCases={testCases}
             onSubmit={handleSubmit}
           />
         </div>
