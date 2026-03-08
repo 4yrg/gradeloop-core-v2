@@ -46,12 +46,15 @@ class Judge0Client:
 
         Returns the raw Judge0 submission object.
         """
-        payload = {
+        payload: dict[str, Any] = {
             "language_id": language_id,
             "source_code": source_code,
             "stdin": stdin,
-            "expected_output": expected_output,
         }
+        # Only include expected_output when non-empty; omitting it tells Judge0
+        # to skip the pass/fail comparison and return the natural execution status.
+        if expected_output:
+            payload["expected_output"] = expected_output
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             resp = await client.post(
                 f"{self.base_url}/submissions?base64_encoded=false&wait=true",

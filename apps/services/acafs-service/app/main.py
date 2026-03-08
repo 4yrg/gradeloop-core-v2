@@ -461,6 +461,107 @@ async def get_submission_grade(submission_id: UUID) -> JSONResponse:
     return JSONResponse(status_code=status.HTTP_200_OK, content=grade)
 
 
+@api_router.post(
+    "/ide/run",
+    tags=["ide"],
+    summary="Execute code in the IDE (single run, no test cases)",
+    description=(
+        "Execute a code snippet via Judge0 and return the raw execution result. "
+        "Used for the IDE's basic Run button. Does not persist any results."
+    ),
+)
+async def ide_run(body: dict) -> JSONResponse:
+    """Run code once via Judge0 and return the execution result.
+
+    Expected payload: {"language_id": int, "source_code": str, "stdin"?: str}
+    Returns a RunCodeResponse-compatible object.
+    """
+    if worker is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service not ready.",
+        )
+
+    language_id = body.get("language_id")
+    source_code = body.get("source_code")
+    stdin = body.get("stdin", "")
+
+    if language_id is None or source_code is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing required fields: language_id, source_code",
+        )
+
+    try:
+        result = await worker.judge0.run_single(
+            language_id=int(language_id),
+            source_code=str(source_code),
+            stdin=str(stdin) if stdin else "",
+        )
+        status_obj = result.get("status") or {}
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                "stdout": result.get("stdout") or "",
+                "stderr": result.get("stderr"),
+                "compile_output": result.get("compile_output"),
+                "execution_time": result.get("time"),
+                "memory_used": result.get("memory"),
+                "status": status_obj.get("description", "Unknown"),
+                "status_id": status_obj.get("id", 0),
+                "message": result.get("message"),
+            },
+        )
+    except Exception as e:
+        logger.error("ide_run_failed", error=str(e))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@api_router.post(
+    "/ide/run-tests",
+    tags=["ide"],
+    summary="Run provided test cases against student code (IDE)",
+    description=(
+        "Execute provided test cases against a student code snippet via Judge0 and "
+        "return structured per-test results. This endpoint runs tests transiently "
+        "and does not persist grading results."
+    ),
+)
+async def ide_run_tests(body: dict) -> JSONResponse:
+    """Run a batch of test cases for an ad-hoc code snapshot from the IDE.
+
+    Expected payload: {"language_id": int, "source_code": str, "test_cases": [{"id"?, "input": str, "expected_output": str, "description"?}, ...]}
+    """
+    if worker is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service not ready.",
+        )
+
+    # Basic validation
+    language_id = body.get("language_id")
+    source_code = body.get("source_code")
+    test_cases = body.get("test_cases")
+
+    if language_id is None or source_code is None or test_cases is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing required fields: language_id, source_code, test_cases",
+        )
+
+    try:
+        # Delegate to the worker's Judge0 client to reuse existing behaviour.
+        results = await worker.judge0.run_batch(
+            language_id=int(language_id),
+            source_code=str(source_code),
+            test_cases=list(test_cases),
+        )
+        return JSONResponse(status_code=status.HTTP_200_OK, content={"test_results": results})
+    except Exception as e:
+        logger.error("ide_run_tests_failed", error=str(e))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
 @api_router.put(
     "/grades/{submission_id}/override",
     tags=["grades"],
