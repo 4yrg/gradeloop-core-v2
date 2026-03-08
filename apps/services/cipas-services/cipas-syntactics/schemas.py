@@ -319,3 +319,84 @@ class AssignmentClusterResponse(BaseModel):
         default_factory=list,
         description="Per-submission ingestion summaries",
     )
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Instructor Annotation Schemas
+# ──────────────────────────────────────────────────────────────────────────
+
+class AnnotationStatusEnum(str, Enum):
+    """Annotation status values."""
+    PENDING_REVIEW = "pending_review"
+    CONFIRMED_PLAGIARISM = "confirmed_plagiarism"
+    FALSE_POSITIVE = "false_positive"
+    ACCEPTABLE_COLLABORATION = "acceptable_collaboration"
+    REQUIRES_INVESTIGATION = "requires_investigation"
+
+
+class CreateAnnotationRequest(BaseModel):
+    """Request to create an instructor annotation."""
+    
+    assignment_id: str = Field(..., description="Assignment identifier")
+    instructor_id: str = Field(..., description="Instructor identifier")
+    status: AnnotationStatusEnum = Field(..., description="Annotation status")
+    match_id: Optional[str] = Field(None, description="Clone match UUID (optional)")
+    group_id: Optional[str] = Field(None, description="Plagiarism group UUID (optional)")
+    comments: Optional[str] = Field(None, description="Instructor comments")
+    action_taken: Optional[str] = Field(None, description="Action description")
+
+
+class UpdateAnnotationRequest(BaseModel):
+    """Request to update an instructor annotation."""
+    
+    status: Optional[AnnotationStatusEnum] = Field(None, description="New status")
+    comments: Optional[str] = Field(None, description="New comments")
+    action_taken: Optional[str] = Field(None, description="New action description")
+
+
+class AnnotationResponse(BaseModel):
+    """Response with annotation details."""
+    
+    id: str = Field(..., description="Annotation UUID")
+    assignment_id: str
+    instructor_id: str
+    status: AnnotationStatusEnum
+    match_id: Optional[str] = None
+    group_id: Optional[str] = None
+    comments: Optional[str] = None
+    action_taken: Optional[str] = None
+    created_at: str = Field(..., description="ISO timestamp")
+    updated_at: str = Field(..., description="ISO timestamp")
+
+
+class AnnotationStatsResponse(BaseModel):
+    """Statistics about annotations for an assignment."""
+    
+    assignment_id: str
+    total: int = Field(..., description="Total annotations")
+    pending_review: int = Field(default=0)
+    confirmed_plagiarism: int = Field(default=0)
+    false_positive: int = Field(default=0)
+    acceptable_collaboration: int = Field(default=0)
+    requires_investigation: int = Field(default=0)
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Similarity Report Metadata Schemas
+# ──────────────────────────────────────────────────────────────────────────
+
+class SimilarityReportMetadata(BaseModel):
+    """Metadata about a cached similarity report."""
+    
+    id: str = Field(..., description="Report UUID")
+    assignment_id: str
+    language: str
+    submission_count: int
+    processed_count: int
+    failed_count: int
+    total_clone_pairs: int
+    lsh_threshold: float
+    min_confidence: float
+    processing_time_seconds: Optional[float] = None
+    created_at: str = Field(..., description="ISO timestamp")
+    updated_at: str = Field(..., description="ISO timestamp")
