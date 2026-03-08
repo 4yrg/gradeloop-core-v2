@@ -141,6 +141,7 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	// consumed as UUID parameter values.
 	studentAssignments.Get("/", cfg.StudentHandler.ListMyAssignments)
 	studentAssignments.Get("/:id", cfg.StudentHandler.GetAssignment)
+	studentAssignments.Get("/:id/test-cases", cfg.StudentHandler.GetAssignmentTestCases)
 
 	studentSubmissions := protected.Group("/student-submissions", requireStudentOrAdmin)
 	// NOTE: /me/latest must be registered BEFORE /me to avoid Fiber treating

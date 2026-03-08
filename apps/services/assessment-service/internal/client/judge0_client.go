@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -62,7 +63,7 @@ func NewJudge0Client(baseURL, apiKey string, timeout time.Duration, logger *zap.
 		timeout = 30 * time.Second
 	}
 	return &Judge0Client{
-		baseURL: baseURL,
+		baseURL: strings.TrimRight(baseURL, "/"),
 		httpClient: &http.Client{
 			Timeout: timeout,
 		},

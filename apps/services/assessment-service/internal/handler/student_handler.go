@@ -211,3 +211,59 @@ func (h *StudentHandler) GetMyLatestSubmission(c fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(toSubmissionResponse(submission))
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/v1/student-assignments/:id/test-cases
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GetAssignmentTestCases returns only the non-hidden (visible) test cases for
+// the assignment so students can run them locally in the IDE before submitting.
+// Hidden test cases are used exclusively for grading and are never exposed here.
+func (h *StudentHandler) GetAssignmentTestCases(c fiber.Ctx) error {
+	id, err := parseUUID(c, "id")
+	if err != nil {
+		return err
+	}
+
+	assignment, err := h.assignmentService.GetAssignmentByID(id)
+	if err != nil {
+		return err
+	}
+	if assignment == nil {
+		return utils.ErrNotFound("assignment not found")
+	}
+
+	// Verify the student is enrolled in the course instance that owns this assignment.
+	enrolledIDs, err := h.studentEnrolledCourseIDs(c)
+	if err != nil {
+		return err
+	}
+	if !enrolledIDs[assignment.CourseInstanceID] {
+		return utils.ErrForbidden("you are not enrolled in this course instance")
+	}
+
+	testCases, err := h.assignmentService.GetAssignmentTestCases(id)
+	if err != nil {
+		return err
+	}
+
+	// Return only visible (non-hidden) test cases for IDE "Run" use.
+	// Hidden test cases are reserved for grading and never shown to students.
+	items := make([]dto.TestCaseResponse, 0, len(testCases))
+	for _, tc := range testCases {
+		if !tc.IsHidden {
+			items = append(items, dto.TestCaseResponse{
+				ID:             tc.ID.String(),
+				Description:    tc.Description,
+				Input:          tc.Input,
+				ExpectedOutput: tc.ExpectedOutput,
+				IsHidden:       false,
+				OrderIndex:     tc.OrderIndex,
+			})
+		}
+	}
+	return c.Status(fiber.StatusOK).JSON(dto.ListTestCasesResponse{
+		AssignmentID: id.String(),
+		TestCases:    items,
+	})
+}
