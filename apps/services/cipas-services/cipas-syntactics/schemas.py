@@ -353,10 +353,8 @@ class AssignmentClusterResponse(BaseModel):
 # Instructor Annotation Schemas
 # ──────────────────────────────────────────────────────────────────────────
 
-
 class AnnotationStatusEnum(str, Enum):
     """Annotation status values."""
-
     PENDING_REVIEW = "pending_review"
     CONFIRMED_PLAGIARISM = "confirmed_plagiarism"
     FALSE_POSITIVE = "false_positive"
@@ -366,21 +364,19 @@ class AnnotationStatusEnum(str, Enum):
 
 class CreateAnnotationRequest(BaseModel):
     """Request to create an instructor annotation."""
-
+    
     assignment_id: str = Field(..., description="Assignment identifier")
     instructor_id: str = Field(..., description="Instructor identifier")
     status: AnnotationStatusEnum = Field(..., description="Annotation status")
     match_id: Optional[str] = Field(None, description="Clone match UUID (optional)")
-    group_id: Optional[str] = Field(
-        None, description="Plagiarism group UUID (optional)"
-    )
+    group_id: Optional[str] = Field(None, description="Plagiarism group UUID (optional)")
     comments: Optional[str] = Field(None, description="Instructor comments")
     action_taken: Optional[str] = Field(None, description="Action description")
 
 
 class UpdateAnnotationRequest(BaseModel):
     """Request to update an instructor annotation."""
-
+    
     status: Optional[AnnotationStatusEnum] = Field(None, description="New status")
     comments: Optional[str] = Field(None, description="New comments")
     action_taken: Optional[str] = Field(None, description="New action description")
@@ -388,7 +384,7 @@ class UpdateAnnotationRequest(BaseModel):
 
 class AnnotationResponse(BaseModel):
     """Response with annotation details."""
-
+    
     id: str = Field(..., description="Annotation UUID")
     assignment_id: str
     instructor_id: str
@@ -403,7 +399,7 @@ class AnnotationResponse(BaseModel):
 
 class AnnotationStatsResponse(BaseModel):
     """Statistics about annotations for an assignment."""
-
+    
     assignment_id: str
     total: int = Field(..., description="Total annotations")
     pending_review: int = Field(default=0)
@@ -417,10 +413,9 @@ class AnnotationStatsResponse(BaseModel):
 # Similarity Report Metadata Schemas
 # ──────────────────────────────────────────────────────────────────────────
 
-
 class SimilarityReportMetadata(BaseModel):
     """Metadata about a cached similarity report."""
-
+    
     id: str = Field(..., description="Report UUID")
     assignment_id: str
     language: str

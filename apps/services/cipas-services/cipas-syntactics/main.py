@@ -36,6 +36,12 @@ from routes import (
     update_annotation,
     get_annotation_stats,
     export_similarity_report_csv,
+    get_similarity_report,
+    create_annotation,
+    get_annotations,
+    update_annotation,
+    get_annotation_stats,
+    export_similarity_report_csv,
 )
 from schemas import (
     AssignmentClusterRequest,
@@ -59,6 +65,11 @@ from schemas import (
     AnnotationResponse,
     AnnotationStatsResponse,
     SimilarityReportMetadata,
+    CreateAnnotationRequest,
+    UpdateAnnotationRequest,
+    AnnotationResponse,
+    AnnotationStatsResponse,
+    SimilarityReportMetadata,
 )
 
 # Configure logging
@@ -73,6 +84,7 @@ async def lifespan(app: FastAPI):
     Runs setup on startup and cleanup on shutdown.
     """
     # Startup: Load models and initialize database
+    # Startup: Load models and initialize database
     logger.info("Starting CIPAS Syntactics Service...")
     logger.info("Loading pre-trained syntactic model...")
 
@@ -84,9 +96,7 @@ async def lifespan(app: FastAPI):
         await init_db_pool()
         logger.info("Database connection pool initialized successfully")
     except Exception as e:
-        logger.warning(
-            f"Failed to initialize database pool: {e}. Running without persistence."
-        )
+        logger.warning(f"Failed to initialize database pool: {e}. Running without persistence.")
 
     # Force load syntactic model
     _load_syntactic_model()
@@ -104,6 +114,11 @@ async def lifespan(app: FastAPI):
 
     # Shutdown: Cleanup
     logger.info("Shutting down CIPAS Syntactics Service...")
+    try:
+        await close_db_pool()
+        logger.info("Database connection pool closed successfully")
+    except Exception as e:
+        logger.warning(f"Error closing database pool: {e}")
     try:
         await close_db_pool()
         logger.info("Database connection pool closed successfully")
@@ -484,7 +499,6 @@ async def cluster_assignment_endpoint(request: AssignmentClusterRequest):
 
 # ── Similarity Reports & Annotations ────────────────────────────────────────
 
-
 @api_router.get(
     "/reports/{assignment_id}",
     response_model=AssignmentClusterResponse,
@@ -528,12 +542,12 @@ async def get_report_metadata_endpoint(assignment_id: str):
     processing time, etc. Useful for dashboard previews.
     """
     from repositories import SimilarityReportRepository
-
+    
     metadata = await SimilarityReportRepository.get_report_metadata(assignment_id)
     if metadata is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No similarity report found for assignment {assignment_id}",
+            detail=f"No similarity report found for assignment {assignment_id}"
         )
     return metadata
 
@@ -578,7 +592,8 @@ async def create_annotation_endpoint(request: CreateAnnotationRequest):
     },
 )
 async def update_annotation_endpoint(
-    annotation_id: str, request: UpdateAnnotationRequest
+    annotation_id: str,
+    request: UpdateAnnotationRequest
 ):
     """
     Update an existing instructor annotation.
@@ -599,7 +614,8 @@ async def update_annotation_endpoint(
     },
 )
 async def get_annotations_for_assignment_endpoint(
-    assignment_id: str, status: str | None = None
+    assignment_id: str,
+    status: str | None = None
 ):
     """
     Get all instructor annotations for an assignment.
