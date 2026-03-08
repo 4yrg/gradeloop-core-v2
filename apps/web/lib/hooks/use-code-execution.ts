@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { assessmentsApi } from "@/lib/api/assessments";
+import axios from "axios";
+import { assessmentsApi, acafsApi } from "@/lib/api/assessments";
 import type { RunCodeRequest, RunCodeResponse } from "@/types/assessments.types";
 import type { ExecutionResult } from "@/components/ide/types";
 import { toast } from "sonner";
@@ -52,14 +53,14 @@ export function useCodeExecution({
         setIsExecuting(true);
         setError(null);
 
-        const request: RunCodeRequest = {
-          assignment_id: assignmentId,
+        // Route through ACAFS (Python/httpx) which creates a fresh connection
+        // per Judge0 call — avoids the Go HTTP connection-pool stale-connection
+        // issue that caused intermittent 500s from the assessment service.
+        const response: RunCodeResponse = await acafsApi.runIde({
           language_id: languageId,
           source_code: sourceCode,
           stdin: stdin || undefined,
-        };
-
-        const response: RunCodeResponse = await assessmentsApi.runCode(request);
+        });
 
         // Adapt the flat backend response to the nested ExecutionResult shape
         // used by IDE components.
@@ -92,11 +93,20 @@ export function useCodeExecution({
 
         onSuccess?.(executionResult);
       } catch (err) {
-        const error = err instanceof Error ? err : new Error("Failed to execute code");
+        // Extract the most useful message: backend JSON > axios message > fallback
+        let errorMessage = "Failed to execute code";
+        if (err instanceof Error) {
+          errorMessage = err.message;
+        } else if (axios.isAxiosError(err)) {
+          const backendMsg = err.response?.data?.message as string | undefined;
+          errorMessage = backendMsg || err.message || errorMessage;
+        }
+
+        const error = new Error(errorMessage);
         setError(error);
         
         console.error("Code execution error:", err);
-        toast.error(error.message || "Failed to execute code");
+        toast.error(errorMessage);
         
         onError?.(error);
       } finally {

@@ -15,6 +15,7 @@ import type {
     GradeOverrideRequest,
     UpdateRubricRequest,
     ListRubricResponse,
+    ListTestCasesResponse,
 } from '@/types/assessments.types';
 
 // ── Instructor-scoped Assessment endpoints ───────────────────────────────────
@@ -165,6 +166,15 @@ export const studentAssessmentsApi = {
         const { data } = await axiosInstance.post<RunCodeResponse>('/submissions/run-code', req);
         return data;
     },
+
+    /**
+     * Get the visible (non-hidden) test cases for an assignment.
+     * Backend: GET /student-assignments/:id/test-cases
+     */
+    getAssignmentTestCases: async (assignmentId: string): Promise<ListTestCasesResponse> => {
+        const { data } = await axiosInstance.get<ListTestCasesResponse>(`/student-assignments/${assignmentId}/test-cases`);
+        return data;
+    },
 };
 
 // ── ACAFS service endpoints (via Next.js same-origin proxy) ─────────────────
@@ -184,6 +194,52 @@ export const acafsApi = {
         if (resp.status === 404) throw new Error('GRADING_PENDING');
         if (!resp.ok) throw new Error(`Grade fetch failed with status ${resp.status}`);
         return resp.json() as Promise<SubmissionGrade>;
+    },
+
+    /**
+     * Run code once via ACAFS → Judge0 (no test case comparison).
+     * Proxied through /api/acafs/ide/run → ACAFS POST /ide/run.
+     * Uses a fresh httpx connection per call — avoids Go connection-pool issues.
+     */
+    runIde: async (payload: {
+        language_id: number;
+        source_code: string;
+        stdin?: string;
+    }): Promise<RunCodeResponse> => {
+        const resp = await fetch(`/api/acafs/ide/run`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            cache: 'no-store',
+        });
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({ detail: 'Code execution failed' }));
+            throw new Error(err.detail ?? `Code execution failed with status ${resp.status}`);
+        }
+        return resp.json() as Promise<RunCodeResponse>;
+    },
+
+    /**
+     * Run assignment-specific test cases from the IDE.
+     * Proxied through /api/acafs/ide/run-tests → ACAFS service.
+     * Payload: { language_id, source_code, test_cases }
+     */
+    runIdeTests: async (payload: {
+        language_id: number;
+        source_code: string;
+        test_cases: Array<Record<string, unknown>>;
+    }): Promise<{ test_results: any[] }> => {
+        const resp = await fetch(`/api/acafs/ide/run-tests`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            cache: 'no-store',
+        });
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({ detail: 'IDE run failed' }));
+            throw new Error(err.detail ?? `IDE run failed with status ${resp.status}`);
+        }
+        return resp.json() as Promise<{ test_results: any[] }>;
     },
 
     /**

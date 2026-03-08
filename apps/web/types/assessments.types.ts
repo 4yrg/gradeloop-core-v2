@@ -253,3 +253,48 @@ export interface RunCodeResponse {
     memory_used: number | null;
     message: string | null;
 }
+
+/** One test case as returned by the API. */
+export interface TestCaseResponse {
+    id: string;
+    description?: string;
+    input: string;
+    expected_output: string;
+    is_hidden: boolean;
+    order_index: number;
+}
+
+/** Response from GET /student-assignments/:id/test-cases */
+export interface ListTestCasesResponse {
+    assignment_id: string;
+    test_cases: TestCaseResponse[];
+}
+
+/** Payload for IDE-run: run assignment test cases transiently. */
+export interface IdeRunRequest {
+    language_id: number;
+    source_code: string;
+    test_cases: Array<{
+        id?: string | number;
+        input: string;
+        expected_output: string;
+        description?: string;
+    }>;
+}
+
+export interface IdeRunResponse {
+    test_results: Array<{
+        test_case_id: string;
+        test_case_description?: string;
+        test_input?: string;
+        expected_output?: string;
+        actual_output?: string;
+        passed: boolean;
+        status_id: number;
+        status_description: string;
+        execution_time?: string | null;
+        memory_used?: number | null;
+        compile_output?: string | null;
+        stderr?: string | null;
+    }>;
+}
