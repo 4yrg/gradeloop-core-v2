@@ -4,7 +4,6 @@ Configuration settings for Semantic Clone Detection API
 
 import os
 from pathlib import Path
-from typing import Optional
 
 import torch
 
@@ -34,9 +33,12 @@ class Settings:
     # Hardware Settings
     DEVICE: str = os.getenv(
         "DEVICE",
-        "cuda"
-        if os.getenv("USE_CUDA", "true").lower() == "true" and torch.cuda.is_available()
-        else "cpu",
+        (
+            "cuda"
+            if os.getenv("USE_CUDA", "true").lower() == "true"
+            and torch.cuda.is_available()
+            else "cpu"
+        ),
     )
     USE_MIXED_PRECISION: bool = (
         os.getenv("USE_MIXED_PRECISION", "true").lower() == "true"

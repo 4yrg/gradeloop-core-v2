@@ -6,14 +6,12 @@ Detects AI-generated code likelihood using a UniXcoder-based classifier.
 import os
 import logging
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse
 
 from src.models import AIDetectionModel
 from src.schemas import CodeSnippetRequest, AIDetectionResponse, HealthResponse
-
 
 # Configure logging
 logging.basicConfig(
