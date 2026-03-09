@@ -304,8 +304,9 @@ async def enroll_user(request: EnrollmentRequest):
                 detail="Insufficient data for enrollment. Please provide at least 150 keystroke events."
             )
 
-        # Split events into sequences for TypeNet (70 keystrokes each with 50% overlap)
-        sequence_length = 70
+        # Split events into sequences for TypeNet (30 keystrokes each with 50% overlap)
+        # SEQ_LEN=30 must match the value used during model training (typenet_colab_training.ipynb)
+        sequence_length = 30
         sequences = []
         for i in range(0, len(all_events) - sequence_length, sequence_length // 2):
             sequence_events = all_events[i:i + sequence_length]
@@ -418,8 +419,8 @@ async def enroll_phase(request: Dict):
         # Convert dict events to EnrollmentEvent if needed
         events = [e.dict() if hasattr(e, 'dict') else e for e in all_events]
 
-        # Create sequences
-        sequence_length = 70
+        # Create sequences — SEQ_LEN=30 matches training
+        sequence_length = 30
         sequences = []
         for i in range(0, len(events) - sequence_length, sequence_length // 2):
             seq = feature_extractor.create_typenet_sequence(events[i:i + sequence_length], sequence_length)
@@ -488,14 +489,14 @@ async def verify_user(request: VerificationRequest):
         events = request.keystrokeEvents
         threshold = request.threshold
 
-        if len(events) < 70:
+        if len(events) < 30:
             raise HTTPException(
                 status_code=400,
-                detail="Insufficient data for verification. Need at least 70 keystrokes."
+                detail="Insufficient data for verification. Need at least 30 keystrokes."
             )
 
-        # Create sequence for TypeNet
-        sequence = feature_extractor.create_typenet_sequence(events, sequence_length=70)
+        # Create sequence for TypeNet — SEQ_LEN=30 matches training
+        sequence = feature_extractor.create_typenet_sequence(events, sequence_length=30)
 
         # Verify
         result = authenticator.verify_user(user_id, sequence, threshold)
@@ -542,14 +543,14 @@ async def identify_user(request: IdentificationRequest):
             )
 
         # Validate minimum keystroke count
-        if len(events) < 70:
+        if len(events) < 30:
             raise HTTPException(
                 status_code=400,
-                detail=f"Insufficient data for reliable identification. Need at least 70 keystrokes. Got: {len(events)}"
+                detail=f"Insufficient data for reliable identification. Need at least 30 keystrokes. Got: {len(events)}"
             )
 
-        # Create sequence from events for TypeNet
-        sequence = feature_extractor.create_typenet_sequence(events, sequence_length=70)
+        # Create sequence from events for TypeNet — SEQ_LEN=30 matches training
+        sequence = feature_extractor.create_typenet_sequence(events, sequence_length=30)
 
         # Identify user
         result = authenticator.identify_user(sequence, top_k)
@@ -586,9 +587,9 @@ async def monitor_session(request: MonitoringRequest):
                 "risk_score": 0.0
             }
 
-        # Create multiple sequences from recent data for TypeNet (last ~350 events)
-        sequence_length = 70
-        recent_events = events[-350:]
+        # Create multiple sequences from recent data for TypeNet — SEQ_LEN=30 matches training
+        sequence_length = 30
+        recent_events = events[-300:]
         sequences = []
         for i in range(0, len(recent_events) - sequence_length, sequence_length):
             seq = feature_extractor.create_typenet_sequence(recent_events[i:i + sequence_length], sequence_length)
