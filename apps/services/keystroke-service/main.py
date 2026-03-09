@@ -19,7 +19,6 @@ from typenet_inference import TypeNetAuthenticator
 from behavioral_analysis import (
     BehavioralAnalyzer, 
     KeystrokeSessionEvent, 
-    BehavioralAnalysisResult,
     format_analysis_report
 )
 
