@@ -1,0 +1,16 @@
+meta {
+  name: Get Report Metadata
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{CIPAS_SYNTACTICS_URL_V1}}/reports/hw-01/metadata
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

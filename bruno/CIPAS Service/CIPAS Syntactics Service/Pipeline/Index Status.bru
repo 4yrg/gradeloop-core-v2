@@ -1,0 +1,16 @@
+meta {
+  name: Index Status
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{CIPAS_SYNTACTICS_URL_V1}}/index/status
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

@@ -1,0 +1,26 @@
+meta {
+  name: Ingest Submission
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{CIPAS_SYNTACTICS_URL_V1}}/submissions/ingest
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "submission_id": "sub-001",
+    "student_id": "student-alice",
+    "assignment_id": "hw-01",
+    "source_code": "public class Solution {\n  public int add(int a, int b) {\n    return a + b;\n  }\n}",
+    "language": "java"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

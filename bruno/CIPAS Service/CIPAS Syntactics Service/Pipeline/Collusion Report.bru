@@ -1,0 +1,21 @@
+meta {
+  name: Collusion Report
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{CIPAS_SYNTACTICS_URL_V1}}/collusion-report
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~assignment_id: hw-01
+  ~min_confidence: 0.7
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
