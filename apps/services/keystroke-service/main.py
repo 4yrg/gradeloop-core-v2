@@ -49,6 +49,16 @@ feature_extractor = KeystrokeFeatureExtractor()
 typenet_model_path = os.path.join(os.path.dirname(__file__), 'models', 'typenet_pretrained.pth')
 typenet_template_path = os.path.join(os.path.dirname(__file__), 'models', 'user_templates.pkl')
 
+# ── Enrollment config ─────────────────────────────────────────────────────────
+_enrollment_config_path = os.path.join(os.path.dirname(__file__), 'enrollment_tasks.json')
+try:
+    with open(_enrollment_config_path) as _f:
+        ENROLLMENT_CONFIG: dict = json.load(_f)
+    print(f"✅ Loaded enrollment config from {_enrollment_config_path}")
+except FileNotFoundError:
+    ENROLLMENT_CONFIG = {}
+    print(f"⚠️  enrollment_tasks.json not found — using default phase list")
+
 # Initialize TypeNet authenticator
 authenticator = TypeNetAuthenticator(
     model_path=typenet_model_path if os.path.exists(typenet_model_path) else None,
@@ -157,7 +167,15 @@ def publish_auth_event(event_data: dict):
 
 # In-memory phase tracking (used when database is disabled as fallback)
 _in_memory_phases: Dict[str, set] = {}
-REQUIRED_PHASES = {'baseline', 'transcription', 'stress', 'cognitive'}
+
+# Derive required phases from the config; fall back to defaults if config missing
+_cfg_phases: list = (
+    ENROLLMENT_CONFIG
+    .get('enrollment_instructions', {})
+    .get('phases_required', ['baseline', 'transcription', 'stress', 'cognitive'])
+)
+REQUIRED_PHASES: set = set(_cfg_phases)
+print(f"📋 Enrollment phases required (from config): {_cfg_phases}")
 
 # ==================== Pydantic Models ====================
 
@@ -373,11 +391,11 @@ async def get_enrollment_progress(user_id: str):
                 "user_id": user_id,
                 "enrollment_complete": False,
                 "phases_complete": [],
-                "phases_remaining": ["baseline", "transcription", "stress", "cognitive"],
+                "phases_remaining": _cfg_phases,
                 "message": "No enrollment data found - start enrollment"
             }
 
-        phases = ["baseline", "transcription", "stress", "cognitive"]
+        phases = _cfg_phases
         phases_complete = [p for p in phases if progress.get(f'{p}_complete')]
 
         return {
@@ -405,7 +423,7 @@ async def enroll_phase(request: Dict):
         phase = request.get('phase', 'baseline')
         all_events = request.get('keystrokeEvents', [])
 
-        valid_phases = ['baseline', 'transcription', 'stress', 'cognitive']
+        valid_phases = _cfg_phases
         if phase not in valid_phases:
             raise HTTPException(status_code=400, detail=f"Invalid phase. Must be one of: {valid_phases}")
 
@@ -881,6 +899,19 @@ async def analyze_behavioral_session(request: BehavioralAnalysisRequest):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+
+@app.get("/api/keystroke/enroll/config")
+async def get_enrollment_config():
+    """
+    Return the full enrollment task configuration loaded from enrollment_tasks.json.
+    Clients use this to know which phases are required and what tasks each phase contains.
+    """
+    return {
+        "success": True,
+        "required_phases": _cfg_phases,
+        "config": ENROLLMENT_CONFIG,
+    }
 
 
 @app.get("/api/keystroke/analyze/config")
