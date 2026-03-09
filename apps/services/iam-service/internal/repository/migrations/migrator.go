@@ -54,6 +54,23 @@ func isColumnExistsError(err error) bool {
 func (m *Migrator) migrateUsersToUserType() error {
 	m.logger.Info("migrating existing users to user_type system")
 
+	// First check if users table exists
+	var usersTableExists bool
+	row := m.db.Raw(`
+		SELECT EXISTS (
+			SELECT 1 FROM information_schema.tables
+			WHERE table_schema = current_schema()
+			  AND table_name  = 'users'
+		)`).Row()
+	if err := row.Scan(&usersTableExists); err != nil {
+		return fmt.Errorf("failed to check users table: %w", err)
+	}
+
+	if !usersTableExists {
+		m.logger.Info("users table does not exist, skipping migration (will be created by AutoMigrate)")
+		return nil
+	}
+
 	// Use IF NOT EXISTS so the statement is always safe to re-run without
 	// requiring an extra introspection round-trip to the database.
 	m.logger.Info("ensuring user_type column exists")
