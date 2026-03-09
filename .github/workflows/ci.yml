@@ -148,6 +148,8 @@ jobs:
               echo "::error file=$d::golint detected issues"
               exit 1
             fi
+
+            popd >/dev/null || true
           done
 
           echo "result=success" >> $GITHUB_OUTPUT
