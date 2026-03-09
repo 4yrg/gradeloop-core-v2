@@ -1,9 +1,8 @@
 """RabbitMQ consumer for processing submission events."""
 
 import json
-import threading
 import time
-from typing import Callable, Optional
+from collections.abc import Callable
 
 import pika
 from pika.adapters.blocking_connection import BlockingChannel
@@ -25,31 +24,31 @@ class RabbitMQConsumer:
         message_handler: Callable[[SubmissionEvent], None],
     ):
         """Initialize RabbitMQ consumer.
-        
+
         Args:
             settings: Application settings
             message_handler: Callback for processing messages
         """
         self.settings = settings
         self.message_handler = message_handler
-        self._connection: Optional[pika.BlockingConnection] = None
-        self._channel: Optional[BlockingChannel] = None
+        self._connection: pika.BlockingConnection | None = None
+        self._channel: BlockingChannel | None = None
         self._closing = False
-        self._consumer_tag: Optional[str] = None
+        self._consumer_tag: str | None = None
 
     def _connect(self) -> pika.BlockingConnection:
         """Establish connection to RabbitMQ."""
         params = pika.URLParameters(self.settings.rabbitmq_url)
         params.heartbeat = 600
         params.blocked_connection_timeout = 300
-        
+
         connection = pika.BlockingConnection(params)
         logger.info("rabbitmq_connected", url=self.settings.rabbitmq_url)
         return connection
 
     def _declare_topology(self, channel: BlockingChannel) -> None:
         """Declare exchange, queue, and bindings.
-        
+
         Args:
             channel: AMQP channel
         """
@@ -66,7 +65,7 @@ class RabbitMQConsumer:
             "x-dead-letter-exchange": f"{self.settings.rabbitmq_exchange}.dlx",
             "x-max-length": 50000,
         }
-        
+
         channel.queue_declare(
             queue=self.settings.rabbitmq_queue,
             durable=True,
@@ -80,12 +79,12 @@ class RabbitMQConsumer:
             exchange_type="fanout",
             durable=True,
         )
-        
+
         channel.queue_declare(
             queue=f"{self.settings.rabbitmq_queue}.dead",
             durable=True,
         )
-        
+
         channel.queue_bind(
             queue=f"{self.settings.rabbitmq_queue}.dead",
             exchange=f"{self.settings.rabbitmq_exchange}.dlx",
@@ -111,7 +110,7 @@ class RabbitMQConsumer:
         body: bytes,
     ) -> None:
         """Process incoming message.
-        
+
         Args:
             channel: AMQP channel
             method: Delivery method
@@ -120,7 +119,7 @@ class RabbitMQConsumer:
         """
         delivery_tag = method.delivery_tag
         message_id = properties.message_id or "unknown"
-        
+
         logger.info(
             "message_received",
             message_id=message_id,
@@ -131,7 +130,7 @@ class RabbitMQConsumer:
             # Parse message
             data = json.loads(body)
             event = SubmissionEvent.model_validate(data)
-            
+
             logger.info(
                 "submission_event_parsed",
                 submission_id=str(event.submission_id),
@@ -141,7 +140,7 @@ class RabbitMQConsumer:
 
             # Process message
             self.message_handler(event)
-            
+
             # Acknowledge success
             channel.basic_ack(delivery_tag=delivery_tag)
             logger.info(
@@ -166,7 +165,7 @@ class RabbitMQConsumer:
                 error=str(e),
                 redelivered=method.redelivered,
             )
-            
+
             if method.redelivered:
                 # Second failure - send to DLX
                 channel.basic_nack(delivery_tag=delivery_tag, requeue=False)
@@ -181,44 +180,44 @@ class RabbitMQConsumer:
             try:
                 self._connection = self._connect()
                 self._channel = self._connection.channel()
-                
+
                 # Declare topology
                 self._declare_topology(self._channel)
-                
+
                 # Set QoS
                 self._channel.basic_qos(
                     prefetch_count=self.settings.rabbitmq_concurrency,
                 )
-                
+
                 # Start consuming
                 self._consumer_tag = self._channel.basic_consume(
                     queue=self.settings.rabbitmq_queue,
                     on_message_callback=self._on_message,
                 )
-                
+
                 logger.info(
                     "consumer_started",
                     queue=self.settings.rabbitmq_queue,
                     concurrency=self.settings.rabbitmq_concurrency,
                 )
-                
+
                 # Block and process messages
                 self._channel.start_consuming()
-                
+
             except pika.exceptions.ConnectionClosedByBroker:
                 logger.warning("connection_closed_by_broker")
                 if not self._closing:
                     time.sleep(5)
                     continue
                 break
-                
+
             except pika.exceptions.AMQPChannelError as e:
                 logger.error("channel_error", error=str(e))
                 if not self._closing:
                     time.sleep(5)
                     continue
                 break
-                
+
             except Exception as e:
                 logger.error("unexpected_error", error=str(e))
                 if not self._closing:
@@ -230,11 +229,11 @@ class RabbitMQConsumer:
         """Stop consuming messages gracefully."""
         logger.info("stopping_consumer")
         self._closing = True
-        
+
         if self._channel and self._channel.is_open:
             self._channel.stop_consuming()
-            
+
         if self._connection and self._connection.is_open:
             self._connection.close()
-            
+
         logger.info("consumer_stopped")

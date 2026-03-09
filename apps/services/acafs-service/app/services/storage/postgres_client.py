@@ -3,7 +3,7 @@
 import asyncio
 import json
 from contextlib import asynccontextmanager
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 import asyncpg
@@ -19,17 +19,17 @@ class PostgresClient:
 
     def __init__(self, dsn: str):
         """Initialize PostgreSQL client.
-        
+
         Args:
             dsn: PostgreSQL connection string
         """
         self.dsn = dsn
-        self._pool: Optional[asyncpg.Pool] = None
+        self._pool: asyncpg.Pool | None = None
 
     async def connect(self) -> None:
         """Initialize connection pool."""
         import ssl as _ssl
-        from urllib.parse import urlparse, parse_qs
+        from urllib.parse import parse_qs, urlparse
 
         # Detect sslmode in DSN query params (e.g. ?sslmode=require)
         use_ssl = False
@@ -216,7 +216,7 @@ class PostgresClient:
         """Get a connection from the pool."""
         if not self._pool:
             raise RuntimeError("PostgreSQL pool not initialized. Call connect() first.")
-        
+
         async with self._pool.acquire() as conn:
             yield conn
 
@@ -228,7 +228,7 @@ class PostgresClient:
         blueprint: ASTBlueprint,
     ) -> None:
         """Store AST blueprint in database.
-        
+
         Args:
             submission_id: UUID of the submission
             assignment_id: UUID of the assignment
@@ -238,10 +238,10 @@ class PostgresClient:
         async with self._get_connection() as conn:
             await conn.execute(
                 """
-                INSERT INTO acafs_results 
+                INSERT INTO acafs_results
                     (submission_id, assignment_id, language, ast_blueprint, extraction_status)
                 VALUES ($1, $2, $3, $4, 'success')
-                ON CONFLICT (submission_id) 
+                ON CONFLICT (submission_id)
                 DO UPDATE SET
                     ast_blueprint = EXCLUDED.ast_blueprint,
                     language = EXCLUDED.language,
@@ -265,10 +265,10 @@ class PostgresClient:
         assignment_id: UUID,
         language: str,
         failure_reason: str,
-        error_details: Optional[dict] = None,
+        error_details: dict | None = None,
     ) -> None:
         """Store parse failure information.
-        
+
         Args:
             submission_id: UUID of the submission
             assignment_id: UUID of the assignment
@@ -280,14 +280,14 @@ class PostgresClient:
             "reason": failure_reason,
             "details": error_details or {},
         }
-        
+
         async with self._get_connection() as conn:
             await conn.execute(
                 """
-                INSERT INTO acafs_results 
+                INSERT INTO acafs_results
                     (submission_id, assignment_id, language, ast_blueprint, extraction_status, parse_failure)
                 VALUES ($1, $2, $3, '{}', 'parse_failed', $4)
-                ON CONFLICT (submission_id) 
+                ON CONFLICT (submission_id)
                 DO UPDATE SET
                     extraction_status = EXCLUDED.extraction_status,
                     parse_failure = EXCLUDED.parse_failure,
@@ -305,25 +305,25 @@ class PostgresClient:
                 reason=failure_reason,
             )
 
-    async def get_ast_blueprint(self, submission_id: UUID) -> Optional[ASTBlueprint]:
+    async def get_ast_blueprint(self, submission_id: UUID) -> ASTBlueprint | None:
         """Retrieve AST blueprint by submission ID.
-        
+
         Args:
             submission_id: UUID of the submission
-            
+
         Returns:
             ASTBlueprint if found, None otherwise
         """
         async with self._get_connection() as conn:
             row = await conn.fetchrow(
                 """
-                SELECT ast_blueprint 
-                FROM acafs_results 
+                SELECT ast_blueprint
+                FROM acafs_results
                 WHERE submission_id = $1 AND extraction_status = 'success'
                 """,
                 submission_id,
             )
-            
+
             if row:
                 return ASTBlueprint.model_validate_json(row["ast_blueprint"])
             return None
@@ -339,7 +339,7 @@ class PostgresClient:
         max_total_score: float,
         holistic_feedback: str,
         criteria_scores: list[dict[str, Any]],
-        grading_metadata: Optional[dict[str, Any]] = None,
+        grading_metadata: dict[str, Any] | None = None,
     ) -> None:
         """Persist a full grade breakdown for a submission.
 
@@ -401,9 +401,7 @@ class PostgresClient:
             criteria_count=len(criteria_scores),
         )
 
-    async def get_submission_grade(
-        self, submission_id: UUID
-    ) -> Optional[dict[str, Any]]:
+    async def get_submission_grade(self, submission_id: UUID) -> dict[str, Any] | None:
         """Retrieve grade breakdown for a submission."""
         async with self._get_connection() as conn:
             grade_row = await conn.fetchrow(
@@ -440,15 +438,15 @@ class PostgresClient:
                 "max_total_score": float(grade_row["max_total_score"]),
                 "holistic_feedback": grade_row["holistic_feedback"],
                 "grading_metadata": grade_row["grading_metadata"],
-                "graded_at": grade_row["graded_at"].isoformat()
-                if grade_row["graded_at"]
-                else None,
+                "graded_at": grade_row["graded_at"].isoformat() if grade_row["graded_at"] else None,
                 "instructor_override_score": float(grade_row["instructor_override_score"])
-                if grade_row["instructor_override_score"] is not None else None,
+                if grade_row["instructor_override_score"] is not None
+                else None,
                 "instructor_holistic_feedback": grade_row["instructor_holistic_feedback"],
                 "override_by": grade_row["override_by"],
                 "overridden_at": grade_row["overridden_at"].isoformat()
-                if grade_row["overridden_at"] else None,
+                if grade_row["overridden_at"]
+                else None,
                 "criteria_scores": [
                     {
                         "name": r["criterion_name"],
@@ -457,9 +455,12 @@ class PostgresClient:
                         "grading_mode": r["grading_mode"],
                         "reason": r["reason"],
                         "band_selected": r["band_selected"],
-                        "confidence": float(r["confidence"]) if r["confidence"] is not None else None,
+                        "confidence": float(r["confidence"])
+                        if r["confidence"] is not None
+                        else None,
                         "instructor_override_score": float(r["instructor_override_score"])
-                        if r["instructor_override_score"] is not None else None,
+                        if r["instructor_override_score"] is not None
+                        else None,
                         "instructor_override_reason": r["instructor_override_reason"],
                     }
                     for r in criteria_rows
@@ -470,8 +471,8 @@ class PostgresClient:
         self,
         *,
         submission_id: UUID,
-        criteria_overrides: Optional[list[dict[str, Any]]] = None,
-        instructor_holistic_feedback: Optional[str] = None,
+        criteria_overrides: list[dict[str, Any]] | None = None,
+        instructor_holistic_feedback: str | None = None,
         override_by: str,
     ) -> bool:
         """Apply instructor overrides to an existing grade.
@@ -605,7 +606,7 @@ class PostgresClient:
         session_id: UUID,
         role: str,
         content: str,
-        reasoning_details: Optional[Any] = None,
+        reasoning_details: Any | None = None,
     ) -> int:
         """Insert a message into a chat session and return its id."""
         async with self._get_connection() as conn:
@@ -650,7 +651,7 @@ class PostgresClient:
         *,
         assignment_id: UUID,
         user_id: str,
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Return the most recent session (active or closed) for analytics."""
         async with self._get_connection() as conn:
             row = await conn.fetchrow(
@@ -709,4 +710,3 @@ class PostgresClient:
                     user_id=user_id,
                 )
             return closed
-
