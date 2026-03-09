@@ -5,17 +5,20 @@ import { instructorAssessmentsApi, assessmentsApi, acafsApi } from "@/lib/api/as
 import { usersApi } from "@/lib/api/users";
 import type { SubmissionResponse, SubmissionGrade } from "@/types/assessments.types";
 import type { UserListItem } from "@/types/auth.types";
-import { Users, FileDown, SearchX, Filter, Loader2, AlertCircle } from "lucide-react";
+import { Users, FileDown, SearchX, Filter, Loader2, AlertCircle, BrainCircuit } from "lucide-react";
 import { SectionHeader } from "@/components/instructor/section-header";
 import { DataTable, type ColumnDef } from "@/components/instructor/data-table";
 import { StatusBadge } from "@/components/instructor/status-badge";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { EmptyStateCard } from "@/components/instructor/empty-state";
 import { SideSheetForm } from "@/components/instructor/side-sheet-form";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { GradeResultPanel } from "@/components/assessments/grade-result-panel";
+import { AILikelihoodBadge } from "@/components/clone-detector/AILikelihoodBadge";
+import { SemanticSimilarityScore } from "@/components/ui/semantic-similarity-score";
 
 interface SubmissionWithMeta extends SubmissionResponse {
     studentName: string;
@@ -333,6 +336,49 @@ export default function AssignmentSubmissionsPage({
                                     </div>
                                 )}
                             </div>
+
+                            {/* ── Code Analysis ──────────────────────────────── */}
+                            {selectedSubmission?.ai_likelihood !== undefined && (
+                                <div className="space-y-3">
+                                    <h4 className="font-bold font-heading">Code Analysis</h4>
+                                    <div className="p-4 rounded-xl border border-border/60 bg-card space-y-4">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <BrainCircuit className="h-4 w-4 text-muted-foreground" />
+                                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                                AI Detection
+                                            </p>
+                                        </div>
+                                        <AILikelihoodBadge
+                                            aiLikelihood={selectedSubmission.ai_likelihood}
+                                            humanLikelihood={selectedSubmission.human_likelihood ?? (1 - selectedSubmission.ai_likelihood)}
+                                            showLabel
+                                            size="md"
+                                        />
+                                        {selectedSubmission.semantic_similarity_score !== undefined && (
+                                            <>
+                                                <Separator />
+                                                <div>
+                                                    <p className="text-xs text-muted-foreground mb-2">
+                                                        Similarity to sample answer
+                                                    </p>
+                                                    <SemanticSimilarityScore
+                                                        score={selectedSubmission.semantic_similarity_score}
+                                                    />
+                                                </div>
+                                            </>
+                                        )}
+                                        {selectedSubmission.analyzed_at && (
+                                            <p className="text-[10px] text-muted-foreground pt-1 border-t border-border/40">
+                                                Analyzed{" "}
+                                                {format(
+                                                    new Date(selectedSubmission.analyzed_at),
+                                                    "MMM d, yyyy 'at' h:mm a"
+                                                )}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
 
                             <div>
                                 <h4 className="font-bold font-heading mb-3">Autograder Results</h4>

@@ -4,8 +4,14 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { CodeIDE } from "@/components/ide";
 import { assessmentsApi } from "@/lib/api/assessments";
+import {
+  detectAICode,
+  getSemanticSimilarity,
+  saveSubmissionAnalysis,
+} from "@/lib/api/cipas-client";
+import type { AIDetectionResponse } from "@/types/cipas";
 import type { AssignmentResponse } from "@/types/assessments.types";
-import { Loader2, AlertCircle, ArrowLeft } from "lucide-react";
+import { Loader2, AlertCircle, ArrowLeft, BrainCircuit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
@@ -16,6 +22,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import { AILikelihoodBadge } from "@/components/clone-detector/AILikelihoodBadge";
+import { SemanticSimilarityScore } from "@/components/ui/semantic-similarity-score";
 
 // Reverse map: Judge0 language ID → canonical language name string.
 // IDs 91/92/93/94/95/105 removed — they do NOT exist on this Judge0 instance.
@@ -54,6 +63,10 @@ export default function StudentIDEPage() {
     code: string;
     language: number;
   } | null>(null);
+  // Analysis results shown to the student inside the submit dialog
+  const [aiResult, setAiResult] = useState<AIDetectionResponse | null>(null);
+  const [semanticScore, setSemanticScore] = useState<number | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   useEffect(() => {
     const fetchAssignment = async () => {
@@ -79,9 +92,25 @@ export default function StudentIDEPage() {
     fetchAssignment();
   }, [assignmentId]);
 
-  const handleSubmit = (code: string, language: number) => {
+  const handleSubmit = async (code: string, language: number) => {
     setPendingSubmission({ code, language });
+    setAiResult(null);
+    setSemanticScore(null);
+    setIsAnalyzing(true);
     setShowSubmitDialog(true);
+
+    // Run AI detection and semantic similarity in parallel — failures are
+    // surfaced as null so they never block the submission flow.
+    const [aiRes, semRes] = await Promise.allSettled([
+      detectAICode(code),
+      assignment?.sample_answer?.code
+        ? getSemanticSimilarity(code, assignment.sample_answer.code)
+        : Promise.resolve(null),
+    ]);
+
+    setAiResult(aiRes.status === "fulfilled" ? aiRes.value : null);
+    setSemanticScore(semRes.status === "fulfilled" ? semRes.value : null);
+    setIsAnalyzing(false);
   };
 
   const confirmSubmit = async () => {
@@ -89,17 +118,28 @@ export default function StudentIDEPage() {
 
     try {
       setIsSubmitting(true);
-      
-      await assessmentsApi.submitAssignment({
+
+      const response = await assessmentsApi.submitAssignment({
         assignment_id: assignmentId,
         language: LANGUAGE_ID_TO_NAME[pendingSubmission.language] ?? "python",
         language_id: pendingSubmission.language,
         code: pendingSubmission.code,
       });
 
+      // Persist the analysis so the instructor can view it
+      if (response?.id) {
+        saveSubmissionAnalysis(response.id, {
+          ai_likelihood: aiResult?.ai_likelihood ?? 0,
+          human_likelihood: aiResult?.human_likelihood ?? 1,
+          is_ai_generated: aiResult?.is_ai_generated ?? false,
+          ai_confidence: aiResult?.confidence ?? 0,
+          semantic_similarity_score: semanticScore,
+        }).catch(console.error);
+      }
+
       toast.success("Solution submitted successfully!");
       setShowSubmitDialog(false);
-      
+
       // Redirect to submissions page or assignment details
       setTimeout(() => {
         router.push(`/student/assignments/${assignmentId}`);
@@ -180,13 +220,15 @@ export default function StudentIDEPage() {
             assignmentId={assignmentId}
             showSubmitButton={true}
             onSubmit={handleSubmit}
+            initialLanguage={assignment.language_id}
+            lockLanguage={true}
           />
         </div>
       </div>
 
       {/* Submit Confirmation Dialog */}
       <Dialog open={showSubmitDialog} onOpenChange={setShowSubmitDialog}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Submit Solution?</DialogTitle>
             <DialogDescription>
@@ -194,19 +236,66 @@ export default function StudentIDEPage() {
               will create a new submission version.
             </DialogDescription>
           </DialogHeader>
+
+          {/* ── Analysis panel ─────────────────────────────────────────── */}
+          {isAnalyzing ? (
+            <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/20 p-4">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground shrink-0" />
+              <div>
+                <p className="text-sm font-medium">Analyzing your submission…</p>
+                <p className="text-xs text-muted-foreground">
+                  Checking for AI generation and similarity to the sample answer.
+                </p>
+              </div>
+            </div>
+          ) : (aiResult || semanticScore !== null) ? (
+            <div className="rounded-xl border border-border/60 bg-muted/20 p-4 space-y-4">
+              <div className="flex items-center gap-2">
+                <BrainCircuit className="h-4 w-4 text-muted-foreground" />
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Submission Analysis
+                </p>
+              </div>
+
+              {aiResult && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2">AI Generation Likelihood</p>
+                  <AILikelihoodBadge
+                    aiLikelihood={aiResult.ai_likelihood}
+                    humanLikelihood={aiResult.human_likelihood}
+                    showLabel
+                    size="md"
+                  />
+                </div>
+              )}
+
+              {semanticScore !== null && (
+                <>
+                  {aiResult && <Separator />}
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Similarity to sample answer
+                    </p>
+                    <SemanticSimilarityScore score={semanticScore} />
+                  </div>
+                </>
+              )}
+            </div>
+          ) : null}
+
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => setShowSubmitDialog(false)}
-              disabled={isSubmitting}
+              disabled={isSubmitting || isAnalyzing}
             >
               Cancel
             </Button>
-            <Button onClick={confirmSubmit} disabled={isSubmitting}>
+            <Button onClick={confirmSubmit} disabled={isSubmitting || isAnalyzing}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Submitting...
+                  Submitting…
                 </>
               ) : (
                 "Submit"

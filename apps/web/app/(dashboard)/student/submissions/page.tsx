@@ -32,6 +32,8 @@ import type { StudentCourseEnrollment } from "@/types/academics.types";
 import type { AssignmentResponse, SubmissionResponse } from "@/types/assessments.types";
 import { handleApiError } from "@/lib/api/axios";
 import { format, formatDistanceToNow } from "date-fns";
+import { AILikelihoodBadge } from "@/components/clone-detector/AILikelihoodBadge";
+import { SemanticSimilarityScore } from "@/components/ui/semantic-similarity-score";
 
 interface SubmissionWithContext extends SubmissionResponse {
     assignment_title: string;
@@ -358,6 +360,23 @@ export default function StudentSubmissionsPage() {
                                     <p className="text-lg font-black text-primary">
                                         {(sub as SubmissionWithContext & { grade?: string }).grade}
                                     </p>
+                                </div>
+                            )}
+
+                            {/* CIPAS analysis badges (shown if analysis was run at submission time) */}
+                            {sub.ai_likelihood !== undefined && (
+                                <div className="flex flex-col items-end gap-1.5 shrink-0 min-w-[110px]">
+                                    <AILikelihoodBadge
+                                        aiLikelihood={sub.ai_likelihood}
+                                        humanLikelihood={sub.human_likelihood ?? (1 - sub.ai_likelihood)}
+                                        size="sm"
+                                    />
+                                    {sub.semantic_similarity_score !== undefined && (
+                                        <SemanticSimilarityScore
+                                            score={sub.semantic_similarity_score}
+                                            compact
+                                        />
+                                    )}
                                 </div>
                             )}
 

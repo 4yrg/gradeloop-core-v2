@@ -7,6 +7,7 @@ import type {
     ListSubmissionsResponse,
     SubmissionCodeResponse,
     CreateSubmissionRequest,
+    UpdateSubmissionAnalysisRequest,
     GroupResponse,
     CreateGroupRequest,
     RunCodeRequest,
@@ -76,6 +77,14 @@ export const assessmentsApi = {
     getSubmissionCode: async (id: string): Promise<SubmissionCodeResponse> => {
         const { data } = await axiosInstance.get<SubmissionCodeResponse>(`/submissions/${id}/code`);
         return data;
+    },
+
+    /**
+     * Persist CIPAS analysis scores on a submission (fire-and-forget).
+     * Backend: PATCH /submissions/:id/analysis
+     */
+    updateSubmissionAnalysis: async (id: string, req: UpdateSubmissionAnalysisRequest): Promise<void> => {
+        await axiosInstance.patch(`/submissions/${id}/analysis`, req);
     },
 
     createGroup: async (req: CreateGroupRequest): Promise<GroupResponse> => {
