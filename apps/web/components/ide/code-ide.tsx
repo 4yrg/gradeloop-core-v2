@@ -9,7 +9,7 @@ import { AIAssistantPanel } from "./ai-assistant-panel";
 import { GradeResultPanel } from "@/components/assessments/grade-result-panel";
 import { useCodeExecution } from "@/lib/hooks/use-code-execution";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Terminal, Sparkles, BarChart2, Loader2 } from "lucide-react";
+import { Terminal, Sparkles, BarChart2, Loader2, AlertCircle } from "lucide-react";
 import type { CodeIDEProps, ExecutionStatus } from "./types";
 import {
   DEFAULT_LANGUAGE_ID,
@@ -37,6 +37,7 @@ export function CodeIDE({
   expectedLanguageId,
   grade = null,
   isGrading = false,
+  gradingFailed = false,
 }: CodeIDEProps) {
   const { theme: systemTheme } = useTheme();
   const theme = (systemTheme === "dark" ? "dark" : "light") as "dark" | "light";
@@ -44,10 +45,10 @@ export function CodeIDE({
   // Controlled tab state so we can auto-switch to "results" when grade arrives.
   const [activeTab, setActiveTab] = useState<string>("input-output");
 
-  // Auto-switch to the Results tab as soon as a grade is available.
+  // Auto-switch to the Results tab as soon as grading starts or a grade arrives.
   useEffect(() => {
-    if (grade) setActiveTab("results");
-  }, [grade]);
+    if (isGrading || grade) setActiveTab("results");
+  }, [isGrading, grade]);
 
   // Editor state
   const [code, setCode] = useState<string>(
@@ -248,6 +249,15 @@ export function CodeIDE({
                   </div>
                 ) : grade ? (
                   <GradeResultPanel grade={grade} compact instructorView={false} />
+                ) : gradingFailed ? (
+                  <div className="flex flex-col items-center justify-center gap-3 h-full min-h-[200px] text-center p-6">
+                    <AlertCircle className="h-8 w-8 text-muted-foreground/40" />
+                    <p className="text-sm font-medium text-muted-foreground">Grading results not available</p>
+                    <p className="text-xs text-muted-foreground">
+                      The AI grader may still be processing, or no rubric is configured for this assignment.
+                      Check back later or contact your instructor.
+                    </p>
+                  </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center gap-2 h-full min-h-[200px] text-center p-6">
                     <BarChart2 className="h-8 w-8 text-muted-foreground/30" />

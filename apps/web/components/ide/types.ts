@@ -23,6 +23,8 @@ export interface CodeIDEProps {
   grade?: SubmissionGrade | null;
   /** True while the autograder is running (shows a spinner in the Results tab). */
   isGrading?: boolean;
+  /** True when the autograder polling has timed out with no result. */
+  gradingFailed?: boolean;
 }
 
 export interface ExecutionResult {

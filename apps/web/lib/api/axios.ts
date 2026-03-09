@@ -65,14 +65,22 @@ axiosInstance.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Don't retry refresh endpoint or already retried requests
+    // Don't retry any auth endpoints or already-retried requests.
+    // Auth endpoints (login, logout, refresh, etc.) that return 401 should
+    // propagate the error directly — attempting a refresh here would swallow
+    // the real error (e.g. wrong credentials) and silently reload the page.
     if (
-      originalRequest.url?.includes("/auth/refresh") ||
+      originalRequest.url?.includes("/auth/") ||
       originalRequest._retry
     ) {
-      useAuthStore.getState().clearSession();
-      if (typeof window !== "undefined") {
-        window.location.href = "/login";
+      // Only clear session + redirect for the refresh endpoint specifically;
+      // for other auth endpoints (login, logout) just reject so the caller
+      // can display the correct error message.
+      if (originalRequest.url?.includes("/auth/refresh")) {
+        useAuthStore.getState().clearSession();
+        if (typeof window !== "undefined") {
+          window.location.href = "/login";
+        }
       }
       return Promise.reject(error);
     }
