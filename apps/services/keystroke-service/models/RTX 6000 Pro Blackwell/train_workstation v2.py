@@ -1,11 +1,6 @@
 from __future__ import annotations
 import argparse
-import csv
-import json
 import multiprocessing
-import os
-import time
-from pathlib import Path
 
 import h5py
 import numpy as np
@@ -242,8 +237,6 @@ def train(args):
 
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
-    total_steps = len(train_loader)*args.epochs
-    warmup_steps = len(train_loader)*5
 
     scheduler = optim.lr_scheduler.CosineAnnealingLR(
         optimizer,
