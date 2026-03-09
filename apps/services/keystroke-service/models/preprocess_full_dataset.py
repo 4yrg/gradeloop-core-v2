@@ -32,7 +32,6 @@ constants at the top of the file so no second pass is needed.
 """
 
 import argparse
-import io
 import sys
 import zipfile
 from pathlib import Path
