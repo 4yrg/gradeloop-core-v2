@@ -26,6 +26,8 @@ Grading-mode routing:
   llm_ast        → Same as llm but with AST blueprint injected.
 """
 
+# fmt: off
+
 import asyncio
 import json
 from typing import Any

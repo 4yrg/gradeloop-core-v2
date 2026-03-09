@@ -1,4 +1,7 @@
+
 """PostgreSQL client for AST blueprint persistence."""
+
+# fmt: off
 
 import asyncio
 import json

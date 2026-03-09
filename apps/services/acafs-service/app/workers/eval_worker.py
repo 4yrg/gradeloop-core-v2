@@ -14,6 +14,8 @@ Grading pipeline
 5. Persist AST blueprint, grade breakdown, and per-criterion scores.
 """
 
+# fmt: off
+
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
