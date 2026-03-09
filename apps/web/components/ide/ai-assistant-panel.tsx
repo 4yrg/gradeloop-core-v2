@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sparkles, Send, RotateCcw, Copy, Check, Bot, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { acafsApi } from "@/lib/api/assessments";
 
 type Role = "user" | "assistant";
 
@@ -123,20 +124,15 @@ export function AIAssistantPanel({ assignmentId, assignmentTitle, assignmentDesc
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Load chat history for the assignment+user when available.
-  // Calls /api/acafs/chat/... which Next.js proxies server-side → avoids CORS.
   useEffect(() => {
     let mounted = true;
     async function loadHistory() {
       if (!assignmentId) return;
       const uid = userId ?? "anonymous";
       try {
-        const resp = await fetch(
-          `/api/acafs/chat/${encodeURIComponent(assignmentId)}/${encodeURIComponent(uid)}`
-        );
+        const data = await acafsApi.getChatHistory(assignmentId, uid);
         if (!mounted) return;
-        if (!resp.ok) return;
-        const data = await resp.json();
-        const msgs = (data.messages ?? []).map((m: any) => ({
+        const msgs = (data.messages ?? []).map((m) => ({
           id: m.id ? String(m.id) : crypto.randomUUID(),
           role: m.role as Role,
           content: m.content ?? "",
@@ -144,7 +140,7 @@ export function AIAssistantPanel({ assignmentId, assignmentTitle, assignmentDesc
         }));
         if (msgs.length > 0) setMessages([WELCOME_MESSAGE, ...msgs]);
       } catch (e) {
-        // ignore history load errors silently
+        // ignore history load errors silently (404 = no session yet)
       }
     }
     loadHistory();
@@ -178,49 +174,31 @@ export function AIAssistantPanel({ assignmentId, assignmentTitle, assignmentDesc
     setInput("");
     setIsLoading(true);
 
-    // Call ACAFS Socratic chat via Next.js proxy → no CORS issues.
+    // Call ACAFS Socratic chat directly via the API gateway.
     try {
       const aid = assignmentId ?? "unknown-assignment";
       const uid = userId ?? "anonymous";
-      const body: Record<string, unknown> = { content: trimmed };
-      if (studentCode) body.student_code = studentCode;
-      if (assignmentTitle) body.assignment_title = assignmentTitle;
-      if (assignmentDescription) body.assignment_description = assignmentDescription;
 
-      const resp = await fetch(
-        `/api/acafs/chat/${encodeURIComponent(aid)}/${encodeURIComponent(uid)}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        }
-      );
-
-      if (!resp.ok) {
-        const text = await resp.text();
-        const assistantMsg: Message = {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: `Tutor is unavailable (status ${resp.status}). ${text}`,
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, assistantMsg]);
-      } else {
-        const data = await resp.json();
-        const reply = data.reply ?? data?.messages?.[data.messages.length - 1]?.content ?? "";
-        const assistantMsg: Message = {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: reply || "Tutor did not return a reply.",
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, assistantMsg]);
-      }
-    } catch (err: any) {
+      const data = await acafsApi.sendChatMessage(aid, uid, {
+        content: trimmed,
+        ...(studentCode && { student_code: studentCode }),
+        ...(assignmentTitle && { assignment_title: assignmentTitle }),
+        ...(assignmentDescription && { assignment_description: assignmentDescription }),
+      });
+      const reply = data.reply ?? data?.messages?.[data.messages.length - 1]?.content ?? "";
       const assistantMsg: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: `Tutor error: ${err?.message ?? String(err)}`,
+        content: reply || "Tutor did not return a reply.",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, assistantMsg]);
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail ?? err?.message ?? String(err);
+      const assistantMsg: Message = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: `Tutor is unavailable. ${detail}`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, assistantMsg]);

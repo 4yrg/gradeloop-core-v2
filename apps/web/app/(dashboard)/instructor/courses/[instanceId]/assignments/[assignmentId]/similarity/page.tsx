@@ -4,7 +4,7 @@ import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getSimilarityReport, clusterAssignment, getSimilarityReportMetadata, getAnnotations } from "@/lib/api/cipas-client";
 import { instructorAssessmentsApi, assessmentsApi } from "@/lib/api/assessments";
-import type { AssignmentClusterResponse, CollusionGroup, SubmissionItem, AnnotationResponse } from "@/types/cipas";
+import type { AssignmentClusterResponse, CollusionGroup, CollusionEdge, SubmissionItem, AnnotationResponse } from "@/types/cipas";
 import type { AssignmentResponse, SubmissionResponse } from "@/types/assessments.types";
 import { SectionHeader } from "@/components/instructor/section-header";
 import { Button } from "@/components/ui/button";
@@ -18,11 +18,13 @@ import { NetworkGraph } from "@/components/instructor/similarity/network-graph";
 import { ClusterCard } from "@/components/instructor/similarity/cluster-card";
 import { SummaryStats } from "@/components/instructor/similarity/summary-stats";
 import { SimilarityBadge, SimilarityScore } from "@/components/instructor/similarity/similarity-badge";
-import { 
-  RefreshCw, 
-  Download, 
-  Search, 
-  AlertCircle, 
+import { ClusterGraphSheet } from "@/components/instructor/similarity/cluster-graph-sheet";
+import { DiffSheet } from "@/components/instructor/similarity/diff-sheet";
+import {
+  RefreshCw,
+  Download,
+  Search,
+  AlertCircle,
   Loader2,
   Eye,
   Filter,
@@ -46,6 +48,15 @@ export default function SimilarityOverviewPage() {
   const [thresholdFilter, setThresholdFilter] = React.useState("0.7");
   const [sortBy, setSortBy] = React.useState("high-risk");
   const [statusFilter, setStatusFilter] = React.useState("all");
+
+  // Sheet state: cluster graph panel
+  const [graphSheetCluster, setGraphSheetCluster] = React.useState<CollusionGroup | null>(null);
+  const [graphSheetOpen, setGraphSheetOpen] = React.useState(false);
+
+  // Sheet state: diff viewer panel
+  const [diffSheetCluster, setDiffSheetCluster] = React.useState<CollusionGroup | null>(null);
+  const [diffSheetEdge, setDiffSheetEdge] = React.useState<CollusionEdge | null>(null);
+  const [diffSheetOpen, setDiffSheetOpen] = React.useState(false);
 
   // Fetch cached report, assignment data, and annotations
   React.useEffect(() => {
@@ -157,7 +168,7 @@ export default function SimilarityOverviewPage() {
     try {
       const { exportSimilarityReport } = await import("@/lib/api/cipas-client");
       const blob = await exportSimilarityReport(assignmentId, "csv");
-      
+
       // Download the file
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -219,7 +230,7 @@ export default function SimilarityOverviewPage() {
       (c) => c.max_confidence >= 0.75 && c.max_confidence < 0.85
     ).length;
     const lowRisk = report.collusion_groups.filter((c) => c.max_confidence < 0.75).length;
-    
+
     // Count unique flagged students
     const flaggedStudents = new Set<string>();
     report.collusion_groups.forEach((group) => {
@@ -237,7 +248,7 @@ export default function SimilarityOverviewPage() {
       cell: ({ row }) => {
         const clusterId = String.fromCharCode(64 + row.original.group_id);
         const annotation = annotations.find((a) => a.group_id === row.original.group_id.toString());
-        
+
         const statusConfig: Record<string, { icon: React.ReactNode; color: string }> = {
           confirmed_plagiarism: { icon: "⚠", color: "text-red-600" },
           false_positive: { icon: "✓", color: "text-green-600" },
@@ -304,9 +315,15 @@ export default function SimilarityOverviewPage() {
   ];
 
   const handleViewCluster = (cluster: CollusionGroup) => {
-    router.push(
-      `/instructor/courses/${instanceId}/assignments/${assignmentId}/similarity/cluster/${cluster.group_id}`
-    );
+    setGraphSheetCluster(cluster);
+    setGraphSheetOpen(true);
+  };
+
+  const handleOpenDiff = (cluster: CollusionGroup, edge: CollusionEdge) => {
+    setDiffSheetCluster(cluster);
+    setDiffSheetEdge(edge);
+    setGraphSheetOpen(false);
+    setDiffSheetOpen(true);
   };
 
   if (error && !report) {
@@ -478,7 +495,10 @@ export default function SimilarityOverviewPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <NetworkGraph clusters={filteredClusters.slice(0, 4)} />
+              <NetworkGraph
+                clusters={filteredClusters.slice(0, 4)}
+                onClusterClick={handleViewCluster}
+              />
             </CardContent>
           </Card>
         </div>
@@ -512,6 +532,23 @@ export default function SimilarityOverviewPage() {
           />
         </CardContent>
       </Card>
+
+      {/* Cluster graph sheet — opens when a bubble in NetworkGraph is clicked */}
+      <ClusterGraphSheet
+        cluster={graphSheetCluster}
+        open={graphSheetOpen}
+        onClose={() => setGraphSheetOpen(false)}
+        onCompare={handleOpenDiff}
+      />
+
+      {/* Diff sheet — opens from ClusterGraphSheet's Compare buttons */}
+      <DiffSheet
+        cluster={diffSheetCluster}
+        initialEdge={diffSheetEdge}
+        assignmentId={assignmentId}
+        open={diffSheetOpen}
+        onClose={() => setDiffSheetOpen(false)}
+      />
     </div>
   );
 }

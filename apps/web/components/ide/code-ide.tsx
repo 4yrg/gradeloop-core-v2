@@ -7,9 +7,12 @@ import { StatusBar } from "./status-bar";
 import { Toolbar } from "./toolbar";
 import { AIAssistantPanel } from "./ai-assistant-panel";
 import { GradeResultPanel } from "@/components/assessments/grade-result-panel";
+import { AILikelihoodBadge } from "@/components/clone-detector/AILikelihoodBadge";
+import { SemanticSimilarityScore } from "@/components/ui/semantic-similarity-score";
+import { Separator } from "@/components/ui/separator";
 import { useCodeExecution } from "@/lib/hooks/use-code-execution";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Terminal, Sparkles, BarChart2, Loader2 } from "lucide-react";
+import { Terminal, Sparkles, BarChart2, Loader2, AlertCircle, BrainCircuit } from "lucide-react";
 import type { CodeIDEProps, ExecutionStatus } from "./types";
 import {
   DEFAULT_LANGUAGE_ID,
@@ -34,8 +37,12 @@ export function CodeIDE({
   showAIAssistant = false,
   showGradePanel = false,
   lockLanguage = false,
+  expectedLanguageId,
   grade = null,
   isGrading = false,
+  gradingFailed = false,
+  submissionAnalysis = null,
+  isAnalyzing = false,
 }: CodeIDEProps) {
   const { theme: systemTheme } = useTheme();
   const theme = (systemTheme === "dark" ? "dark" : "light") as "dark" | "light";
@@ -43,10 +50,10 @@ export function CodeIDE({
   // Controlled tab state so we can auto-switch to "results" when grade arrives.
   const [activeTab, setActiveTab] = useState<string>("input-output");
 
-  // Auto-switch to the Results tab as soon as a grade is available.
+  // Auto-switch to the Results tab as soon as grading starts or a grade arrives.
   useEffect(() => {
-    if (grade) setActiveTab("results");
-  }, [grade]);
+    if (isGrading || grade) setActiveTab("results");
+  }, [isGrading, grade]);
 
   // Editor state
   const [code, setCode] = useState<string>(
@@ -59,6 +66,8 @@ export function CodeIDE({
   // Code execution
   const { execute, isExecuting, result, error } = useCodeExecution({
     assignmentId,
+    // When the language is locked, guard the run hook against mismatches.
+    expectedLanguageId: lockLanguage ? (expectedLanguageId ?? initialLanguage) : undefined,
     onSuccess: (result) => {
       onExecute?.(result);
     },
@@ -184,11 +193,9 @@ export function CodeIDE({
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex h-full flex-col">
             <TabsList
               className={`grid w-full rounded-none border-b border-l ${
-                [showAIAssistant, showGradePanel].filter(Boolean).length === 2
-                  ? "grid-cols-3"
-                  : [showAIAssistant, showGradePanel].some(Boolean)
-                  ? "grid-cols-2"
-                  : "grid-cols-1"
+                showGradePanel
+                  ? showAIAssistant ? "grid-cols-4" : "grid-cols-3"
+                  : showAIAssistant ? "grid-cols-2" : "grid-cols-1"
               }`}
             >
               <TabsTrigger value="input-output" className="gap-2 rounded-none">
@@ -206,6 +213,15 @@ export function CodeIDE({
                   <BarChart2 className="h-4 w-4" />
                   Results
                   {isGrading && (
+                    <Loader2 className="h-3 w-3 animate-spin ml-0.5" />
+                  )}
+                </TabsTrigger>
+              )}
+              {showGradePanel && (
+                <TabsTrigger value="analysis" className="gap-2 rounded-none">
+                  <BrainCircuit className="h-4 w-4" />
+                  Analysis
+                  {isAnalyzing && !submissionAnalysis && (
                     <Loader2 className="h-3 w-3 animate-spin ml-0.5" />
                   )}
                 </TabsTrigger>
@@ -245,11 +261,73 @@ export function CodeIDE({
                   </div>
                 ) : grade ? (
                   <GradeResultPanel grade={grade} compact instructorView={false} />
+                ) : gradingFailed ? (
+                  <div className="flex flex-col items-center justify-center gap-3 h-full min-h-[200px] text-center p-6">
+                    <AlertCircle className="h-8 w-8 text-muted-foreground/40" />
+                    <p className="text-sm font-medium text-muted-foreground">Grading results not available</p>
+                    <p className="text-xs text-muted-foreground">
+                      The AI grader may still be processing, or no rubric is configured for this assignment.
+                      Check back later or contact your instructor.
+                    </p>
+                  </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center gap-2 h-full min-h-[200px] text-center p-6">
                     <BarChart2 className="h-8 w-8 text-muted-foreground/30" />
                     <p className="text-sm text-muted-foreground">
                       Submit your code to see AI-generated feedback and marks.
+                    </p>
+                  </div>
+                )}
+              </TabsContent>
+            )}
+
+            {showGradePanel && (
+              <TabsContent value="analysis" className="flex-1 m-0 overflow-y-auto">
+                {isAnalyzing && !submissionAnalysis ? (
+                  <div className="flex flex-col items-center justify-center gap-3 h-full min-h-[200px] text-center p-6">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="text-sm font-medium">Analyzing your submission…</p>
+                    <p className="text-xs text-muted-foreground">
+                      Running AI detection and semantic similarity checks.
+                    </p>
+                  </div>
+                ) : submissionAnalysis ? (
+                  <div className="px-4 py-4 flex flex-col gap-4">
+                    <div className="flex items-center gap-2">
+                      <BrainCircuit className="h-3.5 w-3.5 text-muted-foreground" />
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Submission Analysis
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-2">AI Generation Likelihood</p>
+                      <AILikelihoodBadge
+                        aiLikelihood={submissionAnalysis.aiLikelihood}
+                        humanLikelihood={submissionAnalysis.humanLikelihood}
+                        showLabel
+                        size="sm"
+                      />
+                    </div>
+                    <Separator />
+                    {submissionAnalysis.semanticSimilarityScore != null ? (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-2">Similarity to sample answer</p>
+                        <SemanticSimilarityScore
+                          score={submissionAnalysis.semanticSimilarityScore}
+                          compact
+                        />
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic">
+                        No sample answer configured — similarity score unavailable.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-2 h-full min-h-[200px] text-center p-6">
+                    <BrainCircuit className="h-8 w-8 text-muted-foreground/30" />
+                    <p className="text-sm text-muted-foreground">
+                      Submit your code to see AI detection and similarity analysis.
                     </p>
                   </div>
                 )}

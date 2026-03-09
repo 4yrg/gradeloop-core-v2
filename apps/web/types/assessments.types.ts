@@ -126,6 +126,14 @@ export interface SubmissionResponse {
     judge0_job_id?: string;
     submitted_at: string;
     code?: string;
+    // CIPAS analysis results (populated asynchronously via PATCH /submissions/:id/analysis)
+    ai_likelihood?: number;
+    human_likelihood?: number;
+    is_ai_generated?: boolean;
+    ai_confidence?: number;
+    /** Semantic similarity score vs. instructor sample answer (0–100) */
+    semantic_similarity_score?: number;
+    analyzed_at?: string;
 }
 
 export interface SubmissionCodeResponse {
@@ -200,6 +208,15 @@ export interface CreateSubmissionRequest {
     code: string;
 }
 
+/** PATCH /api/v1/submissions/:id/analysis — store CIPAS scores after submission. */
+export interface UpdateSubmissionAnalysisRequest {
+    ai_likelihood: number;
+    human_likelihood: number;
+    is_ai_generated: boolean;
+    ai_confidence: number;
+    semantic_similarity_score?: number | null;
+}
+
 /** PUT /api/v1/instructor-assignments/:id/rubric — replace all rubric criteria. */
 export interface UpdateRubricRequest {
     criteria: RubricCriterionDto[];
@@ -252,4 +269,43 @@ export interface RunCodeResponse {
     execution_time: string | null;
     memory_used: number | null;
     message: string | null;
+}
+
+// ── ACAFS Socratic Chat types ────────────────────────────────────────────────
+
+export interface AcafsChatMessage {
+    id: number;
+    role: 'user' | 'assistant';
+    content: string;
+    created_at?: string;
+}
+
+export interface AcafsChatRequest {
+    content: string;
+    student_code?: string;
+    assignment_title?: string;
+    assignment_description?: string;
+    rubric_skills?: string[];
+}
+
+/** Response from POST /acafs/chat/:assignmentId/:userId */
+export interface AcafsChatResponse {
+    session_id: string;
+    assignment_id: string;
+    user_id: string;
+    status: 'active' | 'closed';
+    reply: string;
+    messages: AcafsChatMessage[];
+}
+
+/** Response from GET /acafs/chat/:assignmentId/:userId */
+export interface AcafsChatHistoryResponse {
+    session_id: string;
+    assignment_id: string;
+    user_id: string;
+    status: 'active' | 'closed';
+    created_at?: string;
+    closed_at?: string;
+    closed_reason?: string;
+    messages: AcafsChatMessage[];
 }

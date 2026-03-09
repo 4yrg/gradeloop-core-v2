@@ -1,0 +1,28 @@
+meta {
+  name: Create Annotation
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{CIPAS_SYNTACTICS_URL_V1}}/annotations
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "assignment_id": "hw-01",
+    "instructor_id": "instructor-123",
+    "status": "confirmed_plagiarism",
+    "match_id": "match-uuid-here",
+    "group_id": null,
+    "comments": "Both submissions share identical logic with only identifier renaming.",
+    "action_taken": "Reported to academic integrity office."
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

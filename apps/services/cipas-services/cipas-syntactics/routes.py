@@ -576,6 +576,7 @@ def cluster_assignment(request: AssignmentClusterRequest) -> AssignmentClusterRe
     3. Compute connected components of the resulting collusion graph.
     4. Return per-submission summaries + collusion groups.
     5. Persist report to database for future retrieval.
+    5. Persist report to database for future retrieval.
     """
     import time
 
@@ -706,6 +707,9 @@ def cluster_assignment(request: AssignmentClusterRequest) -> AssignmentClusterRe
             len(groups_out),
         )
 
+        processing_time = time.time() - start_time
+
+        response = AssignmentClusterResponse(
         processing_time = time.time() - start_time
 
         response = AssignmentClusterResponse(

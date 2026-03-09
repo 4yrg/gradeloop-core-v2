@@ -8,6 +8,8 @@ import { toast } from "sonner";
 
 interface UseCodeExecutionOptions {
   assignmentId?: string;
+  /** When set, running code with a different language ID is blocked client-side. */
+  expectedLanguageId?: number;
   onSuccess?: (result: ExecutionResult) => void;
   onError?: (error: Error) => void;
 }
@@ -26,6 +28,7 @@ interface UseCodeExecutionReturn {
 
 export function useCodeExecution({
   assignmentId,
+  expectedLanguageId,
   onSuccess,
   onError,
 }: UseCodeExecutionOptions = {}): UseCodeExecutionReturn {
@@ -45,6 +48,16 @@ export function useCodeExecution({
     }) => {
       if (!sourceCode.trim()) {
         toast.error("Cannot run empty code");
+        return;
+      }
+
+      // Guard: reject if the chosen language doesn't match the assignment language.
+      if (expectedLanguageId !== undefined && languageId !== expectedLanguageId) {
+        const err = new Error(
+          `This assignment requires language ID ${expectedLanguageId}. Please switch back to the correct language.`
+        );
+        toast.error(err.message);
+        onError?.(err);
         return;
       }
 

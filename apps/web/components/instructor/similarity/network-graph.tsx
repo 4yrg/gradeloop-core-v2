@@ -7,13 +7,14 @@ import type { CollusionGroup } from "@/types/cipas";
 
 interface NetworkGraphProps {
   clusters: CollusionGroup[];
+  onClusterClick?: (cluster: CollusionGroup) => void;
   className?: string;
 }
 
-export function NetworkGraph({ clusters, className }: NetworkGraphProps) {
+export function NetworkGraph({ clusters, onClusterClick, className }: NetworkGraphProps) {
   // Simple visualization using positioned nodes
   // For a real implementation, you'd use D3.js or Recharts
-  
+
   const getClusterColor = (confidence: number) => {
     if (confidence >= 0.85) return "border-red-500 bg-red-500/10";
     if (confidence >= 0.75) return "border-orange-500 bg-orange-500/10";
@@ -30,7 +31,7 @@ export function NetworkGraph({ clusters, className }: NetworkGraphProps) {
   return (
     <Card className={cn("relative bg-slate-50 dark:bg-slate-950/50 overflow-hidden", className)}>
       {/* Grid background */}
-      <div 
+      <div
         className="absolute inset-0 opacity-10 pointer-events-none"
         style={{
           backgroundImage: "radial-gradient(circle, currentColor 1px, transparent 1px)",
@@ -53,8 +54,15 @@ export function NetworkGraph({ clusters, className }: NetworkGraphProps) {
           return (
             <div
               key={cluster.group_id}
-              className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer group"
+              className={cn(
+                "absolute -translate-x-1/2 -translate-y-1/2 group",
+                onClusterClick ? "cursor-pointer" : "cursor-default"
+              )}
               style={{ ...pos, width: size, height: size }}
+              onClick={() => onClusterClick?.(cluster)}
+              role={onClusterClick ? "button" : undefined}
+              tabIndex={onClusterClick ? 0 : undefined}
+              onKeyDown={onClusterClick ? (e) => e.key === "Enter" && onClusterClick(cluster) : undefined}
             >
               <div
                 className={cn(
@@ -72,8 +80,8 @@ export function NetworkGraph({ clusters, className }: NetworkGraphProps) {
                         cluster.max_confidence >= 0.85
                           ? "bg-red-500"
                           : cluster.max_confidence >= 0.75
-                          ? "bg-orange-500"
-                          : "bg-yellow-500"
+                            ? "bg-orange-500"
+                            : "bg-yellow-500"
                       )}
                     />
                   ))}

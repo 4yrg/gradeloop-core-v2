@@ -1,0 +1,24 @@
+meta {
+  name: Register Template
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{CIPAS_SYNTACTICS_URL_V1}}/templates/register
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "assignment_id": "hw-01",
+    "source_code": "public class Solution {\n  // TODO: implement this method\n  public int solve(int x) {\n    return 0;\n  }\n}",
+    "language": "java"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

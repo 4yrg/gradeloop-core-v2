@@ -15,7 +15,15 @@ class TypeNet(nn.Module):
     TypeNet Architecture - Same as training script
     Must match the architecture used during training
     """
-    def __init__(self, input_size=5, hidden_size=128, output_size=128, dropout_rate=0.5, sequence_length=30):
+
+    def __init__(
+        self,
+        input_size=5,
+        hidden_size=128,
+        output_size=128,
+        dropout_rate=0.5,
+        sequence_length=70,
+    ):
         super(TypeNet, self).__init__()
 
         self.sequence_length = sequence_length
@@ -60,35 +68,18 @@ class TypeNet(nn.Module):
         # Take last timestep
         last_timestep = out[:, -1, :]
 
-        # Generate embedding (L2-normalised to match training)
+        # Generate embedding
         embedding = self.fc(last_timestep)
-        embedding = nn.functional.normalize(embedding, p=2, dim=1)
         return embedding
 
 
 class TypeNetAuthenticator:
     """
-    Authentication system using pre-trained TypeNet model.
-    Handles enrollment, verification, and identification.
-
-    Architecture (DB-first):
-    ─────────────────────────────────────────────────────────────────────────
-    • PostgreSQL (user_biometrics table) is the single source of truth.
-      All enrolled templates are persisted there, keyed by (user_id, phase).
-
-    • `user_templates` is a pure in-memory runtime cache.  It is populated
-      from the database at service startup (see main.py startup block) and
-      kept in sync after every enrollment call.  It exists only so that
-      verify_user / identify_user / continuous_authentication can do fast
-      numpy cosine-similarity comparisons without hitting the DB on every
-      single keystroke event.
-
-    • The pickle save_templates / load_templates helpers are a legacy no-DB
-      fallback (used only when PostgreSQL is not configured).  They should
-      not be called in normal production operation.
+    Authentication system using pre-trained TypeNet model
+    Handles enrollment, verification, and identification
     """
 
-    def __init__(self, model_path: str = None, device: str = 'cpu'):
+    def __init__(self, model_path: str = None, device: str = "cpu"):
         """
         Initialize TypeNet authenticator
 
@@ -96,26 +87,18 @@ class TypeNetAuthenticator:
             model_path: Path to the trained TypeNet model (.pth file)
             device: 'cpu' or 'cuda'
         """
-        self.device = torch.device(device if torch.cuda.is_available() else 'cpu')
+        self.device = torch.device(device if torch.cuda.is_available() else "cpu")
 
         # Initialize TypeNet model
         self.model = TypeNet(
-            input_size=5,
-            hidden_size=128,
-            output_size=128,
-            dropout_rate=0.5,
-            sequence_length=30   # must match SEQ_LEN used during training
+            input_size=5, hidden_size=128, output_size=128, dropout_rate=0.5
         ).to(self.device)
 
         # Load pre-trained weights if provided
         if model_path:
             self.load_model(model_path)
 
-        # In-memory runtime cache: populated from PostgreSQL at startup and
-        # updated in-place after each enrollment.  NOT the persistent store —
-        # the DB is the source of truth.  This cache is rebuilt on every
-        # service restart from the database.
-        self.user_templates: Dict[str, Dict] = {}
+        self.user_templates = {}  # Store enrolled user templates
         print(f"✅ TypeNet initialized on device: {self.device}")
 
     def load_model(self, model_path: str):
@@ -135,7 +118,7 @@ class TypeNetAuthenticator:
 
         Args:
             keystroke_sequence: (seq_len, 5) array - [HL, IL, PL, RL, KeyCode]
-                                Must be exactly 30 keystrokes (SEQ_LEN used during training)
+                                Must be exactly 70 keystrokes (as per training)
 
         Returns:
             embedding: (128,) numpy array
@@ -157,22 +140,21 @@ class TypeNetAuthenticator:
 
         Args:
             user_id: Unique user identifier
-            keystroke_sequences: List of sequences, each (30, 5)
+            keystroke_sequences: List of sequences, each (70, 5)
 
         Returns:
             enrollment_result: Dict with enrollment status
         """
         if len(keystroke_sequences) < 3:
-            return {
-                'success': False,
-                'message': 'Need at least 3 enrollment samples'
-            }
+            return {"success": False, "message": "Need at least 3 enrollment samples"}
 
         embeddings = []
         for sequence in keystroke_sequences:
             # Validate shape
-            if sequence.shape[0] != 30 or sequence.shape[1] != 5:
-                print(f"⚠️ Warning: Sequence has shape {sequence.shape}, expected (30, 5)")
+            if sequence.shape[0] != 70 or sequence.shape[1] != 5:
+                print(
+                    f"⚠️ Warning: Sequence has shape {sequence.shape}, expected (70, 5)"
+                )
                 continue
 
             embedding = self.get_embedding(sequence)
@@ -180,8 +162,8 @@ class TypeNetAuthenticator:
 
         if len(embeddings) < 3:
             return {
-                'success': False,
-                'message': 'Not enough valid sequences for enrollment'
+                "success": False,
+                "message": "Not enough valid sequences for enrollment",
             }
 
         # Create template as mean of embeddings
@@ -189,25 +171,27 @@ class TypeNetAuthenticator:
         template_std = np.std(embeddings, axis=0)
 
         self.user_templates[user_id] = {
-            'template': template,
-            'std': template_std,
-            'sample_count': len(embeddings)
+            "template": template,
+            "std": template_std,
+            "sample_count": len(embeddings),
         }
 
         return {
-            'success': True,
-            'user_id': user_id,
-            'samples_enrolled': len(embeddings),
-            'message': f'User {user_id} enrolled successfully with TypeNet'
+            "success": True,
+            "user_id": user_id,
+            "samples_enrolled": len(embeddings),
+            "message": f"User {user_id} enrolled successfully with TypeNet",
         }
 
-    def verify_user(self, user_id: str, keystroke_sequence: np.ndarray, threshold: float = 0.7) -> Dict:
+    def verify_user(
+        self, user_id: str, keystroke_sequence: np.ndarray, threshold: float = 0.7
+    ) -> Dict:
         """
         Verify if keystroke pattern matches enrolled user
 
         Args:
             user_id: User to verify
-            keystroke_sequence: (30, 5) sequence to verify
+            keystroke_sequence: (70, 5) sequence to verify
             threshold: Similarity threshold (0-1)
 
         Returns:
@@ -215,37 +199,37 @@ class TypeNetAuthenticator:
         """
         if user_id not in self.user_templates:
             return {
-                'success': False,
-                'authenticated': False,
-                'message': 'User not enrolled',
-                'risk_score': 1.0
+                "success": False,
+                "authenticated": False,
+                "message": "User not enrolled",
+                "risk_score": 1.0,
             }
 
         # Validate input shape
-        if keystroke_sequence.shape[0] != 30 or keystroke_sequence.shape[1] != 5:
+        if keystroke_sequence.shape[0] != 70 or keystroke_sequence.shape[1] != 5:
             return {
-                'success': False,
-                'authenticated': False,
-                'message': f'Invalid sequence shape: {keystroke_sequence.shape}, expected (30, 5)'
+                "success": False,
+                "authenticated": False,
+                "message": f"Invalid sequence shape: {keystroke_sequence.shape}, expected (70, 5)",
             }
 
         # Get embedding
         current_embedding = self.get_embedding(keystroke_sequence)
 
         # Compare with template
-        template = self.user_templates[user_id]['template']
+        template = self.user_templates[user_id]["template"]
         similarity = self._cosine_similarity(current_embedding, template)
         risk_score = 1 - similarity
         authenticated = similarity >= threshold
 
         return {
-            'success': True,
-            'authenticated': authenticated,
-            'user_id': user_id,
-            'similarity': float(similarity),
-            'risk_score': float(risk_score),
-            'threshold': threshold,
-            'message': 'Authenticated' if authenticated else 'Authentication failed'
+            "success": True,
+            "authenticated": authenticated,
+            "user_id": user_id,
+            "similarity": float(similarity),
+            "risk_score": float(risk_score),
+            "threshold": threshold,
+            "message": "Authenticated" if authenticated else "Authentication failed",
         }
 
     def identify_user(self, keystroke_sequence: np.ndarray, top_k: int = 3) -> Dict:
@@ -253,24 +237,20 @@ class TypeNetAuthenticator:
         Identify user by comparing against all enrolled users
 
         Args:
-            keystroke_sequence: (30, 5) sequence
+            keystroke_sequence: (70, 5) sequence
             top_k: Number of top matches to return
 
         Returns:
             identification_result: Dict with top matches
         """
         if not self.user_templates:
-            return {
-                'success': False,
-                'message': 'No users enrolled',
-                'matches': []
-            }
+            return {"success": False, "message": "No users enrolled", "matches": []}
 
         # Validate shape
-        if keystroke_sequence.shape[0] != 30 or keystroke_sequence.shape[1] != 5:
+        if keystroke_sequence.shape[0] != 70 or keystroke_sequence.shape[1] != 5:
             return {
-                'success': False,
-                'message': f'Invalid sequence shape: {keystroke_sequence.shape}'
+                "success": False,
+                "message": f"Invalid sequence shape: {keystroke_sequence.shape}",
             }
 
         # Get embedding
@@ -279,130 +259,129 @@ class TypeNetAuthenticator:
         # Compare against all users
         similarities = []
         for user_id, user_data in self.user_templates.items():
-            template = user_data['template']
+            template = user_data["template"]
             similarity = self._cosine_similarity(current_embedding, template)
 
-            similarities.append({
-                'userId': user_id,
-                'similarity': float(similarity),
-                'confidence': float(similarity * 100)
-            })
+            similarities.append(
+                {
+                    "userId": user_id,
+                    "similarity": float(similarity),
+                    "confidence": float(similarity * 100),
+                }
+            )
 
         # Sort by similarity
-        similarities.sort(key=lambda x: x['similarity'], reverse=True)
+        similarities.sort(key=lambda x: x["similarity"], reverse=True)
         top_matches = similarities[:top_k]
 
         # Add rank
         for i, match in enumerate(top_matches):
-            match['rank'] = i + 1
+            match["rank"] = i + 1
 
         best_match = top_matches[0] if top_matches else None
 
         # Determine confidence level
         if best_match:
-            sim = best_match['similarity']
+            sim = best_match["similarity"]
             if sim >= 0.8:
-                confidence_level = 'HIGH'
+                confidence_level = "HIGH"
             elif sim >= 0.6:
-                confidence_level = 'MEDIUM'
+                confidence_level = "MEDIUM"
             else:
-                confidence_level = 'LOW'
+                confidence_level = "LOW"
         else:
-            confidence_level = 'UNKNOWN'
+            confidence_level = "UNKNOWN"
 
         return {
-            'success': True,
-            'matches': top_matches,
-            'best_match': best_match,
-            'confidence_level': confidence_level,
-            'total_enrolled_users': len(self.user_templates),
-            'message': f'Identified with {confidence_level} confidence'
+            "success": True,
+            "matches": top_matches,
+            "best_match": best_match,
+            "confidence_level": confidence_level,
+            "total_enrolled_users": len(self.user_templates),
+            "message": f"Identified with {confidence_level} confidence",
         }
 
-    def continuous_authentication(self, user_id: str, sequences: List[np.ndarray], 
-                                 threshold: float = 0.7) -> Dict:
+    def continuous_authentication(
+        self, user_id: str, sequences: List[np.ndarray], threshold: float = 0.7
+    ) -> Dict:
         """
         Continuous authentication across multiple recent sequences
         Implements stress-robust multi-phase verification
-        
+
         Args:
             user_id: User to verify
-            sequences: List of recent keystroke sequences (each 30x5)
+            sequences: List of recent keystroke sequences (each 70x5)
             threshold: Similarity threshold (default 0.7)
-        
+
         Returns:
             Dict with continuous authentication status and metrics
         """
         if user_id not in self.user_templates:
-            return {
-                'status': 'ERROR',
-                'success': False,
-                'message': 'User not enrolled'
-            }
-        
+            return {"status": "ERROR", "success": False, "message": "User not enrolled"}
+
         if not sequences:
             return {
-                'status': 'ERROR',
-                'success': False,
-                'message': 'No sequences provided'
+                "status": "ERROR",
+                "success": False,
+                "message": "No sequences provided",
             }
-        
+
         # Verify each sequence
         risk_scores = []
         similarity_scores = []
-        
+
         for sequence in sequences:
             # Validate shape
-            if sequence.shape[0] != 30 or sequence.shape[1] != 5:
+            if sequence.shape[0] != 70 or sequence.shape[1] != 5:
                 continue  # Skip invalid sequences
-            
+
             # Get verification result
             result = self.verify_user(user_id, sequence, threshold)
-            if result['success']:
-                risk_scores.append(result['risk_score'])
-                similarity_scores.append(result['similarity'])
-        
+            if result["success"]:
+                risk_scores.append(result["risk_score"])
+                similarity_scores.append(result["similarity"])
+
         if not risk_scores:
             return {
-                'status': 'ERROR',
-                'success': False,
-                'message': 'No valid sequences processed'
+                "status": "ERROR",
+                "success": False,
+                "message": "No valid sequences processed",
             }
-        
+
         # Compute aggregate metrics
         avg_risk = float(np.mean(risk_scores))
         avg_similarity = float(np.mean(similarity_scores))
         max_risk = float(np.max(risk_scores))
         min_similarity = float(np.min(similarity_scores))
-        
+
         # Determine status based on average risk
         if avg_risk < 0.3:  # Low risk
-            status = 'AUTHENTICATED'
+            status = "AUTHENTICATED"
             authenticated = True
         elif avg_risk < 0.6:  # Medium risk
-            status = 'SUSPICIOUS'
+            status = "SUSPICIOUS"
             authenticated = False
         else:  # High risk
-            status = 'REJECTED'
+            status = "REJECTED"
             authenticated = False
-        
+
         # Additional check: if any single check is very high risk, flag as suspicious
         if max_risk > 0.7:
-            status = 'SUSPICIOUS' if status == 'AUTHENTICATED' else status
+            status = "SUSPICIOUS" if status == "AUTHENTICATED" else status
             authenticated = False
-        
+
         return {
-            'status': status,
-            'success': True,
-            'authenticated': authenticated,
-            'average_risk_score': avg_risk,
-            'average_similarity': avg_similarity,
-            'max_risk_score': max_risk,
-            'min_similarity': min_similarity,
-            'verification_count': len(risk_scores),
-            'individual_scores': [float(r) for r in risk_scores],
-            'threshold': threshold,
-            'message': f'Continuous authentication: {status}'
+            "status": status,
+            "success": True,
+            "authenticated": authenticated,
+            "average_risk_score": avg_risk,
+            "average_similarity": avg_similarity,
+            "max_risk_score": max_risk,
+            "min_similarity": min_similarity,
+            "verification_count": len(risk_scores),
+            "individual_scores": [float(r) for r in risk_scores],
+            "threshold": threshold,
+            "message": f"Continuous authentication: {status}",
         }
 
     def _cosine_similarity(self, a: np.ndarray, b: np.ndarray) -> float:
@@ -416,56 +395,43 @@ class TypeNetAuthenticator:
 
         return dot_product / (norm_a * norm_b)
 
-    # ──────────────────────────────────────────────────────────────────────
-    # Legacy / no-DB fallback helpers
-    # These are only used when PostgreSQL is NOT configured (e.g. bare local
-    # dev without Docker).  In normal production the DB is the source of
-    # truth and these methods are never called.
-    # ──────────────────────────────────────────────────────────────────────
-
     def save_templates(self, templates_path: str):
-        """
-        [LEGACY FALLBACK] Persist in-memory cache to a pickle file.
-        Only called by main.py when the database client is disabled.
-        In DB-enabled deployments this method is never invoked.
-        """
-        with open(templates_path, 'wb') as f:
+        """Save user templates to disk"""
+        with open(templates_path, "wb") as f:
             pickle.dump(self.user_templates, f)
-        print(f"✅ [fallback] User templates saved to {templates_path}")
+        print(f"✅ User templates saved to {templates_path}")
 
     def load_templates(self, templates_path: str):
-        """
-        [LEGACY FALLBACK] Restore in-memory cache from a pickle file.
-        Only called by main.py when the database client is disabled.
-        In DB-enabled deployments this method is never invoked.
-        """
-        with open(templates_path, 'rb') as f:
+        """Load user templates from disk"""
+        with open(templates_path, "rb") as f:
             self.user_templates = pickle.load(f)
-        print(f"✅ [fallback] Loaded {len(self.user_templates)} user templates from pickle")
+        print(f"✅ Loaded {len(self.user_templates)} user templates")
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Quick smoke-test (run directly: python typenet_inference.py)
-# NOTE: In production, enrollment and template persistence are handled by
-# main.py together with the PostgreSQL database client.  The code below is
-# only for local sanity-checking of the model weights.
-# ──────────────────────────────────────────────────────────────────────────────
+# Example usage
 if __name__ == "__main__":
+    # Initialize with pre-trained model
     auth = TypeNetAuthenticator(
-        model_path='models/typenet_pretrained.pth',
-        device='cpu'
+        model_path="models/typenet_pretrained.pth", device="cpu"
     )
 
-    # Smoke-test: enroll with random data (replace with real sequences)
+    # Example: Enroll a user with 5 sequences
     user_id = "student_001"
-    enrollment_sequences = [np.random.randn(30, 5).astype(np.float32) for _ in range(5)]
+    enrollment_sequences = [
+        np.random.randn(70, 5) for _ in range(5)  # Replace with real data
+    ]
 
     result = auth.enroll_user(user_id, enrollment_sequences)
     print("\n📝 Enrollment:", result)
 
-    test_sequence = np.random.randn(30, 5).astype(np.float32)
+    # Example: Verify user
+    test_sequence = np.random.randn(70, 5)  # Replace with real data
     verification = auth.verify_user(user_id, test_sequence, threshold=0.7)
     print("\n🔐 Verification:", verification)
 
+    # Example: Identify user
     identification = auth.identify_user(test_sequence, top_k=3)
     print("\n🔍 Identification:", identification)
+
+    # Save templates
+    auth.save_templates("models/user_templates.pkl")

@@ -256,3 +256,58 @@ export async function detectAICodeBatch(
 
   return results;
 }
+
+/**
+ * Calculate semantic similarity between two code snippets.
+ * Returns a score between 0 and 1, where 1 means identical.
+ * 
+ * TODO: Implement actual semantic similarity computation via CIPAS Semantics service
+ */
+export async function getSemanticSimilarity(
+  code1: string,
+  code2: string,
+): Promise<number> {
+  // Temporary stub implementation - returns random similarity score
+  // This should be replaced with actual CIPAS Semantics API call
+  console.warn("getSemanticSimilarity: Stub implementation - not using actual CIPAS Semantics service");
+  
+  // For now, return a mock score based on simple string comparison
+  const normalized1 = code1.trim().toLowerCase();
+  const normalized2 = code2.trim().toLowerCase();
+  
+  if (normalized1 === normalized2) return 1.0;
+  if (normalized1.length === 0 || normalized2.length === 0) return 0.0;
+  
+  // Very basic similarity metric (this is NOT semantic similarity!)
+  const maxLength = Math.max(normalized1.length, normalized2.length);
+  const minLength = Math.min(normalized1.length, normalized2.length);
+  return minLength / maxLength * 0.5; // Cap at 0.5 to indicate this is not real
+}
+
+/**
+ * Save submission analysis results (AI detection, semantic similarity) for an assignment submission.
+ * This is a best-effort operation - failures are logged but not thrown.
+ * 
+ * TODO: Implement actual persistence via Assessment or CIPAS service
+ */
+export async function saveSubmissionAnalysis(
+  submissionId: string,
+  analysis: {
+    ai_likelihood: number;
+    human_likelihood: number;
+    is_ai_generated: boolean;
+    ai_confidence: number;
+    semantic_similarity_score: number | null;
+  },
+): Promise<void> {
+  // Temporary stub implementation
+  // This should POST to /api/submissions/{submissionId}/analysis or similar
+  console.warn("saveSubmissionAnalysis: Stub implementation - not persisting to backend", {
+    submissionId,
+    analysis,
+  });
+  
+  // For now, just log and return success
+  // In the future, this should make an API call to store the analysis
+  return Promise.resolve();
+}

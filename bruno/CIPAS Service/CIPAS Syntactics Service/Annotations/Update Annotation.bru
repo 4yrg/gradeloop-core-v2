@@ -1,0 +1,24 @@
+meta {
+  name: Update Annotation
+  type: http
+  seq: 2
+}
+
+patch {
+  url: {{CIPAS_SYNTACTICS_URL_V1}}/annotations/annotation-uuid-here
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "status": "false_positive",
+    "comments": "After review, the similarity is due to a commonly taught pattern.",
+    "action_taken": null
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

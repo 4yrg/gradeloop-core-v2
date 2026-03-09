@@ -18,6 +18,11 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CodeIDE } from "@/components/ide";
 import { studentAssessmentsApi, acafsApi } from "@/lib/api/assessments";
+import {
+    detectAICode,
+    getSemanticSimilarity,
+    saveSubmissionAnalysis,
+} from "@/lib/api/cipas-client";
 import type { AssignmentResponse, SubmissionGrade } from "@/types/assessments.types";
 import { handleApiError } from "@/lib/api/axios";
 import { useAuthStore } from "@/lib/stores/authStore";
@@ -108,6 +113,13 @@ export default function StudentAttemptPage() {
     );
     const [grade, setGrade] = React.useState<SubmissionGrade | null>(null);
     const [isGrading, setIsGrading] = React.useState(false);
+    const [gradingTimedOut, setGradingTimedOut] = React.useState(false);
+    const [submissionAnalysis, setSubmissionAnalysis] = React.useState<{
+        aiLikelihood: number;
+        humanLikelihood: number;
+        semanticSimilarityScore?: number | null;
+    } | null>(null);
+    const [isAnalyzing, setIsAnalyzing] = React.useState(false);
 
     // Poll ACAFS for grade results with exponential back-off.
     // ACAFS returns 404 while grading is pending; 200 when complete.
@@ -115,15 +127,22 @@ export default function StudentAttemptPage() {
         if (!gradedSubmissionId) return;
         let cancelled = false;
         let attempts = 0;
-        const MAX_ATTEMPTS = 45; // ~3 min cap
+
+        // View-only submissions (opened via ?submission=<id>) should resolve
+        // quickly — the grade either exists already or won't exist at all.
+        // New submissions get longer polling (up to ~90 s).
+        const isViewOnly = !!viewSubmissionId && gradedSubmissionId === viewSubmissionId;
+        const MAX_ATTEMPTS = isViewOnly ? 4 : 20;
 
         setGrade(null);
         setIsGrading(true);
+        setGradingTimedOut(false);
 
         async function poll() {
             if (cancelled) return;
             if (attempts >= MAX_ATTEMPTS) {
                 setIsGrading(false);
+                setGradingTimedOut(true);
                 return;
             }
             attempts++;
@@ -142,12 +161,13 @@ export default function StudentAttemptPage() {
                 } else {
                     // Non-404 error or grading not enabled — stop quietly
                     setIsGrading(false);
+                    setGradingTimedOut(true);
                 }
             }
         }
 
-        // Small initial delay to let the worker start
-        const timer = setTimeout(poll, 3000);
+        // For view-only, check immediately; for fresh submissions give the worker a head-start.
+        const timer = setTimeout(poll, isViewOnly ? 500 : 3000);
         return () => {
             cancelled = true;
             clearTimeout(timer);
@@ -168,9 +188,21 @@ export default function StudentAttemptPage() {
                 setPageTitle(asgn.title);
 
                 if (viewSubmissionId) {
-                    // Viewing a specific submission version
-                    const codeData = await studentAssessmentsApi.getSubmissionCode(viewSubmissionId);
-                    if (mounted) setInitialCode(codeData.code);
+                    // Viewing a specific submission version — load code + metadata
+                    const [codeData, subMeta] = await Promise.allSettled([
+                        studentAssessmentsApi.getSubmissionCode(viewSubmissionId),
+                        studentAssessmentsApi.getSubmission(viewSubmissionId),
+                    ]);
+                    if (mounted) {
+                        if (codeData.status === "fulfilled") setInitialCode(codeData.value.code);
+                        if (subMeta.status === "fulfilled" && subMeta.value.ai_likelihood != null) {
+                            setSubmissionAnalysis({
+                                aiLikelihood: subMeta.value.ai_likelihood,
+                                humanLikelihood: subMeta.value.human_likelihood ?? (1 - subMeta.value.ai_likelihood),
+                                semanticSimilarityScore: subMeta.value.semantic_similarity_score ?? null,
+                            });
+                        }
+                    }
                 } else {
                     // Load latest submission/draft code
                     const latest = await studentAssessmentsApi.getMyLatestSubmission(assignmentId);
@@ -215,6 +247,39 @@ export default function StudentAttemptPage() {
             // Trigger grade polling for this new submission
             setGradedSubmissionId(submission.id);
             toast.success(`Submitted successfully! Version ${submission.version}`);
+
+            // Run CIPAS analysis in the background (fire-and-forget)
+            setSubmissionAnalysis(null);
+            setIsAnalyzing(true);
+            // Fetch sample answer from the assignment service for semantic similarity.
+            const sampleAnswerPromise = studentAssessmentsApi
+                .getAssignmentSampleAnswer(assignment.id)
+                .then(sa => (sa?.code ? getSemanticSimilarity(code, sa.code) : null))
+                .catch(() => null);
+            Promise.allSettled([
+                detectAICode(code),
+                sampleAnswerPromise,
+            ]).then(([aiRes, semRes]) => {
+                setIsAnalyzing(false);
+                const aiResult = aiRes.status === "fulfilled" ? aiRes.value : null;
+                const semScore = semRes.status === "fulfilled" ? semRes.value : null;
+                if (aiResult) {
+                    const analysis = {
+                        aiLikelihood: aiResult.ai_likelihood,
+                        humanLikelihood: aiResult.human_likelihood,
+                        semanticSimilarityScore: semScore,
+                    };
+                    setSubmissionAnalysis(analysis);
+                    // Persist to assessment service
+                    saveSubmissionAnalysis(submission.id, {
+                        ai_likelihood: aiResult.ai_likelihood,
+                        human_likelihood: aiResult.human_likelihood,
+                        is_ai_generated: aiResult.is_ai_generated,
+                        ai_confidence: aiResult.confidence,
+                        semantic_similarity_score: semScore,
+                    }).catch(() => { /* best-effort */ });
+                }
+            });
         } catch (err) {
             const msg = handleApiError(err);
             setError(msg);
@@ -403,6 +468,9 @@ export default function StudentAttemptPage() {
                         showGradePanel={true}
                         grade={grade}
                         isGrading={isGrading}
+                        gradingFailed={gradingTimedOut}
+                        submissionAnalysis={submissionAnalysis}
+                        isAnalyzing={isAnalyzing}
                         onSubmit={handleSubmit}
                     />
                 </div>

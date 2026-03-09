@@ -106,6 +106,10 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	// segment from being swallowed as a UUID param value.
 	submissions.Get("/:id/code", cfg.SubmissionHandler.GetSubmissionCode)
 
+	// PATCH  /api/v1/submissions/:id/analysis   — store CIPAS AI + semantic scores
+	// NOTE: Must be registered BEFORE GET /:id for the same reason as /code above.
+	submissions.Patch("/:id/analysis", cfg.SubmissionHandler.PatchAnalysis)
+
 	// GET    /api/v1/submissions/:id            — get submission metadata
 	submissions.Get("/:id", cfg.SubmissionHandler.GetSubmission)
 
@@ -140,6 +144,9 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	// GET /student-assignments/:id so the literal path segments are not
 	// consumed as UUID parameter values.
 	studentAssignments.Get("/", cfg.StudentHandler.ListMyAssignments)
+	// NOTE: Must be registered BEFORE GET /:id to prevent the literal segment
+	// "sample-answer" from being swallowed as a UUID parameter value.
+	studentAssignments.Get("/:id/sample-answer", cfg.StudentHandler.GetAssignmentSampleAnswer)
 	studentAssignments.Get("/:id", cfg.StudentHandler.GetAssignment)
 
 	studentSubmissions := protected.Group("/student-submissions", requireStudentOrAdmin)
