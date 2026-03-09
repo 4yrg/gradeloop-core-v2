@@ -1,7 +1,6 @@
 """Language router for mapping languages to tree-sitter parsers."""
 
 from enum import Enum
-from typing import Optional
 
 from tree_sitter import Language, Parser
 
@@ -12,6 +11,7 @@ logger = get_logger(__name__)
 
 class SupportedLanguage(str, Enum):
     """Supported programming languages."""
+
     C = "c"
     CPP = "cpp"
     JAVA = "java"
@@ -25,22 +25,22 @@ class SupportedLanguage(str, Enum):
 # on this deployment are listed. IDs 91/92/93/94/95/105 are NOT present.
 JUDGE0_LANGUAGE_MAP = {
     # C
-    50: SupportedLanguage.C,           # C (GCC 9.2.0)
-    75: SupportedLanguage.C,           # C (Clang 7.0.1)
+    50: SupportedLanguage.C,  # C (GCC 9.2.0)
+    75: SupportedLanguage.C,  # C (Clang 7.0.1)
     # C++
-    54: SupportedLanguage.CPP,         # C++ (GCC 9.2.0)
-    76: SupportedLanguage.CPP,         # C++ (Clang 7.0.1)
+    54: SupportedLanguage.CPP,  # C++ (GCC 9.2.0)
+    76: SupportedLanguage.CPP,  # C++ (Clang 7.0.1)
     # C#
-    51: SupportedLanguage.CSHARP,      # C# (Mono 6.6.0.161)
+    51: SupportedLanguage.CSHARP,  # C# (Mono 6.6.0.161)
     # Java
-    62: SupportedLanguage.JAVA,        # Java (OpenJDK 13.0.1)
+    62: SupportedLanguage.JAVA,  # Java (OpenJDK 13.0.1)
     # Python
-    71: SupportedLanguage.PYTHON,      # Python (3.8.1)
+    71: SupportedLanguage.PYTHON,  # Python (3.8.1)
     # JavaScript / TypeScript (TypeScript uses JS AST)
     63: SupportedLanguage.JAVASCRIPT,  # JavaScript (Node.js 12.14.0)
     74: SupportedLanguage.JAVASCRIPT,  # TypeScript (3.7.4)
     # Go — no dedicated parser; C parser gives basic structure
-    60: SupportedLanguage.C,           # Go (1.13.5)
+    60: SupportedLanguage.C,  # Go (1.13.5)
 }
 
 
@@ -56,6 +56,7 @@ class LanguageRouter:
         """Initialize tree-sitter parsers for supported languages."""
         try:
             import tree_sitter_c as ts_c
+
             self._parsers[SupportedLanguage.C] = Parser(Language(ts_c.language()))
             logger.debug("parser_initialized", language="c")
         except ImportError:
@@ -63,6 +64,7 @@ class LanguageRouter:
 
         try:
             import tree_sitter_cpp as ts_cpp
+
             self._parsers[SupportedLanguage.CPP] = Parser(Language(ts_cpp.language()))
             logger.debug("parser_initialized", language="cpp")
         except ImportError:
@@ -70,6 +72,7 @@ class LanguageRouter:
 
         try:
             import tree_sitter_java as ts_java
+
             self._parsers[SupportedLanguage.JAVA] = Parser(Language(ts_java.language()))
             logger.debug("parser_initialized", language="java")
         except ImportError:
@@ -77,6 +80,7 @@ class LanguageRouter:
 
         try:
             import tree_sitter_python as ts_python
+
             self._parsers[SupportedLanguage.PYTHON] = Parser(Language(ts_python.language()))
             logger.debug("parser_initialized", language="python")
         except ImportError:
@@ -84,6 +88,7 @@ class LanguageRouter:
 
         try:
             import tree_sitter_javascript as ts_js
+
             self._parsers[SupportedLanguage.JAVASCRIPT] = Parser(Language(ts_js.language()))
             logger.debug("parser_initialized", language="javascript")
         except ImportError:
@@ -91,17 +96,18 @@ class LanguageRouter:
 
         try:
             import tree_sitter_c_sharp as ts_csharp
+
             self._parsers[SupportedLanguage.CSHARP] = Parser(Language(ts_csharp.language()))
             logger.debug("parser_initialized", language="csharp")
         except ImportError:
             logger.warning("parser_not_available", language="csharp")
 
-    def get_parser(self, language: str) -> Optional[Parser]:
+    def get_parser(self, language: str) -> Parser | None:
         """Get parser for a language.
-        
+
         Args:
             language: Language string (e.g., "python", "cpp")
-            
+
         Returns:
             Tree-sitter Parser if available, None otherwise
         """
@@ -112,12 +118,12 @@ class LanguageRouter:
             logger.warning("unsupported_language", language=language)
             return None
 
-    def get_parser_by_judge0_id(self, language_id: int) -> Optional[Parser]:
+    def get_parser_by_judge0_id(self, language_id: int) -> Parser | None:
         """Get parser by Judge0 language ID.
-        
+
         Args:
             language_id: Judge0 language identifier
-            
+
         Returns:
             Tree-sitter Parser if available, None otherwise
         """
@@ -129,10 +135,10 @@ class LanguageRouter:
 
     def is_supported(self, language: str) -> bool:
         """Check if a language is supported.
-        
+
         Args:
             language: Language string
-            
+
         Returns:
             True if supported, False otherwise
         """

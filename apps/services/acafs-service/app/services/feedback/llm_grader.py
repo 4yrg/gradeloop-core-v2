@@ -26,6 +26,8 @@ Grading-mode routing:
   llm_ast        → Same as llm but with AST blueprint injected.
 """
 
+# fmt: off
+
 import asyncio
 import json
 from typing import Any
@@ -173,9 +175,7 @@ class LLMGrader:
 
     # ── private: Pass-2 Gemini call ─────────────────────────────────────────
 
-    async def _call_gemini(
-        self, prompt: str, rubric_data: list[dict[str, Any]]
-    ) -> dict[str, Any]:
+    async def _call_gemini(self, prompt: str, rubric_data: list[dict[str, Any]]) -> dict[str, Any]:
         """Call Gemini with the grading prompt and parse the JSON response."""
         try:
             client = self._get_client()
@@ -254,17 +254,19 @@ class LLMGrader:
         for c in rubric_data:
             weight = c.get("weight", 10)
             partial = round(weight * 0.5, 2)
-            scores.append({
-                "name": c.get("name", "Mock Criterion"),
-                "analysis": "Mock evaluation — API key not configured.",
-                "band_selected": "satisfactory",
-                "band_justification": "Defaulting to satisfactory band for mock evaluation.",
-                "score": partial,
-                "max_score": weight,
-                "grading_mode": c.get("grading_mode", "llm"),
-                "reason": "Mock evaluation — Gemini API key not configured.",
-                "confidence": 0.0,
-            })
+            scores.append(
+                {
+                    "name": c.get("name", "Mock Criterion"),
+                    "analysis": "Mock evaluation — API key not configured.",
+                    "band_selected": "satisfactory",
+                    "band_justification": "Defaulting to satisfactory band for mock evaluation.",
+                    "score": partial,
+                    "max_score": weight,
+                    "grading_mode": c.get("grading_mode", "llm"),
+                    "reason": "Mock evaluation — Gemini API key not configured.",
+                    "confidence": 0.0,
+                }
+            )
         return {
             "criteria_scores": scores,
             "total_score": sum(s["score"] for s in scores),
@@ -303,9 +305,12 @@ class LLMGrader:
                 weight = weight_map.get(name, item.get("max_score", 10))
                 pct = score / weight if weight > 0 else 0.0
                 band = (
-                    "excellent" if pct >= 0.90
-                    else "good" if pct >= 0.70
-                    else "satisfactory" if pct >= 0.50
+                    "excellent"
+                    if pct >= 0.90
+                    else "good"
+                    if pct >= 0.70
+                    else "satisfactory"
+                    if pct >= 0.50
                     else "unsatisfactory"
                 )
                 item = {

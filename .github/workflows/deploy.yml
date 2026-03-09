@@ -1,0 +1,41 @@
+name: Deploy to Azure VM
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Azure VM via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.AZURE_VM_HOST }}
+          username: ${{ secrets.AZURE_VM_USERNAME }}
+          key: ${{ secrets.AZURE_VM_SSH_KEY }}
+          passphrase: ${{ secrets.AZURE_VM_SSH_PASSPHRASE }}
+          # Increase timeout to handle image building and DB initialization
+          command_timeout: 20m
+          script: |
+            cd /home/azureuser/Projects/4yrg/gradeloop-core-v2
+
+            echo "Syncing repository with GitHub..."
+
+            git fetch origin
+            git reset --hard origin/main
+            git clean -fd
+
+            echo "Building and starting containers..."
+
+            # The --build flag triggers recompilation; this takes time.
+            # Docker will wait for health checks (e.g., postgres) before returning.
+            docker compose -f docker-compose.prod.yaml up --build -d
+
+            echo "Cleaning unused Docker layers..."
+
+            docker system prune -af
+
+            echo "Deployment completed"
