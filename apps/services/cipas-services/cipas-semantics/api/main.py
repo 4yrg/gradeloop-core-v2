@@ -12,13 +12,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .core.config import settings
-from .endpoints import detection as detection_module
 from .endpoints.detection import router as detection_router
 from .models.inference import SemanticCloneDetector
 
 # Configure logging
+# Normalize LOG_LEVEL to uppercase to avoid returning logging.* functions
+numeric_level = getattr(logging, str(settings.LOG_LEVEL).upper(), logging.INFO)
 logging.basicConfig(
-    level=getattr(logging, settings.LOG_LEVEL),
+    level=numeric_level,
     format="%(asctime)s | %(name)s | %(levelname)-8s | %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )

@@ -1,8 +1,9 @@
 """Structured logging configuration for ACAFS Service."""
 
+# fmt: off
+
 import logging
 import sys
-from typing import Any
 
 import structlog
 from pythonjsonlogger import jsonlogger
@@ -10,10 +11,10 @@ from pythonjsonlogger import jsonlogger
 
 def configure_logging(log_level: str = "INFO", environment: str = "development") -> None:
     """Configure structured logging for the application."""
-    
+
     # Configure standard library logging
     log_format = "%(asctime)s %(levelname)s %(name)s %(message)s"
-    
+
     if environment == "production":
         # JSON logging for production
         formatter = jsonlogger.JsonFormatter(
@@ -42,7 +43,8 @@ def configure_logging(log_level: str = "INFO", environment: str = "development")
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
             structlog.processors.UnicodeDecoder(),
-            structlog.processors.JSONRenderer() if environment == "production" 
+            structlog.processors.JSONRenderer()
+            if environment == "production"
             else structlog.dev.ConsoleRenderer(),
         ],
         context_class=dict,
