@@ -710,9 +710,6 @@ def cluster_assignment(request: AssignmentClusterRequest) -> AssignmentClusterRe
         processing_time = time.time() - start_time
 
         response = AssignmentClusterResponse(
-        processing_time = time.time() - start_time
-
-        response = AssignmentClusterResponse(
             assignment_id=request.assignment_id,
             language=request.language.value,
             submission_count=len(request.submissions),
