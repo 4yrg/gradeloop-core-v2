@@ -204,8 +204,8 @@ services:
     environment:
       - SERVER_PORT=${IAM_SVC_PORT}
       - ENABLE_PREFORK=${IAM_SVC_ENABLE_PREFORK}
-      - DB_HOST=${GRA_DB_HOST}
-      - DB_PORT=${GRA_DB_PORT}
+      - DB_HOST=postgres-iam
+      - DB_PORT=5432
       - DB_USER=${GRA_DB_USER}
       - DB_PASSWORD=${GRA_DB_PASSWORD}
       - DB_NAME=${IAM_SVC_DB_NAME}
@@ -226,7 +226,7 @@ services:
     expose:
       - "8081"
     depends_on:
-      postgres:
+      postgres-iam:
         condition: service_healthy
       minio:
         condition: service_started
@@ -263,8 +263,8 @@ services:
     environment:
       - APP_ENV=production
       - APP_PORT=${EMAIL_SVC_PORT}
-      - DB_HOST=${GRA_DB_HOST}
-      - DB_PORT=${GRA_DB_PORT}
+      - DB_HOST=postgres-email
+      - DB_PORT=5432
       - DB_USER=${GRA_DB_USER}
       - DB_PASSWORD=${GRA_DB_PASSWORD}
       - DB_NAME=${EMAIL_SVC_DB_NAME}
@@ -274,7 +274,7 @@ services:
     expose:
       - "8082"
     depends_on:
-      postgres:
+      postgres-email:
         condition: service_healthy
       minio:
         condition: service_started
@@ -321,8 +321,8 @@ services:
     environment:
       - SERVER_PORT=${ACADEMIC_SVC_PORT}
       - ENABLE_PREFORK=${ACADEMIC_SVC_ENABLE_PREFORK}
-      - DB_HOST=${GRA_DB_HOST}
-      - DB_PORT=${GRA_DB_PORT}
+      - DB_HOST=postgres-academic
+      - DB_PORT=5432
       - DB_USER=${GRA_DB_USER}
       - DB_PASSWORD=${GRA_DB_PASSWORD}
       - DB_NAME=${ACADEMIC_SVC_DB_NAME}
@@ -334,7 +334,7 @@ services:
     expose:
       - "8083"
     depends_on:
-      postgres:
+      postgres-academic:
         condition: service_healthy
       iam-service:
         condition: service_started
@@ -375,8 +375,8 @@ services:
     environment:
       - SERVER_PORT=${ASSESSMENT_SVC_PORT}
       - ENABLE_PREFORK=${ASSESSMENT_SVC_ENABLE_PREFORK}
-      - DB_HOST=${GRA_DB_HOST}
-      - DB_PORT=${GRA_DB_PORT}
+      - DB_HOST=postgres-assessment
+      - DB_PORT=5432
       - DB_USER=${GRA_DB_USER}
       - DB_PASSWORD=${GRA_DB_PASSWORD}
       - DB_NAME=${ASSESSMENT_SVC_DB_NAME}
@@ -399,7 +399,7 @@ services:
     expose:
       - "8084"
     depends_on:
-      postgres:
+      postgres-assessment:
         condition: service_healthy
       iam-service:
         condition: service_started
@@ -582,7 +582,7 @@ services:
       - RABBITMQ_ROUTING_KEY=${ACAFS_RABBITMQ_ROUTING_KEY:-submission.created}
       - RABBITMQ_CONCURRENCY=${ACAFS_RABBITMQ_CONCURRENCY:-4}
       # Unified PostgreSQL connection
-      - DATABASE_URL=postgresql://${GRA_DB_USER}:${GRA_DB_PASSWORD}@postgres:${GRA_DB_PORT}/${ASSESSMENT_SVC_DB_NAME}?sslmode=${GRA_DB_SSLMODE}
+      - DATABASE_URL=postgresql://${GRA_DB_USER}:${GRA_DB_PASSWORD}@postgres-assessment:5432/${ASSESSMENT_SVC_DB_NAME}?sslmode=${GRA_DB_SSLMODE}
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
@@ -601,7 +601,7 @@ services:
     expose:
       - "8086"
     depends_on:
-      postgres:
+      postgres-assessment:
         condition: service_healthy
       rabbitmq:
         condition: service_started
@@ -696,7 +696,7 @@ services:
       - RABBITMQ_HOST=rabbitmq
       - REDIS_URL=redis://redis:6379
       # Updated to use shared PostgreSQL with service-specific DB name
-      - DATABASE_URL=postgresql://${GRA_DB_USER}:${GRA_DB_PASSWORD}@postgres:${GRA_DB_PORT}/${KEYSTROKE_SVC_DB_NAME}?sslmode=${GRA_DB_SSLMODE}
+      - DATABASE_URL=postgresql://${GRA_DB_USER}:${GRA_DB_PASSWORD}@postgres-iam:5432/${KEYSTROKE_SVC_DB_NAME}?sslmode=${GRA_DB_SSLMODE}
       - SESSION_TTL_HOURS=2
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - MIN_EVENTS_FOR_ENROLLMENT=150
@@ -705,7 +705,7 @@ services:
     expose:
       - "8003"
     depends_on:
-      postgres:
+      postgres-iam:
         condition: service_healthy
       redis:
         condition: service_healthy
