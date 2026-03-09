@@ -48,6 +48,27 @@ func NewPostgresDatabase(cfg *config.Config, log *zap.Logger) (*Database, error)
 	sqlDB.SetMaxOpenConns(100)
 	sqlDB.SetConnMaxLifetime(5 * time.Minute)
 
+	// Verify the connection is usable before returning. Aiven cloud DBs can be
+	// slow to accept new connections on cold start; retry for up to 60 s.
+	const (
+		maxAttempts = 12
+		retryDelay  = 5 * time.Second
+	)
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		if pingErr := sqlDB.Ping(); pingErr == nil {
+			break
+		} else if attempt == maxAttempts {
+			return nil, fmt.Errorf("database not reachable after %d attempts: %w", maxAttempts, pingErr)
+		} else {
+			log.Warn("database ping failed, retrying...",
+				zap.Int("attempt", attempt),
+				zap.Int("maxAttempts", maxAttempts),
+				zap.Error(pingErr),
+			)
+			time.Sleep(retryDelay)
+		}
+	}
+
 	return &Database{DB: db}, nil
 }
 
