@@ -53,7 +53,7 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=3000
+ENV PORT=80
 
 # Create a non-root user
 RUN addgroup --system --gid 1001 bunjs && \
@@ -72,7 +72,7 @@ COPY --from=builder /app/apps/web/node_modules ./apps/web/node_modules
 
 USER nextjs
 
-EXPOSE 3000
+EXPOSE 80
 
 ENV HOSTNAME="0.0.0.0"
 

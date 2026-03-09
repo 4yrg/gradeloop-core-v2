@@ -23,6 +23,37 @@ services:
   # =============================================================================
 
   # =============================================================================
+  # PostgreSQL (Single Instance — All Services Share, Isolated by DB Name)
+  # =============================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: gradeloop-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${GRA_DB_USER}
+      - POSTGRES_PASSWORD=${GRA_DB_PASSWORD}
+      - POSTGRES_DB=${IAM_SVC_DB_NAME} # Default database for connections
+    ports:
+      - "5432:5432" # Expose for local debugging
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${GRA_DB_USER}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+
+  # =============================================================================
   # IAM Service (Go Fiber)
   # =============================================================================
   iam-service:
@@ -54,7 +85,7 @@ services:
       - "traefik.http.middlewares.login-ratelimit.ratelimit.burst=10"
       # CORS Middlewares
       - "traefik.http.middlewares.iam-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,PATCH,OPTIONS"
-      - "traefik.http.middlewares.iam-cors.headers.accesscontrolalloworiginlist=http://localhost:3000,http://localhost:3001"
+      - "traefik.http.middlewares.iam-cors.headers.accesscontrolalloworiginlist=http://localhost:80,http://localhost:443"
       - "traefik.http.middlewares.iam-cors.headers.accesscontrolallowheaders=Origin,Content-Type,Accept,Authorization,X-Request-ID,X-Requested-With,X-HTTP-Method-Override"
       - "traefik.http.middlewares.iam-cors.headers.accesscontrolallowcredentials=true"
       - "traefik.http.middlewares.iam-cors.headers.addvaryheader=true"
@@ -93,7 +124,10 @@ services:
       - "8081"
 
     depends_on:
-      - minio
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
 
     networks:
       - gradeloop-network
@@ -147,8 +181,12 @@ services:
       - "8082"
 
     depends_on:
-      - minio
-      - rabbitmq
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
 
     networks:
       - gradeloop-network
@@ -183,7 +221,7 @@ services:
       - "traefik.http.middlewares.academic-ratelimit.ratelimit.period=1m"
       - "traefik.http.middlewares.academic-ratelimit.ratelimit.burst=50"
       - "traefik.http.middlewares.academic-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,PATCH,OPTIONS"
-      - "traefik.http.middlewares.academic-cors.headers.accesscontrolalloworiginlist=http://localhost:3000,http://localhost:3001"
+      - "traefik.http.middlewares.academic-cors.headers.accesscontrolalloworiginlist=http://localhost:80,http://localhost:443"
       - "traefik.http.middlewares.academic-cors.headers.accesscontrolallowheaders=Origin,Content-Type,Accept,Authorization,X-Request-ID,X-Requested-With"
       - "traefik.http.middlewares.academic-cors.headers.accesscontrolallowcredentials=true"
       - "traefik.http.middlewares.academic-cors.headers.addvaryheader=true"
@@ -211,7 +249,10 @@ services:
       - "8083"
 
     depends_on:
-      - iam-service
+      postgres:
+        condition: service_healthy
+      iam-service:
+        condition: service_started
 
     networks:
       - gradeloop-network
@@ -286,9 +327,14 @@ services:
       - "8084"
 
     depends_on:
-      - iam-service
-      - minio
-      - rabbitmq
+      postgres:
+        condition: service_healthy
+      iam-service:
+        condition: service_started
+      minio:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
 
     networks:
       - gradeloop-network
@@ -337,13 +383,7 @@ services:
       - gradeloop-network
 
     healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8086/api/v1/syntactics/health')",
-        ]
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8086/api/v1/syntactics/health')" ]
       interval: 15s
       timeout: 10s
       retries: 5
@@ -394,13 +434,7 @@ services:
       - gradeloop-network
 
     healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8087/api/v1/semantics/health')",
-        ]
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8087/api/v1/semantics/health')" ]
       interval: 15s
       timeout: 10s
       retries: 5
@@ -451,13 +485,7 @@ services:
       - gradeloop-network
 
     healthcheck:
-      test:
-        [
-          "CMD",
-          "curl",
-          "-f",
-          "http://localhost:${CIPAS_AI_SVC_PORT}/api/v1/ai/ready",
-        ]
+      test: [ "CMD", "curl", "-f", "http://localhost:${CIPAS_AI_SVC_PORT}/api/v1/ai/ready" ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -548,20 +576,18 @@ services:
       - "8086"
 
     depends_on:
-      - rabbitmq
-      - minio
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+      minio:
+        condition: service_started
 
     networks:
       - gradeloop-network
 
     healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8086/api/v1/acafs/health')",
-        ]
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8086/api/v1/acafs/health')" ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -650,7 +676,7 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U keystroke_user -d keystroke-db"]
+      test: [ "CMD-SHELL", "pg_isready -U keystroke_user -d keystroke-db" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -678,7 +704,7 @@ services:
       - "traefik.http.services.keystroke-service.loadbalancer.server.port=8003"
       # Middlewares
       - "traefik.http.middlewares.keystroke-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,OPTIONS"
-      - "traefik.http.middlewares.keystroke-cors.headers.accesscontrolalloworiginlist=http://localhost:3000,http://localhost:3001"
+      - "traefik.http.middlewares.keystroke-cors.headers.accesscontrolalloworiginlist=http://localhost:80,http://localhost:443"
       - "traefik.http.middlewares.keystroke-cors.headers.accesscontrolallowheaders=Origin,Content-Type,Accept,Authorization"
       - "traefik.http.middlewares.keystroke-cors.headers.accesscontrolallowcredentials=true"
       - "traefik.http.routers.keystroke.middlewares=keystroke-cors"
@@ -711,13 +737,7 @@ services:
       - gradeloop-network
 
     healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')",
-        ]
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -752,7 +772,7 @@ services:
       - "traefik.http.middlewares.cipas-xai-ratelimit.ratelimit.burst=20"
       # CORS
       - "traefik.http.middlewares.cipas-xai-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,PATCH,OPTIONS"
-      - "traefik.http.middlewares.cipas-xai-cors.headers.accesscontrolalloworiginlist=http://localhost:3000,http://localhost:3001"
+      - "traefik.http.middlewares.cipas-xai-cors.headers.accesscontrolalloworiginlist=http://localhost:80,http://localhost:443"
       - "traefik.http.middlewares.cipas-xai-cors.headers.accesscontrolallowheaders=Origin,Content-Type,Accept,Authorization,X-Request-ID"
       - "traefik.http.middlewares.cipas-xai-cors.headers.accesscontrolallowcredentials=true"
       - "traefik.http.middlewares.cipas-xai-cors.headers.addvaryheader=true"
@@ -768,7 +788,7 @@ services:
       - LLM_API_KEY=${OPENROUTER_API_KEY}
       - LLM_BASE_URL=${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
       - LLM_MODEL=${OPENROUTER_REASONER_MODEL:-qwen/qwen3-vl-235b-a22b-thinking}
-      - LLM_EXTRA_HEADERS=HTTP-Referer=${FRONTEND_URL:-http://localhost:3000},X-OpenRouter-Title=GradeLoop CIPAS-XAI
+      - LLM_EXTRA_HEADERS=HTTP-Referer=${FRONTEND_URL:-http://localhost:80},X-OpenRouter-Title=GradeLoop CIPAS-XAI
       - LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-2048}
       - LLM_TEMPERATURE=${LLM_TEMPERATURE:-0.7}
       - LLM_TIMEOUT=${LLM_TIMEOUT:-60}
@@ -794,7 +814,7 @@ services:
     image: redis:7-alpine
     container_name: redis
     restart: unless-stopped
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    command: [ "redis-server", "--save", "", "--appendonly", "no" ]
     ports:
       - "6379:6379"
 
@@ -805,7 +825,7 @@ services:
       - gradeloop-network
 
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -819,6 +839,43 @@ services:
         compress: "true"
 
   # =============================================================================
+  # Web Frontend (Next.js)
+  # =============================================================================
+  web:
+    build:
+      context: .
+      dockerfile: ./apps/web/Dockerfile
+      target: runner
+    container_name: gradeloop-web
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NEXT_PUBLIC_API_URL=http://traefik:8000
+      - NEXT_PUBLIC_IAM_SERVICE_URL=http://traefik:8000/api/v1
+    ports:
+      - "80:80"
+    depends_on:
+      iam-service:
+        condition: service_started
+      academic-service:
+        condition: service_started
+      assessment-service:
+        condition: service_started
+    networks:
+      - gradeloop-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.web.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.web.entrypoints=web"
+      - "traefik.http.services.web-service.loadbalancer.server.port=80"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+  # =============================================================================
   # Networks Configuration
   # =============================================================================
 networks:
@@ -829,6 +886,9 @@ networks:
 # Volumes
 # =============================================================================
 volumes:
+  postgres-data:
+    driver: local
+
   minio-data:
     driver: local
 
