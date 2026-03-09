@@ -1,0 +1,16 @@
+meta {
+  name: Export Report CSV
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{CIPAS_SYNTACTICS_URL_V1}}/reports/hw-01/export.csv
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

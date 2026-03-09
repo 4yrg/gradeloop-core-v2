@@ -1,0 +1,43 @@
+meta {
+  name: Cluster Assignment
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{CIPAS_SYNTACTICS_URL_V1}}/assignments/cluster
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "assignment_id": "hw-01",
+    "language": "java",
+    "instructor_template": "public class Solution { /* starter */ }",
+    "lsh_threshold": 0.3,
+    "min_confidence": 0.0,
+    "submissions": [
+      {
+        "submission_id": "sub-001",
+        "student_id": "alice",
+        "source_code": "public class Solution {\n  public int add(int a, int b) { return a + b; }\n}"
+      },
+      {
+        "submission_id": "sub-002",
+        "student_id": "bob",
+        "source_code": "public class Solution {\n  public int add(int x, int y) { return x + y; }\n}"
+      },
+      {
+        "submission_id": "sub-003",
+        "student_id": "carol",
+        "source_code": "public class Solution {\n  public int compute(int p, int q) { return p * q; }\n}"
+      }
+    ]
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 120
+}
