@@ -7,10 +7,11 @@ import type { CollusionGroup } from "@/types/cipas";
 
 interface NetworkGraphProps {
   clusters: CollusionGroup[];
+  onClusterClick?: (cluster: CollusionGroup) => void;
   className?: string;
 }
 
-export function NetworkGraph({ clusters, className }: NetworkGraphProps) {
+export function NetworkGraph({ clusters, onClusterClick, className }: NetworkGraphProps) {
   // Simple visualization using positioned nodes
   // For a real implementation, you'd use D3.js or Recharts
   
@@ -53,8 +54,15 @@ export function NetworkGraph({ clusters, className }: NetworkGraphProps) {
           return (
             <div
               key={cluster.group_id}
-              className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer group"
+              className={cn(
+                "absolute -translate-x-1/2 -translate-y-1/2 group",
+                onClusterClick ? "cursor-pointer" : "cursor-default"
+              )}
               style={{ ...pos, width: size, height: size }}
+              onClick={() => onClusterClick?.(cluster)}
+              role={onClusterClick ? "button" : undefined}
+              tabIndex={onClusterClick ? 0 : undefined}
+              onKeyDown={onClusterClick ? (e) => e.key === "Enter" && onClusterClick(cluster) : undefined}
             >
               <div
                 className={cn(
