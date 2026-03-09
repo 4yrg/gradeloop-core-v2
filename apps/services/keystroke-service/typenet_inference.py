@@ -15,7 +15,7 @@ class TypeNet(nn.Module):
     TypeNet Architecture - Same as training script
     Must match the architecture used during training
     """
-    def __init__(self, input_size=5, hidden_size=128, output_size=128, dropout_rate=0.5, sequence_length=70):
+    def __init__(self, input_size=5, hidden_size=128, output_size=128, dropout_rate=0.5, sequence_length=30):
         super(TypeNet, self).__init__()
 
         self.sequence_length = sequence_length
@@ -60,15 +60,32 @@ class TypeNet(nn.Module):
         # Take last timestep
         last_timestep = out[:, -1, :]
 
-        # Generate embedding
+        # Generate embedding (L2-normalised to match training)
         embedding = self.fc(last_timestep)
+        embedding = nn.functional.normalize(embedding, p=2, dim=1)
         return embedding
 
 
 class TypeNetAuthenticator:
     """
-    Authentication system using pre-trained TypeNet model
-    Handles enrollment, verification, and identification
+    Authentication system using pre-trained TypeNet model.
+    Handles enrollment, verification, and identification.
+
+    Architecture (DB-first):
+    ─────────────────────────────────────────────────────────────────────────
+    • PostgreSQL (user_biometrics table) is the single source of truth.
+      All enrolled templates are persisted there, keyed by (user_id, phase).
+
+    • `user_templates` is a pure in-memory runtime cache.  It is populated
+      from the database at service startup (see main.py startup block) and
+      kept in sync after every enrollment call.  It exists only so that
+      verify_user / identify_user / continuous_authentication can do fast
+      numpy cosine-similarity comparisons without hitting the DB on every
+      single keystroke event.
+
+    • The pickle save_templates / load_templates helpers are a legacy no-DB
+      fallback (used only when PostgreSQL is not configured).  They should
+      not be called in normal production operation.
     """
 
     def __init__(self, model_path: str = None, device: str = 'cpu'):
@@ -86,14 +103,19 @@ class TypeNetAuthenticator:
             input_size=5,
             hidden_size=128,
             output_size=128,
-            dropout_rate=0.5
+            dropout_rate=0.5,
+            sequence_length=30   # must match SEQ_LEN used during training
         ).to(self.device)
 
         # Load pre-trained weights if provided
         if model_path:
             self.load_model(model_path)
 
-        self.user_templates = {}  # Store enrolled user templates
+        # In-memory runtime cache: populated from PostgreSQL at startup and
+        # updated in-place after each enrollment.  NOT the persistent store —
+        # the DB is the source of truth.  This cache is rebuilt on every
+        # service restart from the database.
+        self.user_templates: Dict[str, Dict] = {}
         print(f"✅ TypeNet initialized on device: {self.device}")
 
     def load_model(self, model_path: str):
@@ -113,7 +135,7 @@ class TypeNetAuthenticator:
 
         Args:
             keystroke_sequence: (seq_len, 5) array - [HL, IL, PL, RL, KeyCode]
-                                Must be exactly 70 keystrokes (as per training)
+                                Must be exactly 30 keystrokes (SEQ_LEN used during training)
 
         Returns:
             embedding: (128,) numpy array
@@ -135,7 +157,7 @@ class TypeNetAuthenticator:
 
         Args:
             user_id: Unique user identifier
-            keystroke_sequences: List of sequences, each (70, 5)
+            keystroke_sequences: List of sequences, each (30, 5)
 
         Returns:
             enrollment_result: Dict with enrollment status
@@ -149,8 +171,8 @@ class TypeNetAuthenticator:
         embeddings = []
         for sequence in keystroke_sequences:
             # Validate shape
-            if sequence.shape[0] != 70 or sequence.shape[1] != 5:
-                print(f"⚠️ Warning: Sequence has shape {sequence.shape}, expected (70, 5)")
+            if sequence.shape[0] != 30 or sequence.shape[1] != 5:
+                print(f"⚠️ Warning: Sequence has shape {sequence.shape}, expected (30, 5)")
                 continue
 
             embedding = self.get_embedding(sequence)
@@ -185,7 +207,7 @@ class TypeNetAuthenticator:
 
         Args:
             user_id: User to verify
-            keystroke_sequence: (70, 5) sequence to verify
+            keystroke_sequence: (30, 5) sequence to verify
             threshold: Similarity threshold (0-1)
 
         Returns:
@@ -200,11 +222,11 @@ class TypeNetAuthenticator:
             }
 
         # Validate input shape
-        if keystroke_sequence.shape[0] != 70 or keystroke_sequence.shape[1] != 5:
+        if keystroke_sequence.shape[0] != 30 or keystroke_sequence.shape[1] != 5:
             return {
                 'success': False,
                 'authenticated': False,
-                'message': f'Invalid sequence shape: {keystroke_sequence.shape}, expected (70, 5)'
+                'message': f'Invalid sequence shape: {keystroke_sequence.shape}, expected (30, 5)'
             }
 
         # Get embedding
@@ -231,7 +253,7 @@ class TypeNetAuthenticator:
         Identify user by comparing against all enrolled users
 
         Args:
-            keystroke_sequence: (70, 5) sequence
+            keystroke_sequence: (30, 5) sequence
             top_k: Number of top matches to return
 
         Returns:
@@ -245,7 +267,7 @@ class TypeNetAuthenticator:
             }
 
         # Validate shape
-        if keystroke_sequence.shape[0] != 70 or keystroke_sequence.shape[1] != 5:
+        if keystroke_sequence.shape[0] != 30 or keystroke_sequence.shape[1] != 5:
             return {
                 'success': False,
                 'message': f'Invalid sequence shape: {keystroke_sequence.shape}'
@@ -305,7 +327,7 @@ class TypeNetAuthenticator:
         
         Args:
             user_id: User to verify
-            sequences: List of recent keystroke sequences (each 70x5)
+            sequences: List of recent keystroke sequences (each 30x5)
             threshold: Similarity threshold (default 0.7)
         
         Returns:
@@ -331,7 +353,7 @@ class TypeNetAuthenticator:
         
         for sequence in sequences:
             # Validate shape
-            if sequence.shape[0] != 70 or sequence.shape[1] != 5:
+            if sequence.shape[0] != 30 or sequence.shape[1] != 5:
                 continue  # Skip invalid sequences
             
             # Get verification result
@@ -394,44 +416,56 @@ class TypeNetAuthenticator:
 
         return dot_product / (norm_a * norm_b)
 
+    # ──────────────────────────────────────────────────────────────────────
+    # Legacy / no-DB fallback helpers
+    # These are only used when PostgreSQL is NOT configured (e.g. bare local
+    # dev without Docker).  In normal production the DB is the source of
+    # truth and these methods are never called.
+    # ──────────────────────────────────────────────────────────────────────
+
     def save_templates(self, templates_path: str):
-        """Save user templates to disk"""
+        """
+        [LEGACY FALLBACK] Persist in-memory cache to a pickle file.
+        Only called by main.py when the database client is disabled.
+        In DB-enabled deployments this method is never invoked.
+        """
         with open(templates_path, 'wb') as f:
             pickle.dump(self.user_templates, f)
-        print(f"✅ User templates saved to {templates_path}")
+        print(f"✅ [fallback] User templates saved to {templates_path}")
 
     def load_templates(self, templates_path: str):
-        """Load user templates from disk"""
+        """
+        [LEGACY FALLBACK] Restore in-memory cache from a pickle file.
+        Only called by main.py when the database client is disabled.
+        In DB-enabled deployments this method is never invoked.
+        """
         with open(templates_path, 'rb') as f:
             self.user_templates = pickle.load(f)
-        print(f"✅ Loaded {len(self.user_templates)} user templates")
+        print(f"✅ [fallback] Loaded {len(self.user_templates)} user templates from pickle")
 
 
-# Example usage
+# ──────────────────────────────────────────────────────────────────────────────
+# Quick smoke-test (run directly: python typenet_inference.py)
+# NOTE: In production, enrollment and template persistence are handled by
+# main.py together with the PostgreSQL database client.  The code below is
+# only for local sanity-checking of the model weights.
+# ──────────────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    # Initialize with pre-trained model
     auth = TypeNetAuthenticator(
         model_path='models/typenet_pretrained.pth',
         device='cpu'
     )
 
-    # Example: Enroll a user with 5 sequences
+    # Smoke-test: enroll with random data (replace with real sequences)
     user_id = "student_001"
-    enrollment_sequences = [
-        np.random.randn(70, 5) for _ in range(5)  # Replace with real data
-    ]
+    enrollment_sequences = [np.random.randn(30, 5).astype(np.float32) for _ in range(5)]
 
     result = auth.enroll_user(user_id, enrollment_sequences)
     print("\n📝 Enrollment:", result)
 
-    # Example: Verify user
-    test_sequence = np.random.randn(70, 5)  # Replace with real data
+    test_sequence = np.random.randn(30, 5).astype(np.float32)
     verification = auth.verify_user(user_id, test_sequence, threshold=0.7)
     print("\n🔐 Verification:", verification)
 
-    # Example: Identify user
     identification = auth.identify_user(test_sequence, top_k=3)
     print("\n🔍 Identification:", identification)
-
-    # Save templates
-    auth.save_templates('models/user_templates.pkl')

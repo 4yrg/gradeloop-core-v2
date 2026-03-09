@@ -1,0 +1,148 @@
+================================================================================
+  TypeNet — Server Training Guide
+  Script: train_workstation.py
+  GPU:    RTX 6000 Pro Blackwell (or any high-VRAM CUDA GPU)
+================================================================================
+
+
+STEP 1 — Verify CUDA and GPU
+─────────────────────────────
+  nvidia-smi
+  nvcc --version
+
+  You need CUDA 12.4+. If nvcc is missing:
+
+    wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+    sudo dpkg -i cuda-keyring_1.1-1_all.deb
+    sudo apt update && sudo apt install -y cuda-toolkit-12-4
+
+
+STEP 2 — Install Python 3.10+
+──────────────────────────────
+  sudo apt update && sudo apt install -y python3.10 python3.10-venv python3-pip
+  python3.10 --version
+
+
+STEP 3 — Create a virtual environment
+──────────────────────────────────────
+  cd ~
+  python3.10 -m venv typenet-env
+  source typenet-env/bin/activate
+
+  Optional — auto-activate on login:
+    echo "source ~/typenet-env/bin/activate" >> ~/.bashrc
+
+
+STEP 4 — Install dependencies
+──────────────────────────────
+  pip install --upgrade pip
+  pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
+  pip install h5py tqdm gdown matplotlib
+
+  Verify GPU is visible to PyTorch:
+    python3 -c "import torch; print(torch.cuda.get_device_name(0))"
+
+
+STEP 5 — Copy the script to the server
+────────────────────────────────────────
+  Option A — scp from your local machine:
+    scp apps/services/keystroke-service/models/train_workstation.py \
+        user@<server-ip>:~/train_workstation.py
+
+  Option B — paste directly on the server:
+    nano ~/train_workstation.py    # paste contents, Ctrl+O to save
+
+
+STEP 6 — Run training
+──────────────────────
+  The script auto-downloads aalto_full.h5 (~1.25 GB) on first run.
+
+  Simple run:
+    python3 train_workstation.py \
+        --out ~/typenet_pretrained.pth \
+        --epochs 100
+
+  Recommended — run inside tmux so it survives SSH disconnects:
+    sudo apt install -y tmux            # install if missing
+    tmux new -s training                # start persistent session
+
+    # inside the tmux session:
+    source ~/typenet-env/bin/activate
+    python3 train_workstation.py \
+        --out ~/typenet_pretrained.pth \
+        --epochs 100
+
+    Ctrl+B then D   → detach (keeps running after SSH closes)
+    tmux attach -t training   → re-attach later
+
+  Alternative — background with nohup:
+    nohup python3 train_workstation.py \
+        --out ~/typenet_pretrained.pth \
+        --epochs 100 \
+        > ~/training.log 2>&1 &
+
+
+STEP 7 — Monitor progress
+──────────────────────────
+  Watch the live epoch table:
+    tail -f ~/typenet_pretrained.training_log.csv
+
+  Watch full stdout (if using nohup):
+    tail -f ~/training.log
+
+  Check GPU utilisation:
+    watch -n 2 nvidia-smi
+
+  Expected on RTX 6000 Pro: ~95-100% GPU util, ~5-15s/epoch
+  → 100 epochs completes in roughly 20 minutes.
+
+
+STEP 8 — Resume if interrupted
+────────────────────────────────
+  python3 train_workstation.py \
+      --out ~/typenet_pretrained.pth \
+      --epochs 100 \
+      --resume
+
+  Checkpoints are saved automatically every 5 epochs to:
+    ~/typenet_pretrained.ckpt.pth
+
+
+STEP 9 — Copy results back to your local machine
+──────────────────────────────────────────────────
+  Run these on YOUR local machine after training completes:
+
+    scp user@<server-ip>:~/typenet_pretrained.pth \
+        apps/services/keystroke-service/models/typenet_pretrained.pth
+
+    scp user@<server-ip>:~/typenet_pretrained.results.json \
+        apps/services/keystroke-service/models/
+
+    scp user@<server-ip>:~/typenet_pretrained.loss_curves.png \
+        apps/services/keystroke-service/models/
+
+
+OUTPUT FILES PRODUCED ON THE SERVER
+─────────────────────────────────────
+  typenet_pretrained.pth                ← best model weights (copy into service)
+  typenet_pretrained.ckpt.pth           ← resumable checkpoint (every 5 epochs)
+  typenet_pretrained.training_log.csv   ← per-epoch metrics table
+  typenet_pretrained.results.json       ← full structured run summary
+  typenet_pretrained.loss_curves.png    ← train/val loss plot
+  aalto_full.h5                         ← downloaded dataset (keep for re-runs)
+
+
+USEFUL CLI OPTIONS
+───────────────────
+  --batch 512         Default. Matches Colab — best accuracy for user verification.
+  --batch 1024        Faster. Use with --lr 0.010  (linear LR scaling rule)
+  --batch 2048        Fastest. Use with --lr 0.020  (only if 512 already converges well)
+  --epochs 200        Train for more epochs
+  --no-compile        Disable torch.compile (use if PyTorch < 2.0)
+  --workers 4         Override DataLoader worker count (default: half CPU cores)
+
+  LR scaling rule: if you double the batch, double the LR.
+  Safest default: --batch 512 --lr 0.005  (identical behaviour to Colab notebook)
+
+
+================================================================================

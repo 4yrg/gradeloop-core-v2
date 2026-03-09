@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from typing import List, Dict, Optional
 import os
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 import asyncio
 import json
 import pika
@@ -19,7 +19,6 @@ from typenet_inference import TypeNetAuthenticator
 from behavioral_analysis import (
     BehavioralAnalyzer, 
     KeystrokeSessionEvent, 
-    BehavioralAnalysisResult,
     format_analysis_report
 )
 
@@ -50,6 +49,16 @@ feature_extractor = KeystrokeFeatureExtractor()
 typenet_model_path = os.path.join(os.path.dirname(__file__), 'models', 'typenet_pretrained.pth')
 typenet_template_path = os.path.join(os.path.dirname(__file__), 'models', 'user_templates.pkl')
 
+# ── Enrollment config ─────────────────────────────────────────────────────────
+_enrollment_config_path = os.path.join(os.path.dirname(__file__), 'enrollment_tasks.json')
+try:
+    with open(_enrollment_config_path) as _f:
+        ENROLLMENT_CONFIG: dict = json.load(_f)
+    print(f"✅ Loaded enrollment config from {_enrollment_config_path}")
+except FileNotFoundError:
+    ENROLLMENT_CONFIG = {}
+    print(f"⚠️  enrollment_tasks.json not found — using default phase list")
+
 # Initialize TypeNet authenticator
 authenticator = TypeNetAuthenticator(
     model_path=typenet_model_path if os.path.exists(typenet_model_path) else None,
@@ -57,34 +66,42 @@ authenticator = TypeNetAuthenticator(
 )
 
 # Load user templates if available
-if os.path.exists(typenet_template_path):
-    try:
-        authenticator.load_templates(typenet_template_path)
-        print(f"✅ Loaded {len(authenticator.user_templates)} user templates from TypeNet")
-    except Exception as e:
-        print(f"⚠️  Failed to load user templates: {e}")
-else:
-    print("ℹ️  No user templates found. Users need to be enrolled.")
-    print("   Use /api/keystroke/enroll endpoint to enroll users.")
-
-# Initialize behavioral analyzer (Gemini API key optional — loaded from env)
-behavioral_analyzer = BehavioralAnalyzer()
+# NOTE: Only pre-load from pickle when the database is NOT going to be used.
+# If the database is enabled it becomes the single source of truth and the
+# pickle is ignored so stale / dev test users don't pollute the in-memory set.
 
 # Initialize database and Redis clients
 db_client = get_db_client()
 redis_client = get_redis_client()
 
+# Initialize behavioral analyzer (Gemini API key optional — loaded from env)
+behavioral_analyzer = BehavioralAnalyzer()
+
 # Load user templates from database (fallback to pickle if database not available)
 if db_client.enabled:
     try:
         all_templates = db_client.load_all_templates()
-        # Convert multi-phase templates to TypeNet format (use all phases)
+        # DB is the single source of truth — start with a clean slate so no
+        # stale pickle / dev-test users bleed into production memory.
+        authenticator.user_templates.clear()
         for user_id, phases in all_templates.items():
-            if phases:
-                # Use the most recent phase or aggregate all phases
-                # For simplicity, use the first available phase template
-                first_phase = list(phases.values())[0]
-                authenticator.user_templates[user_id] = first_phase
+            if not phases:
+                continue
+            phase_values = list(phases.values())
+            if len(phase_values) == 1:
+                # Only one phase — use it directly
+                authenticator.user_templates[user_id] = phase_values[0]
+            else:
+                # Aggregate all enrolled phases into a single mean template
+                # so authentication benefits from every phase's data.
+                templates = [p['template'] for p in phase_values if p.get('template') is not None]
+                stds = [p['std'] for p in phase_values if p.get('std') is not None]
+                sample_count = sum(p.get('sample_count', 0) for p in phase_values)
+                authenticator.user_templates[user_id] = {
+                    'template': np.mean(templates, axis=0),
+                    'std': np.mean(stds, axis=0) if stds else None,
+                    'sample_count': sample_count,
+                }
         print(f"✅ Loaded {len(authenticator.user_templates)} user templates from database")
     except Exception as e:
         print(f"⚠️  Failed to load templates from database: {e}")
@@ -95,16 +112,17 @@ if db_client.enabled:
                 print(f"✅ Loaded {len(authenticator.user_templates)} user templates from pickle (fallback)")
             except Exception as e2:
                 print(f"⚠️  Failed to load pickle templates: {e2}")
-elif os.path.exists(typenet_template_path):
-    # Database not enabled, use pickle
-    try:
-        authenticator.load_templates(typenet_template_path)
-        print(f"✅ Loaded {len(authenticator.user_templates)} user templates from pickle")
-    except Exception as e:
-        print(f"⚠️  Failed to load user templates: {e}")
 else:
-    print("ℹ️  No user templates found. Users need to be enrolled.")
-    print("   Use /api/keystroke/enroll endpoints to enroll users.")
+    # Database not enabled — use pickle as primary source
+    if os.path.exists(typenet_template_path):
+        try:
+            authenticator.load_templates(typenet_template_path)
+            print(f"✅ Loaded {len(authenticator.user_templates)} user templates from pickle")
+        except Exception as e:
+            print(f"⚠️  Failed to load user templates: {e}")
+    else:
+        print("ℹ️  No user templates found. Users need to be enrolled.")
+        print("   Use /api/keystroke/enroll endpoints to enroll users.")
 
 # Session TTL from environment (default 2 hours)
 SESSION_TTL_SECONDS = int(os.getenv('SESSION_TTL_HOURS', '2')) * 3600
@@ -149,7 +167,15 @@ def publish_auth_event(event_data: dict):
 
 # In-memory phase tracking (used when database is disabled as fallback)
 _in_memory_phases: Dict[str, set] = {}
-REQUIRED_PHASES = {'baseline', 'transcription', 'stress', 'cognitive'}
+
+# Derive required phases from the config; fall back to defaults if config missing
+_cfg_phases: list = (
+    ENROLLMENT_CONFIG
+    .get('enrollment_instructions', {})
+    .get('phases_required', ['baseline', 'transcription', 'stress', 'cognitive'])
+)
+REQUIRED_PHASES: set = set(_cfg_phases)
+print(f"📋 Enrollment phases required (from config): {_cfg_phases}")
 
 # ==================== Pydantic Models ====================
 
@@ -295,8 +321,9 @@ async def enroll_user(request: EnrollmentRequest):
                 detail="Insufficient data for enrollment. Please provide at least 150 keystroke events."
             )
 
-        # Split events into sequences for TypeNet (70 keystrokes each with 50% overlap)
-        sequence_length = 70
+        # Split events into sequences for TypeNet (30 keystrokes each with 50% overlap)
+        # SEQ_LEN=30 must match the value used during model training (typenet_colab_training.ipynb)
+        sequence_length = 30
         sequences = []
         for i in range(0, len(all_events) - sequence_length, sequence_length // 2):
             sequence_events = all_events[i:i + sequence_length]
@@ -364,11 +391,11 @@ async def get_enrollment_progress(user_id: str):
                 "user_id": user_id,
                 "enrollment_complete": False,
                 "phases_complete": [],
-                "phases_remaining": ["baseline", "transcription", "stress", "cognitive"],
+                "phases_remaining": _cfg_phases,
                 "message": "No enrollment data found - start enrollment"
             }
 
-        phases = ["baseline", "transcription", "stress", "cognitive"]
+        phases = _cfg_phases
         phases_complete = [p for p in phases if progress.get(f'{p}_complete')]
 
         return {
@@ -396,7 +423,7 @@ async def enroll_phase(request: Dict):
         phase = request.get('phase', 'baseline')
         all_events = request.get('keystrokeEvents', [])
 
-        valid_phases = ['baseline', 'transcription', 'stress', 'cognitive']
+        valid_phases = _cfg_phases
         if phase not in valid_phases:
             raise HTTPException(status_code=400, detail=f"Invalid phase. Must be one of: {valid_phases}")
 
@@ -409,8 +436,8 @@ async def enroll_phase(request: Dict):
         # Convert dict events to EnrollmentEvent if needed
         events = [e.dict() if hasattr(e, 'dict') else e for e in all_events]
 
-        # Create sequences
-        sequence_length = 70
+        # Create sequences — SEQ_LEN=30 matches training
+        sequence_length = 30
         sequences = []
         for i in range(0, len(events) - sequence_length, sequence_length // 2):
             seq = feature_extractor.create_typenet_sequence(events[i:i + sequence_length], sequence_length)
@@ -424,11 +451,26 @@ async def enroll_phase(request: Dict):
 
         # Save phase-specific template to database
         if db_client.enabled and result.get('success'):
-            template = authenticator.user_templates[user_id]['template']
-            template_std = authenticator.user_templates[user_id].get('std')
-            db_client.save_template(user_id, phase, template, template_std, len(sequences),
+            # Save this phase's template to DB
+            phase_template = authenticator.user_templates[user_id]['template']
+            phase_std = authenticator.user_templates[user_id].get('std')
+            db_client.save_template(user_id, phase, phase_template, phase_std, len(sequences),
                                    metadata=request.get('metadata'))
             db_client.update_enrollment_progress(user_id, phase)
+
+            # Re-aggregate ALL phases from DB into a single in-memory template
+            # so authentication always reflects every enrolled phase, not just the latest.
+            all_user_phases = db_client.load_templates(user_id)
+            if all_user_phases:
+                phase_values = list(all_user_phases.values())
+                templates = [p['template'] for p in phase_values if p.get('template') is not None]
+                stds = [p['std'] for p in phase_values if p.get('std') is not None]
+                sample_count = sum(p.get('sample_count', 0) for p in phase_values)
+                authenticator.user_templates[user_id] = {
+                    'template': np.mean(templates, axis=0),
+                    'std': np.mean(stds, axis=0) if stds else None,
+                    'sample_count': sample_count,
+                }
 
             # Check enrollment completion status
             progress = db_client.get_enrollment_progress(user_id)
@@ -464,14 +506,14 @@ async def verify_user(request: VerificationRequest):
         events = request.keystrokeEvents
         threshold = request.threshold
 
-        if len(events) < 70:
+        if len(events) < 30:
             raise HTTPException(
                 status_code=400,
-                detail="Insufficient data for verification. Need at least 70 keystrokes."
+                detail="Insufficient data for verification. Need at least 30 keystrokes."
             )
 
-        # Create sequence for TypeNet
-        sequence = feature_extractor.create_typenet_sequence(events, sequence_length=70)
+        # Create sequence for TypeNet — SEQ_LEN=30 matches training
+        sequence = feature_extractor.create_typenet_sequence(events, sequence_length=30)
 
         # Verify
         result = authenticator.verify_user(user_id, sequence, threshold)
@@ -518,14 +560,14 @@ async def identify_user(request: IdentificationRequest):
             )
 
         # Validate minimum keystroke count
-        if len(events) < 70:
+        if len(events) < 30:
             raise HTTPException(
                 status_code=400,
-                detail=f"Insufficient data for reliable identification. Need at least 70 keystrokes. Got: {len(events)}"
+                detail=f"Insufficient data for reliable identification. Need at least 30 keystrokes. Got: {len(events)}"
             )
 
-        # Create sequence from events for TypeNet
-        sequence = feature_extractor.create_typenet_sequence(events, sequence_length=70)
+        # Create sequence from events for TypeNet — SEQ_LEN=30 matches training
+        sequence = feature_extractor.create_typenet_sequence(events, sequence_length=30)
 
         # Identify user
         result = authenticator.identify_user(sequence, top_k)
@@ -562,9 +604,9 @@ async def monitor_session(request: MonitoringRequest):
                 "risk_score": 0.0
             }
 
-        # Create multiple sequences from recent data for TypeNet (last ~350 events)
-        sequence_length = 70
-        recent_events = events[-350:]
+        # Create multiple sequences from recent data for TypeNet — SEQ_LEN=30 matches training
+        sequence_length = 30
+        recent_events = events[-300:]
         sequences = []
         for i in range(0, len(recent_events) - sequence_length, sequence_length):
             seq = feature_extractor.create_typenet_sequence(recent_events[i:i + sequence_length], sequence_length)
@@ -857,6 +899,19 @@ async def analyze_behavioral_session(request: BehavioralAnalysisRequest):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+
+@app.get("/api/keystroke/enroll/config")
+async def get_enrollment_config():
+    """
+    Return the full enrollment task configuration loaded from enrollment_tasks.json.
+    Clients use this to know which phases are required and what tasks each phase contains.
+    """
+    return {
+        "success": True,
+        "required_phases": _cfg_phases,
+        "config": ENROLLMENT_CONFIG,
+    }
 
 
 @app.get("/api/keystroke/analyze/config")

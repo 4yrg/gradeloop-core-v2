@@ -68,6 +68,7 @@ export default function KeystrokeEnrollmentPage() {
 
     const [progress, setProgress] = React.useState<{
         phases_complete: string[];
+        phases_remaining: string[];
         enrollment_complete: boolean;
     } | null>(null);
     const [isLoading, setIsLoading] = React.useState(true);
@@ -81,10 +82,10 @@ export default function KeystrokeEnrollmentPage() {
             .then((data) => {
                 setProgress({
                     phases_complete: data.phases_complete ?? [],
+                    phases_remaining: data.phases_remaining ?? [],
                     enrollment_complete: data.enrollment_complete,
                 });
-                const allDone = data.enrollment_complete && (data.phases_complete ?? []).length >= 4;
-                if (allDone) setEnrolled(user.id, true);
+                if (data.enrollment_complete) setEnrolled(user.id, true);
             })
             .catch(() => {});
     }, [user, setEnrolled]);
@@ -96,14 +97,13 @@ export default function KeystrokeEnrollmentPage() {
         keystrokeApi
             .getEnrollmentProgress(user.id)
             .then((data) => {
-                const phases = data.phases_complete ?? [];
                 setProgress({
-                    phases_complete: phases,
+                    phases_complete: data.phases_complete ?? [],
+                    phases_remaining: data.phases_remaining ?? [],
                     enrollment_complete: data.enrollment_complete,
                 });
-                const allDone = data.enrollment_complete && phases.length >= 4;
                 // Sync store with live truth — clears any stale "enrolled" state
-                setEnrolled(user.id, allDone);
+                setEnrolled(user.id, data.enrollment_complete);
             })
             .catch(() => {
                 setError("Could not reach the keystroke service. Please try again later.");
@@ -111,9 +111,9 @@ export default function KeystrokeEnrollmentPage() {
             .finally(() => setIsLoading(false));
     }, [isHydrated, user, setEnrolled]);
 
-    // Already enrolled — redirect to profile only when live API confirms all 4 phases done
+    // Already enrolled — redirect to profile when the API confirms enrollment complete
     React.useEffect(() => {
-        if (progress?.enrollment_complete && (progress.phases_complete ?? []).length >= 4) {
+        if (progress?.enrollment_complete) {
             router.replace("/profile");
         }
     }, [progress, router]);
@@ -150,9 +150,13 @@ export default function KeystrokeEnrollmentPage() {
     }
 
     const phasesComplete = progress?.phases_complete ?? [];
+    const phasesRemaining = progress?.phases_remaining ?? [];
+    // Only show phases the config requires (complete + remaining = full required set)
+    const requiredIds = new Set([...phasesComplete, ...phasesRemaining]);
+    const visiblePhases = PHASES.filter((p) => requiredIds.size === 0 || requiredIds.has(p.id));
     const completedCount = phasesComplete.length;
-    const totalPhases = PHASES.length;
-    const nextPhase = PHASES.find((p) => !phasesComplete.includes(p.id));
+    const totalPhases = visiblePhases.length || PHASES.length;
+    const nextPhase = visiblePhases.find((p) => !phasesComplete.includes(p.id));
     const allDone = progress?.enrollment_complete ?? false;
 
     return (
@@ -172,6 +176,7 @@ export default function KeystrokeEnrollmentPage() {
                                 phases_complete: prev.phases_complete.includes(completedPhase)
                                     ? prev.phases_complete
                                     : [...prev.phases_complete, completedPhase],
+                                phases_remaining: prev.phases_remaining.filter((p) => p !== completedPhase),
                             }
                             : prev
                     );
@@ -185,7 +190,7 @@ export default function KeystrokeEnrollmentPage() {
                 </div>
                 <h1 className="text-3xl font-bold tracking-tight">Keystroke Enrollment</h1>
                 <p className="text-muted-foreground leading-relaxed max-w-md mx-auto">
-                    Complete all 4 phases to build your unique typing profile.
+                    Complete all {totalPhases} phase{totalPhases !== 1 ? "s" : ""} to build your unique typing profile.
                     This protects your identity during every assignment submission.
                 </p>
             </div>
@@ -216,7 +221,7 @@ export default function KeystrokeEnrollmentPage() {
 
             {/* Phase list */}
             <div className="space-y-3">
-                {PHASES.map((phase) => {
+                {visiblePhases.map((phase) => {
                     const done = phasesComplete.includes(phase.id);
                     const isNext = nextPhase?.id === phase.id;
                     const Icon = phase.icon;
