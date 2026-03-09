@@ -1,2 +1,9 @@
 {
+    "python-envs.pythonProjects": [
+        {
+            "path": "apps/services/keystroke-service/models",
+            "envManager": "ms-python.python:venv",
+            "packageManager": "ms-python.python:pip"
+        }
+    ]
 }
