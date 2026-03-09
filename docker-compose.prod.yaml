@@ -852,6 +852,16 @@ networks:
 volumes:
   postgres-data:
     driver: local
+  postgres-iam-data:
+    driver: local
+  postgres-email-data:
+    driver: local
+  postgres-academic-data:
+    driver: local
+  postgres-assessment-data:
+    driver: local
+  postgres-cipas-data:
+    driver: local
   minio-data:
     driver: local
   redis-data:
