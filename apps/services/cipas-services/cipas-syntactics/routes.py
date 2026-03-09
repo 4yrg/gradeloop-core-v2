@@ -797,6 +797,15 @@ async def get_similarity_report(assignment_id: str):
 
     except HTTPException:
         raise
+    except RuntimeError as exc:
+        # DB pool not initialized — service started without persistence
+        logger.warning(
+            "DB unavailable for report retrieval (%s): %s", assignment_id, exc
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No similarity report found for assignment {assignment_id} (persistence unavailable)",
+        )
     except Exception as exc:
         logger.error(
             "Failed to retrieve report for %s: %s", assignment_id, exc, exc_info=True

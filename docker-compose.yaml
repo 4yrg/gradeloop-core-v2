@@ -313,6 +313,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.cipas-syntactics.rule=PathPrefix(`/api/v1/syntactics`)"
       - "traefik.http.routers.cipas-syntactics.entrypoints=web"
+      - "traefik.http.routers.cipas-syntactics.service=cipas-syntactics-service"
       - "traefik.http.services.cipas-syntactics-service.loadbalancer.server.port=${CIPAS_SYN_SVC_PORT}"
       - "traefik.http.middlewares.cipas-syntactics-limit.buffering.maxRequestBodyBytes=10485760"
       - "traefik.http.middlewares.cipas-syntactics-ratelimit.ratelimit.average=100"
@@ -329,6 +330,7 @@ services:
     environment:
       - CIPAS_SYNTACTICS_PORT=${CIPAS_SYN_SVC_PORT}
       - CIPAS_SYNTACTICS_HOST=0.0.0.0
+      - DATABASE_URL=postgresql://${GRA_DB_USER}:${GRA_DB_PASSWORD}@${GRA_DB_HOST}:${GRA_DB_PORT}/${CIPAS_SVC_DB_NAME}?sslmode=${GRA_DB_SSLMODE}
 
     expose:
       - "${CIPAS_SYN_SVC_PORT}"

@@ -51,9 +51,17 @@ def get_pool() -> asyncpg.Pool:
 
 @asynccontextmanager
 async def get_db_connection() -> AsyncGenerator[asyncpg.Connection, None]:
-    """Get a database connection from the pool."""
-    pool = get_pool()
-    async with pool.acquire() as conn:
+    """Get a database connection from the pool, initialising lazily if needed."""
+    global _pool
+    if _pool is None:
+        logger.warning("DB pool not initialised — attempting lazy init...")
+        try:
+            await init_db_pool()
+        except Exception as exc:
+            raise RuntimeError(
+                f"Database unavailable (lazy init failed): {exc}"
+            ) from exc
+    async with _pool.acquire() as conn:
         yield conn
 
 
