@@ -1,181 +1,352 @@
+"""
+train_model.py
+--------------
+TypeNet pre-training on the full Aalto 136M-Keystrokes dataset.
+
+Pre-requisite
+-------------
+Run the preprocessing step first:
+
+    python models/preprocess_full_dataset.py \
+        --zip dataset/Keystrokes.zip \
+        --out models/aalto_full.h5
+
+Then train:
+
+    python models/train_model.py \
+        [--data models/aalto_full.h5] \
+        [--out  models/typenet_pretrained.pth] \
+        [--epochs 100] [--batch 512] [--workers 4]
+
+The script also accepts the legacy .npy format for backward compatibility.
+"""
+
+import argparse
+import time
+from pathlib import Path
+
+import h5py
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
-import numpy as np
-import os
 
-# --- CONFIGURATION (Based on TypeNet Research) ---
-DATA_PATH = '/content/drive/My Drive/processed_aalto_data.npy'
-MODEL_SAVE_PATH = '/content/drive/My Drive/typenet_pretrained.pth'
+# ──────────────────────────────────────────────────────────────
+# DEFAULT HYPERPARAMETERS (TypeNet paper values)
+# ──────────────────────────────────────────────────────────────
+INPUT_SIZE      = 5      # [HL, IL, PL, RL, KeyCode]
+HIDDEN_SIZE     = 128    # LSTM hidden units per layer
+NUM_LAYERS      = 2      # stacked LSTM layers
+OUTPUT_SIZE     = 128    # embedding dimension
+DROPOUT_RATE    = 0.5
+SEQUENCE_LENGTH = 70
+BATCH_SIZE      = 512
+LEARNING_RATE   = 0.005
+MARGIN          = 1.5    # triplet loss margin
+EPOCHS          = 100
 
-# Hyperparameters from the papers
-INPUT_SIZE = 5       # HL, IL, PL, RL, KeyCode [cite: 1384]
-HIDDEN_SIZE = 128    # 128 units per LSTM layer 
-NUM_LAYERS = 2       # 2 stacked LSTM layers 
-OUTPUT_SIZE = 128    # Embedding dimension [cite: 1434]
-DROPOUT_RATE = 0.5   # Dropout between LSTM layers 
-SEQUENCE_LENGTH = 70 # Optimal sequence length [cite: 1569]
-BATCH_SIZE = 512     # Large batch size for stable triplet loss [cite: 1529]
-LEARNING_RATE = 0.005 # Learning rate (tuned for Adam) [cite: 1528]
-MARGIN = 1.5         # Triplet Loss margin [cite: 1529]
-EPOCHS = 100         # Sufficient for convergence
+DEFAULT_DATA_PATH  = "models/aalto_full.h5"
+DEFAULT_MODEL_PATH = "models/typenet_pretrained.pth"
+CHECKPOINT_EVERY   = 10   # save every N epochs
 
-# --- 1. THE DATASET (Triplet Sampling) ---
-class KeystrokeTripletDataset(Dataset):
-    def __init__(self, npy_path):
-        # Load the massive numpy array: (Num_Users, 5_Sequences, 70, 5)
-        print(f"Loading data from {npy_path}...")
-        self.data = np.load(npy_path, allow_pickle=True)
-        self.num_users = self.data.shape[0]
-        self.num_sequences = self.data.shape[1]
-        print(f"Data Loaded. Users: {self.num_users}, Seq/User: {self.num_sequences}")
+
+# ──────────────────────────────────────────────────────────────
+# DATASET  — HDF5-backed (memory-mapped, no full RAM load)
+# ──────────────────────────────────────────────────────────────
+class HDF5KeystrokeTripletDataset(Dataset):
+    """
+    Yields (anchor, positive, negative) triplets directly from an HDF5 file
+    produced by preprocess_full_dataset.py.
+
+    Layout expected:
+      sequences  (N_total, SEQ_LEN, 5)  float32
+      labels     (N_total,)             int32   consecutive user indices
+      index_map  (N_users, 2)           int64   [seq_start, seq_end) per user
+
+    The file is memory-mapped so only the requested slices are loaded from
+    disk; the full file does NOT need to fit in RAM.
+    """
+
+    def __init__(self, h5_path: "str | Path", triplets_per_user: int = 10):
+        self.h5_path           = str(h5_path)
+        self.triplets_per_user = triplets_per_user
+
+        with h5py.File(self.h5_path, "r") as hf:
+            self.n_users   = int(hf.attrs["n_users"])
+            self.n_seqs    = int(hf.attrs["n_sequences"])
+            # index_map is tiny — safe to keep in RAM
+            self.index_map = hf["index_map"][:]   # (n_users, 2) int64
+
+        print(
+            f"[HDF5Dataset] users={self.n_users:,}  "
+            f"sequences={self.n_seqs:,}  "
+            f"triplets/epoch~{self.n_users * triplets_per_user:,}"
+        )
+        self._hf = None   # opened lazily per DataLoader worker
+
+    def _open(self):
+        if self._hf is None:
+            self._hf = h5py.File(self.h5_path, "r", swmr=True)
+
+    def __len__(self) -> int:
+        return self.n_users * self.triplets_per_user
+
+    def __getitem__(self, index: int):
+        self._open()
+
+        anchor_user       = index % self.n_users
+        a_start, a_end    = self.index_map[anchor_user]
+        a_count           = int(a_end - a_start)
+
+        # Anchor + positive from same user
+        seq_idxs       = np.random.choice(a_count, size=2, replace=(a_count < 2))
+        anchor_seq_idx = int(a_start) + seq_idxs[0]
+        pos_seq_idx    = int(a_start) + seq_idxs[1]
+
+        # Negative from a different user
+        neg_user = np.random.randint(0, self.n_users)
+        while neg_user == anchor_user:
+            neg_user = np.random.randint(0, self.n_users)
+        n_start, n_end = self.index_map[neg_user]
+        n_count        = int(n_end - n_start)
+        neg_seq_idx    = int(n_start) + np.random.randint(0, n_count)
+
+        seqs     = self._hf["sequences"]
+        anchor   = torch.from_numpy(seqs[anchor_seq_idx].astype(np.float32))
+        positive = torch.from_numpy(seqs[pos_seq_idx].astype(np.float32))
+        negative = torch.from_numpy(seqs[neg_seq_idx].astype(np.float32))
+        return anchor, positive, negative
+
+    def __del__(self):
+        if self._hf is not None:
+            try:
+                self._hf.close()
+            except Exception:
+                pass
+
+
+# ──────────────────────────────────────────────────────────────
+# LEGACY DATASET — .npy (backward compat with old Colab files)
+# ──────────────────────────────────────────────────────────────
+class NpyKeystrokeTripletDataset(Dataset):
+    """Loads old-style .npy with shape (N_users, K_seqs, SEQ_LEN, 5)."""
+
+    def __init__(self, npy_path: str, triplets_per_user: int = 10):
+        print(f"[NpyDataset] Loading {npy_path} …")
+        self.data              = np.load(npy_path, allow_pickle=True)
+        self.n_users           = self.data.shape[0]
+        self.n_seqs            = self.data.shape[1]
+        self.triplets_per_user = triplets_per_user
+        print(f"[NpyDataset] users={self.n_users}  seqs/user={self.n_seqs}")
 
     def __len__(self):
-        # We define length as number of users, but we sample multiple triplets per user
-        return self.num_users * 10 
+        return self.n_users * self.triplets_per_user
 
     def __getitem__(self, index):
-        # 1. Select Anchor User (Randomly map index to a user)
-        anchor_user_idx = index % self.num_users
-        
-        # 2. Select Positive Sample (Same User, different sequence)
-        # We randomly pick two different sequences from the same user
-        seq_indices = np.random.choice(self.num_sequences, size=2, replace=False)
-        anchor_seq = self.data[anchor_user_idx, seq_indices[0]]
-        positive_seq = self.data[anchor_user_idx, seq_indices[1]]
+        anchor_user = index % self.n_users
+        seq_idxs    = np.random.choice(self.n_seqs, size=2, replace=False)
+        anchor      = torch.from_numpy(self.data[anchor_user, seq_idxs[0]].astype(np.float32))
+        positive    = torch.from_numpy(self.data[anchor_user, seq_idxs[1]].astype(np.float32))
 
-        # 3. Select Negative Sample (Different User)
-        negative_user_idx = np.random.randint(0, self.num_users)
-        while negative_user_idx == anchor_user_idx:
-            negative_user_idx = np.random.randint(0, self.num_users)
-            
-        # Pick random sequence from negative user
-        negative_seq_idx = np.random.randint(0, self.num_sequences)
-        negative_seq = self.data[negative_user_idx, negative_seq_idx]
+        neg_user = np.random.randint(0, self.n_users)
+        while neg_user == anchor_user:
+            neg_user = np.random.randint(0, self.n_users)
+        neg_seq  = np.random.randint(0, self.n_seqs)
+        negative = torch.from_numpy(self.data[neg_user, neg_seq].astype(np.float32))
+        return anchor, positive, negative
 
-        # Convert to PyTorch tensors
-        return (torch.from_numpy(anchor_seq), 
-                torch.from_numpy(positive_seq), 
-                torch.from_numpy(negative_seq))
 
-# --- 2. THE MODEL (TypeNet Architecture) ---
+def build_dataset(data_path: str, triplets_per_user: int) -> Dataset:
+    """Auto-detect .h5 / .npy and return the right Dataset."""
+    p = Path(data_path)
+    if not p.exists():
+        raise FileNotFoundError(
+            f"Data file not found: {data_path}\n"
+            "Run:  python models/preprocess_full_dataset.py --zip dataset/Keystrokes.zip"
+        )
+    if p.suffix in (".h5", ".hdf5"):
+        return HDF5KeystrokeTripletDataset(p, triplets_per_user)
+    if p.suffix == ".npy":
+        return NpyKeystrokeTripletDataset(str(p), triplets_per_user)
+    raise ValueError(f"Unknown data format: {p.suffix}  (expected .h5 or .npy)")
+
+
+# ──────────────────────────────────────────────────────────────
+# MODEL — TypeNet Architecture
+# ──────────────────────────────────────────────────────────────
 class TypeNet(nn.Module):
+    """
+    Two-layer LSTM with BatchNorm, Dropout, and a linear projection head.
+    Outputs L2-normalised 128-d embeddings.
+    """
+
     def __init__(self):
-        super(TypeNet, self).__init__()
+        super().__init__()
+        self.lstm1 = nn.LSTM(INPUT_SIZE,  HIDDEN_SIZE, batch_first=True)
+        self.bn1   = nn.BatchNorm1d(HIDDEN_SIZE)
+        self.drop1 = nn.Dropout(DROPOUT_RATE)
 
-        # LSTM Layer 1
-        self.lstm1 = nn.LSTM(INPUT_SIZE, HIDDEN_SIZE, batch_first=True)
-        self.bn1 = nn.BatchNorm1d(HIDDEN_SIZE)  # Batch Norm across hidden dimension
-        self.dropout1 = nn.Dropout(DROPOUT_RATE)
-
-        # LSTM Layer 2
         self.lstm2 = nn.LSTM(HIDDEN_SIZE, HIDDEN_SIZE, batch_first=True)
-        self.bn2 = nn.BatchNorm1d(HIDDEN_SIZE)  # Batch Norm across hidden dimension
-        self.dropout2 = nn.Dropout(DROPOUT_RATE)
+        self.bn2   = nn.BatchNorm1d(HIDDEN_SIZE)
+        self.drop2 = nn.Dropout(DROPOUT_RATE)
 
-        # Output Embedding Layer (Dense)
-        self.fc = nn.Linear(HIDDEN_SIZE, OUTPUT_SIZE) 
+        self.fc    = nn.Linear(HIDDEN_SIZE, OUTPUT_SIZE)
 
-    def forward_one(self, x):
-        # Input shape: (Batch, Seq_Len, Features)
-        
-        # Pass through LSTM 1
+    def forward_one(self, x: torch.Tensor) -> torch.Tensor:
         out, _ = self.lstm1(x)
-        # Batch Norm requires (Batch, Features, Seq_Len), so we permute
-        out = out.permute(0, 2, 1) 
-        out = self.bn1(out)
-        out = out.permute(0, 2, 1) # Permute back
-        out = self.dropout1(out)
-        
-        # Pass through LSTM 2
+        out    = self.bn1(out.permute(0, 2, 1)).permute(0, 2, 1)
+        out    = self.drop1(out)
+
         out, _ = self.lstm2(out)
-        out = out.permute(0, 2, 1)
-        out = self.bn2(out)
-        out = out.permute(0, 2, 1)
-        out = self.dropout2(out)
-        
-        # Take the output of the LAST timestep for the embedding
-        # shape: (Batch, Hidden_Size)
-        last_timestep = out[:, -1, :] 
-        
-        # Final Embedding
-        embedding = self.fc(last_timestep)
-        return embedding
+        out    = self.bn2(out.permute(0, 2, 1)).permute(0, 2, 1)
+        out    = self.drop2(out)
 
-    def forward(self, anchor, positive, negative):
-        # Generate embeddings for all three inputs
-        emb_a = self.forward_one(anchor)
-        emb_p = self.forward_one(positive)
-        emb_n = self.forward_one(negative)
-        return emb_a, emb_p, emb_n
+        emb = self.fc(out[:, -1, :])
+        return nn.functional.normalize(emb, p=2, dim=1)
 
-# --- 3. THE LOSS FUNCTION (Triplet Loss) ---
+    def forward(self, a, p, n):
+        return self.forward_one(a), self.forward_one(p), self.forward_one(n)
+
+
+# ──────────────────────────────────────────────────────────────
+# LOSS — Triplet Loss
+# ──────────────────────────────────────────────────────────────
 class TripletLoss(nn.Module):
-    def __init__(self, margin=1.0):
-        super(TripletLoss, self).__init__()
+    def __init__(self, margin: float = MARGIN):
+        super().__init__()
         self.margin = margin
 
     def forward(self, anchor, positive, negative):
-        # Distance(Anchor, Positive)
         dist_pos = torch.pow(anchor - positive, 2).sum(dim=1)
-        # Distance(Anchor, Negative)
         dist_neg = torch.pow(anchor - negative, 2).sum(dim=1)
-        
-        # Loss = max(0, dist_pos - dist_neg + margin)
-        losses = torch.relu(dist_pos - dist_neg + self.margin)
-        return losses.mean()
+        return torch.relu(dist_pos - dist_neg + self.margin).mean()
 
-# --- 4. TRAINING LOOP ---
-def train_typenet():
-    # Setup Device (GPU is mandatory for this batch size)
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"🚀 Training on device: {device}")
 
-    # Load Data
-    dataset = KeystrokeTripletDataset(DATA_PATH)
-    dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=2)
+# ──────────────────────────────────────────────────────────────
+# TRAINING
+# ──────────────────────────────────────────────────────────────
+def train(args: argparse.Namespace) -> None:
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"\n{'='*60}")
+    print(f"  TypeNet — full-dataset training")
+    print(f"  Device  : {device}")
+    print(f"  Data    : {args.data}")
+    print(f"  Output  : {args.out}")
+    print(f"{'='*60}\n")
 
-    # Initialize Model
-    model = TypeNet().to(device)
-    criterion = TripletLoss(margin=MARGIN)
-    # Adam Optimizer with TypeNet learning rate
-    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE) 
+    dataset = build_dataset(args.data, args.triplets_per_user)
+    loader  = DataLoader(
+        dataset,
+        batch_size         = args.batch,
+        shuffle            = True,
+        num_workers        = args.workers,
+        pin_memory         = (device.type == "cuda"),
+        persistent_workers = (args.workers > 0),
+    )
 
-    print("🏋️ Starting Training Loop...")
-    model.train()
+    model     = TypeNet().to(device)
+    criterion = TripletLoss(margin=args.margin)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr)
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, T_max=args.epochs, eta_min=args.lr * 0.01
+    )
 
-    for epoch in range(EPOCHS):
-        total_loss = 0
-        for batch_idx, (anchor, positive, negative) in enumerate(dataloader):
-            # Move to GPU
-            anchor = anchor.to(device).float()
-            positive = positive.to(device).float()
-            negative = negative.to(device).float()
+    out_path  = Path(args.out)
+    ckpt_path = out_path.with_suffix(".ckpt.pth")
+    start_epoch = 0
+    best_loss   = float("inf")
 
-            # Forward Pass
+    if args.resume and ckpt_path.exists():
+        ckpt = torch.load(ckpt_path, map_location=device)
+        model.load_state_dict(ckpt["model"])
+        optimizer.load_state_dict(ckpt["optimizer"])
+        scheduler.load_state_dict(ckpt["scheduler"])
+        start_epoch = ckpt["epoch"]
+        best_loss   = ckpt.get("loss", best_loss)
+        print(f"Resumed from checkpoint at epoch {start_epoch}  (loss={best_loss:.4f})\n")
+
+    for epoch in range(start_epoch, args.epochs):
+        model.train()
+        total_loss = 0.0
+        t0         = time.time()
+
+        for batch_idx, (anchor, pos, neg) in enumerate(loader):
+            anchor = anchor.to(device)
+            pos    = pos.to(device)
+            neg    = neg.to(device)
+
             optimizer.zero_grad()
-            emb_a, emb_p, emb_n = model(anchor, positive, negative)
-            
-            # Compute Loss
-            loss = criterion(emb_a, emb_p, emb_n)
-            
-            # Backward Pass
+            e_a, e_p, e_n = model(anchor, pos, neg)
+            loss = criterion(e_a, e_p, e_n)
             loss.backward()
+            nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
             optimizer.step()
 
             total_loss += loss.item()
-            
-            if batch_idx % 10 == 0:
-                print(f"Epoch {epoch+1} | Batch {batch_idx} | Loss: {loss.item():.4f}")
+            if batch_idx % 50 == 0:
+                print(
+                    f"  Epoch {epoch+1:>3}/{args.epochs}  "
+                    f"Batch {batch_idx:>5}/{len(loader)}  "
+                    f"Loss {loss.item():.4f}",
+                    flush=True,
+                )
 
-        avg_loss = total_loss / len(dataloader)
-        print(f"✅ Epoch [{epoch+1}/{EPOCHS}] Complete. Avg Loss: {avg_loss:.4f}")
-        
-        # Save checkpoint every 10 epochs
-        if (epoch + 1) % 10 == 0:
-            torch.save(model.state_dict(), MODEL_SAVE_PATH)
-            print(f"💾 Model saved to {MODEL_SAVE_PATH}")
+        scheduler.step()
+        avg_loss = total_loss / len(loader)
+        elapsed  = time.time() - t0
+        print(
+            f"\nEpoch [{epoch+1}/{args.epochs}]  "
+            f"AvgLoss={avg_loss:.4f}  "
+            f"LR={scheduler.get_last_lr()[0]:.6f}  "
+            f"Time={elapsed:.0f}s\n"
+        )
+
+        # Save best model
+        if avg_loss < best_loss:
+            best_loss = avg_loss
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            torch.save(model.state_dict(), out_path)
+            print(f"  ✓ Best model saved → {out_path}  (loss={best_loss:.4f})")
+
+        # Periodic checkpoint (for resuming)
+        if (epoch + 1) % CHECKPOINT_EVERY == 0:
+            torch.save(
+                {
+                    "epoch":     epoch + 1,
+                    "model":     model.state_dict(),
+                    "optimizer": optimizer.state_dict(),
+                    "scheduler": scheduler.state_dict(),
+                    "loss":      avg_loss,
+                },
+                ckpt_path,
+            )
+            print(f"  ✓ Checkpoint saved → {ckpt_path}")
+
+    print(f"\nTraining complete.  Best loss: {best_loss:.4f}")
+    print(f"Final model: {out_path}")
+
+
+# ──────────────────────────────────────────────────────────────
+# CLI
+# ──────────────────────────────────────────────────────────────
+def _parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="Train TypeNet on the full Aalto dataset")
+    p.add_argument("--data",   default=DEFAULT_DATA_PATH,
+                   help="Path to aalto_full.h5 (or legacy .npy)")
+    p.add_argument("--out",    default=DEFAULT_MODEL_PATH,
+                   help="Where to save the best model weights (.pth)")
+    p.add_argument("--epochs", type=int,   default=EPOCHS)
+    p.add_argument("--batch",  type=int,   default=BATCH_SIZE)
+    p.add_argument("--lr",     type=float, default=LEARNING_RATE)
+    p.add_argument("--margin", type=float, default=MARGIN)
+    p.add_argument("--workers",type=int,   default=4,
+                   help="DataLoader worker count (0 = main process only)")
+    p.add_argument("--triplets_per_user", type=int, default=10)
+    p.add_argument("--resume", action="store_true",
+                   help="Resume from latest checkpoint if it exists")
+    return p.parse_args()
+
 
 if __name__ == "__main__":
-    train_typenet()
+    train(_parse_args())
