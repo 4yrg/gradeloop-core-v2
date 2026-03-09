@@ -54,8 +54,7 @@ export function KeystrokeEnrollmentPrompt() {
         keystrokeApi
             .getEnrollmentProgress(user.id)
             .then((progress) => {
-                const phases = progress.phases_complete ?? [];
-                const allDone = progress.enrollment_complete && phases.length >= 4;
+                const allDone = progress.enrollment_complete;
                 if (allDone) {
                     setEnrolled(user.id, true);
                 } else {
