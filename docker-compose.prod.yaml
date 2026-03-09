@@ -1,0 +1,329 @@
+services:
+  # =============================================================================
+  # Traefik API Gateway
+  # =============================================================================
+  traefik:
+    image: traefik:v3
+    container_name: traefik
+    restart: always
+    command:
+      - "--api.insecure=false"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # Database & Infrastructure Services
+  # =============================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: gradeloop-postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=${GRA_DB_USER}
+      - POSTGRES_PASSWORD=${GRA_DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # Optionally mount init scripts here:
+      # - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${GRA_DB_USER}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: gradeloop-redis
+    restart: always
+    command: [ "redis-server", "--save", "", "--appendonly", "no" ]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio
+    container_name: gradeloop-minio
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: gradeloop-rabbitmq
+    restart: always
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # Microservices
+  # =============================================================================
+
+  web:
+    build:
+      context: .
+      dockerfile: ./apps/web/Dockerfile
+      target: runner
+    container_name: gradeloop-web
+    restart: always
+    env_file: .env
+    ports:
+      - "3000:3000"
+    networks:
+      - gradeloop-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.web.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.web.entrypoints=web"
+      - "traefik.http.services.web-service.loadbalancer.server.port=3000"
+
+  iam-service:
+    build:
+      context: ./apps/services/iam-service
+      dockerfile: Dockerfile
+      target: production
+    container_name: iam-service
+    restart: always
+    env_file: .env
+    expose:
+      - "8081"
+    depends_on:
+      - postgres
+      - minio
+    networks:
+      - gradeloop-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.iam.rule=PathPrefix(`/api/v1/auth`) || PathPrefix(`/api/v1/users`) || PathPrefix(`/api/v1/admin`)"
+      - "traefik.http.routers.iam.entrypoints=web"
+      - "traefik.http.services.iam-service.loadbalancer.server.port=8081"
+
+  email-service:
+    build:
+      context: ./apps/services/email-service
+      dockerfile: Dockerfile
+      target: production
+    container_name: email-service
+    restart: always
+    env_file: .env
+    expose:
+      - "8082"
+    depends_on:
+      - rabbitmq
+    networks:
+      - gradeloop-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.email.rule=PathPrefix(`/api/v1/emails`)"
+      - "traefik.http.routers.email.entrypoints=web"
+      - "traefik.http.services.email-service.loadbalancer.server.port=8082"
+
+  academic-service:
+    build:
+      context: ./apps/services/academic-service
+      dockerfile: Dockerfile
+      target: production
+    container_name: academic-service
+    restart: always
+    env_file: .env
+    expose:
+      - "8083"
+    depends_on:
+      - iam-service
+      - postgres
+    networks:
+      - gradeloop-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.academic.rule=PathPrefix(`/api/v1/departments`) || PathPrefix(`/api/v1/courses`)"
+      - "traefik.http.routers.academic.entrypoints=web"
+      - "traefik.http.services.academic-service.loadbalancer.server.port=8083"
+
+  assessment-service:
+    build:
+      context: ./apps/services/assessment-service
+      dockerfile: Dockerfile
+      target: production
+    container_name: assessment-service
+    restart: always
+    env_file: .env
+    expose:
+      - "8084"
+    depends_on:
+      - iam-service
+      - postgres
+      - rabbitmq
+      - minio
+    networks:
+      - gradeloop-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.assessment.rule=PathPrefix(`/api/v1/assignments`) || PathPrefix(`/api/v1/submissions`)"
+      - "traefik.http.routers.assessment.entrypoints=web"
+      - "traefik.http.services.assessment-service.loadbalancer.server.port=8084"
+
+  cipas-xai:
+    build:
+      context: ./apps/services/cipas-services/cipas-xai
+      dockerfile: Dockerfile
+    container_name: cipas-xai
+    restart: always
+    env_file: .env
+    expose:
+      - "8085"
+    networks:
+      - gradeloop-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cipas-xai.rule=PathPrefix(`/api/v1/chat`)"
+      - "traefik.http.routers.cipas-xai.entrypoints=web"
+      - "traefik.http.services.cipas-xai-service.loadbalancer.server.port=8085"
+
+  acafs-service:
+    build:
+      context: ./apps/services/acafs-service
+      dockerfile: Dockerfile
+      target: production
+    container_name: acafs-service
+    restart: always
+    env_file: .env
+    expose:
+      - "8086"
+    depends_on:
+      - rabbitmq
+      - minio
+      - postgres
+    networks:
+      - gradeloop-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.acafs.rule=PathPrefix(`/api/v1/acafs`)"
+      - "traefik.http.routers.acafs.entrypoints=web"
+      - "traefik.http.services.acafs.loadbalancer.server.port=8086"
+
+  cipas-ai:
+    build:
+      context: ./apps/services/cipas-services/cipas-ai
+      dockerfile: Dockerfile
+    container_name: cipas-ai
+    restart: always
+    env_file: .env
+    expose:
+      - "8087"
+    networks:
+      - gradeloop-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cipas-ai.rule=PathPrefix(`/api/v1/ai`)"
+      - "traefik.http.routers.cipas-ai.entrypoints=web"
+      - "traefik.http.services.cipas-ai-service.loadbalancer.server.port=8087"
+
+  cipas-syntactics:
+    build:
+      context: ./apps/services/cipas-services/cipas-syntactics
+      dockerfile: Dockerfile
+    container_name: cipas-syntactics
+    restart: always
+    env_file: .env
+    expose:
+      - "8088"
+    networks:
+      - gradeloop-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cipas-syntactics.rule=PathPrefix(`/api/v1/syntactics`)"
+      - "traefik.http.routers.cipas-syntactics.entrypoints=web"
+      - "traefik.http.services.cipas-syntactics-service.loadbalancer.server.port=8088"
+
+  cipas-semantics:
+    build:
+      context: ./apps/services/cipas-services/cipas-semantics
+      dockerfile: Dockerfile
+    container_name: cipas-semantics
+    restart: always
+    env_file: .env
+    expose:
+      - "8089"
+    networks:
+      - gradeloop-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cipas-semantics.rule=PathPrefix(`/api/v1/semantics`)"
+      - "traefik.http.routers.cipas-semantics.entrypoints=web"
+      - "traefik.http.services.cipas-semantics-service.loadbalancer.server.port=8089"
+
+  keystroke-service:
+    build:
+      context: ./apps/services/keystroke-service
+      dockerfile: Dockerfile
+    container_name: keystroke-service
+    restart: always
+    env_file: .env
+    expose:
+      - "8003"
+    depends_on:
+      - redis
+      - rabbitmq
+      - postgres
+    networks:
+      - gradeloop-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.keystroke.rule=PathPrefix(`/api/keystroke`)"
+      - "traefik.http.routers.keystroke.entrypoints=web"
+      - "traefik.http.services.keystroke-service.loadbalancer.server.port=8003"
+
+networks:
+  gradeloop-network:
+    driver: bridge
+
+volumes:
+  minio-data:
+    driver: local
+  redis-data:
+    driver: local
+  postgres-data:
+    driver: local
+  rabbitmq-data:
+    driver: local
