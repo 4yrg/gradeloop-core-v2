@@ -13,19 +13,19 @@ WORKDIR /app
 # Stage 2: Install dependencies
 # -----------------------------------------------------------------------------
 FROM base AS deps
+# Copy root package.json and lock file for workspace setup
 COPY package.json bun.lock* ./
-# We also copy any package.json inside apps or packages if using a monorepo
+# Copy workspace package.json files
 COPY apps/web/package.json ./apps/web/
-# Install dependencies for the web app (install inside apps/web so `next` is available)
-WORKDIR /app/apps/web
+# Install dependencies from root to properly handle Bun workspaces
 RUN bun install --frozen-lockfile
-WORKDIR /app
 
 # -----------------------------------------------------------------------------
 # Stage 3: Builder
 # -----------------------------------------------------------------------------
 FROM base AS builder
 WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY . .
 
@@ -34,16 +34,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
 WORKDIR /app/apps/web
-# Ensure devDependencies (including `next`) are present for the build
-# Try installing dev deps in the builder stage; ignore failure if bun flags differ
-RUN bun install --frozen-lockfile --dev || true
 
-# Build the Next.js application using the local binary when available
-RUN if [ -x ./node_modules/.bin/next ]; then \
-            ./node_modules/.bin/next build; \
-        else \
-            bun run build; \
-        fi
+# Build the Next.js application
+RUN bun run build
 
 # -----------------------------------------------------------------------------
 # Stage 4: Production Runtime
@@ -53,7 +46,7 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=80
+ENV PORT=3000
 
 # Create a non-root user
 RUN addgroup --system --gid 1001 bunjs && \
@@ -72,7 +65,7 @@ COPY --from=builder /app/apps/web/node_modules ./apps/web/node_modules
 
 USER nextjs
 
-EXPOSE 80
+EXPOSE 3000
 
 ENV HOSTNAME="0.0.0.0"
 
