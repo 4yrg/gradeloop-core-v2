@@ -15,6 +15,8 @@ export interface CodeIDEProps {
   showAIAssistant?: boolean;
   /** When true the language selector is disabled — language is fixed by the assignment. */
   lockLanguage?: boolean;
+  /** The assignment's required language ID — used to guard run/submit against language mismatches. */
+  expectedLanguageId?: number;
   /** When true a "Results" tab is shown in the right panel. */
   showGradePanel?: boolean;
   /** The grading result from ACAFS. Null while pending or unavailable. */

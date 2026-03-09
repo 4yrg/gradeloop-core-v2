@@ -103,6 +103,8 @@ export interface AssignmentResponse {
     ai_grading_config?: {
         plagiarism_check_enabled: boolean;
     };
+    /** Reference implementation provided by the instructor (optional). */
+    sample_answer?: SampleAnswerDto;
 }
 
 export interface ListAssignmentsResponse {
@@ -126,6 +128,14 @@ export interface SubmissionResponse {
     judge0_job_id?: string;
     submitted_at: string;
     code?: string;
+    // CIPAS analysis results (populated asynchronously via PATCH /submissions/:id/analysis)
+    ai_likelihood?: number;
+    human_likelihood?: number;
+    is_ai_generated?: boolean;
+    ai_confidence?: number;
+    /** Semantic similarity score vs. instructor sample answer (0–100) */
+    semantic_similarity_score?: number;
+    analyzed_at?: string;
 }
 
 export interface SubmissionCodeResponse {
@@ -198,6 +208,15 @@ export interface CreateSubmissionRequest {
     /** Judge0 language ID — required for test-case execution. */
     language_id?: number;
     code: string;
+}
+
+/** PATCH /api/v1/submissions/:id/analysis — store CIPAS scores after submission. */
+export interface UpdateSubmissionAnalysisRequest {
+    ai_likelihood: number;
+    human_likelihood: number;
+    is_ai_generated: boolean;
+    ai_confidence: number;
+    semantic_similarity_score?: number | null;
 }
 
 /** PUT /api/v1/instructor-assignments/:id/rubric — replace all rubric criteria. */

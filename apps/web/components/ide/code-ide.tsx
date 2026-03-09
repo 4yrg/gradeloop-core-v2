@@ -34,6 +34,7 @@ export function CodeIDE({
   showAIAssistant = false,
   showGradePanel = false,
   lockLanguage = false,
+  expectedLanguageId,
   grade = null,
   isGrading = false,
 }: CodeIDEProps) {
@@ -59,6 +60,8 @@ export function CodeIDE({
   // Code execution
   const { execute, isExecuting, result, error } = useCodeExecution({
     assignmentId,
+    // When the language is locked, guard the run hook against mismatches.
+    expectedLanguageId: lockLanguage ? (expectedLanguageId ?? initialLanguage) : undefined,
     onSuccess: (result) => {
       onExecute?.(result);
     },
