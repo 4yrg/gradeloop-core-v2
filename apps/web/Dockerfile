@@ -16,15 +16,17 @@ FROM base AS deps
 COPY package.json bun.lock* ./
 # We also copy any package.json inside apps or packages if using a monorepo
 COPY apps/web/package.json ./apps/web/
-# Install dependencies
+# Install dependencies for the web app (install inside apps/web so `next` is available)
+WORKDIR /app/apps/web
 RUN bun install --frozen-lockfile
+WORKDIR /app
 
 # -----------------------------------------------------------------------------
 # Stage 3: Builder
 # -----------------------------------------------------------------------------
 FROM base AS builder
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY . .
 
 # Set environment variables for production build
