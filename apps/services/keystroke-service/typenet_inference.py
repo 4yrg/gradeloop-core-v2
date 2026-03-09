@@ -60,8 +60,9 @@ class TypeNet(nn.Module):
         # Take last timestep
         last_timestep = out[:, -1, :]
 
-        # Generate embedding
+        # Generate embedding (L2-normalised to match training)
         embedding = self.fc(last_timestep)
+        embedding = nn.functional.normalize(embedding, p=2, dim=1)
         return embedding
 
 
