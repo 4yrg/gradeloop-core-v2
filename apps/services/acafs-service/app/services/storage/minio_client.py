@@ -1,7 +1,5 @@
 """MinIO client for retrieving source code from object storage."""
 
-from typing import Optional
-
 from minio import Minio
 from minio.error import S3Error
 
@@ -23,7 +21,7 @@ class MinIOClient:
         use_ssl: bool = False,
     ):
         """Initialize MinIO client.
-        
+
         Args:
             endpoint: MinIO server endpoint (host:port)
             access_key: Access key for authentication
@@ -54,13 +52,13 @@ class MinIOClient:
 
     async def get_submission_code(self, storage_path: str) -> str:
         """Retrieve source code from MinIO.
-        
+
         Args:
             storage_path: Object key/path in MinIO
-            
+
         Returns:
             Source code as string
-            
+
         Raises:
             S3Error: If object retrieval fails
         """
@@ -69,7 +67,7 @@ class MinIOClient:
             code = response.read().decode("utf-8")
             response.close()
             response.release_conn()
-            
+
             logger.info(
                 "code_retrieved_from_minio",
                 storage_path=storage_path,
@@ -86,16 +84,16 @@ class MinIOClient:
 
     async def get_code_from_event(self, event: SubmissionEvent) -> str:
         """Get code from event or fetch from MinIO if needed.
-        
+
         Args:
             event: Submission event containing code or storage path
-            
+
         Returns:
             Source code as string
         """
         # If code is directly in event, use it
         if event.code:
             return event.code
-            
+
         # Otherwise fetch from MinIO
         return await self.get_submission_code(event.storage_path)
