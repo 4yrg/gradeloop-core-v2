@@ -2,7 +2,7 @@
 
 import concurrent.futures
 import time
-from typing import Any, Optional
+from typing import Any
 
 from tree_sitter import Node, Parser, Tree
 
@@ -26,25 +26,25 @@ class ASTParser:
         self,
         code: str,
         language: str,
-        language_id: Optional[int] = None,
+        language_id: int | None = None,
     ) -> ASTBlueprint:
         """Parse source code and extract AST blueprint.
-        
+
         Args:
             code: Source code to parse
             language: Programming language name
             language_id: Optional Judge0 language ID
-            
+
         Returns:
             ASTBlueprint containing structural analysis
         """
         start_time = time.time()
-        
+
         # Check code size and truncate if necessary
         lines = code.splitlines()
         total_lines = len(lines)
         ast_truncated = False
-        
+
         if total_lines > self.settings.ast_max_lines:
             lines = lines[: self.settings.ast_max_lines]
             code = "\n".join(lines)
@@ -59,7 +59,7 @@ class ASTParser:
         parser = self.language_router.get_parser(language)
         if not parser and language_id:
             parser = self.language_router.get_parser_by_judge0_id(language_id)
-        
+
         if not parser:
             logger.error("no_parser_available", language=language, language_id=language_id)
             return self._create_error_blueprint(
@@ -106,7 +106,7 @@ class ASTParser:
                 error_details={"error": str(e)},
             )
 
-    def _parse_with_timeout(self, parser: Parser, code: str) -> Optional[Tree]:
+    def _parse_with_timeout(self, parser: Parser, code: str) -> Tree | None:
         """Parse code with timeout protection.
 
         Uses a dedicated thread so this method is safe to call from any thread,
@@ -137,16 +137,16 @@ class ASTParser:
 
     def _extract_blueprint(self, tree: Tree, language: str) -> ASTBlueprint:
         """Extract structural blueprint from parse tree.
-        
+
         Args:
             tree: Tree-sitter parse tree
             language: Programming language
-            
+
         Returns:
             ASTBlueprint with extracted elements
         """
         root = tree.root_node
-        
+
         functions = []
         classes = []
         variables = []
@@ -154,14 +154,17 @@ class ASTParser:
         operators = []
         imports = []
 
-        self._traverse_node(root, {
-            "functions": functions,
-            "classes": classes,
-            "variables": variables,
-            "control_flow": control_flow,
-            "operators": operators,
-            "imports": imports,
-        })
+        self._traverse_node(
+            root,
+            {
+                "functions": functions,
+                "classes": classes,
+                "variables": variables,
+                "control_flow": control_flow,
+                "operators": operators,
+                "imports": imports,
+            },
+        )
 
         return ASTBlueprint(
             language=language,
@@ -176,7 +179,7 @@ class ASTParser:
 
     def _traverse_node(self, node: Node, collectors: dict[str, list]) -> None:
         """Traverse AST nodes and collect structural elements.
-        
+
         Args:
             node: Current AST node
             collectors: Dictionary of lists to collect elements
@@ -203,9 +206,14 @@ class ASTParser:
 
         # Control flow detection
         elif node_type in (
-            "if_statement", "for_statement", "while_statement",
-            "do_statement", "switch_statement", "try_statement",
-            "with_statement", "for_in_statement"
+            "if_statement",
+            "for_statement",
+            "while_statement",
+            "do_statement",
+            "switch_statement",
+            "try_statement",
+            "with_statement",
+            "for_in_statement",
         ):
             cf_info = self._extract_control_flow_info(node)
             if cf_info:
@@ -213,8 +221,11 @@ class ASTParser:
 
         # Import detection
         elif node_type in (
-            "import_statement", "import_declaration", "include_directive",
-            "using_directive", "import_from_statement"
+            "import_statement",
+            "import_declaration",
+            "include_directive",
+            "using_directive",
+            "import_from_statement",
         ):
             import_info = self._extract_import_info(node)
             if import_info:
@@ -224,7 +235,7 @@ class ASTParser:
         for child in node.children:
             self._traverse_node(child, collectors)
 
-    def _extract_function_info(self, node: Node) -> Optional[dict[str, Any]]:
+    def _extract_function_info(self, node: Node) -> dict[str, Any] | None:
         """Extract function information from node."""
         name = None
         params = []
@@ -256,7 +267,7 @@ class ASTParser:
             }
         return None
 
-    def _extract_class_info(self, node: Node) -> Optional[dict[str, Any]]:
+    def _extract_class_info(self, node: Node) -> dict[str, Any] | None:
         """Extract class information from node."""
         name = None
         methods = []
@@ -284,7 +295,7 @@ class ASTParser:
             }
         return None
 
-    def _extract_variable_info(self, node: Node) -> Optional[dict[str, Any]]:
+    def _extract_variable_info(self, node: Node) -> dict[str, Any] | None:
         """Extract variable information from node."""
         name = None
         var_type = None
@@ -303,17 +314,17 @@ class ASTParser:
             }
         return None
 
-    def _extract_control_flow_info(self, node: Node) -> Optional[dict[str, Any]]:
+    def _extract_control_flow_info(self, node: Node) -> dict[str, Any] | None:
         """Extract control flow information from node."""
         return {
             "type": node.type,
             "line": node.start_point[0] + 1,
         }
 
-    def _extract_import_info(self, node: Node) -> Optional[dict[str, Any]]:
+    def _extract_import_info(self, node: Node) -> dict[str, Any] | None:
         """Extract import information from node."""
         module_name = None
-        
+
         for child in node.children:
             if child.type in ("string_literal", "identifier", "scoped_identifier"):
                 text = child.text.decode("utf-8") if child.text else ""
@@ -321,10 +332,14 @@ class ASTParser:
                     module_name = text.strip('"')
                     break
 
-        return {
-            "module": module_name,
-            "line": node.start_point[0] + 1,
-        } if module_name else None
+        return (
+            {
+                "module": module_name,
+                "line": node.start_point[0] + 1,
+            }
+            if module_name
+            else None
+        )
 
     def _extract_parameters(self, node: Node) -> list[dict[str, Any]]:
         """Extract parameter list from node."""
@@ -342,17 +357,17 @@ class ASTParser:
         reason: str,
         ast_truncated: bool = False,
         lines: int = 0,
-        error_details: Optional[dict] = None,
+        error_details: dict | None = None,
     ) -> ASTBlueprint:
         """Create an error blueprint when parsing fails.
-        
+
         Args:
             language: Target language
             reason: Failure reason
             ast_truncated: Whether code was truncated
             lines: Line count
             error_details: Additional error info
-            
+
         Returns:
             ASTBlueprint with error metadata
         """
@@ -361,7 +376,7 @@ class ASTParser:
             parser_timeout=reason == "parser_timeout",
             lines_of_code=lines,
         )
-        
+
         return ASTBlueprint(
             language=language,
             metadata=metadata,

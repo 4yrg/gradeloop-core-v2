@@ -6,7 +6,7 @@ toward these results — they are the authoritative signal for that criterion.
 """
 
 import asyncio
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 

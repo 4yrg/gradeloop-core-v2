@@ -3,9 +3,9 @@
 import asyncio
 import signal
 import sys
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from threading import Thread
-from typing import AsyncGenerator
 from uuid import UUID
 
 from fastapi import APIRouter, FastAPI, HTTPException, status
@@ -38,7 +38,7 @@ chat_service: SocraticChatService | None = None
 
 async def process_message(event: SubmissionEvent) -> None:
     """Process a submission event from RabbitMQ.
-    
+
     Args:
         event: Submission event
     """
@@ -84,27 +84,27 @@ def run_consumer(loop: asyncio.AbstractEventLoop) -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator:
     """Application lifespan manager.
-    
+
     Handles startup and shutdown events.
     """
     global worker, postgres_client, chat_service
-    
+
     # Startup
     settings = get_settings()
     configure_logging(settings.log_level, settings.environment)
-    
+
     logger.info(
         "acafs_service_starting",
         service=settings.service_name,
         version="0.1.0",
         environment=settings.environment,
     )
-    
+
     # Initialize PostgreSQL client
     postgres_client = PostgresClient(settings.database_dsn)
     await postgres_client.connect()
     await postgres_client.ensure_tables()
-    
+
     # Initialize MinIO client
     minio_client = MinIOClient(
         endpoint=settings.minio_endpoint,
@@ -113,7 +113,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         bucket_name=settings.minio_bucket,
         use_ssl=settings.minio_use_ssl,
     )
-    
+
     # Initialize evaluation worker (includes LLM grader + Judge0 client)
     worker = EvaluationWorker(
         settings=settings,
@@ -123,30 +123,30 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
 
     # Initialize Socratic chat service
     chat_service = SocraticChatService(settings=settings)
-    
+
     # Start RabbitMQ consumer in background thread.
     # Pass the running event loop so the consumer dispatches coroutines onto
     # the same loop that owns the asyncpg pool.
     loop = asyncio.get_event_loop()
     consumer_thread = Thread(target=run_consumer, args=(loop,), daemon=True)
     consumer_thread.start()
-    
+
     logger.info("acafs_service_ready")
-    
+
     yield
-    
+
     # Shutdown
     logger.info("acafs_service_shutting_down")
-    
+
     if consumer:
         consumer.stop()
-    
+
     if worker:
         worker.close()
-    
+
     if postgres_client:
         await postgres_client.close()
-    
+
     logger.info("acafs_service_shutdown_complete")
 
 
@@ -161,7 +161,7 @@ api_router = APIRouter(prefix="/api/v1/acafs")
 @api_router.get("/health", tags=["health"])
 async def health_check() -> JSONResponse:
     """Health check endpoint.
-    
+
     Returns:
         Health status response
     """
@@ -178,13 +178,13 @@ async def health_check() -> JSONResponse:
 @api_router.get("/ready", tags=["health"])
 async def readiness_check() -> JSONResponse:
     """Readiness check endpoint.
-    
+
     Returns:
         Readiness status response
     """
     healthy = True
     checks = {}
-    
+
     # Check PostgreSQL
     if postgres_client:
         try:
@@ -196,16 +196,16 @@ async def readiness_check() -> JSONResponse:
     else:
         healthy = False
         checks["postgres"] = "not_initialized"
-    
+
     # Check consumer
     if consumer:
         checks["rabbitmq_consumer"] = "running"
     else:
         healthy = False
         checks["rabbitmq_consumer"] = "not_running"
-    
+
     status_code = status.HTTP_200_OK if healthy else status.HTTP_503_SERVICE_UNAVAILABLE
-    
+
     return JSONResponse(
         status_code=status_code,
         content={
@@ -218,7 +218,7 @@ async def readiness_check() -> JSONResponse:
 @api_router.get("/metrics", tags=["observability"])
 async def metrics() -> JSONResponse:
     """Metrics endpoint for monitoring.
-    
+
     Returns:
         Basic metrics response
     """
@@ -235,15 +235,15 @@ async def metrics() -> JSONResponse:
 @api_router.get("/languages", tags=["info"])
 async def supported_languages() -> JSONResponse:
     """Get list of supported programming languages.
-    
+
     Returns:
         List of supported languages
     """
     from app.services.evaluation.language_router import LanguageRouter
-    
+
     router = LanguageRouter()
     languages = router.get_supported_languages()
-    
+
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={
@@ -256,6 +256,7 @@ async def supported_languages() -> JSONResponse:
 # ═══════════════════════════════════════════════════════════════════════════════
 # Socratic Chat API  (session scoped to assignment + student)
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 @api_router.post(
     "/chat/{assignment_id}/{user_id}",
@@ -326,14 +327,12 @@ async def send_chat_message(
         # Build a lightweight snapshot from the current code snapshot
         try:
             from app.services.evaluation.ast_parser import ASTParser
-            from app.services.evaluation.language_router import LanguageRouter
+
             parser_inst = ASTParser()
             blueprint = parser_inst.parse(code=body.student_code, language="python")
             ast_ctx = {
                 "valid_syntax": True,
-                "variables": [
-                    v.get("name", "") for v in blueprint.variables[:10]
-                ],
+                "variables": [v.get("name", "") for v in blueprint.variables[:10]],
                 "functions": blueprint.functions[:5],
             }
         except Exception:
@@ -433,6 +432,7 @@ async def get_chat_history(
 # Grade retrieval API  (read-only — grades are written by the worker)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 @api_router.get(
     "/grades/{submission_id}",
     tags=["grades"],
@@ -524,7 +524,7 @@ signal.signal(signal.SIGTERM, signal_handler)
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     settings = get_settings()
     uvicorn.run(
         "app.main:app",

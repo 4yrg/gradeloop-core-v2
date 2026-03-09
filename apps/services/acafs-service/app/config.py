@@ -1,7 +1,6 @@
 """Configuration management for ACAFS Engine."""
 
 from functools import lru_cache
-from typing import Optional
 
 from pydantic import Field, PostgresDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -93,7 +92,7 @@ class Settings(BaseSettings):
         default="http://localhost:2358",
         alias="JUDGE0_URL",
     )
-    judge0_api_key: Optional[str] = Field(
+    judge0_api_key: str | None = Field(
         default=None,
         alias="JUDGE0_API_KEY",
     )
