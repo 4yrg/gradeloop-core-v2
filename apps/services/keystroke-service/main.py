@@ -57,34 +57,42 @@ authenticator = TypeNetAuthenticator(
 )
 
 # Load user templates if available
-if os.path.exists(typenet_template_path):
-    try:
-        authenticator.load_templates(typenet_template_path)
-        print(f"✅ Loaded {len(authenticator.user_templates)} user templates from TypeNet")
-    except Exception as e:
-        print(f"⚠️  Failed to load user templates: {e}")
-else:
-    print("ℹ️  No user templates found. Users need to be enrolled.")
-    print("   Use /api/keystroke/enroll endpoint to enroll users.")
-
-# Initialize behavioral analyzer (Gemini API key optional — loaded from env)
-behavioral_analyzer = BehavioralAnalyzer()
+# NOTE: Only pre-load from pickle when the database is NOT going to be used.
+# If the database is enabled it becomes the single source of truth and the
+# pickle is ignored so stale / dev test users don't pollute the in-memory set.
 
 # Initialize database and Redis clients
 db_client = get_db_client()
 redis_client = get_redis_client()
 
+# Initialize behavioral analyzer (Gemini API key optional — loaded from env)
+behavioral_analyzer = BehavioralAnalyzer()
+
 # Load user templates from database (fallback to pickle if database not available)
 if db_client.enabled:
     try:
         all_templates = db_client.load_all_templates()
-        # Convert multi-phase templates to TypeNet format (use all phases)
+        # DB is the single source of truth — start with a clean slate so no
+        # stale pickle / dev-test users bleed into production memory.
+        authenticator.user_templates.clear()
         for user_id, phases in all_templates.items():
-            if phases:
-                # Use the most recent phase or aggregate all phases
-                # For simplicity, use the first available phase template
-                first_phase = list(phases.values())[0]
-                authenticator.user_templates[user_id] = first_phase
+            if not phases:
+                continue
+            phase_values = list(phases.values())
+            if len(phase_values) == 1:
+                # Only one phase — use it directly
+                authenticator.user_templates[user_id] = phase_values[0]
+            else:
+                # Aggregate all enrolled phases into a single mean template
+                # so authentication benefits from every phase's data.
+                templates = [p['template'] for p in phase_values if p.get('template') is not None]
+                stds = [p['std'] for p in phase_values if p.get('std') is not None]
+                sample_count = sum(p.get('sample_count', 0) for p in phase_values)
+                authenticator.user_templates[user_id] = {
+                    'template': np.mean(templates, axis=0),
+                    'std': np.mean(stds, axis=0) if stds else None,
+                    'sample_count': sample_count,
+                }
         print(f"✅ Loaded {len(authenticator.user_templates)} user templates from database")
     except Exception as e:
         print(f"⚠️  Failed to load templates from database: {e}")
@@ -95,16 +103,17 @@ if db_client.enabled:
                 print(f"✅ Loaded {len(authenticator.user_templates)} user templates from pickle (fallback)")
             except Exception as e2:
                 print(f"⚠️  Failed to load pickle templates: {e2}")
-elif os.path.exists(typenet_template_path):
-    # Database not enabled, use pickle
-    try:
-        authenticator.load_templates(typenet_template_path)
-        print(f"✅ Loaded {len(authenticator.user_templates)} user templates from pickle")
-    except Exception as e:
-        print(f"⚠️  Failed to load user templates: {e}")
 else:
-    print("ℹ️  No user templates found. Users need to be enrolled.")
-    print("   Use /api/keystroke/enroll endpoints to enroll users.")
+    # Database not enabled — use pickle as primary source
+    if os.path.exists(typenet_template_path):
+        try:
+            authenticator.load_templates(typenet_template_path)
+            print(f"✅ Loaded {len(authenticator.user_templates)} user templates from pickle")
+        except Exception as e:
+            print(f"⚠️  Failed to load user templates: {e}")
+    else:
+        print("ℹ️  No user templates found. Users need to be enrolled.")
+        print("   Use /api/keystroke/enroll endpoints to enroll users.")
 
 # Session TTL from environment (default 2 hours)
 SESSION_TTL_SECONDS = int(os.getenv('SESSION_TTL_HOURS', '2')) * 3600
@@ -424,11 +433,26 @@ async def enroll_phase(request: Dict):
 
         # Save phase-specific template to database
         if db_client.enabled and result.get('success'):
-            template = authenticator.user_templates[user_id]['template']
-            template_std = authenticator.user_templates[user_id].get('std')
-            db_client.save_template(user_id, phase, template, template_std, len(sequences),
+            # Save this phase's template to DB
+            phase_template = authenticator.user_templates[user_id]['template']
+            phase_std = authenticator.user_templates[user_id].get('std')
+            db_client.save_template(user_id, phase, phase_template, phase_std, len(sequences),
                                    metadata=request.get('metadata'))
             db_client.update_enrollment_progress(user_id, phase)
+
+            # Re-aggregate ALL phases from DB into a single in-memory template
+            # so authentication always reflects every enrolled phase, not just the latest.
+            all_user_phases = db_client.load_templates(user_id)
+            if all_user_phases:
+                phase_values = list(all_user_phases.values())
+                templates = [p['template'] for p in phase_values if p.get('template') is not None]
+                stds = [p['std'] for p in phase_values if p.get('std') is not None]
+                sample_count = sum(p.get('sample_count', 0) for p in phase_values)
+                authenticator.user_templates[user_id] = {
+                    'template': np.mean(templates, axis=0),
+                    'std': np.mean(stds, axis=0) if stds else None,
+                    'sample_count': sample_count,
+                }
 
             # Check enrollment completion status
             progress = db_client.get_enrollment_progress(user_id)
