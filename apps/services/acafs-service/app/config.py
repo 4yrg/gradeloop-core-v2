@@ -83,6 +83,16 @@ class Settings(BaseSettings):
         alias="OPENROUTER_GRADER_MODEL",
     )
 
+    # ── LLM: Gemini (Pass-2 structured grading) ───────────────────────────────
+    gemini_api_key: str = Field(
+        default="SET_YOUR_API_KEY_HERE",
+        alias="GEMINI_API_KEY",
+    )
+    gemini_grader_model: str = Field(
+        default="gemini-2.5-flash",
+        alias="GEMINI_GRADER_MODEL",
+    )
+
     # ── Judge0 (test-case execution) ──────────────────────────────────────────
     judge0_url: str = Field(
         default="http://localhost:2358",

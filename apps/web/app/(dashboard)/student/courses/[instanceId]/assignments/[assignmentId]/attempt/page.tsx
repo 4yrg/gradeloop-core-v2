@@ -108,6 +108,7 @@ export default function StudentAttemptPage() {
     );
     const [grade, setGrade] = React.useState<SubmissionGrade | null>(null);
     const [isGrading, setIsGrading] = React.useState(false);
+    const [gradingTimedOut, setGradingTimedOut] = React.useState(false);
 
     // Poll ACAFS for grade results with exponential back-off.
     // ACAFS returns 404 while grading is pending; 200 when complete.
@@ -115,15 +116,22 @@ export default function StudentAttemptPage() {
         if (!gradedSubmissionId) return;
         let cancelled = false;
         let attempts = 0;
-        const MAX_ATTEMPTS = 45; // ~3 min cap
+
+        // View-only submissions (opened via ?submission=<id>) should resolve
+        // quickly — the grade either exists already or won't exist at all.
+        // New submissions get longer polling (up to ~90 s).
+        const isViewOnly = !!viewSubmissionId && gradedSubmissionId === viewSubmissionId;
+        const MAX_ATTEMPTS = isViewOnly ? 4 : 20;
 
         setGrade(null);
         setIsGrading(true);
+        setGradingTimedOut(false);
 
         async function poll() {
             if (cancelled) return;
             if (attempts >= MAX_ATTEMPTS) {
                 setIsGrading(false);
+                setGradingTimedOut(true);
                 return;
             }
             attempts++;
@@ -142,12 +150,13 @@ export default function StudentAttemptPage() {
                 } else {
                     // Non-404 error or grading not enabled — stop quietly
                     setIsGrading(false);
+                    setGradingTimedOut(true);
                 }
             }
         }
 
-        // Small initial delay to let the worker start
-        const timer = setTimeout(poll, 3000);
+        // For view-only, check immediately; for fresh submissions give the worker a head-start.
+        const timer = setTimeout(poll, isViewOnly ? 500 : 3000);
         return () => {
             cancelled = true;
             clearTimeout(timer);
@@ -403,6 +412,7 @@ export default function StudentAttemptPage() {
                         showGradePanel={true}
                         grade={grade}
                         isGrading={isGrading}
+                        gradingFailed={gradingTimedOut}
                         onSubmit={handleSubmit}
                     />
                 </div>

@@ -272,3 +272,42 @@ export interface RunCodeResponse {
     memory_used: number | null;
     message: string | null;
 }
+
+// ── ACAFS Socratic Chat types ────────────────────────────────────────────────
+
+export interface AcafsChatMessage {
+    id: number;
+    role: 'user' | 'assistant';
+    content: string;
+    created_at?: string;
+}
+
+export interface AcafsChatRequest {
+    content: string;
+    student_code?: string;
+    assignment_title?: string;
+    assignment_description?: string;
+    rubric_skills?: string[];
+}
+
+/** Response from POST /acafs/chat/:assignmentId/:userId */
+export interface AcafsChatResponse {
+    session_id: string;
+    assignment_id: string;
+    user_id: string;
+    status: 'active' | 'closed';
+    reply: string;
+    messages: AcafsChatMessage[];
+}
+
+/** Response from GET /acafs/chat/:assignmentId/:userId */
+export interface AcafsChatHistoryResponse {
+    session_id: string;
+    assignment_id: string;
+    user_id: string;
+    status: 'active' | 'closed';
+    created_at?: string;
+    closed_at?: string;
+    closed_reason?: string;
+    messages: AcafsChatMessage[];
+}
