@@ -120,27 +120,48 @@ class EvaluationWorker:
         """Orchestrate deterministic + LLM grading and persist results."""
         rubric: list[RubricCriterion] = event.rubric  # type: ignore[assignment]
 
-        # ── Step A: Deterministic test-case scoring ──────────────────────
-        # These scores are AUTHORITATIVE and will override any LLM estimates.
+        # ── Step A: Route test cases to their criteria ────────────────────
+        # Test cases with a `criterion_name` field are routed to that criterion
+        # exclusively.  Those without fall into a shared fallback pool used by
+        # criteria that have no linked test cases.
+        criterion_tests: dict[str, list[dict[str, Any]]] = {}
+        shared_tests: list[dict[str, Any]] = []
+
+        if event.test_cases:
+            for tc in event.test_cases:
+                cname = tc.get("criterion_name") or tc.get("criterion_id")
+                if cname:
+                    criterion_tests.setdefault(str(cname), []).append(tc)
+                else:
+                    shared_tests.append(tc)
+
+        # ── Step B: Run Judge0 per-criterion (deterministic only) ─────────
         deterministic_map: dict[str, tuple[float, str]] = {}
-        all_test_results: list[dict[str, Any]] = []
+        criterion_results: dict[str, list[dict[str, Any]]] = {}
 
         deterministic_criteria = [c for c in rubric if c.grading_mode == "deterministic"]
 
-        if deterministic_criteria and event.test_cases:
-            logger.info(
-                "running_deterministic_tests",
-                submission_id=str(event.submission_id),
-                test_case_count=len(event.test_cases),
-            )
-            test_results = await self.judge0.run_batch(
-                language_id=event.language_id,
-                source_code=student_code,
-                test_cases=event.test_cases,
-            )
-            all_test_results = test_results
-
+        if deterministic_criteria:
             for crit in deterministic_criteria:
+                # Use linked test cases if available, otherwise shared pool
+                tc_subset = criterion_tests.get(crit.name) or shared_tests
+                if not tc_subset:
+                    deterministic_map[crit.name] = (0.0, "No test cases provided — scored 0.")
+                    criterion_results[crit.name] = []
+                    continue
+
+                logger.info(
+                    "running_deterministic_tests",
+                    submission_id=str(event.submission_id),
+                    criterion=crit.name,
+                    test_case_count=len(tc_subset),
+                )
+                test_results = await self.judge0.run_batch(
+                    language_id=event.language_id,
+                    source_code=student_code,
+                    test_cases=tc_subset,
+                )
+                criterion_results[crit.name] = test_results
                 score, reason = Judge0Client.compute_deterministic_score(
                     test_results, crit.weight
                 )
@@ -152,17 +173,32 @@ class EvaluationWorker:
                     weight=crit.weight,
                 )
 
-        # ── Step B: LLM evaluation (all criteria in one Gemini call) ─────
-        # Gemini evaluates deterministic criteria too so it can produce
-        # holistic_feedback referencing them — but those scores are then
-        # replaced by Judge0 results in Step C.
+        # ── Step C: Build enriched rubric_data with per-criterion evidence ─
+        # Each criterion dict gets an `evidence` key so the LLM prompt can
+        # reference the right test results inline — removing the need for the
+        # model to correlate a flat global execution list.
+        rubric_data = []
+        for c in rubric:
+            c_dict = c.model_dump()
+            results_for_criterion = (
+                criterion_results.get(c.name)
+                or criterion_tests.get(c.name, [])  # unmapped results fall back gracefully
+            )
+            # For non-deterministic criteria also attach any linked test results as context
+            if not results_for_criterion and c.grading_mode != "deterministic":
+                results_for_criterion = []
+            c_dict["evidence"] = {"test_results": results_for_criterion}
+            rubric_data.append(c_dict)
+
+        # ── Step D: LLM evaluation (all criteria, single Gemini call) ─────
+        # Criterion isolation is achieved via the in-JSON reasoning chain:
+        # analysis → band_selected → band_justification → score → reason → confidence
+        # The model reasons about each criterion independently before scoring it.
         assignment_context = build_assignment_context(
             title=event.assignment_title,
             description=event.assignment_description,
             objective=event.objective,
         )
-        rubric_data = [c.model_dump() for c in rubric]
-        # Exclude raw_ast to keep the prompt token-efficient
         ast_data = blueprint.model_dump(exclude={"raw_ast"})
         sample_code: Optional[str] = None
         if event.sample_answer:
@@ -173,7 +209,6 @@ class EvaluationWorker:
             student_code=student_code,
             sample_answer_code=sample_code,
             ast_data=ast_data,
-            execution_data=all_test_results,
             assignment_context=assignment_context,
         )
 
@@ -185,41 +220,63 @@ class EvaluationWorker:
             )
             if not deterministic_map:
                 return
-            # Build minimal result from deterministic-only data
-            llm_result = {
-                "criteria_scores": [
-                    {
-                        "name": name,
+            # Build result covering ALL rubric criteria.
+            # Deterministic: use the authoritative Judge0-derived score.
+            # LLM / LLM_AST: score 0 with an explanatory note so the
+            #   criterion still appears in the breakdown rather than vanishing.
+            fallback_scores = []
+            for c in rubric:
+                if c.name in deterministic_map:
+                    score, reason = deterministic_map[c.name]
+                    fallback_scores.append({
+                        "name": c.name,
+                        "analysis": reason,
+                        "band_selected": None,
+                        "band_justification": None,
                         "score": score,
-                        "max_score": next(
-                            (c.weight for c in rubric if c.name == name), score
-                        ),
-                        "grading_mode": "deterministic",
+                        "max_score": c.weight,
+                        "grading_mode": c.grading_mode,
                         "reason": reason,
-                    }
-                    for name, (score, reason) in deterministic_map.items()
-                ],
+                        "confidence": 1.0,
+                    })
+                else:
+                    fallback_scores.append({
+                        "name": c.name,
+                        "analysis": "AI grading unavailable for this criterion.",
+                        "band_selected": None,
+                        "band_justification": None,
+                        "score": 0.0,
+                        "max_score": c.weight,
+                        "grading_mode": c.grading_mode,
+                        "reason": "AI grading unavailable — this criterion could not be evaluated automatically.",
+                        "confidence": 0.0,
+                    })
+            llm_result = {
+                "criteria_scores": fallback_scores,
                 "total_score": sum(s for s, _ in deterministic_map.values()),
-                "feedback": {
-                    "holistic_feedback": (
-                        "Your submission has been received and test cases evaluated. "
-                        "Detailed feedback is currently unavailable."
-                    )
-                },
+                "holistic_feedback": (
+                    "Your submission has been received and test cases evaluated.\n\n"
+                    "Detailed feedback is currently unavailable — the AI grading service encountered an error.\n\n"
+                    "What part of the problem did you find most challenging?"
+                ),
             }
 
-        # ── Step C: Patch deterministic scores (override LLM estimates) ──
+        # ── Step E: Patch deterministic scores (override LLM estimates) ───
         if deterministic_map:
             llm_result = LLMGrader.patch_deterministic_scores(
                 llm_result, rubric_data, deterministic_map
             )
 
-        # ── Step D: Persist grade breakdown ──────────────────────────────
+        # ── Step F: Persist grade breakdown ──────────────────────────────
         criteria_scores = llm_result.get("criteria_scores", [])
         total_score = float(llm_result.get("total_score", 0))
         max_total = sum(c.weight for c in rubric)
+
+        # Normalise feedback — model may return holistic_feedback at top level
+        # or nested under feedback.holistic_feedback (legacy shape)
         holistic_feedback = (
-            llm_result.get("feedback", {}).get("holistic_feedback", "")
+            llm_result.get("holistic_feedback")
+            or llm_result.get("feedback", {}).get("holistic_feedback", "")
         )
 
         await self.postgres.store_submission_grade(
@@ -230,7 +287,6 @@ class EvaluationWorker:
             holistic_feedback=holistic_feedback,
             criteria_scores=criteria_scores,
             grading_metadata={
-                "test_results": all_test_results,
                 "ast_truncated": blueprint.metadata.ast_truncated,
                 "model": self.settings.gemini_model,
             },

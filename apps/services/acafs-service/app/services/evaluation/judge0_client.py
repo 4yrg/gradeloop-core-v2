@@ -125,6 +125,7 @@ class Judge0Client:
                 results.append(
                     {
                         "test_case_id": tc_id,
+                        "test_case_description": tc.get("description", ""),
                         "test_input": tc.get("input", ""),
                         "expected_output": expected,
                         "actual_output": "",
@@ -145,6 +146,7 @@ class Judge0Client:
             results.append(
                 {
                     "test_case_id": tc_id,
+                    "test_case_description": tc.get("description", ""),
                     "test_input": tc.get("input", ""),
                     "expected_output": expected,
                     "actual_output": actual,
