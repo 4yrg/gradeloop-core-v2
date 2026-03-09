@@ -1,5 +1,7 @@
 """Structured logging configuration for ACAFS Service."""
 
+# fmt: off
+
 import logging
 import sys
 
