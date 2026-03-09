@@ -42,7 +42,6 @@ import argparse
 import csv
 import json
 import multiprocessing
-import os
 import time
 from pathlib import Path
 
@@ -107,7 +106,7 @@ def download_h5_if_missing(dest: str | Path) -> None:
         )
 
     dest.parent.mkdir(parents=True, exist_ok=True)
-    print(f"Downloading aalto_full.h5 from Google Drive …")
+    print("Downloading aalto_full.h5 from Google Drive …")
     print(f"  → {dest}")
     print("  (file is ~1.25 GB — this may take a few minutes)\n")
 
@@ -340,7 +339,7 @@ def train(args: argparse.Namespace) -> None:
     use_amp = device.type == "cuda"
 
     print(f"\n{'='*68}")
-    print(f"  TypeNet — Workstation training  (RTX 6000 Pro Blackwell)")
+    print("  TypeNet — Workstation training  (RTX 6000 Pro Blackwell)")
     print(f"  Data        : {args.data}")
     print(f"  Output      : {args.out}")
     print(f"  Epochs      : {args.epochs}  |  Batch : {args.batch}  |  LR : {args.lr}")
