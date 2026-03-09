@@ -717,6 +717,44 @@ services:
         max-file: "3"
         compress: "true"
 
+  # =============================================================================
+  # Web Frontend (Next.js)
+  # =============================================================================
+  web:
+    build:
+      context: .
+      dockerfile: ./apps/web/Dockerfile
+      target: runner
+    container_name: gradeloop-web
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      - NEXT_PUBLIC_IAM_SERVICE_URL=${NEXT_PUBLIC_IAM_SERVICE_URL:-http://localhost:8000/api/v1}
+    ports:
+      - "3000:3000"
+    depends_on:
+      iam-service:
+        condition: service_started
+      academic-service:
+        condition: service_started
+      assessment-service:
+        condition: service_started
+    networks:
+      - gradeloop-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.web.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.web.entrypoints=web"
+      - "traefik.http.services.web-service.loadbalancer.server.port=3000"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+
 # =============================================================================
 # Networks
 # =============================================================================
