@@ -84,7 +84,7 @@ func (m *Migrator) migrateUsersToUserType() error {
 	// Check if the legacy role_id column is present using a raw query so we
 	// don't block on a Migrator().HasColumn() introspection call.
 	var roleIDExists bool
-	row := m.db.Raw(`
+	row = m.db.Raw(`
 		SELECT EXISTS (
 			SELECT 1 FROM information_schema.columns
 			WHERE table_schema = current_schema()
