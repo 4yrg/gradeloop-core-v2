@@ -9,7 +9,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Deploy to Azure VM via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -17,15 +16,22 @@ jobs:
           host: ${{ secrets.AZURE_VM_HOST }}
           username: ${{ secrets.AZURE_VM_USERNAME }}
           key: ${{ secrets.AZURE_VM_SSH_KEY }}
-          passphrase: ${{ secrets.AZURE_VM_SSH_PASSPHRASE }} # Optional
+          passphrase: ${{ secrets.AZURE_VM_SSH_PASSPHRASE }}
           script: |
             cd /home/azureuser/Projects/4yrg/gradeloop-core-v2
 
-            # Pull latest changes
-            git pull origin main
+            echo "Syncing repository with GitHub..."
 
-            # Build and deploy microservices and frontend using docker-compose.prod.yaml
+            git fetch origin
+            git reset --hard origin/main
+            git clean -fd
+
+            echo "Building and starting containers..."
+
             docker compose -f docker-compose.prod.yaml up --build -d
 
-            # Prune old Docker layers to save disk space
-            docker system prune -f
+            echo "Cleaning unused Docker layers..."
+
+            docker system prune -af
+
+            echo "Deployment completed"
