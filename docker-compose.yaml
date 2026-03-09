@@ -633,8 +633,150 @@ services:
         compress: "true"
 
   # =============================================================================
-  # PostgreSQL (Local — Keystroke Service only)
+  # PostgreSQL Databases
   # =============================================================================
+  
+  # IAM Service Database
+  postgres-iam:
+    image: postgres:16-alpine
+    container_name: postgres-iam
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${IAM_SVC_DB_NAME:-iam-db}
+      - POSTGRES_USER=${GRA_DB_USER:-gradeloop}
+      - POSTGRES_PASSWORD=${GRA_DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-iam-data:/var/lib/postgresql/data
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${GRA_DB_USER:-gradeloop} -d ${IAM_SVC_DB_NAME:-iam-db}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+
+  # Email Service Database
+  postgres-email:
+    image: postgres:16-alpine
+    container_name: postgres-email
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${EMAIL_SVC_DB_NAME:-email-db}
+      - POSTGRES_USER=${GRA_DB_USER:-gradeloop}
+      - POSTGRES_PASSWORD=${GRA_DB_PASSWORD}
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres-email-data:/var/lib/postgresql/data
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${GRA_DB_USER:-gradeloop} -d ${EMAIL_SVC_DB_NAME:-email-db}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+
+  # Academic Service Database
+  postgres-academic:
+    image: postgres:16-alpine
+    container_name: postgres-academic
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${ACADEMIC_SVC_DB_NAME:-academics-db}
+      - POSTGRES_USER=${GRA_DB_USER:-gradeloop}
+      - POSTGRES_PASSWORD=${GRA_DB_PASSWORD}
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres-academic-data:/var/lib/postgresql/data
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${GRA_DB_USER:-gradeloop} -d ${ACADEMIC_SVC_DB_NAME:-academics-db}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+
+  # Assessment Service Database
+  postgres-assessment:
+    image: postgres:16-alpine
+    container_name: postgres-assessment
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${ASSESSMENT_SVC_DB_NAME:-assessment-db}
+      - POSTGRES_USER=${GRA_DB_USER:-gradeloop}
+      - POSTGRES_PASSWORD=${GRA_DB_PASSWORD}
+    ports:
+      - "5436:5432"
+    volumes:
+      - postgres-assessment-data:/var/lib/postgresql/data
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${GRA_DB_USER:-gradeloop} -d ${ASSESSMENT_SVC_DB_NAME:-assessment-db}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+
+  # CIPAS Service Database
+  postgres-cipas:
+    image: postgres:16-alpine
+    container_name: postgres-cipas
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${CIPAS_SVC_DB_NAME:-cipas-db}
+      - POSTGRES_USER=${GRA_DB_USER:-gradeloop}
+      - POSTGRES_PASSWORD=${GRA_DB_PASSWORD}
+    ports:
+      - "5437:5432"
+    volumes:
+      - postgres-cipas-data:/var/lib/postgresql/data
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${GRA_DB_USER:-gradeloop} -d ${CIPAS_SVC_DB_NAME:-cipas-db}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+
+  # Keystroke Service Database
   postgres-keystroke:
     image: postgres:16-alpine
     container_name: postgres-keystroke
