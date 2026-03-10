@@ -35,6 +35,17 @@ const AVATAR_COLORS = [
  * Complete mapping of every dummy ID used in syntactic + semantic sections.
  */
 export const DUMMY_STUDENT_MAP: Record<string, DummyStudent> = {
+  // ── Real users (from API) ──
+
+  "2c555f8e-c5e2-4ee6-a34d-d742675650ce": {
+    name: "Kaveesha",
+    initials: "KV",
+    email: "kaveesha@gradeloop.edu",
+    avatarColor: "bg-rose-500",
+    department: "Computer Science",
+    enrollmentYear: 2024,
+  },
+
   // ── Syntactic dummy clusters ──
 
   // Cluster A (real data may override; included for fallback)
