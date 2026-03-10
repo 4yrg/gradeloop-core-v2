@@ -14,6 +14,8 @@ import asyncio
 import json
 import pika
 
+from psycopg2 import extras
+
 from feature_extraction import KeystrokeFeatureExtractor
 from typenet_inference import TypeNetAuthenticator
 from behavioral_analysis import (
@@ -129,14 +131,22 @@ SESSION_TTL_SECONDS = int(os.getenv('SESSION_TTL_HOURS', '2')) * 3600
 
 # RabbitMQ Configuration
 RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
+RABBITMQ_PORT = int(os.getenv('RABBITMQ_PORT', '5672'))
+RABBITMQ_USER = os.getenv('RABBITMQ_USER', 'guest')
+RABBITMQ_PASS = os.getenv('RABBITMQ_PASS', 'guest')
 RABBITMQ_EXCHANGE = 'keystroke.exchange'
 RABBITMQ_ROUTING_KEY = 'keystroke.auth.result'
 
 def publish_auth_event(event_data: dict):
     """Publish authentication event to RabbitMQ"""
     try:
+        credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASS)
         connection = pika.BlockingConnection(
-            pika.ConnectionParameters(host=RABBITMQ_HOST)
+            pika.ConnectionParameters(
+                host=RABBITMQ_HOST,
+                port=RABBITMQ_PORT,
+                credentials=credentials,
+            )
         )
         channel = connection.channel()
 
@@ -187,6 +197,8 @@ class KeystrokeEvent(BaseModel):
     dwellTime: int
     flightTime: int
     keyCode: int
+    assignmentId: Optional[str] = None
+    courseId: Optional[str] = None
 
 
 class KeystrokeBatch(BaseModel):
@@ -283,11 +295,21 @@ async def capture_keystrokes(batch: KeystrokeBatch):
         session_id = events[0]['sessionId']
 
         # Create session in Redis if doesn't exist
+        assignment_id_from_event = events[0].get('assignmentId') or None
+        course_id_from_event = events[0].get('courseId') or None
         if not redis_client.session_exists(user_id, session_id):
             redis_client.create_session(user_id, session_id, {
-                'assignment_id': events[0].get('assignmentId'),
-                'course_id': events[0].get('courseId')
+                'assignment_id': assignment_id_from_event,
+                'course_id': course_id_from_event,
             })
+        elif assignment_id_from_event:
+            # Back-fill assignment_id if session already exists but has None
+            meta = redis_client.get_session_metadata(user_id, session_id)
+            if not meta or meta.get('assignment_id') in (None, 'None', ''):
+                redis_client.update_session_metadata(user_id, session_id, {
+                    'assignment_id': assignment_id_from_event,
+                    'course_id': course_id_from_event,
+                })
 
         # Append events to Redis (circular buffer with max 500)
         total_buffered = redis_client.append_events(user_id, session_id, events, max_buffer=500)
@@ -397,11 +419,14 @@ async def get_enrollment_progress(user_id: str):
 
         phases = _cfg_phases
         phases_complete = [p for p in phases if progress.get(f'{p}_complete')]
+        # Derive completion from config-required phases, not the DB flag.
+        # The DB flag requires all 4 phases hardcoded; the config may only require 2.
+        enrollment_complete = all(p in phases_complete for p in _cfg_phases)
 
         return {
             "success": True,
             "user_id": user_id,
-            "enrollment_complete": progress.get('enrollment_complete', False),
+            "enrollment_complete": enrollment_complete,
             "phases_complete": phases_complete,
             "phases_remaining": [p for p in phases if p not in phases_complete],
             "total_sessions": progress.get('total_sessions', 0),
@@ -653,7 +678,8 @@ async def monitor_session(request: MonitoringRequest):
         # Update session metadata in Redis
         redis_client.update_session_metadata(user_id, session_id, {
             'last_verification': datetime.now().isoformat(),
-            'risk_score': avg_risk
+            'risk_score': avg_risk,
+            'similarity_score': result.get('average_similarity', 0.0),
         })
 
         # Publish auth event to RabbitMQ
@@ -731,6 +757,139 @@ async def get_session_timeline(session_id: str):
             "event_timestamp": e['event_timestamp'].isoformat() if hasattr(e.get('event_timestamp'), 'isoformat') else e.get('event_timestamp', '')
         } for e in timeline]
     }
+
+
+@app.get("/api/keystroke/active-sessions/assignment/{assignment_id}")
+async def get_active_sessions_for_assignment(assignment_id: str):
+    """
+    Get all active (Redis-buffered) student sessions for a specific assignment.
+    Used by the instructor Live Auth Monitor page.
+    Returns real-time risk scores, event counts, and status for each active student.
+    """
+    try:
+        all_sessions = redis_client.get_all_sessions()
+
+        active: list = []
+        for session in all_sessions:
+            # Match by assignment_id stored in session metadata.
+            # Handle the case where it was stored as the string "None" or is missing.
+            sess_assignment = session.get("assignment_id") or session.get("assignmentId")
+            if sess_assignment in (None, "None", "null", ""):
+                # Fallback: session_id encodes assignment_id (pattern: asgn_{aId}_...)
+                sess_id = session.get("session_id", "")
+                if not sess_id.startswith(f"asgn_{assignment_id}_"):
+                    continue
+            elif sess_assignment != assignment_id:
+                continue
+
+            user_id = session.get("user_id", "")
+            session_id = session.get("session_id", "")
+            if not user_id or not session_id:
+                continue
+
+            event_count = redis_client.get_event_count(user_id, session_id)
+            risk_score = float(session.get("risk_score", 0.0))
+            similarity_score = float(session.get("similarity_score", 1.0))
+
+            # Derive status: similarity < 50% → suspicious, risk >= 0.6 → rejected
+            if event_count < 150:
+                status = "COLLECTING_DATA"
+            elif risk_score >= 0.6:
+                status = "REJECTED"
+            elif similarity_score < 0.5:
+                status = "SUSPICIOUS"
+            else:
+                status = "AUTHENTICATED"
+
+            active.append({
+                "user_id": user_id,
+                "session_id": session_id,
+                "assignment_id": assignment_id,
+                "risk_score": risk_score,
+                "event_count": event_count,
+                "status": status,
+                "is_struggling": False,
+                "last_verification": session.get("last_verification"),
+                "session_started": session.get("created_at"),
+            })
+
+        return {
+            "success": True,
+            "assignment_id": assignment_id,
+            "active_count": len(active),
+            "sessions": active,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/keystroke/assignment/{assignment_id}/students")
+async def get_assignment_student_summaries(assignment_id: str):
+    """
+    Get per-student auth summaries for an assignment from the DB (auth_events table).
+    Returns historical summary for all students who have any keystroke auth events
+    for this assignment — including those whose sessions have been finalized.
+    """
+    if not db_client.enabled:
+        return {"success": True, "assignment_id": assignment_id, "students": []}
+
+    try:
+        with db_client.get_connection() as conn:
+            with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    SELECT
+                        user_id,
+                        session_id,
+                        COUNT(*)                                    AS event_count,
+                        AVG(risk_score)                             AS avg_risk_score,
+                        AVG(similarity_score)                       AS avg_similarity,
+                        SUM(CASE WHEN is_anomaly    THEN 1 ELSE 0 END) AS anomaly_count,
+                        SUM(CASE WHEN is_struggling THEN 1 ELSE 0 END) AS struggle_count,
+                        BOOL_OR(is_anomaly)                         AS has_anomaly,
+                        MAX(event_timestamp)                        AS last_event_at,
+                        MIN(event_timestamp)                        AS session_started_at
+                    FROM auth_events
+                    WHERE assignment_id = %s
+                    GROUP BY user_id, session_id
+                    ORDER BY MAX(event_timestamp) DESC
+                    """,
+                    (assignment_id,),
+                )
+                rows = cur.fetchall()
+
+        students = []
+        for row in rows:
+            avg_risk = float(row["avg_risk_score"] or 0.0)
+            avg_sim = float(row["avg_similarity"] or 0.0)
+            # Derive status: similarity < 50% → suspicious, risk >= 0.6 → rejected
+            if avg_risk >= 0.6:
+                status = "REJECTED"
+            elif avg_sim < 0.5:
+                status = "SUSPICIOUS"
+            else:
+                status = "AUTHENTICATED"
+
+            students.append({
+                "user_id": row["user_id"],
+                "session_id": row["session_id"],
+                "assignment_id": assignment_id,
+                "event_count": int(row["event_count"]),
+                "avg_risk_score": avg_risk,
+                "avg_similarity": float(row["avg_similarity"] or 0.0),
+                "anomaly_count": int(row["anomaly_count"] or 0),
+                "struggle_count": int(row["struggle_count"] or 0),
+                "has_anomaly": bool(row["has_anomaly"]),
+                "status": status,
+                "last_event_at": row["last_event_at"].isoformat() if row["last_event_at"] else None,
+                "session_started_at": row["session_started_at"].isoformat() if row["session_started_at"] else None,
+            })
+
+        return {"success": True, "assignment_id": assignment_id, "students": students}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/keystroke/session/finalize")
