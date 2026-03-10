@@ -303,276 +303,276 @@ services:
   # =============================================================================
   # CIPAS Syntactics Service (Python FastAPI — Syntactic Clone Detection)
   # =============================================================================
-  cipas-syntactics:
-    build:
-      context: ./apps/services/cipas-services/cipas-syntactics
-      dockerfile: Dockerfile
-    container_name: cipas-syntactics
-    restart: unless-stopped
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.cipas-syntactics.rule=PathPrefix(`/api/v1/syntactics`)"
-      - "traefik.http.routers.cipas-syntactics.entrypoints=web"
-      - "traefik.http.services.cipas-syntactics-service.loadbalancer.server.port=${CIPAS_SYN_SVC_PORT}"
-      - "traefik.http.middlewares.cipas-syntactics-limit.buffering.maxRequestBodyBytes=10485760"
-      - "traefik.http.middlewares.cipas-syntactics-ratelimit.ratelimit.average=100"
-      - "traefik.http.middlewares.cipas-syntactics-ratelimit.ratelimit.period=1m"
-      - "traefik.http.middlewares.cipas-syntactics-ratelimit.ratelimit.burst=10"
-      - "traefik.http.routers.cipas-syntactics.middlewares=cipas-syntactics-limit,cipas-syntactics-ratelimit"
+  # cipas-syntactics:
+  #   build:
+  #     context: ./apps/services/cipas-services/cipas-syntactics
+  #     dockerfile: Dockerfile
+  #   container_name: cipas-syntactics
+  #   restart: unless-stopped
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.cipas-syntactics.rule=PathPrefix(`/api/v1/syntactics`)"
+  #     - "traefik.http.routers.cipas-syntactics.entrypoints=web"
+  #     - "traefik.http.services.cipas-syntactics-service.loadbalancer.server.port=${CIPAS_SYN_SVC_PORT}"
+  #     - "traefik.http.middlewares.cipas-syntactics-limit.buffering.maxRequestBodyBytes=10485760"
+  #     - "traefik.http.middlewares.cipas-syntactics-ratelimit.ratelimit.average=100"
+  #     - "traefik.http.middlewares.cipas-syntactics-ratelimit.ratelimit.period=1m"
+  #     - "traefik.http.middlewares.cipas-syntactics-ratelimit.ratelimit.burst=10"
+  #     - "traefik.http.routers.cipas-syntactics.middlewares=cipas-syntactics-limit,cipas-syntactics-ratelimit"
 
-    env_file:
-      - .env
+  #   env_file:
+  #     - .env
 
-    volumes:
-      - ./apps/services/cipas-services/cipas-syntactics/models:/app/models:ro
+  #   volumes:
+  #     - ./apps/services/cipas-services/cipas-syntactics/models:/app/models:ro
 
-    environment:
-      - CIPAS_SYNTACTICS_PORT=${CIPAS_SYN_SVC_PORT}
-      - CIPAS_SYNTACTICS_HOST=0.0.0.0
+  #   environment:
+  #     - CIPAS_SYNTACTICS_PORT=${CIPAS_SYN_SVC_PORT}
+  #     - CIPAS_SYNTACTICS_HOST=0.0.0.0
 
-    expose:
-      - "${CIPAS_SYN_SVC_PORT}"
+  #   expose:
+  #     - "${CIPAS_SYN_SVC_PORT}"
 
-    networks:
-      - gradeloop-network
+  #   networks:
+  #     - gradeloop-network
 
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8086/api/v1/syntactics/health')",
-        ]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+  #   healthcheck:
+  #     test:
+  #       [
+  #         "CMD",
+  #         "python",
+  #         "-c",
+  #         "import urllib.request; urllib.request.urlopen('http://localhost:8086/api/v1/syntactics/health')",
+  #       ]
+  #     interval: 15s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: 60s
 
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        compress: "true"
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
+  #       compress: "true"
 
   # =============================================================================
   # CIPAS Semantics Service (Python FastAPI — Semantic Clone Detection)
   # =============================================================================
-  cipas-semantics:
-    build:
-      context: ./apps/services/cipas-services/cipas-semantics
-      dockerfile: Dockerfile
-    container_name: cipas-semantics
-    restart: unless-stopped
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.cipas-semantics.rule=PathPrefix(`/api/v1/semantics`)"
-      - "traefik.http.routers.cipas-semantics.entrypoints=web"
-      - "traefik.http.routers.cipas-semantics.service=cipas-semantics-service"
-      - "traefik.http.services.cipas-semantics-service.loadbalancer.server.port=${CIPAS_SEM_SVC_PORT}"
-      - "traefik.http.middlewares.cipas-semantics-limit.buffering.maxRequestBodyBytes=10485760"
-      - "traefik.http.middlewares.cipas-semantics-ratelimit.ratelimit.average=100"
-      - "traefik.http.middlewares.cipas-semantics-ratelimit.ratelimit.period=1m"
-      - "traefik.http.middlewares.cipas-semantics-ratelimit.ratelimit.burst=10"
-      - "traefik.http.routers.cipas-semantics.middlewares=cipas-semantics-limit,cipas-semantics-ratelimit"
+  # cipas-semantics:
+  #   build:
+  #     context: ./apps/services/cipas-services/cipas-semantics
+  #     dockerfile: Dockerfile
+  #   container_name: cipas-semantics
+  #   restart: unless-stopped
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.cipas-semantics.rule=PathPrefix(`/api/v1/semantics`)"
+  #     - "traefik.http.routers.cipas-semantics.entrypoints=web"
+  #     - "traefik.http.routers.cipas-semantics.service=cipas-semantics-service"
+  #     - "traefik.http.services.cipas-semantics-service.loadbalancer.server.port=${CIPAS_SEM_SVC_PORT}"
+  #     - "traefik.http.middlewares.cipas-semantics-limit.buffering.maxRequestBodyBytes=10485760"
+  #     - "traefik.http.middlewares.cipas-semantics-ratelimit.ratelimit.average=100"
+  #     - "traefik.http.middlewares.cipas-semantics-ratelimit.ratelimit.period=1m"
+  #     - "traefik.http.middlewares.cipas-semantics-ratelimit.ratelimit.burst=10"
+  #     - "traefik.http.routers.cipas-semantics.middlewares=cipas-semantics-limit,cipas-semantics-ratelimit"
 
-    env_file:
-      - .env
+  #   env_file:
+  #     - .env
 
-    volumes:
-      - ./apps/services/cipas-services/cipas-semantics/models:/app/models:ro
+  #   volumes:
+  #     - ./apps/services/cipas-services/cipas-semantics/models:/app/models:ro
 
-    environment:
-      - API_PORT=${CIPAS_SEM_SVC_PORT}
-      - CIPAS_SEMANTICS_HOST=0.0.0.0
+  #   environment:
+  #     - API_PORT=${CIPAS_SEM_SVC_PORT}
+  #     - CIPAS_SEMANTICS_HOST=0.0.0.0
 
-    expose:
-      - "${CIPAS_SEM_SVC_PORT}"
+  #   expose:
+  #     - "${CIPAS_SEM_SVC_PORT}"
 
-    networks:
-      - gradeloop-network
+  #   networks:
+  #     - gradeloop-network
 
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8087/api/v1/semantics/health')",
-        ]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-      start_period: 150s
+  #   healthcheck:
+  #     test:
+  #       [
+  #         "CMD",
+  #         "python",
+  #         "-c",
+  #         "import urllib.request; urllib.request.urlopen('http://localhost:8087/api/v1/semantics/health')",
+  #       ]
+  #     interval: 15s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: 150s
 
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        compress: "true"
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
+  #       compress: "true"
 
   # =============================================================================
   # CIPAS AI Detection Service (Python FastAPI — AI Code Likelihood Detection)
   # =============================================================================
-  cipas-ai:
-    build:
-      context: ./apps/services/cipas-services/cipas-ai
-      dockerfile: Dockerfile
-    container_name: cipas-ai
-    restart: unless-stopped
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.cipas-ai.rule=PathPrefix(`/api/v1/ai`)"
-      - "traefik.http.routers.cipas-ai.entrypoints=web"
-      - "traefik.http.services.cipas-ai-service.loadbalancer.server.port=${CIPAS_AI_SVC_PORT}"
-      - "traefik.http.middlewares.cipas-ai-limit.buffering.maxRequestBodyBytes=5242880"
-      - "traefik.http.middlewares.cipas-ai-ratelimit.ratelimit.average=100"
-      - "traefik.http.middlewares.cipas-ai-ratelimit.ratelimit.period=1m"
-      - "traefik.http.middlewares.cipas-ai-ratelimit.ratelimit.burst=10"
-      - "traefik.http.routers.cipas-ai.middlewares=cipas-ai-limit,cipas-ai-ratelimit"
+  # cipas-ai:
+  #   build:
+  #     context: ./apps/services/cipas-services/cipas-ai
+  #     dockerfile: Dockerfile
+  #   container_name: cipas-ai
+  #   restart: unless-stopped
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.cipas-ai.rule=PathPrefix(`/api/v1/ai`)"
+  #     - "traefik.http.routers.cipas-ai.entrypoints=web"
+  #     - "traefik.http.services.cipas-ai-service.loadbalancer.server.port=${CIPAS_AI_SVC_PORT}"
+  #     - "traefik.http.middlewares.cipas-ai-limit.buffering.maxRequestBodyBytes=5242880"
+  #     - "traefik.http.middlewares.cipas-ai-ratelimit.ratelimit.average=100"
+  #     - "traefik.http.middlewares.cipas-ai-ratelimit.ratelimit.period=1m"
+  #     - "traefik.http.middlewares.cipas-ai-ratelimit.ratelimit.burst=10"
+  #     - "traefik.http.routers.cipas-ai.middlewares=cipas-ai-limit,cipas-ai-ratelimit"
 
-    env_file:
-      - .env
+  #   env_file:
+  #     - .env
 
-    volumes:
-      - ./apps/services/cipas-services/cipas-ai/model:/app/model:ro
+  #   volumes:
+  #     - ./apps/services/cipas-services/cipas-ai/model:/app/model:ro
 
-    environment:
-      - CIPAS_AI_PORT=${CIPAS_AI_SVC_PORT}
-      - CIPAS_AI_HOST=0.0.0.0
-      - CIPAS_AI_DEVICE=${CIPAS_AI_DEVICE:-cpu}
+  #   environment:
+  #     - CIPAS_AI_PORT=${CIPAS_AI_SVC_PORT}
+  #     - CIPAS_AI_HOST=0.0.0.0
+  #     - CIPAS_AI_DEVICE=${CIPAS_AI_DEVICE:-cpu}
 
-    expose:
-      - "${CIPAS_AI_SVC_PORT}"
+  #   expose:
+  #     - "${CIPAS_AI_SVC_PORT}"
 
-    networks:
-      - gradeloop-network
+  #   networks:
+  #     - gradeloop-network
 
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "curl",
-          "-f",
-          "http://localhost:${CIPAS_AI_SVC_PORT}/api/v1/ai/ready",
-        ]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
+  #   healthcheck:
+  #     test:
+  #       [
+  #         "CMD",
+  #         "curl",
+  #         "-f",
+  #         "http://localhost:${CIPAS_AI_SVC_PORT}/api/v1/ai/ready",
+  #       ]
+  #     interval: 15s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 60s
 
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        compress: "true"
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
+  #       compress: "true"
 
-  # =============================================================================
-  # ACAFS Service (Python FastAPI — AST Extraction & Code Analysis)
-  # =============================================================================
-  acafs-service:
-    build:
-      context: ./apps/services/acafs-service
-      dockerfile: Dockerfile
-      target: development
-    volumes:
-      - ./apps/services/acafs-service:/app
-    container_name: acafs-service
-    restart: unless-stopped
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.acafs.rule=PathPrefix(`/api/v1/acafs`)"
-      - "traefik.http.routers.acafs.entrypoints=web"
-      - "traefik.http.services.acafs.loadbalancer.server.port=8086"
-      # Request size limiting (10MB for batch operations)
-      - "traefik.http.middlewares.acafs-limit.buffering.maxRequestBodyBytes=10485760"
-      # Rate limiting
-      - "traefik.http.middlewares.acafs-ratelimit.ratelimit.average=100"
-      - "traefik.http.middlewares.acafs-ratelimit.ratelimit.period=1m"
-      - "traefik.http.middlewares.acafs-ratelimit.ratelimit.burst=20"
-      - "traefik.http.routers.acafs.middlewares=acafs-limit,acafs-ratelimit"
+  # # =============================================================================
+  # # ACAFS Service (Python FastAPI — AST Extraction & Code Analysis)
+  # # =============================================================================
+  # acafs-service:
+  #   build:
+  #     context: ./apps/services/acafs-service
+  #     dockerfile: Dockerfile
+  #     target: development
+  #   volumes:
+  #     - ./apps/services/acafs-service:/app
+  #   container_name: acafs-service
+  #   restart: unless-stopped
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.acafs.rule=PathPrefix(`/api/v1/acafs`)"
+  #     - "traefik.http.routers.acafs.entrypoints=web"
+  #     - "traefik.http.services.acafs.loadbalancer.server.port=8086"
+  #     # Request size limiting (10MB for batch operations)
+  #     - "traefik.http.middlewares.acafs-limit.buffering.maxRequestBodyBytes=10485760"
+  #     # Rate limiting
+  #     - "traefik.http.middlewares.acafs-ratelimit.ratelimit.average=100"
+  #     - "traefik.http.middlewares.acafs-ratelimit.ratelimit.period=1m"
+  #     - "traefik.http.middlewares.acafs-ratelimit.ratelimit.burst=20"
+  #     - "traefik.http.routers.acafs.middlewares=acafs-limit,acafs-ratelimit"
 
-    env_file:
-      - .env
+  #   env_file:
+  #     - .env
 
-    environment:
-      # Service
-      - SERVICE_NAME=${ACAFS_SERVICE_NAME:-acafs-service}
-      - SERVICE_PORT=${ACAFS_SERVICE_PORT:-8086}
-      - SERVICE_HOST=0.0.0.0
-      - LOG_LEVEL=${ACAFS_LOG_LEVEL:-INFO}
-      - ENVIRONMENT=${ENVIRONMENT:-development}
+  #   environment:
+  #     # Service
+  #     - SERVICE_NAME=${ACAFS_SERVICE_NAME:-acafs-service}
+  #     - SERVICE_PORT=${ACAFS_SERVICE_PORT:-8086}
+  #     - SERVICE_HOST=0.0.0.0
+  #     - LOG_LEVEL=${ACAFS_LOG_LEVEL:-INFO}
+  #     - ENVIRONMENT=${ENVIRONMENT:-development}
 
-      # RabbitMQ
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
-      - RABBITMQ_EXCHANGE=${ACAFS_RABBITMQ_EXCHANGE:-submissions}
-      - RABBITMQ_QUEUE=${ACAFS_RABBITMQ_QUEUE:-acafs.evaluation}
-      - RABBITMQ_ROUTING_KEY=${ACAFS_RABBITMQ_ROUTING_KEY:-submission.created}
-      - RABBITMQ_CONCURRENCY=${ACAFS_RABBITMQ_CONCURRENCY:-4}
+  #     # RabbitMQ
+  #     - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+  #     - RABBITMQ_EXCHANGE=${ACAFS_RABBITMQ_EXCHANGE:-submissions}
+  #     - RABBITMQ_QUEUE=${ACAFS_RABBITMQ_QUEUE:-acafs.evaluation}
+  #     - RABBITMQ_ROUTING_KEY=${ACAFS_RABBITMQ_ROUTING_KEY:-submission.created}
+  #     - RABBITMQ_CONCURRENCY=${ACAFS_RABBITMQ_CONCURRENCY:-4}
 
-      # PostgreSQL (shared with assessment service)
-      - DATABASE_URL=postgresql://${GRA_DB_USER}:${GRA_DB_PASSWORD}@${GRA_DB_HOST}:${GRA_DB_PORT}/${ASSESSMENT_SVC_DB_NAME}
+  #     # PostgreSQL (shared with assessment service)
+  #     - DATABASE_URL=postgresql://${GRA_DB_USER}:${GRA_DB_PASSWORD}@${GRA_DB_HOST}:${GRA_DB_PORT}/${ASSESSMENT_SVC_DB_NAME}
 
-      # MinIO
-      - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
-      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
-      - MINIO_BUCKET=${MINIO_BUCKET:-submissions}
-      - MINIO_USE_SSL=false
+  #     # MinIO
+  #     - MINIO_ENDPOINT=minio:9000
+  #     - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
+  #     - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
+  #     - MINIO_BUCKET=${MINIO_BUCKET:-submissions}
+  #     - MINIO_USE_SSL=false
 
-      # AST Parser
-      - AST_MAX_LINES=${ACAFS_AST_MAX_LINES:-5000}
-      - AST_TIMEOUT_SECONDS=${ACAFS_AST_TIMEOUT_SECONDS:-2}
+  #     # AST Parser
+  #     - AST_MAX_LINES=${ACAFS_AST_MAX_LINES:-5000}
+  #     - AST_TIMEOUT_SECONDS=${ACAFS_AST_TIMEOUT_SECONDS:-2}
 
-      # LLM – Gemini (rubric grading)
-      - GEMINI_API_KEY=${ACAFS_GEMINI_API_KEY}
-      - GEMINI_MODEL=${ACAFS_GEMINI_MODEL:-gemini-2.5-flash}
+  #     # LLM – Gemini (rubric grading)
+  #     - GEMINI_API_KEY=${ACAFS_GEMINI_API_KEY}
+  #     - GEMINI_MODEL=${ACAFS_GEMINI_MODEL:-gemini-2.5-flash}
 
-      # LLM – OpenRouter (Pass-1 Qwen reasoning + Socratic chat)
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - OPENROUTER_REASONER_MODEL=${OPENROUTER_REASONER_MODEL:-qwen/qwen3-vl-235b-a22b-thinking}
-      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-arcee-ai/trinity-large-preview:free}
-      - OPENROUTER_BASE_URL=${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+  #     # LLM – OpenRouter (Pass-1 Qwen reasoning + Socratic chat)
+  #     - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+  #     - OPENROUTER_REASONER_MODEL=${OPENROUTER_REASONER_MODEL:-qwen/qwen3-vl-235b-a22b-thinking}
+  #     - OPENROUTER_MODEL=${OPENROUTER_MODEL:-arcee-ai/trinity-large-preview:free}
+  #     - OPENROUTER_BASE_URL=${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
 
-      # Judge0 (test-case execution)
-      - JUDGE0_URL=${JUDGE0_URL:-http://judge0:2358}
-      - JUDGE0_API_KEY=${JUDGE0_API_KEY:-}
+  #     # Judge0 (test-case execution)
+  #     - JUDGE0_URL=${JUDGE0_URL:-http://judge0:2358}
+  #     - JUDGE0_API_KEY=${JUDGE0_API_KEY:-}
 
-    ports:
-      - "8086:8086"
+  #   ports:
+  #     - "8086:8086"
 
-    expose:
-      - "8086"
+  #   expose:
+  #     - "8086"
 
-    depends_on:
-      - rabbitmq
-      - minio
+  #   depends_on:
+  #     - rabbitmq
+  #     - minio
 
-    networks:
-      - gradeloop-network
+  #   networks:
+  #     - gradeloop-network
 
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8086/api/v1/acafs/health')",
-        ]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
+  #   healthcheck:
+  #     test:
+  #       [
+  #         "CMD",
+  #         "python",
+  #         "-c",
+  #         "import urllib.request; urllib.request.urlopen('http://localhost:8086/api/v1/acafs/health')",
+  #       ]
+  #     interval: 30s
+  #     timeout: 5s
+  #     retries: 3
+  #     start_period: 10s
 
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        compress: "true"
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
+  #       compress: "true"
 
   # =============================================================================
   # MinIO Object Storage
@@ -733,59 +733,59 @@ services:
   # =============================================================================
   # CIPAS XAI Service (Go Fiber — LLM Integration with OpenRouter)
   # =============================================================================
-  cipas-xai:
-    build:
-      context: ./apps/services/cipas-services/cipas-xai
-      dockerfile: Dockerfile
-    container_name: cipas-xai
-    restart: unless-stopped
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.cipas-xai.rule=PathPrefix(`/api/v1/chat`)"
-      - "traefik.http.routers.cipas-xai.entrypoints=web"
-      - "traefik.http.services.cipas-xai-service.loadbalancer.server.port=8085"
-      # Request Size Limiting (10MB for image uploads)
-      - "traefik.http.middlewares.cipas-xai-limit.buffering.maxRequestBodyBytes=10485760"
-      # Rate Limiting
-      - "traefik.http.middlewares.cipas-xai-ratelimit.ratelimit.average=100"
-      - "traefik.http.middlewares.cipas-xai-ratelimit.ratelimit.period=1m"
-      - "traefik.http.middlewares.cipas-xai-ratelimit.ratelimit.burst=20"
-      # CORS
-      - "traefik.http.middlewares.cipas-xai-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,PATCH,OPTIONS"
-      - "traefik.http.middlewares.cipas-xai-cors.headers.accesscontrolalloworiginlist=http://localhost:3000,http://localhost:3001"
-      - "traefik.http.middlewares.cipas-xai-cors.headers.accesscontrolallowheaders=Origin,Content-Type,Accept,Authorization,X-Request-ID"
-      - "traefik.http.middlewares.cipas-xai-cors.headers.accesscontrolallowcredentials=true"
-      - "traefik.http.middlewares.cipas-xai-cors.headers.addvaryheader=true"
-      # Apply middlewares
-      - "traefik.http.routers.cipas-xai.middlewares=cipas-xai-limit,cipas-xai-ratelimit,cipas-xai-cors"
+  # cipas-xai:
+  #   build:
+  #     context: ./apps/services/cipas-services/cipas-xai
+  #     dockerfile: Dockerfile
+  #   container_name: cipas-xai
+  #   restart: unless-stopped
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.cipas-xai.rule=PathPrefix(`/api/v1/chat`)"
+  #     - "traefik.http.routers.cipas-xai.entrypoints=web"
+  #     - "traefik.http.services.cipas-xai-service.loadbalancer.server.port=8085"
+  #     # Request Size Limiting (10MB for image uploads)
+  #     - "traefik.http.middlewares.cipas-xai-limit.buffering.maxRequestBodyBytes=10485760"
+  #     # Rate Limiting
+  #     - "traefik.http.middlewares.cipas-xai-ratelimit.ratelimit.average=100"
+  #     - "traefik.http.middlewares.cipas-xai-ratelimit.ratelimit.period=1m"
+  #     - "traefik.http.middlewares.cipas-xai-ratelimit.ratelimit.burst=20"
+  #     # CORS
+  #     - "traefik.http.middlewares.cipas-xai-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,PATCH,OPTIONS"
+  #     - "traefik.http.middlewares.cipas-xai-cors.headers.accesscontrolalloworiginlist=http://localhost:3000,http://localhost:3001"
+  #     - "traefik.http.middlewares.cipas-xai-cors.headers.accesscontrolallowheaders=Origin,Content-Type,Accept,Authorization,X-Request-ID"
+  #     - "traefik.http.middlewares.cipas-xai-cors.headers.accesscontrolallowcredentials=true"
+  #     - "traefik.http.middlewares.cipas-xai-cors.headers.addvaryheader=true"
+  #     # Apply middlewares
+  #     - "traefik.http.routers.cipas-xai.middlewares=cipas-xai-limit,cipas-xai-ratelimit,cipas-xai-cors"
 
-    env_file:
-      - .env
+  #   env_file:
+  #     - .env
 
-    environment:
-      - CIPAS_XAI_SVC_PORT=8085
-      - LLM_PROVIDER=${LLM_PROVIDER:-openrouter}
-      - LLM_API_KEY=${OPENROUTER_API_KEY}
-      - LLM_BASE_URL=${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
-      - LLM_MODEL=${OPENROUTER_REASONER_MODEL:-qwen/qwen3-vl-235b-a22b-thinking}
-      - LLM_EXTRA_HEADERS=HTTP-Referer=${FRONTEND_URL:-http://localhost:3000},X-OpenRouter-Title=GradeLoop CIPAS-XAI
-      - LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-2048}
-      - LLM_TEMPERATURE=${LLM_TEMPERATURE:-0.7}
-      - LLM_TIMEOUT=${LLM_TIMEOUT:-60}
-      - LOG_LEVEL=${LOG_LEVEL:-info}
+  #   environment:
+  #     - CIPAS_XAI_SVC_PORT=8085
+  #     - LLM_PROVIDER=${LLM_PROVIDER:-openrouter}
+  #     - LLM_API_KEY=${OPENROUTER_API_KEY}
+  #     - LLM_BASE_URL=${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+  #     - LLM_MODEL=${OPENROUTER_REASONER_MODEL:-qwen/qwen3-vl-235b-a22b-thinking}
+  #     - LLM_EXTRA_HEADERS=HTTP-Referer=${FRONTEND_URL:-http://localhost:3000},X-OpenRouter-Title=GradeLoop CIPAS-XAI
+  #     - LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-2048}
+  #     - LLM_TEMPERATURE=${LLM_TEMPERATURE:-0.7}
+  #     - LLM_TIMEOUT=${LLM_TIMEOUT:-60}
+  #     - LOG_LEVEL=${LOG_LEVEL:-info}
 
-    expose:
-      - "8085"
+  #   expose:
+  #     - "8085"
 
-    networks:
-      - gradeloop-network
+  #   networks:
+  #     - gradeloop-network
 
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        compress: "true"
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
+  #       compress: "true"
 
   # =============================================================================
   # Redis (for session buffering)
