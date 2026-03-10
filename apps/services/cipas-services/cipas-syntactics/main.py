@@ -17,7 +17,6 @@ Features:
 import asyncio
 import time
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import APIRouter, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -80,28 +79,227 @@ from schemas import (
 logger = setup_logging(__name__)
 
 
-async def _run_migrations() -> None:
-    """Run db_migrations/*.sql in order (V001, V002, ...). Idempotent (CREATE IF NOT EXISTS)."""
+# ---------------------------------------------------------------------------
+# All DDL statements are idempotent (CREATE … IF NOT EXISTS / CREATE OR REPLACE).
+# No external migration files are required — the schema is self-contained here.
+# ---------------------------------------------------------------------------
+_SCHEMA_DDL: list[tuple[str, str]] = [
+    # ── assignment_templates ────────────────────────────────────────────────
+    ("table:assignment_templates", """
+        CREATE TABLE IF NOT EXISTS assignment_templates (
+            id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+            assignment_id     TEXT        NOT NULL,
+            template_fragment_hashes  JSONB  NOT NULL DEFAULT '[]',
+            created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+    """),
+    ("index:idx_assignment_templates_assignment_id", """
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_assignment_templates_assignment_id
+            ON assignment_templates (assignment_id)
+    """),
+    # ── fragments ───────────────────────────────────────────────────────────
+    ("table:fragments", """
+        CREATE TABLE IF NOT EXISTS fragments (
+            id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+            submission_id     TEXT        NOT NULL,
+            student_id        TEXT        NOT NULL,
+            assignment_id     TEXT        NOT NULL,
+            language          TEXT        NOT NULL CHECK (language IN ('java','python','c','csharp')),
+            lsh_signature     BYTEA,
+            abstract_tokens   JSONB       NOT NULL DEFAULT '[]',
+            raw_source        TEXT        NOT NULL,
+            token_count       INT         NOT NULL DEFAULT 0,
+            byte_offset       INT         NOT NULL DEFAULT 0,
+            fragment_type     TEXT        NOT NULL DEFAULT 'structural'
+                                          CHECK (fragment_type IN ('structural','window','whole_file','regex_block')),
+            node_type         TEXT,
+            is_template       BOOLEAN     NOT NULL DEFAULT FALSE,
+            created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+    """),
+    ("index:idx_fragments_submission_id",  "CREATE INDEX IF NOT EXISTS idx_fragments_submission_id  ON fragments (submission_id)"),
+    ("index:idx_fragments_student_id",     "CREATE INDEX IF NOT EXISTS idx_fragments_student_id     ON fragments (student_id)"),
+    ("index:idx_fragments_assignment_id",  "CREATE INDEX IF NOT EXISTS idx_fragments_assignment_id  ON fragments (assignment_id)"),
+    ("index:idx_fragments_assignment_student", "CREATE INDEX IF NOT EXISTS idx_fragments_assignment_student ON fragments (assignment_id, student_id)"),
+    # ── plagiarism_groups (must exist before clone_matches FK) ──────────────
+    ("table:plagiarism_groups", """
+        CREATE TABLE IF NOT EXISTS plagiarism_groups (
+            id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+            assignment_id     TEXT        NOT NULL,
+            group_index       INT         NOT NULL,
+            member_ids        JSONB       NOT NULL,
+            edge_summary      JSONB,
+            member_count      INT         NOT NULL DEFAULT 0,
+            max_confidence    FLOAT       NOT NULL DEFAULT 0.0,
+            dominant_type     TEXT        NOT NULL DEFAULT 'Unknown',
+            created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+    """),
+    ("index:idx_plagiarism_groups_assignment", "CREATE INDEX IF NOT EXISTS idx_plagiarism_groups_assignment ON plagiarism_groups (assignment_id, group_index)"),
+    # ── clone_matches ───────────────────────────────────────────────────────
+    ("table:clone_matches", """
+        CREATE TABLE IF NOT EXISTS clone_matches (
+            id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+            frag_a_id         UUID        NOT NULL REFERENCES fragments(id) ON DELETE CASCADE,
+            frag_b_id         UUID        NOT NULL REFERENCES fragments(id) ON DELETE CASCADE,
+            student_a         TEXT        NOT NULL,
+            student_b         TEXT        NOT NULL,
+            assignment_id     TEXT        NOT NULL,
+            clone_type        TEXT        NOT NULL DEFAULT 'Non-Syntactic'
+                                          CHECK (clone_type IN ('Type-1','Type-2','Type-3','Non-Syntactic')),
+            confidence        FLOAT       NOT NULL DEFAULT 0.0
+                                          CHECK (confidence >= 0.0 AND confidence <= 1.0),
+            is_clone          BOOLEAN     NOT NULL DEFAULT FALSE,
+            features          JSONB,
+            normalized_code_a TEXT,
+            normalized_code_b TEXT,
+            detected_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+            CONSTRAINT uq_clone_matches_pair UNIQUE (frag_a_id, frag_b_id)
+        )
+    """),
+    ("index:idx_clone_matches_assignment",  "CREATE INDEX IF NOT EXISTS idx_clone_matches_assignment  ON clone_matches (assignment_id)"),
+    ("index:idx_clone_matches_students",    "CREATE INDEX IF NOT EXISTS idx_clone_matches_students    ON clone_matches (student_a, student_b, assignment_id)"),
+    ("index:idx_clone_matches_is_clone",    "CREATE INDEX IF NOT EXISTS idx_clone_matches_is_clone    ON clone_matches (assignment_id, is_clone) WHERE is_clone = TRUE"),
+    ("index:idx_clone_matches_confidence",  "CREATE INDEX IF NOT EXISTS idx_clone_matches_confidence  ON clone_matches (assignment_id, confidence DESC) WHERE is_clone = TRUE"),
+    # ── lsh_bucket_metadata ─────────────────────────────────────────────────
+    ("table:lsh_bucket_metadata", """
+        CREATE TABLE IF NOT EXISTS lsh_bucket_metadata (
+            id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+            fragment_id       UUID        NOT NULL REFERENCES fragments(id) ON DELETE CASCADE,
+            bucket_keys       JSONB       NOT NULL DEFAULT '[]',
+            num_perm          INT         NOT NULL DEFAULT 128,
+            threshold         FLOAT       NOT NULL DEFAULT 0.3,
+            created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+    """),
+    ("index:idx_lsh_bucket_metadata_fragment", "CREATE INDEX IF NOT EXISTS idx_lsh_bucket_metadata_fragment ON lsh_bucket_metadata (fragment_id)"),
+    # ── similarity_reports ──────────────────────────────────────────────────
+    ("table:similarity_reports", """
+        CREATE TABLE IF NOT EXISTS similarity_reports (
+            id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+            assignment_id     TEXT        NOT NULL,
+            language          TEXT        NOT NULL CHECK (language IN ('java','python','c','csharp')),
+            submission_count  INT         NOT NULL DEFAULT 0,
+            processed_count   INT         NOT NULL DEFAULT 0,
+            failed_count      INT         NOT NULL DEFAULT 0,
+            total_clone_pairs INT         NOT NULL DEFAULT 0,
+            report_data       JSONB       NOT NULL,
+            lsh_threshold     FLOAT       NOT NULL DEFAULT 0.3,
+            min_confidence    FLOAT       NOT NULL DEFAULT 0.0,
+            processing_time_seconds FLOAT,
+            created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+    """),
+    ("index:idx_similarity_reports_assignment", "CREATE UNIQUE INDEX IF NOT EXISTS idx_similarity_reports_assignment ON similarity_reports (assignment_id)"),
+    ("index:idx_similarity_reports_created",    "CREATE INDEX IF NOT EXISTS idx_similarity_reports_created    ON similarity_reports (created_at DESC)"),
+    # ── instructor_annotations ──────────────────────────────────────────────
+    ("table:instructor_annotations", """
+        CREATE TABLE IF NOT EXISTS instructor_annotations (
+            id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+            match_id          UUID        REFERENCES clone_matches(id) ON DELETE CASCADE,
+            group_id          UUID        REFERENCES plagiarism_groups(id) ON DELETE CASCADE,
+            assignment_id     TEXT        NOT NULL,
+            instructor_id     TEXT        NOT NULL,
+            status            TEXT        NOT NULL DEFAULT 'pending_review'
+                                          CHECK (status IN (
+                                              'pending_review',
+                                              'confirmed_plagiarism',
+                                              'false_positive',
+                                              'acceptable_collaboration',
+                                              'requires_investigation'
+                                          )),
+            comments          TEXT,
+            action_taken      TEXT,
+            created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+            CONSTRAINT chk_annotation_target CHECK (match_id IS NOT NULL OR group_id IS NOT NULL)
+        )
+    """),
+    ("index:idx_instructor_annotations_match",      "CREATE INDEX IF NOT EXISTS idx_instructor_annotations_match      ON instructor_annotations (match_id)"),
+    ("index:idx_instructor_annotations_group",      "CREATE INDEX IF NOT EXISTS idx_instructor_annotations_group      ON instructor_annotations (group_id)"),
+    ("index:idx_instructor_annotations_assignment", "CREATE INDEX IF NOT EXISTS idx_instructor_annotations_assignment ON instructor_annotations (assignment_id)"),
+    ("index:idx_instructor_annotations_status",     "CREATE INDEX IF NOT EXISTS idx_instructor_annotations_status     ON instructor_annotations (assignment_id, status)"),
+    # ── report_exports ──────────────────────────────────────────────────────
+    ("table:report_exports", """
+        CREATE TABLE IF NOT EXISTS report_exports (
+            id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+            report_id         UUID        NOT NULL REFERENCES similarity_reports(id) ON DELETE CASCADE,
+            assignment_id     TEXT        NOT NULL,
+            instructor_id     TEXT        NOT NULL,
+            export_format     TEXT        NOT NULL CHECK (export_format IN ('pdf', 'csv', 'json')),
+            include_annotations BOOLEAN   NOT NULL DEFAULT TRUE,
+            include_code      BOOLEAN     NOT NULL DEFAULT FALSE,
+            export_filters    JSONB,
+            exported_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+    """),
+    ("index:idx_report_exports_report",     "CREATE INDEX IF NOT EXISTS idx_report_exports_report     ON report_exports (report_id)"),
+    ("index:idx_report_exports_assignment", "CREATE INDEX IF NOT EXISTS idx_report_exports_assignment ON report_exports (assignment_id)"),
+    # ── views ───────────────────────────────────────────────────────────────
+    ("view:confirmed_clones_summary", """
+        CREATE OR REPLACE VIEW confirmed_clones_summary AS
+        SELECT cm.assignment_id, cm.student_a, cm.student_b, cm.clone_type, cm.confidence,
+               cm.detected_at, f_a.submission_id AS submission_a, f_b.submission_id AS submission_b
+        FROM clone_matches cm
+        JOIN fragments f_a ON f_a.id = cm.frag_a_id
+        JOIN fragments f_b ON f_b.id = cm.frag_b_id
+        WHERE cm.is_clone = TRUE
+        ORDER BY cm.assignment_id, cm.confidence DESC
+    """),
+    ("view:annotated_clones_summary", """
+        CREATE OR REPLACE VIEW annotated_clones_summary AS
+        SELECT cm.id AS match_id, cm.assignment_id, cm.student_a, cm.student_b,
+               cm.clone_type, cm.confidence, ia.status AS annotation_status,
+               ia.comments AS annotation_comments, ia.instructor_id,
+               ia.updated_at AS annotated_at, cm.detected_at
+        FROM clone_matches cm
+        LEFT JOIN instructor_annotations ia ON ia.match_id = cm.id
+        WHERE cm.is_clone = TRUE
+        ORDER BY cm.assignment_id, cm.confidence DESC
+    """),
+    # ── helper function ──────────────────────────────────────────────────────
+    ("function:get_cluster_stats", """
+        CREATE OR REPLACE FUNCTION get_cluster_stats(p_assignment_id TEXT)
+        RETURNS TABLE (
+            total_submissions BIGINT, total_clones BIGINT,
+            high_risk_count BIGINT, medium_risk_count BIGINT,
+            low_risk_count BIGINT, flagged_students BIGINT
+        ) AS $$
+        BEGIN
+            RETURN QUERY
+            SELECT
+                COUNT(DISTINCT f.submission_id),
+                COUNT(DISTINCT cm.id) FILTER (WHERE cm.is_clone = TRUE),
+                COUNT(DISTINCT cm.id) FILTER (WHERE cm.is_clone = TRUE AND cm.confidence >= 0.85),
+                COUNT(DISTINCT cm.id) FILTER (WHERE cm.is_clone = TRUE AND cm.confidence >= 0.75 AND cm.confidence < 0.85),
+                COUNT(DISTINCT cm.id) FILTER (WHERE cm.is_clone = TRUE AND cm.confidence < 0.75),
+                COUNT(DISTINCT CASE WHEN cm.is_clone = TRUE THEN cm.student_a END) +
+                COUNT(DISTINCT CASE WHEN cm.is_clone = TRUE THEN cm.student_b END)
+            FROM fragments f
+            LEFT JOIN clone_matches cm ON (cm.frag_a_id = f.id OR cm.frag_b_id = f.id)
+                AND cm.assignment_id = p_assignment_id
+            WHERE f.assignment_id = p_assignment_id;
+        END;
+        $$ LANGUAGE plpgsql
+    """),
+]
+
+
+async def _auto_migrate() -> None:
+    """Apply all schema DDL inline (idempotent). No external SQL files needed."""
     try:
         from database import get_db_connection
     except RuntimeError:
         return
-    migrations_dir = Path(__file__).resolve().parent / "db_migrations"
-    if not migrations_dir.exists():
-        return
-    sql_files = sorted(migrations_dir.glob("*.sql"))
-    if not sql_files:
-        return
-    for path in sql_files:
-        sql = path.read_text()
-        if not sql.strip():
-            continue
+    for name, ddl in _SCHEMA_DDL:
         try:
             async with get_db_connection() as conn:
-                await conn.execute(sql)
-            logger.info("Ran migration: %s", path.name)
-        except Exception as e:
-            logger.warning("Migration %s: %s (may already be applied)", path.name, e)
+                await conn.execute(ddl)
+            logger.debug("Schema applied: %s", name)
+        except Exception as exc:
+            logger.warning("Schema step %s skipped: %s", name, exc)
 
 
 @asynccontextmanager
@@ -123,7 +321,7 @@ async def lifespan(app: FastAPI):
     try:
         await init_db_pool()
         logger.info("Database connection pool initialized successfully")
-        await _run_migrations()
+        await _auto_migrate()
     except Exception as e:
         logger.warning(
             f"Failed to initialize database pool: {e}. Running without persistence."

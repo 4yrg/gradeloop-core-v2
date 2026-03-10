@@ -1,14 +1,17 @@
 """
 Database connection and session management for CIPAS Syntactics.
 
-Provides async PostgreSQL connection pooling using asyncpg.
+- asyncpg pool      → used for all runtime queries (low overhead, native async)
+- SQLAlchemy engine → used only for schema creation via run_migrations()
 """
 
 import asyncpg
+import logging
+import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
-import os
-import logging
+
+from sqlalchemy.ext.asyncio import create_async_engine
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +20,7 @@ DATABASE_URL = os.getenv(
     "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/gradeloop"
 )
 
+# ── asyncpg runtime pool ────────────────────────────────────────────────────
 # Connection pool (initialized on startup)
 _pool: asyncpg.Pool | None = None
 
