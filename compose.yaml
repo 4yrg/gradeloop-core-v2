@@ -55,6 +55,36 @@ services:
         compress: "true"
 
   # =============================================================================
+  # PostgreSQL — Keystroke Service (dedicated instance)
+  # =============================================================================
+  postgres-keystroke:
+    image: postgres:16-alpine
+    container_name: postgres-keystroke
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=keystroke_user
+      - POSTGRES_PASSWORD=keystroke_pass
+      - POSTGRES_DB=keystroke-db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-keystroke-data:/var/lib/postgresql/data
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keystroke_user -d keystroke-db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+
+  # =============================================================================
   # IAM Service (Go Fiber)
   # =============================================================================
   iam-service:
@@ -638,8 +668,7 @@ services:
       - RABBITMQ_USER=${RABBITMQ_USER:-guest}
       - RABBITMQ_PASS=${RABBITMQ_PASS:-guest}
       - REDIS_URL=redis://redis:6379
-      # Updated to use shared PostgreSQL with service-specific DB name
-      - DATABASE_URL=postgresql://${GRA_DB_USER}:${GRA_DB_PASSWORD}@postgres:${GRA_DB_PORT}/${KEYSTROKE_SVC_DB_NAME}?sslmode=${GRA_DB_SSLMODE}
+      - DATABASE_URL=postgresql://keystroke_user:keystroke_pass@postgres-keystroke:5432/keystroke-db
       - SESSION_TTL_HOURS=2
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - MIN_EVENTS_FOR_ENROLLMENT=150
@@ -648,7 +677,7 @@ services:
     expose:
       - "8003"
     depends_on:
-      postgres:
+      postgres-keystroke:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -792,6 +821,8 @@ networks:
 # =============================================================================
 volumes:
   postgres-data:
+    driver: local
+  postgres-keystroke-data:
     driver: local
   minio-data:
     driver: local
