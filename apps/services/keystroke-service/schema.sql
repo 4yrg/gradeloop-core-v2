@@ -23,8 +23,8 @@ CREATE TABLE IF NOT EXISTS user_biometrics (
 );
 
 -- Index for fast user lookups
-CREATE INDEX idx_user_biometrics_user_id ON user_biometrics(user_id) WHERE is_active = TRUE;
-CREATE INDEX idx_user_biometrics_phase ON user_biometrics(enrollment_phase);
+CREATE INDEX IF NOT EXISTS idx_user_biometrics_user_id ON user_biometrics(user_id) WHERE is_active = TRUE;
+CREATE INDEX IF NOT EXISTS idx_user_biometrics_phase ON user_biometrics(enrollment_phase);
 
 -- =============================================================================
 -- Table: auth_events
@@ -63,10 +63,10 @@ CREATE TABLE IF NOT EXISTS auth_events (
 );
 
 -- Indexes for timeline queries
-CREATE INDEX idx_auth_events_session ON auth_events(session_id, offset_seconds);
-CREATE INDEX idx_auth_events_user_timestamp ON auth_events(user_id, event_timestamp);
-CREATE INDEX idx_auth_events_anomaly ON auth_events(is_anomaly) WHERE is_anomaly = TRUE;
-CREATE INDEX idx_auth_events_assignment ON auth_events(assignment_id) WHERE assignment_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_auth_events_session ON auth_events(session_id, offset_seconds);
+CREATE INDEX IF NOT EXISTS idx_auth_events_user_timestamp ON auth_events(user_id, event_timestamp);
+CREATE INDEX IF NOT EXISTS idx_auth_events_anomaly ON auth_events(is_anomaly) WHERE is_anomaly = TRUE;
+CREATE INDEX IF NOT EXISTS idx_auth_events_assignment ON auth_events(assignment_id) WHERE assignment_id IS NOT NULL;
 
 -- =============================================================================
 -- Table: keystroke_archives
@@ -104,10 +104,10 @@ CREATE TABLE IF NOT EXISTS keystroke_archives (
 );
 
 -- Indexes for forensic queries
-CREATE INDEX idx_keystroke_archives_user ON keystroke_archives(user_id);
-CREATE INDEX idx_keystroke_archives_assignment ON keystroke_archives(assignment_id);
-CREATE INDEX idx_keystroke_archives_archived_at ON keystroke_archives(archived_at);
-CREATE INDEX idx_keystroke_archives_retention ON keystroke_archives(retention_until) WHERE retention_until IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_keystroke_archives_user ON keystroke_archives(user_id);
+CREATE INDEX IF NOT EXISTS idx_keystroke_archives_assignment ON keystroke_archives(assignment_id);
+CREATE INDEX IF NOT EXISTS idx_keystroke_archives_archived_at ON keystroke_archives(archived_at);
+CREATE INDEX IF NOT EXISTS idx_keystroke_archives_retention ON keystroke_archives(retention_until) WHERE retention_until IS NOT NULL;
 
 -- =============================================================================
 -- Table: enrollment_progress
@@ -143,7 +143,7 @@ CREATE TABLE IF NOT EXISTS enrollment_progress (
     CONSTRAINT fk_enrollment_user_id CHECK (user_id IS NOT NULL)
 );
 
-CREATE INDEX idx_enrollment_progress_status ON enrollment_progress(enrollment_complete);
+CREATE INDEX IF NOT EXISTS idx_enrollment_progress_status ON enrollment_progress(enrollment_complete);
 
 -- =============================================================================
 -- Functions and Triggers
@@ -158,11 +158,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER update_user_biometrics_updated_at 
+CREATE OR REPLACE TRIGGER update_user_biometrics_updated_at 
     BEFORE UPDATE ON user_biometrics
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_enrollment_progress_updated_at 
+CREATE OR REPLACE TRIGGER update_enrollment_progress_updated_at 
     BEFORE UPDATE ON enrollment_progress
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -259,3 +259,43 @@ COMMENT ON TABLE enrollment_progress IS 'Tracks multi-condition enrollment workf
 COMMENT ON COLUMN user_biometrics.template_data IS 'Pickled numpy array (128-dim) - consider encryption in production';
 COMMENT ON COLUMN auth_events.offset_seconds IS 'Time into session (seconds) - used for timeline rendering in instructor UI';
 COMMENT ON COLUMN keystroke_archives.retention_until IS 'GDPR compliance - automatic deletion date';
+
+-- =============================================================================
+-- Idempotent Migrations
+-- Safe ALTER TABLE statements for upgrading existing deployments.
+-- These are no-ops on a fresh database (CREATE TABLE IF NOT EXISTS above
+-- already includes these columns), but will apply cleanly to older schemas.
+-- Add new statements here whenever the schema changes — never edit the
+-- CREATE TABLE blocks above once a deployment is live.
+-- =============================================================================
+
+-- auth_events: ensure assignment_id and course_id columns exist
+ALTER TABLE auth_events
+    ADD COLUMN IF NOT EXISTS assignment_id VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS course_id VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS is_anomaly BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS is_struggling BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS anomaly_type VARCHAR(50),
+    ADD COLUMN IF NOT EXISTS matched_phase VARCHAR(50),
+    ADD COLUMN IF NOT EXISTS metadata JSONB;
+
+-- keystroke_archives: ensure assignment columns exist
+ALTER TABLE keystroke_archives
+    ADD COLUMN IF NOT EXISTS assignment_id VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS course_id VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS behavioral_analysis JSONB;
+
+-- enrollment_progress: ensure all phase columns exist
+ALTER TABLE enrollment_progress
+    ADD COLUMN IF NOT EXISTS baseline_complete BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS baseline_completed_at TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS transcription_complete BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS transcription_completed_at TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS stress_complete BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS stress_completed_at TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS cognitive_complete BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS cognitive_completed_at TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS enrollment_complete BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS enrollment_completed_at TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS device_info JSONB;

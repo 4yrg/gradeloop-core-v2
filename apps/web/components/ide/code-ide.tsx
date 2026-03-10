@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { EditorPanel } from "./editor-panel";
 import { ExecutionPanel } from "./execution-panel";
 import { StatusBar } from "./status-bar";
@@ -11,6 +11,7 @@ import { AILikelihoodBadge } from "@/components/clone-detector/AILikelihoodBadge
 import { SemanticSimilarityScore, SemanticSimilarityBar } from "@/components/ui/semantic-similarity-score";
 import { Separator } from "@/components/ui/separator";
 import { useCodeExecution } from "@/lib/hooks/use-code-execution";
+import { useKeystrokeCapture } from "@/lib/hooks/use-keystroke-capture";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Terminal, Sparkles, BarChart2, Loader2, AlertCircle, BrainCircuit } from "lucide-react";
 import type { CodeIDEProps, ExecutionStatus } from "./types";
@@ -78,6 +79,16 @@ export function CodeIDE({
     },
   });
 
+  // Keystroke biometric capture — only active for real (non-read-only) assignment sessions
+  const sessionId = useRef(
+    `asgn_${assignmentId ?? "unknown"}_${userId ?? "anon"}_${Date.now()}`
+  ).current;
+  const { handleEditorMount, finalizeSession } = useKeystrokeCapture({
+    userId: userId ?? "",
+    sessionId,
+    assignmentId,
+  });
+
   // Load saved preferences from localStorage
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -131,11 +142,15 @@ export function CodeIDE({
     });
   }, [code, language, stdin, execute]);
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
+    // Archive keystroke session before submission (best-effort, non-blocking to submission)
+    if (userId && assignmentId && !readOnly) {
+      await finalizeSession(code);
+    }
     if (onSubmit) {
       onSubmit(code, language);
     }
-  }, [code, language, onSubmit]);
+  }, [code, language, onSubmit, userId, assignmentId, readOnly, finalizeSession]);
 
   const handleSave = useCallback(() => {
     // Save draft to localStorage
@@ -190,6 +205,7 @@ export function CodeIDE({
             theme={theme}
             onRun={handleRun}
             onSave={handleSave}
+            onEditorMount={!readOnly && userId && assignmentId ? handleEditorMount : undefined}
           />
         </div>
         
