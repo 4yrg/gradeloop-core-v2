@@ -6,6 +6,7 @@ Database connection and session management for CIPAS Syntactics.
 """
 
 import asyncpg
+import json
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -25,13 +26,32 @@ DATABASE_URL = os.getenv(
 _pool: asyncpg.Pool | None = None
 
 
+async def _init_connection(conn: asyncpg.Connection) -> None:
+    """Register JSON codecs so JSONB columns are returned as Python dicts."""
+    await conn.set_type_codec(
+        "jsonb",
+        encoder=json.dumps,
+        decoder=json.loads,
+        schema="pg_catalog",
+        format="text",
+    )
+    await conn.set_type_codec(
+        "json",
+        encoder=json.dumps,
+        decoder=json.loads,
+        schema="pg_catalog",
+        format="text",
+    )
+
+
 async def init_db_pool() -> None:
     """Initialize the database connection pool."""
     global _pool
     if _pool is None:
         logger.info("Initializing database connection pool...")
         _pool = await asyncpg.create_pool(
-            DATABASE_URL, min_size=2, max_size=10, command_timeout=60
+            DATABASE_URL, min_size=2, max_size=10, command_timeout=60,
+            init=_init_connection,
         )
         logger.info("Database connection pool initialized.")
 
