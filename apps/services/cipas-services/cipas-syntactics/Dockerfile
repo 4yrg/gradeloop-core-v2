@@ -87,14 +87,14 @@ RUN mkdir -p /app/models \
 
 USER cipas-syntactics
 
-# Expose port
+# Expose port (default 8086; override via CIPAS_SYNTACTICS_PORT)
 EXPOSE 8086
 
-# Health check
+# Health check (app listens on 8086 by default)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:8086/health || exit 1
+    CMD curl -f http://localhost:8086/api/v1/syntactics/health || exit 1
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8086", "--workers", "1"]
+CMD ["sh", "-c", "exec uvicorn main:app --host 0.0.0.0 --port ${CIPAS_SYNTACTICS_PORT:-8086} --workers 1"]
 
 # -----------------------------------------------------------------------------
 # Stage 3: Development

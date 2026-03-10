@@ -575,8 +575,7 @@ def cluster_assignment(request: AssignmentClusterRequest) -> AssignmentClusterRe
     2. Ingest each submission: segment → template-filter → LSH index → cascade → graph.
     3. Compute connected components of the resulting collusion graph.
     4. Return per-submission summaries + collusion groups.
-    5. Persist report to database for future retrieval.
-    5. Persist report to database for future retrieval.
+    5. Persistence is done in the HTTP layer (main.py) in the request event loop.
     """
     import time
 
@@ -720,34 +719,8 @@ def cluster_assignment(request: AssignmentClusterRequest) -> AssignmentClusterRe
             per_submission=per_submission,
         )
 
-        # Persist report to database (best effort - don't fail if DB is unavailable)
-        try:
-            from repositories import SimilarityReportRepository
-            import asyncio
-
-            # Run the async save in a new event loop
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                loop.run_until_complete(
-                    SimilarityReportRepository.save_report(
-                        report=response,
-                        lsh_threshold=request.lsh_threshold,
-                        min_confidence=request.min_confidence,
-                        processing_time=processing_time,
-                    )
-                )
-                logger.info(
-                    f"Persisted similarity report for assignment {request.assignment_id}"
-                )
-            finally:
-                loop.close()
-        except Exception as exc:
-            logger.warning(
-                f"Failed to persist similarity report for {request.assignment_id}: {exc}. "
-                "Report is still returned to caller."
-            )
-
+        # Persistence is done in the HTTP layer (main.py) so it runs in the
+        # request event loop and uses the same DB pool.
         return response
 
     except HTTPException:

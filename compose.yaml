@@ -315,13 +315,13 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.cipas-syntactics.rule=PathPrefix(`/api/v1/syntactics`)"
       - "traefik.http.routers.cipas-syntactics.entrypoints=web"
-      - "traefik.http.services.cipas-syntactics-service.loadbalancer.server.port=${CIPAS_SYN_SVC_PORT}"
+      - "traefik.http.services.cipas-syntactics.loadbalancer.server.port=${CIPAS_SYN_SVC_PORT:-8086}"
       - "traefik.http.middlewares.cipas-syntactics-limit.buffering.maxRequestBodyBytes=10485760"
       - "traefik.http.middlewares.cipas-syntactics-ratelimit.ratelimit.average=100"
       - "traefik.http.middlewares.cipas-syntactics-ratelimit.ratelimit.period=1m"
       - "traefik.http.middlewares.cipas-syntactics-ratelimit.ratelimit.burst=10"
       - "traefik.http.middlewares.cipas-syntactics-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,PATCH,OPTIONS"
-      - "traefik.http.middlewares.cipas-syntactics-cors.headers.accesscontrolalloworiginlist=http://localhost:3000,http://localhost:3001"
+      - "traefik.http.middlewares.cipas-syntactics-cors.headers.accesscontrolalloworiginlist=http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001"
       - "traefik.http.middlewares.cipas-syntactics-cors.headers.accesscontrolallowheaders=Origin,Content-Type,Accept,Authorization,X-Request-ID"
       - "traefik.http.middlewares.cipas-syntactics-cors.headers.accesscontrolallowcredentials=true"
       - "traefik.http.middlewares.cipas-syntactics-cors.headers.addvaryheader=true"
@@ -331,10 +331,10 @@ services:
     volumes:
       - ./apps/services/cipas-services/cipas-syntactics/models:/app/models:ro
     environment:
-      - CIPAS_SYNTACTICS_PORT=${CIPAS_SYN_SVC_PORT}
+      - CIPAS_SYNTACTICS_PORT=${CIPAS_SYN_SVC_PORT:-8086}
       - CIPAS_SYNTACTICS_HOST=0.0.0.0
     expose:
-      - "${CIPAS_SYN_SVC_PORT}"
+      - "${CIPAS_SYN_SVC_PORT:-8086}"
     networks:
       - gradeloop-network
     healthcheck:
@@ -343,7 +343,7 @@ services:
           "CMD",
           "python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8088/api/v1/syntactics/health')",
+          "import os, urllib.request; port=os.environ.get('CIPAS_SYNTACTICS_PORT','8086'); urllib.request.urlopen(f'http://localhost:{port}/api/v1/syntactics/health')",
         ]
       interval: 15s
       timeout: 10s
@@ -369,7 +369,8 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.cipas-semantics.rule=PathPrefix(`/api/v1/semantics`)"
       - "traefik.http.routers.cipas-semantics.entrypoints=web"
-      - "traefik.http.services.cipas-semantics-service.loadbalancer.server.port=${CIPAS_SEM_SVC_PORT}"
+      - "traefik.http.routers.cipas-semantics.service=cipas-semantics-service"
+      - "traefik.http.services.cipas-semantics-service.loadbalancer.server.port=${CIPAS_SEM_SVC_PORT:-8087}"
       - "traefik.http.middlewares.cipas-semantics-limit.buffering.maxRequestBodyBytes=10485760"
       - "traefik.http.middlewares.cipas-semantics-ratelimit.ratelimit.average=100"
       - "traefik.http.middlewares.cipas-semantics-ratelimit.ratelimit.period=1m"
@@ -423,7 +424,8 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.cipas-ai.rule=PathPrefix(`/api/v1/ai`)"
       - "traefik.http.routers.cipas-ai.entrypoints=web"
-      - "traefik.http.services.cipas-ai-service.loadbalancer.server.port=${CIPAS_AI_SVC_PORT}"
+      - "traefik.http.routers.cipas-ai.service=cipas-ai-service"
+      - "traefik.http.services.cipas-ai-service.loadbalancer.server.port=${CIPAS_AI_SVC_PORT:-8087}"
       - "traefik.http.middlewares.cipas-ai-limit.buffering.maxRequestBodyBytes=5242880"
       - "traefik.http.middlewares.cipas-ai-ratelimit.ratelimit.average=100"
       - "traefik.http.middlewares.cipas-ai-ratelimit.ratelimit.period=1m"

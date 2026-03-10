@@ -14,6 +14,8 @@ Features:
 - Fast (~65x faster than neural approaches)
 """
 
+import asyncio
+import time
 from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, FastAPI, HTTPException, status
@@ -188,13 +190,20 @@ The service uses a three-tier cascade strategy:
     lifespan=lifespan,
 )
 
-# Configure CORS
+# CORS: gateway (Traefik) adds headers when deployed; app middleware for standalone dev
+CORS_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Create router with prefix
@@ -506,7 +515,28 @@ async def cluster_assignment_endpoint(request: AssignmentClusterRequest):
       lists the students and the clone edges between them.
     - `per_submission` — fragment / candidate / clone counts per student.
     """
-    return cluster_assignment(request)
+    start = time.monotonic()
+    response = await asyncio.to_thread(cluster_assignment, request)
+    processing_time = time.monotonic() - start
+    try:
+        from repositories import SimilarityReportRepository
+
+        await SimilarityReportRepository.save_report(
+            report=response,
+            lsh_threshold=request.lsh_threshold,
+            min_confidence=request.min_confidence,
+            processing_time=processing_time,
+        )
+        logger.info(
+            "Persisted similarity report for assignment %s", request.assignment_id
+        )
+    except Exception as exc:
+        logger.warning(
+            "Failed to persist similarity report for %s: %s. Report still returned.",
+            request.assignment_id,
+            exc,
+        )
+    return response
 
 
 # ── Similarity Reports & Annotations ────────────────────────────────────────
