@@ -11,7 +11,7 @@ import {
 import type { SubmissionGrade, SubmissionResponse } from "@/types/assessments.types";
 import { GradeResultPanel } from "@/components/assessments/grade-result-panel";
 import { InstructorGradeOverridePanel } from "@/components/instructor/instructor-grade-override-panel";
-import { SemanticSimilarityScore, SemanticSimilarityBar } from "@/components/ui/semantic-similarity-score";
+import { SemanticSimilarityBadge } from "@/components/ui/semantic-similarity-badge";
 import { AILikelihoodBadge } from "@/components/clone-detector/AILikelihoodBadge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -250,17 +250,10 @@ export default function SubmissionReviewPage({ params }: PageProps) {
                                 {submission.semantic_similarity_score !== undefined && submission.semantic_similarity_score !== null && (
                                     <>
                                         <Separator />
-                                        <div className="flex flex-col gap-2">
-                                            <p className="text-xs text-muted-foreground">Similarity to sample answer</p>
-                                            <SemanticSimilarityBar
+                                        <div>
+                                            <p className="text-xs text-muted-foreground mb-2">Similarity to sample answer</p>
+                                            <SemanticSimilarityBadge
                                                 score={submission.semantic_similarity_score}
-                                                height="md"
-                                                showLabel
-                                            />
-                                            <SemanticSimilarityScore
-                                                score={submission.semantic_similarity_score}
-                                                size="sm"
-                                                compact={false}
                                             />
                                         </div>
                                     </>

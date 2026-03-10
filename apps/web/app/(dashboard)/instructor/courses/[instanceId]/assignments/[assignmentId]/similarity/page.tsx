@@ -2,10 +2,10 @@
 
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
-import { 
-  getSimilarityReport, 
-  clusterAssignment, 
-  getSimilarityReportMetadata, 
+import {
+  getSimilarityReport,
+  clusterAssignment,
+  getSimilarityReportMetadata,
   getAnnotations,
   detectAICode,
   getSemanticSimilarity,
@@ -26,6 +26,7 @@ import { NetworkGraph } from "@/components/instructor/similarity/network-graph";
 import { ClusterCard } from "@/components/instructor/similarity/cluster-card";
 import { SummaryStats } from "@/components/instructor/similarity/summary-stats";
 import { SimilarityBadge, SimilarityScore } from "@/components/instructor/similarity/similarity-badge";
+import { SemanticSimilarityCompact } from "@/components/ui/semantic-similarity-badge";
 import { ClusterGraphSheet } from "@/components/instructor/similarity/cluster-graph-sheet";
 import { DiffSheet } from "@/components/instructor/similarity/diff-sheet";
 import {
@@ -131,7 +132,7 @@ export default function SimilarityOverviewPage() {
 
         // Fetch all submissions for this assignment
         const submissions = await instructorAssessmentsApi.listSubmissions(assignmentId);
-        
+
         // Filter out submissions that have already been analyzed
         const unanalyzedSubmissions = submissions.filter(
           (sub) => !sub.analyzed_at && !submissionMetrics.has(sub.id)
@@ -159,7 +160,7 @@ export default function SimilarityOverviewPage() {
         for (const submission of unanalyzedSubmissions) {
           try {
             // Mark as analyzing
-            setSubmissionMetrics((prev) => 
+            setSubmissionMetrics((prev) =>
               new Map(prev).set(submission.id, {
                 aiLikelihood: 0,
                 isAIGenerated: false,
@@ -204,7 +205,7 @@ export default function SimilarityOverviewPage() {
             }
 
             // Update local state
-            setSubmissionMetrics((prev) => 
+            setSubmissionMetrics((prev) =>
               new Map(prev).set(submission.id, {
                 aiLikelihood: aiResult.ai_likelihood,
                 isAIGenerated: aiResult.is_ai_generated,
@@ -746,9 +747,8 @@ export default function SimilarityOverviewPage() {
                         {metrics.isAnalyzing ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
                         ) : metrics.semanticSimilarity !== null ? (
-                          <SimilarityScore 
-                            score={metrics.semanticSimilarity / 100} 
-                            showBar 
+                          <SemanticSimilarityCompact
+                            score={metrics.semanticSimilarity}
                           />
                         ) : (
                           <span className="text-xs text-muted-foreground">N/A</span>
@@ -797,6 +797,7 @@ export default function SimilarityOverviewPage() {
         cluster={diffSheetCluster}
         initialEdge={diffSheetEdge}
         assignmentId={assignmentId}
+        instanceId={instanceId}
         open={diffSheetOpen}
         onClose={() => setDiffSheetOpen(false)}
       />

@@ -33,7 +33,7 @@ import type { AssignmentResponse, SubmissionResponse } from "@/types/assessments
 import { handleApiError } from "@/lib/api/axios";
 import { format, formatDistanceToNow } from "date-fns";
 import { AILikelihoodBadge } from "@/components/clone-detector/AILikelihoodBadge";
-import { SemanticSimilarityScore } from "@/components/ui/semantic-similarity-score";
+import { SemanticSimilarityBadge } from "@/components/ui/semantic-similarity-badge";
 
 interface SubmissionWithContext extends SubmissionResponse {
     assignment_title: string;
@@ -372,9 +372,9 @@ export default function StudentSubmissionsPage() {
                                         size="sm"
                                     />
                                     {sub.semantic_similarity_score !== undefined && (
-                                        <SemanticSimilarityScore
+                                        <SemanticSimilarityBadge
                                             score={sub.semantic_similarity_score}
-                                            compact
+                                            size="sm"
                                         />
                                     )}
                                 </div>
