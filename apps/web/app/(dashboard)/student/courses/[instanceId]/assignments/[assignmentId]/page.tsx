@@ -39,7 +39,7 @@ import type { AssignmentResponse, SubmissionResponse, SubmissionGrade } from "@/
 import { handleApiError } from "@/lib/api/axios";
 import { useUIStore } from "@/lib/stores/uiStore";
 import { GradeResultPanel } from "@/components/assessments/grade-result-panel";
-import { AILikelihoodBadge } from "@/components/clone-detector/AILikelihoodBadge";
+import { AILikelihoodBadge, AILikelihoodCompact } from "@/components/clone-detector/AILikelihoodBadge";
 import { SemanticSimilarityScore } from "@/components/ui/semantic-similarity-score";
 import { format, formatDistanceToNow, isPast } from "date-fns";
 
@@ -340,6 +340,22 @@ export default function StudentAssignmentDetailPage() {
                                                     {" · "}
                                                     {formatDistanceToNow(new Date(sub.submitted_at), { addSuffix: true })}
                                                 </p>
+                                                {/* CIPAS Analysis inline badges */}
+                                                {sub.ai_likelihood !== undefined && (
+                                                    <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                                                        <AILikelihoodCompact
+                                                            aiLikelihood={sub.ai_likelihood}
+                                                            humanLikelihood={sub.human_likelihood ?? (1 - sub.ai_likelihood)}
+                                                        />
+                                                        {sub.semantic_similarity_score !== undefined && sub.semantic_similarity_score !== null && (
+                                                            <SemanticSimilarityScore
+                                                                score={sub.semantic_similarity_score}
+                                                                compact
+                                                                size="sm"
+                                                            />
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                             <Button
                                                 variant="ghost"

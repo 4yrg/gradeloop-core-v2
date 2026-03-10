@@ -8,7 +8,7 @@ import { Toolbar } from "./toolbar";
 import { AIAssistantPanel } from "./ai-assistant-panel";
 import { GradeResultPanel } from "@/components/assessments/grade-result-panel";
 import { AILikelihoodBadge } from "@/components/clone-detector/AILikelihoodBadge";
-import { SemanticSimilarityScore } from "@/components/ui/semantic-similarity-score";
+import { SemanticSimilarityScore, SemanticSimilarityBar } from "@/components/ui/semantic-similarity-score";
 import { Separator } from "@/components/ui/separator";
 import { useCodeExecution } from "@/lib/hooks/use-code-execution";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -54,6 +54,11 @@ export function CodeIDE({
   useEffect(() => {
     if (isGrading || grade) setActiveTab("results");
   }, [isGrading, grade]);
+
+  // Auto-switch to the Analysis tab when analysis starts or completes.
+  useEffect(() => {
+    if (isAnalyzing || submissionAnalysis) setActiveTab("analysis");
+  }, [isAnalyzing, submissionAnalysis]);
 
   // Editor state
   const [code, setCode] = useState<string>(
@@ -310,11 +315,17 @@ export function CodeIDE({
                     </div>
                     <Separator />
                     {submissionAnalysis.semanticSimilarityScore != null ? (
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-2">Similarity to sample answer</p>
+                      <div className="flex flex-col gap-2">
+                        <p className="text-xs text-muted-foreground">Similarity to sample answer</p>
+                        <SemanticSimilarityBar
+                          score={submissionAnalysis.semanticSimilarityScore}
+                          height="sm"
+                          showLabel
+                        />
                         <SemanticSimilarityScore
                           score={submissionAnalysis.semanticSimilarityScore}
-                          compact
+                          size="sm"
+                          compact={false}
                         />
                       </div>
                     ) : (

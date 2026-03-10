@@ -1,8 +1,13 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, use, useCallback } from "react";
 import { useAuthStore } from "@/lib/stores/authStore";
-import { acafsApi, instructorAssessmentsApi } from "@/lib/api/assessments";
+import { acafsApi, instructorAssessmentsApi, assessmentsApi } from "@/lib/api/assessments";
+import {
+    detectAICode,
+    getSemanticSimilarity,
+    saveSubmissionAnalysis,
+} from "@/lib/api/cipas-client";
 import type { SubmissionGrade, SubmissionResponse } from "@/types/assessments.types";
 import { GradeResultPanel } from "@/components/assessments/grade-result-panel";
 import { InstructorGradeOverridePanel } from "@/components/instructor/instructor-grade-override-panel";
@@ -12,7 +17,8 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, BrainCircuit, RefreshCw } from "lucide-react";
+import { ArrowLeft, BrainCircuit, RefreshCw, Sparkles, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import Link from "next/link";
 
 interface PageProps {
@@ -28,6 +34,7 @@ export default function SubmissionReviewPage({ params }: PageProps) {
     const [loadingGrade, setLoadingGrade] = useState(true);
     const [pollCount, setPollCount] = useState(0);
     const [gradeError, setGradeError] = useState<string | null>(null);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
 
     // Fetch full submission metadata (includes CIPAS analysis fields)
     useEffect(() => {
@@ -80,6 +87,57 @@ export default function SubmissionReviewPage({ params }: PageProps) {
             clearTimeout(timer);
         };
     }, [submissionId, pollCount]);
+
+    // On-demand CIPAS analysis (or re-analysis) for this submission
+    const handleAnalyze = useCallback(async () => {
+        if (!submission) return;
+        setIsAnalyzing(true);
+        try {
+            const codeRes = await assessmentsApi.getSubmissionCode(submissionId);
+            if (!codeRes?.code) throw new Error("No code available");
+
+            const sampleAnswerPromise = instructorAssessmentsApi
+                .getAssignmentSampleAnswer(assignmentId)
+                .then(sa => (sa?.code ? getSemanticSimilarity(codeRes.code, sa.code) : null))
+                .catch(() => null);
+
+            const [aiRes, semRes] = await Promise.allSettled([
+                detectAICode(codeRes.code),
+                sampleAnswerPromise,
+            ]);
+
+            const aiResult = aiRes.status === "fulfilled" ? aiRes.value : null;
+            const semScore = semRes.status === "fulfilled" ? semRes.value : null;
+
+            if (aiResult) {
+                await saveSubmissionAnalysis(submissionId, {
+                    ai_likelihood: aiResult.ai_likelihood,
+                    human_likelihood: aiResult.human_likelihood,
+                    is_ai_generated: aiResult.is_ai_generated,
+                    ai_confidence: aiResult.confidence,
+                    semantic_similarity_score: semScore,
+                });
+
+                setSubmission(prev => prev ? {
+                    ...prev,
+                    ai_likelihood: aiResult.ai_likelihood,
+                    human_likelihood: aiResult.human_likelihood,
+                    is_ai_generated: aiResult.is_ai_generated,
+                    ai_confidence: aiResult.confidence,
+                    semantic_similarity_score: semScore ?? undefined,
+                    analyzed_at: new Date().toISOString(),
+                } : prev);
+                toast.success("Analysis complete");
+            } else {
+                toast.error("AI detection failed — please try again.");
+            }
+        } catch (err) {
+            console.error("Analysis failed:", err);
+            toast.error("Failed to analyze submission. Check that CIPAS services are running.");
+        } finally {
+            setIsAnalyzing(false);
+        }
+    }, [submission, submissionId, assignmentId]);
 
     return (
         <div className="flex flex-col gap-6 max-w-3xl mx-auto py-6 px-4">
@@ -144,43 +202,78 @@ export default function SubmissionReviewPage({ params }: PageProps) {
             )}
 
             {/* ── CIPAS Analysis ──────────────────────────────────────────── */}
-            {submission?.ai_likelihood !== undefined && (
+            {submission && (
                 <Card className="border-border/60">
                     <CardContent className="p-5 flex flex-col gap-4">
-                        <div className="flex items-center gap-2">
-                            <BrainCircuit className="h-4 w-4 text-muted-foreground" />
-                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                CIPAS Analysis
-                            </p>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <BrainCircuit className="h-4 w-4 text-muted-foreground" />
+                                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                    CIPAS Analysis
+                                </p>
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs gap-1.5"
+                                disabled={isAnalyzing}
+                                onClick={handleAnalyze}
+                            >
+                                {isAnalyzing ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : submission.ai_likelihood !== undefined ? (
+                                    <RefreshCw className="h-3 w-3" />
+                                ) : (
+                                    <Sparkles className="h-3 w-3" />
+                                )}
+                                {isAnalyzing ? "Analyzing…" : submission.ai_likelihood !== undefined ? "Re-analyze" : "Analyze"}
+                            </Button>
                         </div>
 
-                        <div>
-                            <p className="text-xs text-muted-foreground mb-2">AI Generation Likelihood</p>
-                            <AILikelihoodBadge
-                                aiLikelihood={submission.ai_likelihood}
-                                humanLikelihood={submission.human_likelihood ?? (1 - submission.ai_likelihood)}
-                                showLabel
-                                size="md"
-                            />
-                        </div>
-
-                        {submission.semantic_similarity_score !== undefined && submission.semantic_similarity_score !== null && (
+                        {isAnalyzing && submission.ai_likelihood === undefined ? (
+                            <div className="flex flex-col items-center gap-3 py-6">
+                                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                                <p className="text-sm text-muted-foreground">Running AI detection &amp; similarity analysis…</p>
+                            </div>
+                        ) : submission.ai_likelihood !== undefined ? (
                             <>
-                                <Separator />
-                                <div className="flex flex-col gap-2">
-                                    <p className="text-xs text-muted-foreground">Similarity to sample answer</p>
-                                    <SemanticSimilarityBar
-                                        score={submission.semantic_similarity_score}
-                                        height="md"
+                                <div>
+                                    <p className="text-xs text-muted-foreground mb-2">AI Generation Likelihood</p>
+                                    <AILikelihoodBadge
+                                        aiLikelihood={submission.ai_likelihood}
+                                        humanLikelihood={submission.human_likelihood ?? (1 - submission.ai_likelihood)}
                                         showLabel
-                                    />
-                                    <SemanticSimilarityScore
-                                        score={submission.semantic_similarity_score}
-                                        size="sm"
-                                        compact={false}
+                                        size="md"
                                     />
                                 </div>
+
+                                {submission.semantic_similarity_score !== undefined && submission.semantic_similarity_score !== null && (
+                                    <>
+                                        <Separator />
+                                        <div className="flex flex-col gap-2">
+                                            <p className="text-xs text-muted-foreground">Similarity to sample answer</p>
+                                            <SemanticSimilarityBar
+                                                score={submission.semantic_similarity_score}
+                                                height="md"
+                                                showLabel
+                                            />
+                                            <SemanticSimilarityScore
+                                                score={submission.semantic_similarity_score}
+                                                size="sm"
+                                                compact={false}
+                                            />
+                                        </div>
+                                    </>
+                                )}
                             </>
+                        ) : (
+                            <div className="flex flex-col items-center gap-2 py-4 text-center">
+                                <BrainCircuit className="h-6 w-6 text-muted-foreground/40" />
+                                <p className="text-sm text-muted-foreground">No analysis data yet</p>
+                                <p className="text-xs text-muted-foreground">
+                                    Click &ldquo;Analyze&rdquo; to run AI detection and semantic similarity checks.
+                                </p>
+                            </div>
                         )}
                     </CardContent>
                 </Card>

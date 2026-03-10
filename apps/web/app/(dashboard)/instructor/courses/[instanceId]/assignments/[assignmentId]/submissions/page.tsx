@@ -3,9 +3,14 @@
 import * as React from "react";
 import { instructorAssessmentsApi, assessmentsApi, acafsApi } from "@/lib/api/assessments";
 import { usersApi } from "@/lib/api/users";
+import {
+    detectAICode,
+    getSemanticSimilarity,
+    saveSubmissionAnalysis,
+} from "@/lib/api/cipas-client";
 import type { SubmissionResponse, SubmissionGrade } from "@/types/assessments.types";
 import type { UserListItem } from "@/types/auth.types";
-import { Users, FileDown, SearchX, Filter, Loader2, AlertCircle, BrainCircuit } from "lucide-react";
+import { Users, FileDown, SearchX, Filter, Loader2, AlertCircle, BrainCircuit, RefreshCw, Sparkles } from "lucide-react";
 import { SectionHeader } from "@/components/instructor/section-header";
 import { DataTable, type ColumnDef } from "@/components/instructor/data-table";
 import { StatusBadge } from "@/components/instructor/status-badge";
@@ -15,10 +20,12 @@ import { EmptyStateCard } from "@/components/instructor/empty-state";
 import { SideSheetForm } from "@/components/instructor/side-sheet-form";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import { GradeResultPanel } from "@/components/assessments/grade-result-panel";
-import { AILikelihoodBadge } from "@/components/clone-detector/AILikelihoodBadge";
+import { AILikelihoodBadge, AILikelihoodCompact } from "@/components/clone-detector/AILikelihoodBadge";
 import { SemanticSimilarityScore } from "@/components/ui/semantic-similarity-score";
+import { toast } from "sonner";
 
 interface SubmissionWithMeta extends SubmissionResponse {
     studentName: string;
@@ -41,6 +48,7 @@ export default function AssignmentSubmissionsPage({
     const [submissionGrade, setSubmissionGrade] = React.useState<SubmissionGrade | null>(null);
     const [isGradeLoading, setIsGradeLoading] = React.useState(false);
     const [filter, setFilter] = React.useState<"all" | "pending" | "graded" | "late" | "missing">("all");
+    const [isAnalyzingSheet, setIsAnalyzingSheet] = React.useState(false);
 
     React.useEffect(() => {
         let mounted = true;
@@ -134,6 +142,62 @@ export default function AssignmentSubmissionsPage({
         return submissions.filter((s) => s.status.toLowerCase() === filter);
     }, [submissions, filter]);
 
+    // On-demand CIPAS analysis for a submission in the side sheet
+    const handleAnalyzeSubmission = React.useCallback(async (sub: SubmissionWithMeta) => {
+        if (!sub || sub.status === "Missing") return;
+        setIsAnalyzingSheet(true);
+        try {
+            // Fetch the submission code
+            const codeRes = await assessmentsApi.getSubmissionCode(sub.id);
+            if (!codeRes?.code) throw new Error("No code available");
+
+            // Run AI detection + semantic similarity in parallel
+            const sampleAnswerPromise = instructorAssessmentsApi
+                .getAssignmentSampleAnswer(assignmentId)
+                .then(sa => (sa?.code ? getSemanticSimilarity(codeRes.code, sa.code) : null))
+                .catch(() => null);
+
+            const [aiRes, semRes] = await Promise.allSettled([
+                detectAICode(codeRes.code),
+                sampleAnswerPromise,
+            ]);
+
+            const aiResult = aiRes.status === "fulfilled" ? aiRes.value : null;
+            const semScore = semRes.status === "fulfilled" ? semRes.value : null;
+
+            if (aiResult) {
+                await saveSubmissionAnalysis(sub.id, {
+                    ai_likelihood: aiResult.ai_likelihood,
+                    human_likelihood: aiResult.human_likelihood,
+                    is_ai_generated: aiResult.is_ai_generated,
+                    ai_confidence: aiResult.confidence,
+                    semantic_similarity_score: semScore,
+                });
+
+                // Refresh submission data in the list
+                const updated: SubmissionWithMeta = {
+                    ...sub,
+                    ai_likelihood: aiResult.ai_likelihood,
+                    human_likelihood: aiResult.human_likelihood,
+                    is_ai_generated: aiResult.is_ai_generated,
+                    ai_confidence: aiResult.confidence,
+                    semantic_similarity_score: semScore ?? undefined,
+                    analyzed_at: new Date().toISOString(),
+                };
+                setSelectedSubmission(updated);
+                setSubmissions(prev => prev.map(s => s.id === sub.id ? updated : s));
+                toast.success("Analysis complete");
+            } else {
+                toast.error("AI detection failed — please try again.");
+            }
+        } catch (err) {
+            console.error("Analysis failed:", err);
+            toast.error("Failed to analyze submission. Check that CIPAS services are running.");
+        } finally {
+            setIsAnalyzingSheet(false);
+        }
+    }, [assignmentId]);
+
     const columns: ColumnDef<SubmissionWithMeta, any>[] = [
         {
             accessorKey: "studentName",
@@ -165,6 +229,50 @@ export default function AssignmentSubmissionsPage({
             accessorKey: "language",
             header: "Language",
             cell: ({ row }) => <span className="font-mono text-sm">{row.getValue("language") || "—"}</span>,
+        },
+        {
+            id: "ai_likelihood",
+            header: "AI Likelihood",
+            cell: ({ row }) => {
+                const sub = row.original;
+                if (sub.status === "Missing" || sub.ai_likelihood === undefined) {
+                    return <span className="text-xs text-muted-foreground">—</span>;
+                }
+                return (
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div>
+                                    <AILikelihoodCompact
+                                        aiLikelihood={sub.ai_likelihood}
+                                        humanLikelihood={sub.human_likelihood ?? (1 - sub.ai_likelihood)}
+                                    />
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>AI: {(sub.ai_likelihood * 100).toFixed(0)}% · Human: {((sub.human_likelihood ?? (1 - sub.ai_likelihood)) * 100).toFixed(0)}%</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                );
+            },
+        },
+        {
+            id: "semantic_similarity",
+            header: "Similarity",
+            cell: ({ row }) => {
+                const sub = row.original;
+                if (sub.status === "Missing" || sub.semantic_similarity_score === undefined || sub.semantic_similarity_score === null) {
+                    return <span className="text-xs text-muted-foreground">—</span>;
+                }
+                return (
+                    <SemanticSimilarityScore
+                        score={sub.semantic_similarity_score}
+                        compact
+                        size="sm"
+                    />
+                );
+            },
         },
         {
             id: "actions",
@@ -338,9 +446,32 @@ export default function AssignmentSubmissionsPage({
                             </div>
 
                             {/* ── Code Analysis ──────────────────────────────── */}
-                            {selectedSubmission?.ai_likelihood !== undefined && (
-                                <div className="space-y-3">
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
                                     <h4 className="font-bold font-heading">Code Analysis</h4>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 text-xs gap-1.5"
+                                        disabled={isAnalyzingSheet}
+                                        onClick={() => selectedSubmission && handleAnalyzeSubmission(selectedSubmission)}
+                                    >
+                                        {isAnalyzingSheet ? (
+                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                        ) : selectedSubmission?.ai_likelihood !== undefined ? (
+                                            <RefreshCw className="h-3 w-3" />
+                                        ) : (
+                                            <Sparkles className="h-3 w-3" />
+                                        )}
+                                        {isAnalyzingSheet ? "Analyzing…" : selectedSubmission?.ai_likelihood !== undefined ? "Re-analyze" : "Analyze"}
+                                    </Button>
+                                </div>
+                                {isAnalyzingSheet && selectedSubmission?.ai_likelihood === undefined ? (
+                                    <div className="p-4 rounded-xl border border-border/60 bg-card flex flex-col items-center gap-3 py-8">
+                                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                                        <p className="text-sm text-muted-foreground">Running AI detection &amp; similarity analysis…</p>
+                                    </div>
+                                ) : selectedSubmission?.ai_likelihood !== undefined ? (
                                     <div className="p-4 rounded-xl border border-border/60 bg-card space-y-4">
                                         <div className="flex items-center gap-2 mb-1">
                                             <BrainCircuit className="h-4 w-4 text-muted-foreground" />
@@ -354,7 +485,7 @@ export default function AssignmentSubmissionsPage({
                                             showLabel
                                             size="md"
                                         />
-                                        {selectedSubmission.semantic_similarity_score !== undefined && (
+                                        {selectedSubmission.semantic_similarity_score !== undefined && selectedSubmission.semantic_similarity_score !== null && (
                                             <>
                                                 <Separator />
                                                 <div>
@@ -377,8 +508,16 @@ export default function AssignmentSubmissionsPage({
                                             </p>
                                         )}
                                     </div>
-                                </div>
-                            )}
+                                ) : (
+                                    <div className="p-4 rounded-xl border border-dashed border-border/60 bg-muted/10 flex flex-col items-center gap-2 py-6 text-center">
+                                        <BrainCircuit className="h-6 w-6 text-muted-foreground/40" />
+                                        <p className="text-sm text-muted-foreground">No analysis data yet</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            Click &ldquo;Analyze&rdquo; to run AI detection and semantic similarity checks on this submission.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
 
                             <div>
                                 <h4 className="font-bold font-heading mb-3">Autograder Results</h4>

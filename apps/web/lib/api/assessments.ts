@@ -58,6 +58,31 @@ export const instructorAssessmentsApi = {
         return data;
     },
 
+    /**
+     * Get the source code of a specific submission version.
+     * Backend: GET /submissions/:id/code
+     */
+    getSubmissionCode: async (submissionId: string): Promise<SubmissionCodeResponse> => {
+        const { data } = await axiosInstance.get<SubmissionCodeResponse>(`/submissions/${submissionId}/code`);
+        return data;
+    },
+
+    /**
+     * Fetch the sample answer for an assignment (used for on-demand semantic similarity).
+     * Returns null if no sample answer is configured or on error.
+     * Backend: GET /instructor-assignments/:id/sample-answer
+     */
+    getAssignmentSampleAnswer: async (assignmentId: string): Promise<SampleAnswerDto | null> => {
+        try {
+            const { data } = await axiosInstance.get<SampleAnswerDto>(
+                `/instructor-assignments/${assignmentId}/sample-answer`,
+            );
+            return data;
+        } catch {
+            return null;
+        }
+    },
+
     getRubric: async (assignmentId: string): Promise<ListRubricResponse> => {
         const { data } = await axiosInstance.get<ListRubricResponse>(`/instructor-assignments/${assignmentId}/rubric`);
         return data;
