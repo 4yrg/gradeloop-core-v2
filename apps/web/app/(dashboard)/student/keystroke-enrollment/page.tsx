@@ -151,11 +151,11 @@ export default function KeystrokeEnrollmentPage() {
 
     const phasesComplete = progress?.phases_complete ?? [];
     const phasesRemaining = progress?.phases_remaining ?? [];
-    // Only show phases the config requires (complete + remaining = full required set)
+    // Only show phases the backend reports as required (complete + remaining)
     const requiredIds = new Set([...phasesComplete, ...phasesRemaining]);
-    const visiblePhases = PHASES.filter((p) => requiredIds.size === 0 || requiredIds.has(p.id));
+    const visiblePhases = PHASES.filter((p) => requiredIds.has(p.id));
     const completedCount = phasesComplete.length;
-    const totalPhases = visiblePhases.length || PHASES.length;
+    const totalPhases = visiblePhases.length;
     const nextPhase = visiblePhases.find((p) => !phasesComplete.includes(p.id));
     const allDone = progress?.enrollment_complete ?? false;
 

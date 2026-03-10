@@ -170,7 +170,19 @@ def publish_auth_event(event_data: dict):
 
 # In-memory phase tracking (used when database is disabled as fallback)
 _in_memory_phases: Dict[str, set] = {}
-REQUIRED_PHASES = {"baseline", "transcription", "stress", "cognitive"}
+
+# Load enrollment phase config from enrollment_tasks.json
+_enrollment_config_path = os.path.join(os.path.dirname(__file__), "enrollment_tasks.json")
+try:
+    with open(_enrollment_config_path) as _f:
+        _enrollment_config = json.load(_f)
+    _cfg_phases: List[str] = _enrollment_config.get("phases_required", ["baseline", "transcription"])
+    print(f"✅ Enrollment config loaded: required phases = {_cfg_phases}")
+except Exception as _e:
+    print(f"⚠️  Failed to load enrollment_tasks.json, using defaults: {_e}")
+    _cfg_phases = ["baseline", "transcription"]
+
+REQUIRED_PHASES = set(_cfg_phases)
 
 # ==================== Pydantic Models ====================
 
@@ -408,12 +420,7 @@ async def get_enrollment_progress(user_id: str):
                 "user_id": user_id,
                 "enrollment_complete": False,
                 "phases_complete": [],
-                "phases_remaining": [
-                    "baseline",
-                    "transcription",
-                    "stress",
-                    "cognitive",
-                ],
+                "phases_remaining": list(_cfg_phases),
                 "message": "No enrollment data found - start enrollment",
             }
 
