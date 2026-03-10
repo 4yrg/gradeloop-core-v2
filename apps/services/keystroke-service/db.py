@@ -587,6 +587,58 @@ class DatabaseClient:
             print(f"❌ Error retrieving archived session: {e}")
             return None
 
+    def lookup_archive_by_assignment(
+        self, assignment_id: str, user_id: str
+    ) -> Optional[Dict]:
+        """Look up the most recent archived session by assignment_id and user_id"""
+        if not self.enabled:
+            return None
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor(cursor_factory=extras.RealDictCursor) as cursor:
+                    cursor.execute(
+                        """
+                        SELECT session_id, user_id, assignment_id, course_id,
+                               event_count, session_duration_seconds,
+                               average_risk_score, max_risk_score,
+                               anomaly_count, authentication_failures, archived_at
+                        FROM keystroke_archives
+                        WHERE assignment_id = %s AND user_id = %s
+                        ORDER BY archived_at DESC
+                        LIMIT 1
+                        """,
+                        (assignment_id, user_id),
+                    )
+                    row = cursor.fetchone()
+                    return dict(row) if row else None
+        except Exception as e:
+            print(f"❌ Error looking up archive by assignment: {e}")
+            return None
+
+    def update_archive_behavioral_analysis(
+        self, session_id: str, behavioral_analysis: Dict
+    ) -> bool:
+        """Cache a newly computed behavioral analysis result in the archive"""
+        if not self.enabled:
+            return False
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        UPDATE keystroke_archives
+                        SET behavioral_analysis = %s
+                        WHERE session_id = %s
+                        """,
+                        (json.dumps(behavioral_analysis), session_id),
+                    )
+            return True
+        except Exception as e:
+            print(f"❌ Error updating behavioral analysis cache: {e}")
+            return False
+
     def close(self):
         """Close database connection pool"""
         if self.pool:
