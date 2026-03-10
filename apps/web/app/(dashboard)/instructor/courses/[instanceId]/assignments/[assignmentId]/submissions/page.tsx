@@ -24,7 +24,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { format } from "date-fns";
 import { GradeResultPanel } from "@/components/assessments/grade-result-panel";
 import { AILikelihoodBadge, AILikelihoodCompact } from "@/components/clone-detector/AILikelihoodBadge";
-import { SemanticSimilarityScore } from "@/components/ui/semantic-similarity-score";
+import { SemanticSimilarityBadge } from "@/components/ui/semantic-similarity-badge";
 import { toast } from "sonner";
 
 interface SubmissionWithMeta extends SubmissionResponse {
@@ -266,9 +266,8 @@ export default function AssignmentSubmissionsPage({
                     return <span className="text-xs text-muted-foreground">—</span>;
                 }
                 return (
-                    <SemanticSimilarityScore
+                    <SemanticSimilarityBadge
                         score={sub.semantic_similarity_score}
-                        compact
                         size="sm"
                     />
                 );
@@ -492,7 +491,7 @@ export default function AssignmentSubmissionsPage({
                                                     <p className="text-xs text-muted-foreground mb-2">
                                                         Similarity to sample answer
                                                     </p>
-                                                    <SemanticSimilarityScore
+                                                    <SemanticSimilarityBadge
                                                         score={selectedSubmission.semantic_similarity_score}
                                                     />
                                                 </div>

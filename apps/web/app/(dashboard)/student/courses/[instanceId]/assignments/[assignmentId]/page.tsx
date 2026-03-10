@@ -40,7 +40,7 @@ import { handleApiError } from "@/lib/api/axios";
 import { useUIStore } from "@/lib/stores/uiStore";
 import { GradeResultPanel } from "@/components/assessments/grade-result-panel";
 import { AILikelihoodBadge, AILikelihoodCompact } from "@/components/clone-detector/AILikelihoodBadge";
-import { SemanticSimilarityScore } from "@/components/ui/semantic-similarity-score";
+import { SemanticSimilarityBadge } from "@/components/ui/semantic-similarity-badge";
 import { format, formatDistanceToNow, isPast } from "date-fns";
 
 function submissionStatusBadge(status: string, executionStatus?: string) {
@@ -348,9 +348,8 @@ export default function StudentAssignmentDetailPage() {
                                                             humanLikelihood={sub.human_likelihood ?? (1 - sub.ai_likelihood)}
                                                         />
                                                         {sub.semantic_similarity_score !== undefined && sub.semantic_similarity_score !== null && (
-                                                            <SemanticSimilarityScore
+                                                            <SemanticSimilarityBadge
                                                                 score={sub.semantic_similarity_score}
-                                                                compact
                                                                 size="sm"
                                                             />
                                                         )}
@@ -507,7 +506,7 @@ export default function StudentAssignmentDetailPage() {
                                         <Separator />
                                         <div>
                                             <p className="text-xs text-muted-foreground mb-2">Similarity to sample answer</p>
-                                            <SemanticSimilarityScore score={latestSubmission.semantic_similarity_score} />
+                                            <SemanticSimilarityBadge score={latestSubmission.semantic_similarity_score} />
                                         </div>
                                     </>
                                 )}
@@ -613,5 +612,3 @@ function DetailRow({
         </div>
     );
 }
-
-

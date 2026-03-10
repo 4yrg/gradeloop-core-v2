@@ -106,12 +106,15 @@ class SimilarityReportRepository:
             return None
 
         report_data = row["report_data"]
+        # asyncpg may return JSONB as a raw JSON string; ensure it's a dict
+        if isinstance(report_data, str):
+            report_data = json.loads(report_data)
         logger.info(
             f"Retrieved cached report for assignment {assignment_id} "
             f"(updated: {row['updated_at']})"
         )
 
-        return AssignmentClusterResponse(**report_data)
+        return AssignmentClusterResponse.model_validate(report_data)
 
     @staticmethod
     async def delete_report(assignment_id: str) -> bool:
@@ -161,7 +164,15 @@ class SimilarityReportRepository:
         if row is None:
             return None
 
-        return dict(row)
+        result = dict(row)
+        # Convert datetime objects to ISO strings for Pydantic serialization
+        for key in ("created_at", "updated_at"):
+            if key in result and hasattr(result[key], "isoformat"):
+                result[key] = result[key].isoformat()
+        # Convert UUID to string
+        if "id" in result and not isinstance(result["id"], str):
+            result["id"] = str(result["id"])
+        return result
 
     @staticmethod
     async def list_reports(limit: int = 50, offset: int = 0) -> list[dict]:

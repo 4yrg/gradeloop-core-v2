@@ -25,7 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY pyproject.toml ./
 
 # Install dependencies directly (package-mode = false in pyproject.toml)
-RUN pip install \
+RUN pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org \
     fastapi \
     uvicorn \
     pydantic \
@@ -44,7 +44,8 @@ RUN pip install \
     tqdm \
     textual \
     rich \
-    asyncpg
+    asyncpg \
+    "sqlalchemy[asyncio]"
 
 # Copy application code
 COPY main.py routes.py schemas.py database.py ./
