@@ -245,6 +245,48 @@ func (h *SubmissionHandler) PatchAnalysis(c fiber.Ctx) error {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// POST /submissions/batch/code
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GetBatchCode handles POST /submissions/batch/code.
+// Fetches code for multiple submissions in a single request to avoid N+1 queries.
+// Used by the similarity/cluster diff viewer to load all codes at once.
+func (h *SubmissionHandler) GetBatchCode(c fiber.Ctx) error {
+	var req dto.BatchCodeRequest
+	if err := c.Bind().JSON(&req); err != nil {
+		return utils.ErrBadRequest("invalid request body")
+	}
+
+	if len(req.SubmissionIDs) == 0 {
+		return utils.ErrBadRequest("submission_ids cannot be empty")
+	}
+
+	if len(req.SubmissionIDs) > 100 {
+		return utils.ErrBadRequest("too many submission_ids (max 100)")
+	}
+
+	// Parse all UUIDs
+	ids := make([]uuid.UUID, 0, len(req.SubmissionIDs))
+	for _, idStr := range req.SubmissionIDs {
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			return utils.ErrBadRequest("invalid submission_id: " + idStr)
+		}
+		ids = append(ids, id)
+	}
+
+	codes, err := h.submissionService.GetBatchCode(ids)
+	if err != nil {
+		return err
+	}
+
+	return c.Status(fiber.StatusOK).JSON(dto.BatchCodeResponse{
+		Codes: codes,
+		Count: len(codes),
+	})
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 

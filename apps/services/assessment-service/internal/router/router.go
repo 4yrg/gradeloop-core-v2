@@ -98,6 +98,11 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	// POST   /api/v1/submissions/run-code      — execute code without persistence
 	submissions.Post("/run-code", cfg.SubmissionHandler.RunCode)
 
+	// POST   /api/v1/submissions/batch/code     — fetch code for multiple submissions
+	// NOTE: Must be registered BEFORE POST / to prevent "batch" from being
+	// treated as a nested route under a parameterized submission ID.
+	submissions.Post("/batch/code", cfg.SubmissionHandler.GetBatchCode)
+
 	// POST   /api/v1/submissions                — create (versioned, immutable)
 	submissions.Post("/", cfg.SubmissionHandler.CreateSubmission)
 

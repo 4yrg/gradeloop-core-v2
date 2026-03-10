@@ -165,7 +165,7 @@ services:
       minio:
         condition: service_started
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
     networks:
       - gradeloop-network
     logging:
@@ -292,7 +292,7 @@ services:
       minio:
         condition: service_started
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
     networks:
       - gradeloop-network
     logging:
@@ -320,7 +320,12 @@ services:
       - "traefik.http.middlewares.cipas-syntactics-ratelimit.ratelimit.average=100"
       - "traefik.http.middlewares.cipas-syntactics-ratelimit.ratelimit.period=1m"
       - "traefik.http.middlewares.cipas-syntactics-ratelimit.ratelimit.burst=10"
-      - "traefik.http.routers.cipas-syntactics.middlewares=cipas-syntactics-limit,cipas-syntactics-ratelimit"
+      - "traefik.http.middlewares.cipas-syntactics-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,PATCH,OPTIONS"
+      - "traefik.http.middlewares.cipas-syntactics-cors.headers.accesscontrolalloworiginlist=http://localhost:3000,http://localhost:3001"
+      - "traefik.http.middlewares.cipas-syntactics-cors.headers.accesscontrolallowheaders=Origin,Content-Type,Accept,Authorization,X-Request-ID"
+      - "traefik.http.middlewares.cipas-syntactics-cors.headers.accesscontrolallowcredentials=true"
+      - "traefik.http.middlewares.cipas-syntactics-cors.headers.addvaryheader=true"
+      - "traefik.http.routers.cipas-syntactics.middlewares=cipas-syntactics-limit,cipas-syntactics-ratelimit,cipas-syntactics-cors"
     env_file:
       - .env
     volumes:
@@ -338,7 +343,7 @@ services:
           "CMD",
           "python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8086/api/v1/syntactics/health')",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8088/api/v1/syntactics/health')",
         ]
       interval: 15s
       timeout: 10s
@@ -369,7 +374,12 @@ services:
       - "traefik.http.middlewares.cipas-semantics-ratelimit.ratelimit.average=100"
       - "traefik.http.middlewares.cipas-semantics-ratelimit.ratelimit.period=1m"
       - "traefik.http.middlewares.cipas-semantics-ratelimit.ratelimit.burst=10"
-      - "traefik.http.routers.cipas-semantics.middlewares=cipas-semantics-limit,cipas-semantics-ratelimit"
+      - "traefik.http.middlewares.cipas-semantics-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,PATCH,OPTIONS"
+      - "traefik.http.middlewares.cipas-semantics-cors.headers.accesscontrolalloworiginlist=http://localhost:3000,http://localhost:3001"
+      - "traefik.http.middlewares.cipas-semantics-cors.headers.accesscontrolallowheaders=Origin,Content-Type,Accept,Authorization,X-Request-ID"
+      - "traefik.http.middlewares.cipas-semantics-cors.headers.accesscontrolallowcredentials=true"
+      - "traefik.http.middlewares.cipas-semantics-cors.headers.addvaryheader=true"
+      - "traefik.http.routers.cipas-semantics.middlewares=cipas-semantics-limit,cipas-semantics-ratelimit,cipas-semantics-cors"
     env_file:
       - .env
     volumes:
@@ -418,7 +428,12 @@ services:
       - "traefik.http.middlewares.cipas-ai-ratelimit.ratelimit.average=100"
       - "traefik.http.middlewares.cipas-ai-ratelimit.ratelimit.period=1m"
       - "traefik.http.middlewares.cipas-ai-ratelimit.ratelimit.burst=10"
-      - "traefik.http.routers.cipas-ai.middlewares=cipas-ai-limit,cipas-ai-ratelimit"
+      - "traefik.http.middlewares.cipas-ai-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,PATCH,OPTIONS"
+      - "traefik.http.middlewares.cipas-ai-cors.headers.accesscontrolalloworiginlist=http://localhost:3000,http://localhost:3001"
+      - "traefik.http.middlewares.cipas-ai-cors.headers.accesscontrolallowheaders=Origin,Content-Type,Accept,Authorization,X-Request-ID"
+      - "traefik.http.middlewares.cipas-ai-cors.headers.accesscontrolallowcredentials=true"
+      - "traefik.http.middlewares.cipas-ai-cors.headers.addvaryheader=true"
+      - "traefik.http.routers.cipas-ai.middlewares=cipas-ai-limit,cipas-ai-ratelimit,cipas-ai-cors"
     env_file:
       - .env
     volumes:
@@ -508,7 +523,7 @@ services:
       postgres:
         condition: service_healthy
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
       minio:
         condition: service_started
     networks:
@@ -572,6 +587,12 @@ services:
       - "15672:15672"
     networks:
       - gradeloop-network
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     logging:
       driver: "json-file"
       options:

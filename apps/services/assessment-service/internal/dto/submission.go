@@ -115,6 +115,18 @@ type SubmissionCodeResponse struct {
 	Code         string    `json:"code"`
 }
 
+// BatchCodeRequest is the payload for POST /submissions/batch/code.
+// Fetches code for multiple submissions in a single call.
+type BatchCodeRequest struct {
+	SubmissionIDs []string `json:"submission_ids"`
+}
+
+// BatchCodeResponse returns a map of submission_id → code data.
+type BatchCodeResponse struct {
+	Codes map[string]SubmissionCodeResponse `json:"codes"`
+	Count int                               `json:"count"`
+}
+
 // ListSubmissionsResponse wraps a slice of SubmissionResponse with a count,
 // sorted version-descending (latest first).
 type ListSubmissionsResponse struct {

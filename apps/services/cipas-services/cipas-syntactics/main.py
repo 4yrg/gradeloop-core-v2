@@ -17,6 +17,7 @@ Features:
 from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, FastAPI, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
 
 from clone_detection.utils.common_setup import setup_logging
 from routes import (
@@ -185,6 +186,15 @@ The service uses a three-tier cascade strategy:
     """,
     version="0.1.0",
     lifespan=lifespan,
+)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Configure appropriately for production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Create router with prefix

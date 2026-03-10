@@ -144,6 +144,15 @@ export interface SubmissionCodeResponse {
     code: string;
 }
 
+export interface BatchCodeRequest {
+    submission_ids: string[];
+}
+
+export interface BatchCodeResponse {
+    codes: Record<string, SubmissionCodeResponse>;
+    count: number;
+}
+
 export interface ListSubmissionsResponse {
     submissions: SubmissionResponse[];
     count: number;
