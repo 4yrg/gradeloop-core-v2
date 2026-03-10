@@ -39,6 +39,8 @@ export interface RawKeystrokeEvent {
     dwellTime: number;   // ms key was held down
     flightTime: number;  // ms from previous keyup to this keydown
     keyCode: number;
+    assignmentId?: string;
+    courseId?: string;
 }
 
 export interface EnrollPhaseRequest {
@@ -57,157 +59,85 @@ export interface EnrollPhaseResponse {
     message?: string;
 }
 
-// ─── Playback & Analytics Types ───────────────────────────────────────────────
+export interface IdentifyMatch {
+    userId: string;
+    similarity: number;
+    confidence: number;
+    rank: number;
+}
 
-export interface ArchiveLookupResult {
+export interface IdentifyResponse {
     success: boolean;
-    session_id: string;
+    message?: string;
+    matches: IdentifyMatch[];
+    best_match?: IdentifyMatch;
+    confidence_level?: string; // "HIGH" | "MEDIUM" | "LOW"
+    enrolled_users?: number;
+}
+
+export interface CaptureResponse {
+    success: boolean;
+    captured: number;
+    total_buffered: number;
+}
+
+export interface MonitorResponse {
+    success?: boolean;
+    status: "COLLECTING_DATA" | "AUTHENTICATED" | "SUSPICIOUS" | "REJECTED";
+    message?: string;
+    risk_score?: number;
+    average_similarity?: number;
+    average_risk_score?: number;
+    authenticated?: boolean;
+    verification_count?: number;
+    max_risk_score?: number;
+}
+
+export interface ActiveSessionEntry {
     user_id: string;
+    session_id: string;
     assignment_id: string;
-    course_id?: string;
+    risk_score: number;
     event_count: number;
-    session_duration_seconds: number;
-    average_risk_score: number;
-    max_risk_score: number;
-    anomaly_count: number;
-    authentication_failures: number;
-    archived_at: string;
-}
-
-export interface PlaybackEvent {
-    userId?: string;
-    sessionId?: string;
-    timestamp: number;       // ms since session start
-    key: string;
-    keyCode: number;
-    dwellTime: number;
-    flightTime: number;
-    action?: string;
-    lineNumber?: number;
-    columnNumber?: number;
-    codeSnapshot?: string;
-}
-
-export interface AuthTimelineEntry {
-    offset_seconds: number;
-    timestamp_ms: number;
-    risk_score: number;
-    similarity_score: number;
-    authenticated: boolean;
-    confidence_level: string;
-    is_anomaly: boolean;
-    anomaly_type?: string | null;
+    status: "COLLECTING_DATA" | "AUTHENTICATED" | "SUSPICIOUS" | "REJECTED";
     is_struggling: boolean;
+    last_verification: string | null;
+    session_started: string | null;
 }
 
-export interface PlaybackSummary {
-    average_risk_score: number;
-    max_risk_score: number;
+export interface ActiveSessionsResponse {
+    success: boolean;
+    assignment_id: string;
+    active_count: number;
+    sessions: ActiveSessionEntry[];
+}
+
+export interface StudentSummaryEntry {
+    user_id: string;
+    session_id: string;
+    assignment_id: string;
+    event_count: number;
+    avg_risk_score: number;
+    avg_similarity: number;
     anomaly_count: number;
-    authentication_failures: number;
+    struggle_count: number;
+    has_anomaly: boolean;
+    status: "AUTHENTICATED" | "SUSPICIOUS" | "REJECTED" | "COLLECTING_DATA";
+    last_event_at: string | null;
+    session_started_at: string | null;
 }
 
-export interface PlaybackData {
+export interface StudentSummariesResponse {
     success: boolean;
-    session_id: string;
-    user_id?: string;
-    assignment_id?: string;
-    session_duration_seconds: number;
-    total_events: number;
-    events: PlaybackEvent[];
-    auth_timeline: AuthTimelineEntry[];
-    final_code: string;
-    summary: PlaybackSummary;
+    assignment_id: string;
+    students: StudentSummaryEntry[];
 }
 
-export interface RiskTimelinePoint {
-    offset_seconds: number;
-    risk_score: number;
-    similarity_score: number;
-    is_anomaly: boolean;
-    is_struggling: boolean;
-}
-
-export interface FrictionPoint {
-    offset_seconds: number;
-    duration: number;
-    deletion_rate: number;
-    long_pauses: number;
-    severity: "high" | "medium";
-}
-
-export interface SessionMetrics {
-    total_duration: number;
-    total_keystrokes: number;
-    average_typing_speed: number;
-    pause_count: number;
-    long_pause_count: number;
-    deletion_count: number;
-    deletion_rate: number;
-    paste_count: number;
-    copy_count: number;
-    avg_dwell_time: number;
-    std_dwell_time: number;
-    avg_flight_time: number;
-    std_flight_time: number;
-    burst_typing_events: number;
-    rhythm_consistency: number;
-    friction_points: FrictionPoint[];
-}
-
-export interface AuthenticityIndicators {
-    human_signature_score: number;
-    synthetic_signature_score: number;
-    consistency_score: number;
-    anomaly_flags: Array<Record<string, unknown>>;
-    multiple_contributor_probability: number;
-    external_assistance_probability: number;
-}
-
-export interface CognitiveLoadPoint {
-    timestamp: number;   // seconds since session start
-    load: number;        // 0.0 – 1.0
-}
-
-export interface CognitiveAnalysis {
-    incremental_construction: boolean;
-    pivotal_moments: Array<Record<string, unknown>>;
-    troubleshooting_style: "systematic" | "erratic" | "confident";
-    cognitive_load_timeline: CognitiveLoadPoint[];
-    high_friction_concepts: string[];
-    struggle_areas: Array<Record<string, unknown>>;
-    mastery_indicators: string[];
-}
-
-export interface ProcessScore {
-    active_problem_solving_score: number;
-    learning_depth_score: number;
-    authenticity_score: number;
-    engagement_score: number;
-    overall_score: number;
-    confidence_level: "HIGH" | "MEDIUM" | "LOW";
-}
-
-export interface BehavioralAnalysis {
-    session_id: string;
-    student_id: string;
-    timestamp: string;
-    session_metrics: SessionMetrics;
-    authenticity_indicators: AuthenticityIndicators;
-    cognitive_analysis: CognitiveAnalysis;
-    process_score: ProcessScore;
-    llm_insights: Record<string, unknown>;
-    critical_anomalies: string[];
-    pedagogical_feedback: Record<string, unknown>;
-}
-
-export interface AnalyticsData {
+export interface FinalizeSessionResponse {
     success: boolean;
-    session_id: string;
-    analysis_available: boolean;
-    behavioral_analysis: BehavioralAnalysis | null;
-    risk_timeline: RiskTimelinePoint[];
-    friction_points: FrictionPoint[];
+    message: string;
+    events_archived: number;
+    assignment_id: string | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -270,69 +200,173 @@ export const keystrokeApi = {
         return res.json() as Promise<EnrollPhaseResponse>;
     },
 
-    // ─── Playback & Analytics ─────────────────────────────────────────────────
-
     /**
-     * GET /api/keystroke/archive/lookup?assignment_id=&user_id=
-     * Resolve the session_id for a given assignment + student pair.
+     * POST /api/keystroke/capture
+     * Push a batch of raw keystroke events into the Redis session buffer.
+     * Call this every ~30 events during an active session.
      */
-    lookupArchive: async (
-        assignmentId: string,
-        userId: string
-    ): Promise<ArchiveLookupResult> => {
+    capture: async (events: RawKeystrokeEvent[]): Promise<CaptureResponse> => {
         const token = await getAccessToken();
-        const url = `${GATEWAY_URL}/api/keystroke/archive/lookup?assignment_id=${encodeURIComponent(assignmentId)}&user_id=${encodeURIComponent(userId)}`;
 
-        const res = await fetch(url, {
+        const res = await fetch(`${GATEWAY_URL}/api/keystroke/capture`, {
+            method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
+            body: JSON.stringify({ events }),
         });
 
-        if (!res.ok) throw new Error(`Archive lookup failed: ${res.status}`);
-        return res.json() as Promise<ArchiveLookupResult>;
+        if (!res.ok) {
+            const detail = await res.text().catch(() => res.status.toString());
+            throw new Error(detail);
+        }
+
+        return res.json() as Promise<CaptureResponse>;
     },
 
     /**
-     * GET /api/keystroke/playback/{sessionId}
-     * Retrieve all keystroke events + auth timeline for session replay.
+     * POST /api/keystroke/monitor
+     * Run continuous authentication against the events buffered in Redis.
+     * Returns COLLECTING_DATA until ≥150 events; then AUTHENTICATED / SUSPICIOUS / REJECTED.
      */
-    getPlaybackData: async (sessionId: string): Promise<PlaybackData> => {
+    monitor: async (
+        userId: string,
+        sessionId: string,
+        assignmentId?: string,
+        courseId?: string,
+    ): Promise<MonitorResponse> => {
+        const token = await getAccessToken();
+
+        const res = await fetch(`${GATEWAY_URL}/api/keystroke/monitor`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ userId, sessionId, assignmentId, courseId }),
+        });
+
+        if (!res.ok) {
+            const detail = await res.text().catch(() => res.status.toString());
+            throw new Error(detail);
+        }
+
+        return res.json() as Promise<MonitorResponse>;
+    },
+
+    /**
+     * POST /api/keystroke/identify
+     * Compare a set of keystroke events against ALL enrolled users and return
+     * top-K best matches with similarity scores.  Needs ≥70 events.
+     */
+    identify: async (
+        events: RawKeystrokeEvent[],
+        topK = 5,
+    ): Promise<IdentifyResponse> => {
+        const token = await getAccessToken();
+
+        const res = await fetch(`${GATEWAY_URL}/api/keystroke/identify`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ keystrokeEvents: events, topK }),
+        });
+
+        if (!res.ok) {
+            const detail = await res.text().catch(() => res.status.toString());
+            throw new Error(detail);
+        }
+
+        return res.json() as Promise<IdentifyResponse>;
+    },
+
+    /**
+     * GET /api/keystroke/assignment/{assignmentId}/students
+     * Returns per-student auth summaries from the DB (historical / completed sessions).
+     * Used by the instructor Auth Monitor page alongside live sessions.
+     */
+    getAssignmentStudentSummaries: async (
+        assignmentId: string,
+    ): Promise<StudentSummariesResponse> => {
         const token = await getAccessToken();
 
         const res = await fetch(
-            `${GATEWAY_URL}/api/keystroke/playback/${encodeURIComponent(sessionId)}`,
+            `${GATEWAY_URL}/api/keystroke/assignment/${encodeURIComponent(assignmentId)}/students`,
             {
                 headers: {
                     "Content-Type": "application/json",
                     ...(token ? { Authorization: `Bearer ${token}` } : {}),
                 },
-            }
+            },
         );
 
-        if (!res.ok) throw new Error(`Playback data fetch failed: ${res.status}`);
-        return res.json() as Promise<PlaybackData>;
+        if (!res.ok) {
+            const detail = await res.text().catch(() => res.status.toString());
+            throw new Error(detail);
+        }
+
+        return res.json() as Promise<StudentSummariesResponse>;
     },
 
     /**
-     * GET /api/keystroke/analytics/{sessionId}
-     * Retrieve (or compute on-demand) behavioral analytics for a session.
+     * GET /api/keystroke/active-sessions/assignment/{assignmentId}
+     * Returns all active Redis sessions for an assignment.
+     * Used by the instructor Live Monitor page.
      */
-    getAnalytics: async (sessionId: string): Promise<AnalyticsData> => {
+    getActiveSessionsByAssignment: async (
+        assignmentId: string,
+    ): Promise<ActiveSessionsResponse> => {
         const token = await getAccessToken();
 
         const res = await fetch(
-            `${GATEWAY_URL}/api/keystroke/analytics/${encodeURIComponent(sessionId)}`,
+            `${GATEWAY_URL}/api/keystroke/active-sessions/assignment/${encodeURIComponent(assignmentId)}`,
             {
                 headers: {
                     "Content-Type": "application/json",
                     ...(token ? { Authorization: `Bearer ${token}` } : {}),
                 },
-            }
+            },
         );
 
-        if (!res.ok) throw new Error(`Analytics fetch failed: ${res.status}`);
-        return res.json() as Promise<AnalyticsData>;
+        if (!res.ok) {
+            const detail = await res.text().catch(() => res.status.toString());
+            throw new Error(detail);
+        }
+
+        return res.json() as Promise<ActiveSessionsResponse>;
+    },
+
+    /**
+     * POST /api/keystroke/session/finalize
+     * Archive raw keystroke buffer from Redis → PostgreSQL and clean up Redis.
+     * Call this immediately on assignment submission.
+     */
+    finalizeSession: async (payload: {
+        userId: string;
+        sessionId: string;
+        assignmentId?: string;
+        courseId?: string;
+        finalCode?: string;
+    }): Promise<FinalizeSessionResponse> => {
+        const token = await getAccessToken();
+
+        const res = await fetch(`${GATEWAY_URL}/api/keystroke/session/finalize`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+            const detail = await res.text().catch(() => res.status.toString());
+            throw new Error(detail);
+        }
+
+        return res.json() as Promise<FinalizeSessionResponse>;
     },
 };

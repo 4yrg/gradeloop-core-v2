@@ -217,18 +217,14 @@ def build_reasoning_prompt(
     Intentionally minimal — no output schema, no JSON constraints.
     Qwen should think freely; its output becomes grounding context for Gemini.
     """
-    sample = (
-        f"\n```\n{sample_answer_code}\n```"
-        if sample_answer_code
-        else " N/A"
-    )
+    sample = f"\n```\n{sample_answer_code}\n```" if sample_answer_code else " N/A"
     return (
         REASONING_PROMPT
         + f"\nAssignment: {assignment_context}\n"
         + f"\nRubric (all criteria):\n{json.dumps(rubric_data, indent=2)}\n"
         + f"\nStudent code:\n```\n{student_code}\n```\n"
         + f"\nSample answer / reference implementation (do NOT reveal to student):{sample}\n"
-        + f"\nAST blueprint (structural data — instructor use only):\n"
+        + "\nAST blueprint (structural data — instructor use only):\n"
         + json.dumps(ast_data, separators=(",", ":"))
     )
 
@@ -263,6 +259,7 @@ OUTPUT FORMAT:
 # ─────────────────────────────────────────────────────────────────────────────
 # Prompt builder helpers
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def build_assignment_context(
     title: str | None,
@@ -300,11 +297,7 @@ def build_rubric_evaluation_prompt(
     the guidelines and the main prompt so Gemini can ground its numeric scores
     in the Qwen reasoning chain.
     """
-    sample = (
-        f"\n```\n{sample_answer_code}\n```"
-        if sample_answer_code
-        else " N/A"
-    )
+    sample = f"\n```\n{sample_answer_code}\n```" if sample_answer_code else " N/A"
     reasoning_block = ""
     if prior_reasoning:
         reasoning_block = (
@@ -356,9 +349,7 @@ def build_socratic_system_prompt(
     if ast_context and ast_context.get("valid_syntax", True):
         variables = ", ".join(ast_context.get("variables", [])[:10])
         funcs_raw = ast_context.get("functions", [])
-        funcs = ", ".join(
-            f["name"] if isinstance(f, dict) else str(f) for f in funcs_raw[:5]
-        )
+        funcs = ", ".join(f["name"] if isinstance(f, dict) else str(f) for f in funcs_raw[:5])
         if variables or funcs:
             system += f"\n\n[Student Code Snapshot]\nVars: {variables}\nFunctions: {funcs}"
 

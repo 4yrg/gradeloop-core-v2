@@ -2,9 +2,17 @@
 
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getSimilarityReport, clusterAssignment, getSimilarityReportMetadata, getAnnotations } from "@/lib/api/cipas-client";
+import { 
+  getSimilarityReport, 
+  clusterAssignment, 
+  getSimilarityReportMetadata, 
+  getAnnotations,
+  detectAICode,
+  getSemanticSimilarity,
+  saveSubmissionAnalysis,
+} from "@/lib/api/cipas-client";
 import { instructorAssessmentsApi, assessmentsApi } from "@/lib/api/assessments";
-import type { AssignmentClusterResponse, CollusionGroup, SubmissionItem, AnnotationResponse } from "@/types/cipas";
+import type { AssignmentClusterResponse, CollusionGroup, CollusionEdge, SubmissionItem, AnnotationResponse } from "@/types/cipas";
 import type { AssignmentResponse, SubmissionResponse } from "@/types/assessments.types";
 import { SectionHeader } from "@/components/instructor/section-header";
 import { Button } from "@/components/ui/button";
@@ -18,11 +26,13 @@ import { NetworkGraph } from "@/components/instructor/similarity/network-graph";
 import { ClusterCard } from "@/components/instructor/similarity/cluster-card";
 import { SummaryStats } from "@/components/instructor/similarity/summary-stats";
 import { SimilarityBadge, SimilarityScore } from "@/components/instructor/similarity/similarity-badge";
-import { 
-  RefreshCw, 
-  Download, 
-  Search, 
-  AlertCircle, 
+import { ClusterGraphSheet } from "@/components/instructor/similarity/cluster-graph-sheet";
+import { DiffSheet } from "@/components/instructor/similarity/diff-sheet";
+import {
+  RefreshCw,
+  Download,
+  Search,
+  AlertCircle,
   Loader2,
   Eye,
   Filter,
@@ -46,6 +56,25 @@ export default function SimilarityOverviewPage() {
   const [thresholdFilter, setThresholdFilter] = React.useState("0.7");
   const [sortBy, setSortBy] = React.useState("high-risk");
   const [statusFilter, setStatusFilter] = React.useState("all");
+
+  // Per-submission CIPAS metrics state
+  const [submissionMetrics, setSubmissionMetrics] = React.useState<Map<string, {
+    aiLikelihood: number;
+    isAIGenerated: boolean;
+    aiConfidence: number;
+    semanticSimilarity: number | null;
+    isAnalyzing: boolean;
+  }>>(new Map());
+  const [isAnalyzingSubmissions, setIsAnalyzingSubmissions] = React.useState(false);
+
+  // Sheet state: cluster graph panel
+  const [graphSheetCluster, setGraphSheetCluster] = React.useState<CollusionGroup | null>(null);
+  const [graphSheetOpen, setGraphSheetOpen] = React.useState(false);
+
+  // Sheet state: diff viewer panel
+  const [diffSheetCluster, setDiffSheetCluster] = React.useState<CollusionGroup | null>(null);
+  const [diffSheetEdge, setDiffSheetEdge] = React.useState<CollusionEdge | null>(null);
+  const [diffSheetOpen, setDiffSheetOpen] = React.useState(false);
 
   // Fetch cached report, assignment data, and annotations
   React.useEffect(() => {
@@ -92,6 +121,126 @@ export default function SimilarityOverviewPage() {
     };
   }, [assignmentId]);
 
+  // Analyze submissions for AI likelihood and semantic similarity
+  React.useEffect(() => {
+    if (!report || !assignment) return;
+
+    async function analyzeSubmissions() {
+      try {
+        setIsAnalyzingSubmissions(true);
+
+        // Fetch all submissions for this assignment
+        const submissions = await instructorAssessmentsApi.listSubmissions(assignmentId);
+        
+        // Filter out submissions that have already been analyzed
+        const unanalyzedSubmissions = submissions.filter(
+          (sub) => !sub.analyzed_at && !submissionMetrics.has(sub.id)
+        );
+
+        if (unanalyzedSubmissions.length === 0) {
+          setIsAnalyzingSubmissions(false);
+          return;
+        }
+
+        // Fetch instructor template if available
+        let instructorTemplate: string | null = null;
+        if (assignment.instructor_template_id) {
+          try {
+            const templateCode = await assessmentsApi.getSubmissionCode(
+              assignment.instructor_template_id
+            );
+            instructorTemplate = templateCode.code;
+          } catch (err) {
+            console.warn("Could not fetch instructor template:", err);
+          }
+        }
+
+        // Analyze each unanalyzed submission
+        for (const submission of unanalyzedSubmissions) {
+          try {
+            // Mark as analyzing
+            setSubmissionMetrics((prev) => 
+              new Map(prev).set(submission.id, {
+                aiLikelihood: 0,
+                isAIGenerated: false,
+                aiConfidence: 0,
+                semanticSimilarity: null,
+                isAnalyzing: true,
+              })
+            );
+
+            // Fetch submission code
+            const codeData = await assessmentsApi.getSubmissionCode(submission.id);
+            const sourceCode = codeData.code || "";
+
+            if (!sourceCode.trim()) {
+              setSubmissionMetrics((prev) => {
+                const updated = new Map(prev);
+                updated.delete(submission.id);
+                return updated;
+              });
+              continue;
+            }
+
+            // Run AI detection
+            const aiResult = await detectAICode(sourceCode);
+
+            // Calculate semantic similarity if template exists
+            let semanticSimilarity: number | null = null;
+            if (instructorTemplate && instructorTemplate.trim()) {
+              try {
+                semanticSimilarity = await getSemanticSimilarity(
+                  sourceCode,
+                  instructorTemplate
+                );
+                // Convert to percentage (0-100)
+                semanticSimilarity = semanticSimilarity * 100;
+              } catch (err) {
+                console.error(
+                  `Semantic similarity failed for ${submission.id}:`,
+                  err
+                );
+              }
+            }
+
+            // Update local state
+            setSubmissionMetrics((prev) => 
+              new Map(prev).set(submission.id, {
+                aiLikelihood: aiResult.ai_likelihood,
+                isAIGenerated: aiResult.is_ai_generated,
+                aiConfidence: aiResult.confidence,
+                semanticSimilarity,
+                isAnalyzing: false,
+              })
+            );
+
+            // Persist to database
+            await saveSubmissionAnalysis(submission.id, {
+              ai_likelihood: aiResult.ai_likelihood,
+              human_likelihood: aiResult.human_likelihood,
+              is_ai_generated: aiResult.is_ai_generated,
+              ai_confidence: aiResult.confidence,
+              semantic_similarity_score: semanticSimilarity,
+            });
+          } catch (err) {
+            console.error(`Analysis failed for submission ${submission.id}:`, err);
+            setSubmissionMetrics((prev) => {
+              const updated = new Map(prev);
+              updated.delete(submission.id);
+              return updated;
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to analyze submissions:", err);
+      } finally {
+        setIsAnalyzingSubmissions(false);
+      }
+    }
+
+    analyzeSubmissions();
+  }, [report, assignment, assignmentId]);
+
   // Run similarity analysis
   const handleRunAnalysis = async () => {
     try {
@@ -135,11 +284,26 @@ export default function SimilarityOverviewPage() {
       const language = assignment?.language_id || "python";
       const languageStr = typeof language === "string" ? language.toLowerCase() : "python";
 
-      // Run clustering
+      // Fetch instructor template if available
+      let instructorTemplate: string | undefined;
+      if (assignment?.instructor_template_id) {
+        try {
+          const templateCode = await assessmentsApi.getSubmissionCode(
+            assignment.instructor_template_id
+          );
+          instructorTemplate = templateCode.code || undefined;
+          logger.info(`Fetched instructor template: ${instructorTemplate?.length || 0} characters`);
+        } catch (err) {
+          console.warn("Could not fetch instructor template for clustering:", err);
+        }
+      }
+
+      // Run clustering with syntactic clone detection
       const clusterResponse = await clusterAssignment({
         assignment_id: assignmentId,
         language: languageStr,
         submissions: submissionsWithCode,
+        instructor_template: instructorTemplate,
         lsh_threshold: parseFloat(thresholdFilter),
         min_confidence: 0.0,
       });
@@ -157,7 +321,7 @@ export default function SimilarityOverviewPage() {
     try {
       const { exportSimilarityReport } = await import("@/lib/api/cipas-client");
       const blob = await exportSimilarityReport(assignmentId, "csv");
-      
+
       // Download the file
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -219,7 +383,7 @@ export default function SimilarityOverviewPage() {
       (c) => c.max_confidence >= 0.75 && c.max_confidence < 0.85
     ).length;
     const lowRisk = report.collusion_groups.filter((c) => c.max_confidence < 0.75).length;
-    
+
     // Count unique flagged students
     const flaggedStudents = new Set<string>();
     report.collusion_groups.forEach((group) => {
@@ -237,7 +401,7 @@ export default function SimilarityOverviewPage() {
       cell: ({ row }) => {
         const clusterId = String.fromCharCode(64 + row.original.group_id);
         const annotation = annotations.find((a) => a.group_id === row.original.group_id.toString());
-        
+
         const statusConfig: Record<string, { icon: React.ReactNode; color: string }> = {
           confirmed_plagiarism: { icon: "⚠", color: "text-red-600" },
           false_positive: { icon: "✓", color: "text-green-600" },
@@ -304,9 +468,15 @@ export default function SimilarityOverviewPage() {
   ];
 
   const handleViewCluster = (cluster: CollusionGroup) => {
-    router.push(
-      `/instructor/courses/${instanceId}/assignments/${assignmentId}/similarity/cluster/${cluster.group_id}`
-    );
+    setGraphSheetCluster(cluster);
+    setGraphSheetOpen(true);
+  };
+
+  const handleOpenDiff = (cluster: CollusionGroup, edge: CollusionEdge) => {
+    setDiffSheetCluster(cluster);
+    setDiffSheetEdge(edge);
+    setGraphSheetOpen(false);
+    setDiffSheetOpen(true);
   };
 
   if (error && !report) {
@@ -478,7 +648,10 @@ export default function SimilarityOverviewPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <NetworkGraph clusters={filteredClusters.slice(0, 4)} />
+              <NetworkGraph
+                clusters={filteredClusters.slice(0, 4)}
+                onClusterClick={handleViewCluster}
+              />
             </CardContent>
           </Card>
         </div>
@@ -499,6 +672,104 @@ export default function SimilarityOverviewPage() {
         </div>
       </div>
 
+      {/* Per-Submission Metrics Table */}
+      {submissionMetrics.size > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>Individual Submission Metrics</span>
+              {isAnalyzingSubmissions && (
+                <span className="text-sm font-normal text-muted-foreground flex items-center gap-2">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Analyzing submissions...
+                </span>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
+              <table className="w-full text-sm">
+                <thead className="border-b bg-muted/50">
+                  <tr>
+                    <th className="p-3 text-left font-medium">Submission ID</th>
+                    <th className="p-3 text-left font-medium">AI Likelihood</th>
+                    <th className="p-3 text-left font-medium">AI Generated</th>
+                    <th className="p-3 text-left font-medium">Semantic Similarity</th>
+                    <th className="p-3 text-left font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {Array.from(submissionMetrics.entries()).map(([submissionId, metrics]) => (
+                    <tr key={submissionId} className="hover:bg-muted/30">
+                      <td className="p-3 font-mono text-xs">
+                        {submissionId.substring(0, 8)}...
+                      </td>
+                      <td className="p-3">
+                        {metrics.isAnalyzing ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <div className="w-24 bg-muted rounded-full h-2">
+                              <div
+                                className={`h-2 rounded-full transition-all ${
+                                  metrics.aiLikelihood > 0.7
+                                    ? "bg-red-500"
+                                    : metrics.aiLikelihood > 0.4
+                                    ? "bg-yellow-500"
+                                    : "bg-green-500"
+                                }`}
+                                style={{ width: `${metrics.aiLikelihood * 100}%` }}
+                              />
+                            </div>
+                            <span className="text-xs font-medium">
+                              {(metrics.aiLikelihood * 100).toFixed(1)}%
+                            </span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="p-3">
+                        {metrics.isAnalyzing ? (
+                          "..."
+                        ) : (
+                          <span
+                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              metrics.isAIGenerated
+                                ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                                : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                            }`}
+                          >
+                            {metrics.isAIGenerated ? "Likely AI" : "Likely Human"}
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-3">
+                        {metrics.isAnalyzing ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : metrics.semanticSimilarity !== null ? (
+                          <SimilarityScore 
+                            score={metrics.semanticSimilarity / 100} 
+                            showBar 
+                          />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">N/A</span>
+                        )}
+                      </td>
+                      <td className="p-3">
+                        {metrics.isAnalyzing ? (
+                          <span className="text-xs text-muted-foreground">Analyzing...</span>
+                        ) : (
+                          <span className="text-xs text-green-600 dark:text-green-400">✓ Stored</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Clusters Table */}
       <Card>
         <CardHeader>
@@ -512,6 +783,23 @@ export default function SimilarityOverviewPage() {
           />
         </CardContent>
       </Card>
+
+      {/* Cluster graph sheet — opens when a bubble in NetworkGraph is clicked */}
+      <ClusterGraphSheet
+        cluster={graphSheetCluster}
+        open={graphSheetOpen}
+        onClose={() => setGraphSheetOpen(false)}
+        onCompare={handleOpenDiff}
+      />
+
+      {/* Diff sheet — opens from ClusterGraphSheet's Compare buttons */}
+      <DiffSheet
+        cluster={diffSheetCluster}
+        initialEdge={diffSheetEdge}
+        assignmentId={assignmentId}
+        open={diffSheetOpen}
+        onClose={() => setDiffSheetOpen(false)}
+      />
     </div>
   );
 }

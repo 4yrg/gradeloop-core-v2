@@ -142,3 +142,16 @@ export interface SubmissionWithAI extends SubmissionItem {
   ai_detection?: AIDetectionResponse;
   ai_loading?: boolean;
 }
+
+// ──────────────────────────────────────────────────────────────────────────
+// Semantic Similarity (CIPAS Semantics Service)
+// ──────────────────────────────────────────────────────────────────────────
+
+export interface SimilarityScoreRequest {
+  code1: string;
+  code2: string;
+}
+
+export interface SimilarityScoreResponse {
+  similarity_score: number; // 0.0 – 1.0
+}

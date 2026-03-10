@@ -15,6 +15,8 @@ interface EditorPanelProps {
   theme?: "light" | "dark";
   onRun?: () => void;
   onSave?: () => void;
+  /** Exposes the raw Monaco editor instance — use to attach custom key listeners */
+  onEditorMount?: (editorInstance: editor.IStandaloneCodeEditor) => void;
 }
 
 export function EditorPanel({
@@ -26,6 +28,7 @@ export function EditorPanel({
   theme = "dark",
   onRun,
   onSave,
+  onEditorMount,
 }: EditorPanelProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
@@ -56,6 +59,9 @@ export function EditorPanel({
 
     // Focus the editor
     editor.focus();
+
+    // Expose instance to parent (e.g. for custom key listeners)
+    onEditorMount?.(editor);
   };
 
   const handleEditorChange = (value: string | undefined) => {

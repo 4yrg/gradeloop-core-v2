@@ -15,12 +15,24 @@ export interface CodeIDEProps {
   showAIAssistant?: boolean;
   /** When true the language selector is disabled — language is fixed by the assignment. */
   lockLanguage?: boolean;
+  /** The assignment's required language ID — used to guard run/submit against language mismatches. */
+  expectedLanguageId?: number;
   /** When true a "Results" tab is shown in the right panel. */
   showGradePanel?: boolean;
   /** The grading result from ACAFS. Null while pending or unavailable. */
   grade?: SubmissionGrade | null;
   /** True while the autograder is running (shows a spinner in the Results tab). */
   isGrading?: boolean;
+  /** True when the autograder polling has timed out with no result. */
+  gradingFailed?: boolean;
+  /** CIPAS analysis results to display alongside the grade. */
+  submissionAnalysis?: {
+    aiLikelihood: number;
+    humanLikelihood: number;
+    semanticSimilarityScore?: number | null;
+  } | null;
+  /** True while CIPAS analysis (AI detection + semantic similarity) is running in the background. */
+  isAnalyzing?: boolean;
 }
 
 export interface ExecutionResult {

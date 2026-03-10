@@ -220,6 +220,73 @@ func (h *SubmissionHandler) RunCode(c fiber.Ctx) error {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PATCH /submissions/:id/analysis
+// ─────────────────────────────────────────────────────────────────────────────
+
+// PatchAnalysis handles PATCH /submissions/:id/analysis.
+// Stores CIPAS AI detection and semantic similarity scores for a submission.
+// This is a fire-and-forget call from the frontend after code submission.
+func (h *SubmissionHandler) PatchAnalysis(c fiber.Ctx) error {
+	id, err := parseUUID(c, "id")
+	if err != nil {
+		return err
+	}
+
+	var req dto.UpdateAnalysisRequest
+	if err := c.Bind().JSON(&req); err != nil {
+		return utils.ErrBadRequest("invalid request body")
+	}
+
+	if err := h.submissionService.UpdateAnalysis(id, &req); err != nil {
+		return err
+	}
+
+	return c.Status(fiber.StatusNoContent).Send(nil)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /submissions/batch/code
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GetBatchCode handles POST /submissions/batch/code.
+// Fetches code for multiple submissions in a single request to avoid N+1 queries.
+// Used by the similarity/cluster diff viewer to load all codes at once.
+func (h *SubmissionHandler) GetBatchCode(c fiber.Ctx) error {
+	var req dto.BatchCodeRequest
+	if err := c.Bind().JSON(&req); err != nil {
+		return utils.ErrBadRequest("invalid request body")
+	}
+
+	if len(req.SubmissionIDs) == 0 {
+		return utils.ErrBadRequest("submission_ids cannot be empty")
+	}
+
+	if len(req.SubmissionIDs) > 100 {
+		return utils.ErrBadRequest("too many submission_ids (max 100)")
+	}
+
+	// Parse all UUIDs
+	ids := make([]uuid.UUID, 0, len(req.SubmissionIDs))
+	for _, idStr := range req.SubmissionIDs {
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			return utils.ErrBadRequest("invalid submission_id: " + idStr)
+		}
+		ids = append(ids, id)
+	}
+
+	codes, err := h.submissionService.GetBatchCode(ids)
+	if err != nil {
+		return err
+	}
+
+	return c.Status(fiber.StatusOK).JSON(dto.BatchCodeResponse{
+		Codes: codes,
+		Count: len(codes),
+	})
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -297,6 +364,16 @@ func toSubmissionResponse(s *domain.Submission) dto.SubmissionResponse {
 				response.TestCaseResults = results
 			}
 		}
+	}
+
+	// Add CIPAS analysis results if present
+	if s.AILikelihood != nil {
+		response.AILikelihood = s.AILikelihood
+		response.HumanLikelihood = s.HumanLikelihood
+		response.IsAIGenerated = s.IsAIGenerated
+		response.AIConfidence = s.AIConfidence
+		response.SemanticSimilarityScore = s.SemanticSimilarityScore
+		response.AnalyzedAt = s.AnalyzedAt
 	}
 
 	return response

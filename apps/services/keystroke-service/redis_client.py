@@ -419,5 +419,7 @@ def get_redis_client() -> RedisSessionClient:
     """Get or create Redis client singleton"""
     global _redis_client
     if _redis_client is None:
-        _redis_client = RedisSessionClient()
+        # Respect SESSION_TTL_HOURS env var (same as main.py reads it)
+        ttl_hours = int(os.getenv("SESSION_TTL_HOURS", "2"))
+        _redis_client = RedisSessionClient(session_ttl=ttl_hours * 3600)
     return _redis_client

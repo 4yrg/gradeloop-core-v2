@@ -154,7 +154,7 @@
   "enrollment_instructions": {
     "overview": "Complete all 4 phases to enable keystroke authentication",
     "total_duration_minutes": 20,
-    "phases_required": ["baseline", "transcription", "stress", "cognitive"],
+    "phases_required": ["baseline", "transcription"],
     "minimum_sessions": 8,
     "recommendations": [
       "Complete phases across multiple days for best results",

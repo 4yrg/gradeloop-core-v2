@@ -12,6 +12,7 @@ from typing import Dict, List, Optional
 
 import numpy as np
 import psycopg2
+import psycopg2.pool
 from psycopg2 import extras
 
 
@@ -73,30 +74,23 @@ class DatabaseClient:
             self.pool.putconn(conn)
 
     def _initialize_schema(self):
-        """Initialize database schema if not exists"""
+        """Initialize database schema and run idempotent migrations"""
         try:
+            schema_path = os.path.join(os.path.dirname(__file__), "schema.sql")
+            if not os.path.exists(schema_path):
+                print("⚠️  schema.sql not found - run manually")
+                return
+
+            with open(schema_path, "r") as f:
+                schema_sql = f.read()
+
             with self.get_connection() as conn:
                 with conn.cursor() as cursor:
-                    # Check if tables exist
-                    cursor.execute("""
-                        SELECT EXISTS (
-                            SELECT FROM information_schema.tables
-                            WHERE table_name = 'user_biometrics'
-                        );
-                    """)
-                    exists = cursor.fetchone()[0]
-
-                    if not exists:
-                        # Read and execute schema.sql
-                        schema_path = os.path.join(
-                            os.path.dirname(__file__), "schema.sql"
-                        )
-                        if os.path.exists(schema_path):
-                            with open(schema_path, "r") as f:
-                                cursor.execute(f.read())
-                            print("✅ Database schema initialized")
-                        else:
-                            print("⚠️  schema.sql not found - run manually")
+                    # schema.sql uses CREATE TABLE IF NOT EXISTS and ALTER TABLE
+                    # ADD COLUMN IF NOT EXISTS throughout, so it is fully idempotent
+                    # and safe to execute on every startup — fresh or existing DB.
+                    cursor.execute(schema_sql)
+            print("✅ Database schema initialised / migrations applied")
         except Exception as e:
             print(f"⚠️  Schema initialization error: {e}")
 
@@ -320,15 +314,33 @@ class DatabaseClient:
                         (user_id, datetime.now(), datetime.now()),
                     )
 
-                    # Check if all phases complete
+                    # Update per-phase enrollment_complete flag based solely on
+                    # config-required phases. We read REQUIRED_PHASES from env
+                    # (same source as main.py) so the DB flag stays in sync even
+                    # when the config changes.
+                    import os as _os
+                    import json as _json
+                    _config_path = _os.path.join(_os.path.dirname(__file__), 'enrollment_tasks.json')
+                    try:
+                        with open(_config_path) as _f:
+                            _cfg = _json.load(_f)
+                        _required = _cfg.get('enrollment_instructions', {}).get(
+                            'phases_required', ['baseline', 'transcription', 'stress', 'cognitive']
+                        )
+                    except Exception:
+                        _required = ['baseline', 'transcription', 'stress', 'cognitive']
+
+                    # Build a dynamic WHERE clause that only checks required phases
+                    _phase_checks = " AND ".join(
+                        f"{p}_complete" for p in _required
+                    )
                     cursor.execute(
-                        """
+                        f"""
                         UPDATE enrollment_progress
                         SET enrollment_complete = TRUE,
                             enrollment_completed_at = %s
                         WHERE user_id = %s
-                          AND baseline_complete AND transcription_complete
-                          AND stress_complete AND cognitive_complete
+                          AND {_phase_checks}
                           AND enrollment_complete = FALSE
                     """,
                         (datetime.now(), user_id),

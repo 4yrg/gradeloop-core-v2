@@ -12,7 +12,6 @@ Session lifecycle
 
 import re
 from typing import Any
-from uuid import UUID
 
 import httpx
 
@@ -29,13 +28,11 @@ _LONG_CODE_BLOCK = re.compile(r"```[\s\S]*?```")
 
 def _apply_guardrail(content: str) -> str:
     """Server-side guardrail: replace suspiciously long code blocks."""
+
     def _replace(m: re.Match) -> str:
         block = m.group(0)
         if block.count("\n") > 5:
-            return (
-                "What part of the logic would you like to reason through "
-                "step by step?"
-            )
+            return "What part of the logic would you like to reason through step by step?"
         return block
 
     return _LONG_CODE_BLOCK.sub(_replace, content).strip()
@@ -98,9 +95,7 @@ class SocraticChatService:
 
         # Sliding window: last 6 turns to control context size
         recent = messages[-6:] if len(messages) > 6 else messages
-        clean_messages = [
-            {"role": m["role"], "content": m["content"]} for m in recent
-        ]
+        clean_messages = [{"role": m["role"], "content": m["content"]} for m in recent]
 
         # Only request extended reasoning for models that advertise it.
         # Sending it to models that don't support it (e.g. free Arcee Trinity)
@@ -157,13 +152,15 @@ class SocraticChatService:
                 if message is None:
                     if isinstance(data.get("output"), str):
                         message = {"content": data.get("output")}
-                    elif isinstance(data.get("result"), dict) and isinstance(data["result"].get("output"), str):
+                    elif isinstance(data.get("result"), dict) and isinstance(
+                        data["result"].get("output"), str
+                    ):
                         message = {"content": data["result"]["output"]}
 
                 # Final fallback: try extracting any text-like field
                 if message is None:
                     # try to find a top-level string value in the JSON
-                    for k, v in (data.items() if isinstance(data, dict) else []):
+                    for k, v in data.items() if isinstance(data, dict) else []:
                         if isinstance(v, str) and len(v) > 0:
                             message = {"content": v}
                             break

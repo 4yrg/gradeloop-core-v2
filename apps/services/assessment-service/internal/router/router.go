@@ -98,6 +98,11 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	// POST   /api/v1/submissions/run-code      — execute code without persistence
 	submissions.Post("/run-code", cfg.SubmissionHandler.RunCode)
 
+	// POST   /api/v1/submissions/batch/code     — fetch code for multiple submissions
+	// NOTE: Must be registered BEFORE POST / to prevent "batch" from being
+	// treated as a nested route under a parameterized submission ID.
+	submissions.Post("/batch/code", cfg.SubmissionHandler.GetBatchCode)
+
 	// POST   /api/v1/submissions                — create (versioned, immutable)
 	submissions.Post("/", cfg.SubmissionHandler.CreateSubmission)
 
@@ -105,6 +110,10 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	// NOTE: Must be registered BEFORE GET /:id to prevent the literal "code"
 	// segment from being swallowed as a UUID param value.
 	submissions.Get("/:id/code", cfg.SubmissionHandler.GetSubmissionCode)
+
+	// PATCH  /api/v1/submissions/:id/analysis   — store CIPAS AI + semantic scores
+	// NOTE: Must be registered BEFORE GET /:id for the same reason as /code above.
+	submissions.Patch("/:id/analysis", cfg.SubmissionHandler.PatchAnalysis)
 
 	// GET    /api/v1/submissions/:id            — get submission metadata
 	submissions.Get("/:id", cfg.SubmissionHandler.GetSubmission)
@@ -140,6 +149,9 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	// GET /student-assignments/:id so the literal path segments are not
 	// consumed as UUID parameter values.
 	studentAssignments.Get("/", cfg.StudentHandler.ListMyAssignments)
+	// NOTE: Must be registered BEFORE GET /:id to prevent the literal segment
+	// "sample-answer" from being swallowed as a UUID parameter value.
+	studentAssignments.Get("/:id/sample-answer", cfg.StudentHandler.GetAssignmentSampleAnswer)
 	studentAssignments.Get("/:id", cfg.StudentHandler.GetAssignment)
 
 	studentSubmissions := protected.Group("/student-submissions", requireStudentOrAdmin)

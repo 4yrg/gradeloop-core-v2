@@ -42,6 +42,11 @@ type SubmissionService interface {
 	// the given submission.
 	GetSubmissionCode(id uuid.UUID) (string, error)
 
+	// GetBatchCode returns source code for multiple submissions in a single call.
+	// Returns a map of submission_id → SubmissionCodeResponse.
+	// Silently skips submissions that don't exist or are queued.
+	GetBatchCode(ids []uuid.UUID) (map[string]dto.SubmissionCodeResponse, error)
+
 	// ListSubmissions returns all submission versions for the given
 	// assignment and owner scope, ordered newest-first.
 	ListSubmissions(
@@ -70,6 +75,10 @@ type SubmissionService interface {
 		req *dto.RunCodeRequest,
 		userID uuid.UUID,
 	) (*dto.RunCodeResponse, error)
+
+	// UpdateAnalysis persists the CIPAS AI detection and semantic similarity
+	// scores for a submission.  Called via PATCH /submissions/:id/analysis.
+	UpdateAnalysis(id uuid.UUID, req *dto.UpdateAnalysisRequest) error
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -435,6 +444,56 @@ func (s *submissionService) GetSubmissionCode(id uuid.UUID) (string, error) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GetBatchCode
+// ─────────────────────────────────────────────────────────────────────────────
+
+func (s *submissionService) GetBatchCode(ids []uuid.UUID) (map[string]dto.SubmissionCodeResponse, error) {
+	if len(ids) == 0 {
+		return make(map[string]dto.SubmissionCodeResponse), nil
+	}
+
+	// Fetch all submissions in one DB query
+	submissions, err := s.submissionRepo.GetSubmissionsByIDs(ids)
+	if err != nil {
+		s.logger.Error("failed to load submissions for batch code retrieval",
+			zap.Int("count", len(ids)), zap.Error(err))
+		return nil, utils.ErrInternal("failed to load submissions", err)
+	}
+
+	// Build result map, fetching code from MinIO for each valid submission
+	result := make(map[string]dto.SubmissionCodeResponse)
+	for _, sub := range submissions {
+		// Skip submissions that are still queued (not yet uploaded to MinIO)
+		if sub.Status == string(domain.SubmissionStatusQueued) {
+			s.logger.Debug("skipping queued submission in batch code fetch",
+				zap.String("id", sub.ID.String()))
+			continue
+		}
+
+		code, err := s.storage.GetSubmissionCode(context.Background(), sub.StoragePath)
+		if err != nil {
+			s.logger.Warn("failed to retrieve code for submission in batch",
+				zap.String("id", sub.ID.String()),
+				zap.String("storage_path", sub.StoragePath),
+				zap.Error(err),
+			)
+			// Skip failed retrieval instead of failing the entire batch
+			continue
+		}
+
+		result[sub.ID.String()] = dto.SubmissionCodeResponse{
+			SubmissionID: sub.ID,
+			AssignmentID: sub.AssignmentID,
+			Language:     sub.Language,
+			Version:      sub.Version,
+			Code:         code,
+		}
+	}
+
+	return result, nil
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ListSubmissions
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -627,4 +686,20 @@ func (s *submissionService) RunCode(
 		StatusID:      execResult.Status.ID,
 		Message:       execResult.Message,
 	}, nil
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UpdateAnalysis
+// ─────────────────────────────────────────────────────────────────────────────
+
+// UpdateAnalysis stores CIPAS analysis results on an existing submission.
+func (s *submissionService) UpdateAnalysis(id uuid.UUID, req *dto.UpdateAnalysisRequest) error {
+	submission, err := s.submissionRepo.GetSubmission(id)
+	if err != nil {
+		return utils.ErrInternal("failed to load submission", err)
+	}
+	if submission == nil {
+		return utils.ErrNotFound("submission not found")
+	}
+	return s.submissionRepo.UpdateAnalysis(id, req)
 }

@@ -2,9 +2,11 @@ package repository
 
 import (
 	"errors"
+	"time"
 
-	"github.com/google/uuid"
 	"github.com/4yrg/gradeloop-core-v2/assessment-service/internal/domain"
+	"github.com/4yrg/gradeloop-core-v2/assessment-service/internal/dto"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -25,6 +27,10 @@ type SubmissionRepository interface {
 	// Returns (nil, nil) when not found.
 	GetSubmission(id uuid.UUID) (*domain.Submission, error)
 
+	// GetSubmissionsByIDs loads multiple submissions by their primary keys.
+	// Returns only the submissions that exist; silently skips missing IDs.
+	GetSubmissionsByIDs(ids []uuid.UUID) ([]domain.Submission, error)
+
 	// ListSubmissions returns all submissions for the given assignment and
 	// owner scope, ordered by version descending (newest first).
 	ListSubmissions(assignmentID uuid.UUID, userID, groupID *uuid.UUID) ([]domain.Submission, error)
@@ -41,6 +47,10 @@ type SubmissionRepository interface {
 	// UpdateExecutionResults updates the submission with Judge0 execution results.
 	// It is called by the queue worker after code execution.
 	UpdateExecutionResults(submission *domain.Submission) error
+
+	// UpdateAnalysis persists the CIPAS AI detection and semantic similarity
+	// scores for a submission.  Called via PATCH /submissions/:id/analysis.
+	UpdateAnalysis(id uuid.UUID, req *dto.UpdateAnalysisRequest) error
 }
 
 // submissionRepository is the concrete GORM-backed implementation.
@@ -133,6 +143,29 @@ func (r *submissionRepository) GetSubmission(id uuid.UUID) (*domain.Submission, 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GetSubmissionsByIDs
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GetSubmissionsByIDs loads multiple submissions by their primary keys in a single query.
+// Returns only the submissions that exist; silently skips missing IDs.
+func (r *submissionRepository) GetSubmissionsByIDs(ids []uuid.UUID) ([]domain.Submission, error) {
+	if len(ids) == 0 {
+		return []domain.Submission{}, nil
+	}
+
+	var submissions []domain.Submission
+	err := r.db.
+		Where("id IN ?", ids).
+		Find(&submissions).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return submissions, nil
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ListSubmissions
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -218,17 +251,41 @@ func (r *submissionRepository) UpdateExecutionResults(submission *domain.Submiss
 		Model(&domain.Submission{}).
 		Where("id = ?", submission.ID).
 		Updates(map[string]interface{}{
-			"status":                submission.Status,
-			"execution_stdout":      submission.ExecutionStdout,
-			"execution_stderr":      submission.ExecutionStderr,
-			"compile_output":        submission.CompileOutput,
-			"execution_status":      submission.ExecutionStatus,
-			"execution_status_id":   submission.ExecutionStatusID,
-			"execution_time":        submission.ExecutionTime,
-			"memory_used":           submission.MemoryUsed,
-			"test_cases_passed":     submission.TestCasesPassed,
-			"total_test_cases":      submission.TotalTestCases,
-			"test_case_results":     submission.TestCaseResults,
+			"status":              submission.Status,
+			"execution_stdout":    submission.ExecutionStdout,
+			"execution_stderr":    submission.ExecutionStderr,
+			"compile_output":      submission.CompileOutput,
+			"execution_status":    submission.ExecutionStatus,
+			"execution_status_id": submission.ExecutionStatusID,
+			"execution_time":      submission.ExecutionTime,
+			"memory_used":         submission.MemoryUsed,
+			"test_cases_passed":   submission.TestCasesPassed,
+			"total_test_cases":    submission.TotalTestCases,
+			"test_case_results":   submission.TestCaseResults,
 		}).
+		Error
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UpdateAnalysis
+// ─────────────────────────────────────────────────────────────────────────────
+
+// UpdateAnalysis persists CIPAS AI + semantic similarity results on a submission.
+func (r *submissionRepository) UpdateAnalysis(id uuid.UUID, req *dto.UpdateAnalysisRequest) error {
+	now := time.Now().UTC()
+	updates := map[string]interface{}{
+		"ai_likelihood":    req.AILikelihood,
+		"human_likelihood": req.HumanLikelihood,
+		"is_ai_generated":  req.IsAIGenerated,
+		"ai_confidence":    req.AIConfidence,
+		"analyzed_at":      now,
+	}
+	if req.SemanticSimilarityScore != nil {
+		updates["semantic_similarity_score"] = *req.SemanticSimilarityScore
+	}
+	return r.db.
+		Model(&domain.Submission{}).
+		Where("id = ?", id).
+		Updates(updates).
 		Error
 }
