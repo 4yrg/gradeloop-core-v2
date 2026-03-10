@@ -32,18 +32,9 @@ class Settings:
     # Hardware Settings
     DEVICE: str = os.getenv(
         "DEVICE",
-<<<<<<< HEAD
-        (
-            "cuda"
-            if os.getenv("USE_CUDA", "true").lower() == "true"
-            and torch.cuda.is_available()
-            else "cpu"
-        ),
-=======
         "cuda"
         if os.getenv("USE_CUDA", "true").lower() == "true" and torch.cuda.is_available()
         else "cpu",
->>>>>>> 6f544a8f (feat(cipas): update configuration and Dockerfile for enhanced model support and dependencies)
     )
     USE_MIXED_PRECISION: bool = (
         os.getenv("USE_MIXED_PRECISION", "true").lower() == "true"

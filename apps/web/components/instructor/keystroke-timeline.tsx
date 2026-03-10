@@ -162,7 +162,7 @@ export function KeystrokeTimeline({
     const resolvedApiBase =
         apiUrl ??
             process.env.NEXT_PUBLIC_API_URL ??
-            "http://traefik:8000";
+            "http://localhost:8000";
 
     const resolvedWsBase =
         wsUrl ??

@@ -27,6 +27,10 @@ type SubmissionRepository interface {
 	// Returns (nil, nil) when not found.
 	GetSubmission(id uuid.UUID) (*domain.Submission, error)
 
+	// GetSubmissionsByIDs loads multiple submissions by their primary keys.
+	// Returns only the submissions that exist; silently skips missing IDs.
+	GetSubmissionsByIDs(ids []uuid.UUID) ([]domain.Submission, error)
+
 	// ListSubmissions returns all submissions for the given assignment and
 	// owner scope, ordered by version descending (newest first).
 	ListSubmissions(assignmentID uuid.UUID, userID, groupID *uuid.UUID) ([]domain.Submission, error)
@@ -136,6 +140,29 @@ func (r *submissionRepository) GetSubmission(id uuid.UUID) (*domain.Submission, 
 	}
 
 	return &submission, nil
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GetSubmissionsByIDs
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GetSubmissionsByIDs loads multiple submissions by their primary keys in a single query.
+// Returns only the submissions that exist; silently skips missing IDs.
+func (r *submissionRepository) GetSubmissionsByIDs(ids []uuid.UUID) ([]domain.Submission, error) {
+	if len(ids) == 0 {
+		return []domain.Submission{}, nil
+	}
+
+	var submissions []domain.Submission
+	err := r.db.
+		Where("id IN ?", ids).
+		Find(&submissions).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return submissions, nil
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -147,6 +147,7 @@ export function CollusionGroupCard({
             submissions={groupSubs}
             initialLeftId={activeEdge.student_a}
             initialRightId={activeEdge.student_b}
+            edge={activeEdge}
             aiDetectionMap={aiDetectionMap}
           />
         ) : (
