@@ -690,6 +690,9 @@ services:
       - PORT=8003
       - DEVICE=cpu
       - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_PASS=${RABBITMQ_PASS:-guest}
       - REDIS_URL=redis://redis:6379
       - DATABASE_URL=postgresql://keystroke_user:keystroke_pass@postgres-keystroke:5432/keystroke-db
       - SESSION_TTL_HOURS=2
