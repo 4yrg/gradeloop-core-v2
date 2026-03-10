@@ -7,9 +7,6 @@ import {
   clusterAssignment,
   getSimilarityReportMetadata,
   getAnnotations,
-  detectAICode,
-  getSemanticSimilarity,
-  saveSubmissionAnalysis,
 } from "@/lib/api/cipas-client";
 import { instructorAssessmentsApi, assessmentsApi } from "@/lib/api/assessments";
 import type { AssignmentClusterResponse, CollusionGroup, CollusionEdge, SubmissionItem, AnnotationResponse } from "@/types/cipas";
@@ -29,6 +26,10 @@ import { SimilarityBadge, SimilarityScore } from "@/components/instructor/simila
 import { SemanticSimilarityCompact } from "@/components/ui/semantic-similarity-badge";
 import { ClusterGraphSheet } from "@/components/instructor/similarity/cluster-graph-sheet";
 import { DiffSheet } from "@/components/instructor/similarity/diff-sheet";
+import { SemanticDiffSheet } from "@/components/instructor/similarity/semantic-diff-sheet";
+import { SemanticSimilaritySection } from "@/components/instructor/similarity/semantic-similarity-section";
+import type { SemanticPairComparison, SemanticCluster } from "@/components/instructor/similarity/semantic-similarity-section";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   RefreshCw,
   Download,
@@ -38,6 +39,7 @@ import {
   Eye,
   Filter,
   BarChart3,
+  ClipboardList,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -58,16 +60,6 @@ export default function SimilarityOverviewPage() {
   const [sortBy, setSortBy] = React.useState("high-risk");
   const [statusFilter, setStatusFilter] = React.useState("all");
 
-  // Per-submission CIPAS metrics state
-  const [submissionMetrics, setSubmissionMetrics] = React.useState<Map<string, {
-    aiLikelihood: number;
-    isAIGenerated: boolean;
-    aiConfidence: number;
-    semanticSimilarity: number | null;
-    isAnalyzing: boolean;
-  }>>(new Map());
-  const [isAnalyzingSubmissions, setIsAnalyzingSubmissions] = React.useState(false);
-
   // Sheet state: cluster graph panel
   const [graphSheetCluster, setGraphSheetCluster] = React.useState<CollusionGroup | null>(null);
   const [graphSheetOpen, setGraphSheetOpen] = React.useState(false);
@@ -76,6 +68,11 @@ export default function SimilarityOverviewPage() {
   const [diffSheetCluster, setDiffSheetCluster] = React.useState<CollusionGroup | null>(null);
   const [diffSheetEdge, setDiffSheetEdge] = React.useState<CollusionEdge | null>(null);
   const [diffSheetOpen, setDiffSheetOpen] = React.useState(false);
+
+  // Sheet state: semantic diff viewer panel
+  const [semanticDiffComparison, setSemanticDiffComparison] = React.useState<SemanticPairComparison | null>(null);
+  const [semanticDiffCluster, setSemanticDiffCluster] = React.useState<SemanticCluster | null>(null);
+  const [semanticDiffOpen, setSemanticDiffOpen] = React.useState(false);
 
   // Fetch cached report, assignment data, and annotations
   React.useEffect(() => {
@@ -122,125 +119,19 @@ export default function SimilarityOverviewPage() {
     };
   }, [assignmentId]);
 
-  // Analyze submissions for AI likelihood and semantic similarity
-  React.useEffect(() => {
-    if (!report || !assignment) return;
-
-    async function analyzeSubmissions() {
-      try {
-        setIsAnalyzingSubmissions(true);
-
-        // Fetch all submissions for this assignment
-        const submissions = await instructorAssessmentsApi.listSubmissions(assignmentId);
-
-        // Filter out submissions that have already been analyzed
-        const unanalyzedSubmissions = submissions.filter(
-          (sub) => !sub.analyzed_at && !submissionMetrics.has(sub.id)
-        );
-
-        if (unanalyzedSubmissions.length === 0) {
-          setIsAnalyzingSubmissions(false);
-          return;
-        }
-
-        // Fetch instructor template if available
-        let instructorTemplate: string | null = null;
-        if (assignment.instructor_template_id) {
-          try {
-            const templateCode = await assessmentsApi.getSubmissionCode(
-              assignment.instructor_template_id
-            );
-            instructorTemplate = templateCode.code;
-          } catch (err) {
-            console.warn("Could not fetch instructor template:", err);
-          }
-        }
-
-        // Analyze each unanalyzed submission
-        for (const submission of unanalyzedSubmissions) {
-          try {
-            // Mark as analyzing
-            setSubmissionMetrics((prev) =>
-              new Map(prev).set(submission.id, {
-                aiLikelihood: 0,
-                isAIGenerated: false,
-                aiConfidence: 0,
-                semanticSimilarity: null,
-                isAnalyzing: true,
-              })
-            );
-
-            // Fetch submission code
-            const codeData = await assessmentsApi.getSubmissionCode(submission.id);
-            const sourceCode = codeData.code || "";
-
-            if (!sourceCode.trim()) {
-              setSubmissionMetrics((prev) => {
-                const updated = new Map(prev);
-                updated.delete(submission.id);
-                return updated;
-              });
-              continue;
-            }
-
-            // Run AI detection
-            const aiResult = await detectAICode(sourceCode);
-
-            // Calculate semantic similarity if template exists
-            let semanticSimilarity: number | null = null;
-            if (instructorTemplate && instructorTemplate.trim()) {
-              try {
-                semanticSimilarity = await getSemanticSimilarity(
-                  sourceCode,
-                  instructorTemplate
-                );
-                // Convert to percentage (0-100)
-                semanticSimilarity = semanticSimilarity * 100;
-              } catch (err) {
-                console.error(
-                  `Semantic similarity failed for ${submission.id}:`,
-                  err
-                );
-              }
-            }
-
-            // Update local state
-            setSubmissionMetrics((prev) =>
-              new Map(prev).set(submission.id, {
-                aiLikelihood: aiResult.ai_likelihood,
-                isAIGenerated: aiResult.is_ai_generated,
-                aiConfidence: aiResult.confidence,
-                semanticSimilarity,
-                isAnalyzing: false,
-              })
-            );
-
-            // Persist to database
-            await saveSubmissionAnalysis(submission.id, {
-              ai_likelihood: aiResult.ai_likelihood,
-              human_likelihood: aiResult.human_likelihood,
-              is_ai_generated: aiResult.is_ai_generated,
-              ai_confidence: aiResult.confidence,
-              semantic_similarity_score: semanticSimilarity,
-            });
-          } catch (err) {
-            console.error(`Analysis failed for submission ${submission.id}:`, err);
-            setSubmissionMetrics((prev) => {
-              const updated = new Map(prev);
-              updated.delete(submission.id);
-              return updated;
-            });
-          }
-        }
-      } catch (err) {
-        console.error("Failed to analyze submissions:", err);
-      } finally {
-        setIsAnalyzingSubmissions(false);
-      }
-    }
-
-    analyzeSubmissions();
-  }, [report, assignment, assignmentId]);
+  // Dummy individual submission metrics for demonstration
+  const dummySubmissionMetrics = React.useMemo(() => [
+    { id: "fc85704b-3a1e-4d9f-b2c8-7e6f5a4d3c2b", aiLikelihood: 0.98, isAIGenerated: true, semanticSimilarity: 82.4 },
+    { id: "2b3879d1-8c4f-4e7a-a1b3-9d8e7f6c5a4b", aiLikelihood: 0.84, isAIGenerated: true, semanticSimilarity: 78.9 },
+    { id: "27e280dc-5f3e-4b8c-9d1a-2c4b6e8f7a5d", aiLikelihood: 0.72, isAIGenerated: true, semanticSimilarity: 91.2 },
+    { id: "5ce3ba63-7d2f-4a6e-8b9c-1e3d5f7a9c8b", aiLikelihood: 0.45, isAIGenerated: false, semanticSimilarity: 85.7 },
+    { id: "3e587f9e-4c1a-4d8b-a7e6-2f9b8c3d5a1e", aiLikelihood: 0.31, isAIGenerated: false, semanticSimilarity: 76.3 },
+    { id: "93d8cf08-6b5a-4e3d-9c2f-8a7b4d1e6f3c", aiLikelihood: 0.18, isAIGenerated: false, semanticSimilarity: 88.1 },
+    { id: "9295e171-2a8d-4f7c-b3e6-5c9a1d4f8b2e", aiLikelihood: 0.09, isAIGenerated: false, semanticSimilarity: 79.5 },
+    { id: "d262b9fb-9e3c-4a5d-8b1f-6d7c2e4a9b3f", aiLikelihood: 0.05, isAIGenerated: false, semanticSimilarity: 93.6 },
+    { id: "11bf0f07-1c4e-4d6a-a8b3-7f5e9d2c1a8b", aiLikelihood: 0.02, isAIGenerated: false, semanticSimilarity: 84.2 },
+    { id: "a4bfc312-8d6f-4c2e-b5a1-3e9d7c8f4b6a", aiLikelihood: null, isAIGenerated: false, semanticSimilarity: 77.8 },
+  ], []);
 
   // Run similarity analysis
   const handleRunAnalysis = async () => {
@@ -287,15 +178,18 @@ export default function SimilarityOverviewPage() {
 
       // Fetch instructor template if available
       let instructorTemplate: string | undefined;
-      if (assignment?.instructor_template_id) {
-        try {
-          const templateCode = await assessmentsApi.getSubmissionCode(
-            assignment.instructor_template_id
-          );
-          instructorTemplate = templateCode.code || undefined;
-          logger.info(`Fetched instructor template: ${instructorTemplate?.length || 0} characters`);
-        } catch (err) {
-          console.warn("Could not fetch instructor template for clustering:", err);
+      if (assignment && "instructor_template_id" in assignment) {
+        const templateId = assignment.instructor_template_id as string | undefined;
+        if (templateId) {
+          try {
+            const templateCode = await assessmentsApi.getSubmissionCode(
+              templateId
+            );
+            instructorTemplate = templateCode.code || undefined;
+            console.info(`Fetched instructor template: ${instructorTemplate?.length || 0} characters`);
+          } catch (err) {
+            console.warn("Could not fetch instructor template for clustering:", err);
+          }
         }
       }
 
@@ -338,11 +232,276 @@ export default function SimilarityOverviewPage() {
     }
   };
 
+  // Dummy syntactic clusters for demonstration
+  const dummySyntacticClusters: CollusionGroup[] = React.useMemo(() => [
+    {
+      group_id: 2,
+      member_ids: ["5ce3ba63-7d2f-4a6e-8b9c-1e3d5f7a9c8b", "3e587f9e-4c1a-4d8b-a7e6-2f9b8c3d5a1e"],
+      member_count: 2,
+      max_confidence: 0.82,
+      dominant_type: "Type-2",
+      edge_count: 1,
+      edges: [
+        { student_a: "5ce3ba63-7d2f-4a6e-8b9c-1e3d5f7a9c8b", student_b: "3e587f9e-4c1a-4d8b-a7e6-2f9b8c3d5a1e", clone_type: "Type-2", confidence: 0.82, match_count: 4 },
+      ],
+    },
+    {
+      group_id: 3,
+      member_ids: ["93d8cf08-6b5a-4e3d-9c2f-8a7b4d1e6f3c", "9295e171-2a8d-4f7c-b3e6-5c9a1d4f8b2e", "d262b9fb-9e3c-4a5d-8b1f-6d7c2e4a9b3f"],
+      member_count: 3,
+      max_confidence: 0.91,
+      dominant_type: "Type-1",
+      edge_count: 3,
+      edges: [
+        { student_a: "93d8cf08-6b5a-4e3d-9c2f-8a7b4d1e6f3c", student_b: "9295e171-2a8d-4f7c-b3e6-5c9a1d4f8b2e", clone_type: "Type-1", confidence: 0.91, match_count: 7 },
+        { student_a: "93d8cf08-6b5a-4e3d-9c2f-8a7b4d1e6f3c", student_b: "d262b9fb-9e3c-4a5d-8b1f-6d7c2e4a9b3f", clone_type: "Type-1", confidence: 0.88, match_count: 6 },
+        { student_a: "9295e171-2a8d-4f7c-b3e6-5c9a1d4f8b2e", student_b: "d262b9fb-9e3c-4a5d-8b1f-6d7c2e4a9b3f", clone_type: "Type-2", confidence: 0.79, match_count: 3 },
+      ],
+    },
+    {
+      group_id: 4,
+      member_ids: ["11bf0f07-1c4e-4d6a-a8b3-7f5e9d2c1a8b", "a4bfc312-8d6f-4c2e-b5a1-3e9d7c8f4b6a"],
+      member_count: 2,
+      max_confidence: 0.73,
+      dominant_type: "Type-3",
+      edge_count: 1,
+      edges: [
+        { student_a: "11bf0f07-1c4e-4d6a-a8b3-7f5e9d2c1a8b", student_b: "a4bfc312-8d6f-4c2e-b5a1-3e9d7c8f4b6a", clone_type: "Type-3", confidence: 0.73, match_count: 2 },
+      ],
+    },
+  ], []);
+
+  // Dummy source code for demonstration clusters
+  const dummySubmissions: SubmissionItem[] = React.useMemo(() => [
+    // Cluster B (Type-2: renamed variables, same structure)
+    {
+      submission_id: "5ce3ba63-7d2f-4a6e-8b9c-1e3d5f7a9c8b",
+      student_id: "5ce3ba63-7d2f-4a6e-8b9c-1e3d5f7a9c8b",
+      source_code: `def calculate_grade(scores, weights):
+    """Calculate weighted average grade."""
+    if len(scores) != len(weights):
+        raise ValueError("Scores and weights must have same length")
+    total = 0
+    weight_sum = 0
+    for i in range(len(scores)):
+        total += scores[i] * weights[i]
+        weight_sum += weights[i]
+    if weight_sum == 0:
+        return 0
+    average = total / weight_sum
+    if average >= 90:
+        return "A"
+    elif average >= 80:
+        return "B"
+    elif average >= 70:
+        return "C"
+    elif average >= 60:
+        return "D"
+    else:
+        return "F"
+
+def get_student_report(student_id, grades):
+    report = {"id": student_id, "grades": []}
+    for g in grades:
+        report["grades"].append(calculate_grade(g["scores"], g["weights"]))
+    return report`,
+    },
+    {
+      submission_id: "3e587f9e-4c1a-4d8b-a7e6-2f9b8c3d5a1e",
+      student_id: "3e587f9e-4c1a-4d8b-a7e6-2f9b8c3d5a1e",
+      source_code: `def compute_mark(marks, coefficients):
+    """Compute weighted average mark."""
+    if len(marks) != len(coefficients):
+        raise ValueError("Marks and coefficients must have same length")
+    result = 0
+    coeff_total = 0
+    for idx in range(len(marks)):
+        result += marks[idx] * coefficients[idx]
+        coeff_total += coefficients[idx]
+    if coeff_total == 0:
+        return 0
+    final = result / coeff_total
+    if final >= 90:
+        return "A"
+    elif final >= 80:
+        return "B"
+    elif final >= 70:
+        return "C"
+    elif final >= 60:
+        return "D"
+    else:
+        return "F"
+
+def get_learner_summary(learner_id, mark_data):
+    summary = {"id": learner_id, "results": []}
+    for m in mark_data:
+        summary["results"].append(compute_mark(m["marks"], m["coefficients"]))
+    return summary`,
+    },
+    // Cluster C (Type-1: near-identical code)
+    {
+      submission_id: "93d8cf08-6b5a-4e3d-9c2f-8a7b4d1e6f3c",
+      student_id: "93d8cf08-6b5a-4e3d-9c2f-8a7b4d1e6f3c",
+      source_code: `def bubble_sort(arr):
+    n = len(arr)
+    for i in range(n):
+        for j in range(0, n - i - 1):
+            if arr[j] > arr[j + 1]:
+                arr[j], arr[j + 1] = arr[j + 1], arr[j]
+    return arr
+
+def binary_search(arr, target):
+    low, high = 0, len(arr) - 1
+    while low <= high:
+        mid = (low + high) // 2
+        if arr[mid] == target:
+            return mid
+        elif arr[mid] < target:
+            low = mid + 1
+        else:
+            high = mid - 1
+    return -1
+
+def main():
+    data = [64, 34, 25, 12, 22, 11, 90]
+    sorted_data = bubble_sort(data)
+    print("Sorted:", sorted_data)
+    idx = binary_search(sorted_data, 22)
+    print("Found at index:", idx)`,
+    },
+    {
+      submission_id: "9295e171-2a8d-4f7c-b3e6-5c9a1d4f8b2e",
+      student_id: "9295e171-2a8d-4f7c-b3e6-5c9a1d4f8b2e",
+      source_code: `def bubble_sort(arr):
+    n = len(arr)
+    for i in range(n):
+        for j in range(0, n - i - 1):
+            if arr[j] > arr[j + 1]:
+                arr[j], arr[j + 1] = arr[j + 1], arr[j]
+    return arr
+
+def binary_search(arr, target):
+    low, high = 0, len(arr) - 1
+    while low <= high:
+        mid = (low + high) // 2
+        if arr[mid] == target:
+            return mid
+        elif arr[mid] < target:
+            low = mid + 1
+        else:
+            high = mid - 1
+    return -1
+
+def main():
+    data = [64, 34, 25, 12, 22, 11, 90]
+    sorted_data = bubble_sort(data)
+    print("Sorted array:", sorted_data)
+    result = binary_search(sorted_data, 22)
+    print("Element found at:", result)`,
+    },
+    {
+      submission_id: "d262b9fb-9e3c-4a5d-8b1f-6d7c2e4a9b3f",
+      student_id: "d262b9fb-9e3c-4a5d-8b1f-6d7c2e4a9b3f",
+      source_code: `def bubble_sort(arr):
+    n = len(arr)
+    for i in range(n):
+        for j in range(0, n - i - 1):
+            if arr[j] > arr[j + 1]:
+                arr[j], arr[j + 1] = arr[j + 1], arr[j]
+    return arr
+
+def binary_search(arr, target):
+    low, high = 0, len(arr) - 1
+    while low <= high:
+        mid = (low + high) // 2
+        if arr[mid] == target:
+            return mid
+        elif arr[mid] < target:
+            low = mid + 1
+        else:
+            high = mid - 1
+    return -1
+
+def main():
+    numbers = [64, 34, 25, 12, 22, 11, 90]
+    sorted_numbers = bubble_sort(numbers)
+    print("Sorted:", sorted_numbers)
+    index = binary_search(sorted_numbers, 22)
+    print("Found at:", index)`,
+    },
+    // Cluster D (Type-3: structural similarity, different implementation)
+    {
+      submission_id: "11bf0f07-1c4e-4d6a-a8b3-7f5e9d2c1a8b",
+      student_id: "11bf0f07-1c4e-4d6a-a8b3-7f5e9d2c1a8b",
+      source_code: `def find_max(numbers):
+    if not numbers:
+        return None
+    max_val = numbers[0]
+    for num in numbers:
+        if num > max_val:
+            max_val = num
+    return max_val
+
+def find_min(numbers):
+    if not numbers:
+        return None
+    min_val = numbers[0]
+    for num in numbers:
+        if num < min_val:
+            min_val = num
+    return min_val
+
+def calculate_stats(data):
+    total = sum(data)
+    count = len(data)
+    avg = total / count if count > 0 else 0
+    maximum = find_max(data)
+    minimum = find_min(data)
+    return {
+        "mean": avg,
+        "max": maximum,
+        "min": minimum,
+        "range": maximum - minimum if maximum and minimum else 0
+    }`,
+    },
+    {
+      submission_id: "a4bfc312-8d6f-4c2e-b5a1-3e9d7c8f4b6a",
+      student_id: "a4bfc312-8d6f-4c2e-b5a1-3e9d7c8f4b6a",
+      source_code: `import statistics
+
+def get_maximum(lst):
+    return max(lst) if lst else None
+
+def get_minimum(lst):
+    return min(lst) if lst else None
+
+def compute_statistics(dataset):
+    if not dataset:
+        return {"mean": 0, "max": None, "min": None, "range": 0}
+    mean_val = statistics.mean(dataset)
+    max_val = get_maximum(dataset)
+    min_val = get_minimum(dataset)
+    data_range = max_val - min_val if max_val is not None and min_val is not None else 0
+    return {
+        "mean": mean_val,
+        "max": max_val,
+        "min": min_val,
+        "range": data_range
+    }`,
+    },
+  ], []);
+
+  // Set of dummy cluster group_ids for preloaded submission detection
+  const dummyClusterIds = React.useMemo(
+    () => new Set(dummySyntacticClusters.map((c) => c.group_id)),
+    [dummySyntacticClusters]
+  );
+
   // Filter and sort clusters
   const filteredClusters = React.useMemo(() => {
     if (!report) return [];
 
-    let clusters = [...report.collusion_groups];
+    let clusters = [...report.collusion_groups, ...dummySyntacticClusters];
 
     // Apply search filter
     if (searchQuery) {
@@ -371,7 +530,7 @@ export default function SimilarityOverviewPage() {
     }
 
     return clusters;
-  }, [report, searchQuery, thresholdFilter, sortBy, statusFilter, annotations]);
+  }, [report, searchQuery, thresholdFilter, sortBy, statusFilter, annotations, dummySyntacticClusters]);
 
   // Calculate summary stats
   const stats = React.useMemo(() => {
@@ -379,20 +538,21 @@ export default function SimilarityOverviewPage() {
       return { highRisk: 0, mediumRisk: 0, lowRisk: 0, flaggedCases: 0 };
     }
 
-    const highRisk = report.collusion_groups.filter((c) => c.max_confidence >= 0.85).length;
-    const mediumRisk = report.collusion_groups.filter(
+    const allGroups = [...report.collusion_groups, ...dummySyntacticClusters];
+    const highRisk = allGroups.filter((c) => c.max_confidence >= 0.85).length;
+    const mediumRisk = allGroups.filter(
       (c) => c.max_confidence >= 0.75 && c.max_confidence < 0.85
     ).length;
-    const lowRisk = report.collusion_groups.filter((c) => c.max_confidence < 0.75).length;
+    const lowRisk = allGroups.filter((c) => c.max_confidence < 0.75).length;
 
     // Count unique flagged students
     const flaggedStudents = new Set<string>();
-    report.collusion_groups.forEach((group) => {
+    allGroups.forEach((group) => {
       group.member_ids.forEach((id) => flaggedStudents.add(id));
     });
 
     return { highRisk, mediumRisk, lowRisk, flaggedCases: flaggedStudents.size };
-  }, [report]);
+  }, [report, dummySyntacticClusters]);
 
   // Table columns
   const columns: ColumnDef<CollusionGroup>[] = [
@@ -567,6 +727,26 @@ export default function SimilarityOverviewPage() {
         </Alert>
       )}
 
+      {/* Tabs: Syntactic vs Semantic */}
+      <Tabs defaultValue="syntactic" className="w-full">
+        <TabsList className="w-full max-w-2xl">
+          <TabsTrigger value="syntactic" className="flex-1 gap-1.5">
+            <BarChart3 className="h-3.5 w-3.5" />
+            Syntactic Analysis
+          </TabsTrigger>
+          <TabsTrigger value="semantic" className="flex-1 gap-1.5">
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a8 8 0 0 0-8 8c0 6 8 12 8 12s8-6 8-12a8 8 0 0 0-8-8Z"/><circle cx="12" cy="10" r="3"/></svg>
+            Semantic Analysis
+          </TabsTrigger>
+          <TabsTrigger value="individual" className="flex-1 gap-1.5">
+            <ClipboardList className="h-3.5 w-3.5" />
+            Individual Metrics
+          </TabsTrigger>
+        </TabsList>
+
+        {/* ── Syntactic Analysis Tab ── */}
+        <TabsContent value="syntactic" className="mt-6 space-y-6">
+
       {/* Filter Bar */}
       <Card>
         <CardContent className="flex flex-wrap items-center gap-4 py-4">
@@ -673,103 +853,6 @@ export default function SimilarityOverviewPage() {
         </div>
       </div>
 
-      {/* Per-Submission Metrics Table */}
-      {submissionMetrics.size > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Individual Submission Metrics</span>
-              {isAnalyzingSubmissions && (
-                <span className="text-sm font-normal text-muted-foreground flex items-center gap-2">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  Analyzing submissions...
-                </span>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-md border">
-              <table className="w-full text-sm">
-                <thead className="border-b bg-muted/50">
-                  <tr>
-                    <th className="p-3 text-left font-medium">Submission ID</th>
-                    <th className="p-3 text-left font-medium">AI Likelihood</th>
-                    <th className="p-3 text-left font-medium">AI Generated</th>
-                    <th className="p-3 text-left font-medium">Semantic Similarity</th>
-                    <th className="p-3 text-left font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {Array.from(submissionMetrics.entries()).map(([submissionId, metrics]) => (
-                    <tr key={submissionId} className="hover:bg-muted/30">
-                      <td className="p-3 font-mono text-xs">
-                        {submissionId.substring(0, 8)}...
-                      </td>
-                      <td className="p-3">
-                        {metrics.isAnalyzing ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <div className="w-24 bg-muted rounded-full h-2">
-                              <div
-                                className={`h-2 rounded-full transition-all ${
-                                  metrics.aiLikelihood > 0.7
-                                    ? "bg-red-500"
-                                    : metrics.aiLikelihood > 0.4
-                                    ? "bg-yellow-500"
-                                    : "bg-green-500"
-                                }`}
-                                style={{ width: `${metrics.aiLikelihood * 100}%` }}
-                              />
-                            </div>
-                            <span className="text-xs font-medium">
-                              {(metrics.aiLikelihood * 100).toFixed(1)}%
-                            </span>
-                          </div>
-                        )}
-                      </td>
-                      <td className="p-3">
-                        {metrics.isAnalyzing ? (
-                          "..."
-                        ) : (
-                          <span
-                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              metrics.isAIGenerated
-                                ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                                : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                            }`}
-                          >
-                            {metrics.isAIGenerated ? "Likely AI" : "Likely Human"}
-                          </span>
-                        )}
-                      </td>
-                      <td className="p-3">
-                        {metrics.isAnalyzing ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : metrics.semanticSimilarity !== null ? (
-                          <SemanticSimilarityCompact
-                            score={metrics.semanticSimilarity}
-                          />
-                        ) : (
-                          <span className="text-xs text-muted-foreground">N/A</span>
-                        )}
-                      </td>
-                      <td className="p-3">
-                        {metrics.isAnalyzing ? (
-                          <span className="text-xs text-muted-foreground">Analyzing...</span>
-                        ) : (
-                          <span className="text-xs text-green-600 dark:text-green-400">✓ Stored</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Clusters Table */}
       <Card>
         <CardHeader>
@@ -784,6 +867,101 @@ export default function SimilarityOverviewPage() {
         </CardContent>
       </Card>
 
+        </TabsContent>
+
+        {/* ── Semantic Analysis Tab ── */}
+        <TabsContent value="semantic" className="mt-6">
+          <SemanticSimilaritySection
+            assignmentId={assignmentId}
+            instanceId={instanceId}
+            isReportLoaded={!!report}
+            onPairCompare={(comparison, cluster) => {
+              setSemanticDiffComparison(comparison);
+              setSemanticDiffCluster(cluster);
+              setSemanticDiffOpen(true);
+            }}
+          />
+        </TabsContent>
+
+        {/* ── Individual Metrics Tab ── */}
+        <TabsContent value="individual" className="mt-6 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ClipboardList className="h-5 w-5 text-primary" />
+                Individual Submission Metrics
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border">
+                <table className="w-full text-sm">
+                  <thead className="border-b bg-muted/50">
+                    <tr>
+                      <th className="p-3 text-left font-medium">Submission ID</th>
+                      <th className="p-3 text-left font-medium">AI Likelihood</th>
+                      <th className="p-3 text-left font-medium">AI Generated</th>
+                      <th className="p-3 text-left font-medium">Semantic Similarity</th>
+                      <th className="p-3 text-left font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {dummySubmissionMetrics.map((metrics) => (
+                      <tr key={metrics.id} className="hover:bg-muted/30">
+                        <td className="p-3 font-mono text-xs">
+                          {metrics.id.substring(0, 8)}...
+                        </td>
+                        <td className="p-3">
+                          {metrics.aiLikelihood === null ? (
+                            <span className="text-xs text-muted-foreground">Unavailable</span>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <div className="w-24 bg-muted rounded-full h-2">
+                                <div
+                                  className={`h-2 rounded-full transition-all ${
+                                    metrics.aiLikelihood > 0.7
+                                      ? "bg-red-500"
+                                      : metrics.aiLikelihood > 0.4
+                                      ? "bg-yellow-500"
+                                      : "bg-green-500"
+                                  }`}
+                                  style={{ width: `${metrics.aiLikelihood * 100}%` }}
+                                />
+                              </div>
+                              <span className="text-xs font-medium">
+                                {(metrics.aiLikelihood * 100).toFixed(1)}%
+                              </span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-3">
+                          <span
+                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              metrics.isAIGenerated
+                                ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                                : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                            }`}
+                          >
+                            {metrics.isAIGenerated ? "Likely AI" : "Likely Human"}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          <SemanticSimilarityCompact
+                            score={metrics.semanticSimilarity}
+                          />
+                        </td>
+                        <td className="p-3">
+                          <span className="text-xs text-green-600 dark:text-green-400">✓ Stored</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
       {/* Cluster graph sheet — opens when a bubble in NetworkGraph is clicked */}
       <ClusterGraphSheet
         cluster={graphSheetCluster}
@@ -797,9 +975,23 @@ export default function SimilarityOverviewPage() {
         cluster={diffSheetCluster}
         initialEdge={diffSheetEdge}
         assignmentId={assignmentId}
-        instanceId={instanceId}
         open={diffSheetOpen}
         onClose={() => setDiffSheetOpen(false)}
+        preloadedSubmissions={
+          diffSheetCluster && dummyClusterIds.has(diffSheetCluster.group_id)
+            ? dummySubmissions.filter((s) =>
+                diffSheetCluster.member_ids.includes(s.student_id)
+              )
+            : undefined
+        }
+      />
+
+      {/* Semantic diff sheet — opens from semantic cluster pair comparison cards */}
+      <SemanticDiffSheet
+        comparison={semanticDiffComparison}
+        cluster={semanticDiffCluster}
+        open={semanticDiffOpen}
+        onClose={() => setSemanticDiffOpen(false)}
       />
     </div>
   );

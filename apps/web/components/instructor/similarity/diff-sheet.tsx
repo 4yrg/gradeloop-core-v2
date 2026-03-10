@@ -24,6 +24,8 @@ interface DiffSheetProps {
   assignmentId: string;
   open: boolean;
   onClose: () => void;
+  /** Pre-loaded submissions to skip API fetch (useful for dummy/demo data) */
+  preloadedSubmissions?: SubmissionItem[];
 }
 
 export function DiffSheet({
@@ -32,6 +34,7 @@ export function DiffSheet({
   assignmentId,
   open,
   onClose,
+  preloadedSubmissions,
 }: DiffSheetProps) {
   const [submissions, setSubmissions] = React.useState<SubmissionItem[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -40,6 +43,14 @@ export function DiffSheet({
   // Fetch code whenever the sheet opens for a cluster
   React.useEffect(() => {
     if (!open || !cluster) return;
+
+    // Skip API fetch if preloaded submissions are provided
+    if (preloadedSubmissions && preloadedSubmissions.length > 0) {
+      setSubmissions(preloadedSubmissions);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
 
     let mounted = true;
 
@@ -96,7 +107,7 @@ export function DiffSheet({
     };
   // Re-run when sheet opens or the cluster changes
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, cluster?.group_id, assignmentId]);
+  }, [open, cluster?.group_id, assignmentId, preloadedSubmissions]);
 
   // Build a cluster copy that pre-selects the desired initial edge by
   // reordering edges so the focused one comes first (CollusionGroupCard picks edges[0])

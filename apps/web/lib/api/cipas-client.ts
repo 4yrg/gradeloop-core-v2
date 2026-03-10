@@ -238,11 +238,21 @@ export async function exportSimilarityReport(
  * Detect AI-generated code likelihood.
  */
 export async function detectAICode(code: string): Promise<AIDetectionResponse> {
-  const res = await fetch(AI_DETECT_ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code } as AIDetectionRequest),
-  });
+  let res: Response;
+  try {
+    res = await fetch(AI_DETECT_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code } as AIDetectionRequest),
+    });
+  } catch (error) {
+    if (error instanceof TypeError && error.message.includes("fetch")) {
+      throw new Error(
+        "AI detection service unavailable. Ensure the CIPAS AI service is running and accessible.",
+      );
+    }
+    throw error;
+  }
 
   if (!res.ok) {
     const detail = await res.text();

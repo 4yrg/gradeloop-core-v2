@@ -268,6 +268,37 @@ class SyntacticClassifier:
         with open(model_path, "rb") as f:
             model = pickle.load(f)
 
+        # Backward compatibility: initialize missing attributes for old model files
+        if not hasattr(model, "scaler"):
+            logger.warning(
+                f"Loaded model missing 'scaler' attribute. "
+                "Initializing new StandardScaler. Consider retraining for optimal performance."
+            )
+            model.scaler = StandardScaler()
+
+            # Try to load separate scaler file if it exists (from older saves)
+            scaler_path = model_path.parent / "scaler.pkl"
+            if scaler_path.exists():
+                try:
+                    with open(scaler_path, "rb") as sf:
+                        model.scaler = pickle.load(sf)
+                    logger.info(f"Loaded scaler from {scaler_path}")
+                except Exception as e:
+                    logger.warning(f"Failed to load scaler from {scaler_path}: {e}")
+
+        if not hasattr(model, "calibrated_threshold"):
+            model.calibrated_threshold = None
+
+        if not hasattr(model, "feature_names"):
+            model.feature_names = [
+                "jaccard_similarity",
+                "dice_coefficient",
+                "levenshtein_distance",
+                "levenshtein_ratio",
+                "jaro_similarity",
+                "jaro_winkler_similarity",
+            ]
+
         logger.info(f"Model loaded from {model_path}")
         return model
 
