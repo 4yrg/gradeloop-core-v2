@@ -15,6 +15,7 @@ import { ForceDirectedGraph } from "./force-directed-graph";
 import { GitCompare, Users, Link2 } from "lucide-react";
 import type { CollusionGroup, CollusionEdge } from "@/types/cipas";
 import { cn } from "@/lib/utils";
+import { StudentAvatar } from "./student-avatar";
 
 interface ClusterGraphSheetProps {
   cluster: CollusionGroup | null;
@@ -101,20 +102,10 @@ export function ClusterGraphSheet({
                 className="flex items-center justify-between p-3 rounded-lg border hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="flex items-center gap-2 font-mono text-sm min-w-0">
-                    <span
-                      className="truncate max-w-[80px] text-foreground"
-                      title={edge.student_a}
-                    >
-                      {edge.student_a.substring(0, 8)}
-                    </span>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <StudentAvatar studentId={edge.student_a} size="xs" showName={true} />
                     <span className="text-muted-foreground shrink-0">↔</span>
-                    <span
-                      className="truncate max-w-[80px] text-foreground"
-                      title={edge.student_b}
-                    >
-                      {edge.student_b.substring(0, 8)}
-                    </span>
+                    <StudentAvatar studentId={edge.student_b} size="xs" showName={true} />
                   </div>
                   <Badge variant="secondary" className="text-[10px] shrink-0">
                     {edge.clone_type}

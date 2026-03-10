@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from "react";
 import * as d3 from "d3";
 import type { CollusionGroup, CollusionEdge } from "@/types/cipas";
+import { getStudentName, getStudentInitials } from "@/lib/dummy-students";
 
 interface ForceDirectedGraphProps {
   cluster: CollusionGroup;
@@ -49,7 +50,7 @@ export function ForceDirectedGraph({
     // Prepare data
     const nodes: GraphNode[] = cluster.member_ids.map((id) => ({
       id,
-      label: id.substring(0, 8), // Show first 8 chars as label
+      label: getStudentName(id), // Show student name as label
     }));
 
     const links: GraphLink[] = cluster.edges.map((edge) => ({

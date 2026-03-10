@@ -23,6 +23,8 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
+import { StudentAvatar } from "./student-avatar";
+import { getStudentName } from "@/lib/dummy-students";
 
 // ──────────────────────────────────────────────────────────────────────────
 // Types
@@ -478,13 +480,9 @@ function PairComparisonCard({ comparison, onCompare }: { comparison: SemanticPai
       >
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-1.5">
-            <div className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
-              <span className="text-[9px] font-bold">{comparison.submissionA.shortId.toUpperCase()}</span>
-            </div>
+            <StudentAvatar studentId={comparison.submissionA.id} size="xs" showName={true} />
             <GitCompare className="h-3 w-3 text-muted-foreground" />
-            <div className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
-              <span className="text-[9px] font-bold">{comparison.submissionB.shortId.toUpperCase()}</span>
-            </div>
+            <StudentAvatar studentId={comparison.submissionB.id} size="xs" showName={true} />
           </div>
           <ScoreBadge score={comparison.semanticScore} />
           <div className="flex gap-1 flex-wrap">
@@ -520,7 +518,7 @@ function PairComparisonCard({ comparison, onCompare }: { comparison: SemanticPai
               <div className="flex items-center gap-2 px-3 py-2 bg-muted/40 border-b">
                 <Code2 className="h-3 w-3 text-muted-foreground" />
                 <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Submission {comparison.submissionA.shortId.toUpperCase()}
+                  {getStudentName(comparison.submissionA.id)}
                 </span>
               </div>
               <pre className="p-3 text-[11px] leading-relaxed overflow-x-auto font-mono text-foreground/90 max-h-[300px] overflow-y-auto">
@@ -533,7 +531,7 @@ function PairComparisonCard({ comparison, onCompare }: { comparison: SemanticPai
               <div className="flex items-center gap-2 px-3 py-2 bg-muted/40 border-b">
                 <Code2 className="h-3 w-3 text-muted-foreground" />
                 <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Submission {comparison.submissionB.shortId.toUpperCase()}
+                  {getStudentName(comparison.submissionB.id)}
                 </span>
               </div>
               <pre className="p-3 text-[11px] leading-relaxed overflow-x-auto font-mono text-foreground/90 max-h-[300px] overflow-y-auto">
@@ -634,20 +632,7 @@ function SemanticClusterCard({
               <span className="text-muted-foreground">·</span>
               <div className="flex -space-x-1.5">
                 {cluster.members.slice(0, 4).map((m) => (
-                  <TooltipProvider key={m.id}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 border border-white dark:border-slate-900 flex items-center justify-center">
-                          <span className="text-[8px] font-bold text-muted-foreground">
-                            {m.shortId.slice(0, 2).toUpperCase()}
-                          </span>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom">
-                        <p className="font-mono text-xs">{m.id}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <StudentAvatar key={m.id} studentId={m.id} size="xs" showName={false} />
                 ))}
                 {cluster.memberCount > 4 && (
                   <div className="w-5 h-5 rounded-full bg-muted border border-white dark:border-slate-900 flex items-center justify-center">

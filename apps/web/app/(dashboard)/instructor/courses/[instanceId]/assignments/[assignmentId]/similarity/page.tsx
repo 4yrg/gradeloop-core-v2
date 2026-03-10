@@ -29,6 +29,8 @@ import { DiffSheet } from "@/components/instructor/similarity/diff-sheet";
 import { SemanticDiffSheet } from "@/components/instructor/similarity/semantic-diff-sheet";
 import { SemanticSimilaritySection } from "@/components/instructor/similarity/semantic-similarity-section";
 import type { SemanticPairComparison, SemanticCluster } from "@/components/instructor/similarity/semantic-similarity-section";
+import { StudentAvatar } from "@/components/instructor/similarity/student-avatar";
+import { getStudentName } from "@/lib/dummy-students";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   RefreshCw,
@@ -897,7 +899,7 @@ def compute_statistics(dataset):
                 <table className="w-full text-sm">
                   <thead className="border-b bg-muted/50">
                     <tr>
-                      <th className="p-3 text-left font-medium">Submission ID</th>
+                      <th className="p-3 text-left font-medium">Student</th>
                       <th className="p-3 text-left font-medium">AI Likelihood</th>
                       <th className="p-3 text-left font-medium">AI Generated</th>
                       <th className="p-3 text-left font-medium">Semantic Similarity</th>
@@ -907,8 +909,8 @@ def compute_statistics(dataset):
                   <tbody className="divide-y">
                     {dummySubmissionMetrics.map((metrics) => (
                       <tr key={metrics.id} className="hover:bg-muted/30">
-                        <td className="p-3 font-mono text-xs">
-                          {metrics.id.substring(0, 8)}...
+                        <td className="p-3">
+                          <StudentAvatar studentId={metrics.id} size="sm" showName={true} />
                         </td>
                         <td className="p-3">
                           {metrics.aiLikelihood === null ? (

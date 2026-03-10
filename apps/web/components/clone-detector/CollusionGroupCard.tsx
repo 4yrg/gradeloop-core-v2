@@ -12,6 +12,8 @@ import type {
   SubmissionItem,
   AIDetectionResponse,
 } from "@/types/cipas";
+import { getStudentName } from "@/lib/dummy-students";
+import { StudentAvatar } from "@/components/instructor/similarity/student-avatar";
 
 const CLONE_TYPE_VARIANT: Record<
   string,
@@ -53,7 +55,7 @@ export function CollusionGroupCard({
   );
 
   const members = groupSubs
-    .map((s) => `${s.student_id} (${s.submission_id})`)
+    .map((s) => getStudentName(s.student_id))
     .join(", ");
 
   return (
@@ -119,9 +121,9 @@ export function CollusionGroupCard({
                         : "bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                     }`}
                   >
-                    <span>{subA?.student_id ?? edge.student_a}</span>
+                    <span>{getStudentName(subA?.student_id ?? edge.student_a)}</span>
                     <span className="opacity-50">↔</span>
-                    <span>{subB?.student_id ?? edge.student_b}</span>
+                    <span>{getStudentName(subB?.student_id ?? edge.student_b)}</span>
                     <Badge
                       variant={CLONE_TYPE_VARIANT[edge.clone_type] ?? "outline"}
                       className="text-[10px] px-1 py-0 h-4 ml-0.5"

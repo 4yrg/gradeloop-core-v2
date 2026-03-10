@@ -16,6 +16,7 @@ import { CollusionGroupCard } from "@/components/clone-detector/CollusionGroupCa
 import { instructorAssessmentsApi, assessmentsApi } from "@/lib/api/assessments";
 import type { CollusionGroup, CollusionEdge, SubmissionItem } from "@/types/cipas";
 import type { SubmissionResponse } from "@/types/assessments.types";
+import { getStudentName } from "@/lib/dummy-students";
 
 interface DiffSheetProps {
   cluster: CollusionGroup | null;
@@ -139,8 +140,8 @@ export function DiffSheet({
           <SheetTitle className="flex items-center gap-3">
             Diff View — Cluster {label}
             {initialEdge && (
-              <span className="font-mono text-sm font-normal text-muted-foreground">
-                {initialEdge.student_a.substring(0, 8)} ↔ {initialEdge.student_b.substring(0, 8)}
+              <span className="text-sm font-normal text-muted-foreground">
+                {getStudentName(initialEdge.student_a)} ↔ {getStudentName(initialEdge.student_b)}
               </span>
             )}
           </SheetTitle>

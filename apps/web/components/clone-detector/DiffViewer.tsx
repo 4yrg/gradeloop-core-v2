@@ -21,6 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import type { SubmissionItem, AIDetectionResponse, CollusionEdge } from "@/types/cipas";
 import { AILikelihoodBadge } from "./AILikelihoodBadge";
+import { getStudentName } from "@/lib/dummy-students";
 
 type LineTag = "equal" | "insert" | "delete";
 
@@ -282,7 +283,7 @@ export function DiffViewer({
       <div className="grid grid-cols-2">
         <PanelHeader
           side="left"
-          label={`${leftSub.student_id} (${leftSub.submission_id})`}
+          label={getStudentName(leftSub.student_id)}
           index={leftIdx}
           total={submissions.length}
           onPrev={() => setLeftIdx((i) => cycle(i, -1))}
@@ -292,7 +293,7 @@ export function DiffViewer({
         <div className="border-l border-zinc-200 dark:border-zinc-700">
           <PanelHeader
             side="right"
-            label={`${rightSub.student_id} (${rightSub.submission_id})`}
+            label={getStudentName(rightSub.student_id)}
             index={rightIdx}
             total={submissions.length}
             onPrev={() => setRightIdx((i) => cycle(i, -1))}
