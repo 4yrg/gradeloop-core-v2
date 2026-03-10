@@ -258,7 +258,12 @@ services:
       - "traefik.http.middlewares.assessment-ratelimit.ratelimit.average=500"
       - "traefik.http.middlewares.assessment-ratelimit.ratelimit.period=1m"
       - "traefik.http.middlewares.assessment-ratelimit.ratelimit.burst=50"
-      - "traefik.http.routers.assessment.middlewares=assessment-limit,assessment-ratelimit"
+      - "traefik.http.middlewares.assessment-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,PATCH,OPTIONS"
+      - "traefik.http.middlewares.assessment-cors.headers.accesscontrolalloworiginlist=http://localhost:3000,http://localhost:3001"
+      - "traefik.http.middlewares.assessment-cors.headers.accesscontrolallowheaders=Origin,Content-Type,Accept,Authorization,X-Request-ID"
+      - "traefik.http.middlewares.assessment-cors.headers.accesscontrolallowcredentials=true"
+      - "traefik.http.middlewares.assessment-cors.headers.addvaryheader=true"
+      - "traefik.http.routers.assessment.middlewares=assessment-limit,assessment-ratelimit,assessment-cors"
     env_file:
       - .env
     environment:
@@ -495,7 +500,12 @@ services:
       - "traefik.http.middlewares.acafs-ratelimit.ratelimit.average=100"
       - "traefik.http.middlewares.acafs-ratelimit.ratelimit.period=1m"
       - "traefik.http.middlewares.acafs-ratelimit.ratelimit.burst=20"
-      - "traefik.http.routers.acafs.middlewares=acafs-limit,acafs-ratelimit"
+      - "traefik.http.middlewares.acafs-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,PATCH,OPTIONS"
+      - "traefik.http.middlewares.acafs-cors.headers.accesscontrolalloworiginlist=http://localhost:3000,http://localhost:3001"
+      - "traefik.http.middlewares.acafs-cors.headers.accesscontrolallowheaders=Origin,Content-Type,Accept,Authorization,X-Request-ID"
+      - "traefik.http.middlewares.acafs-cors.headers.accesscontrolallowcredentials=true"
+      - "traefik.http.middlewares.acafs-cors.headers.addvaryheader=true"
+      - "traefik.http.routers.acafs.middlewares=acafs-limit,acafs-ratelimit,acafs-cors"
     env_file:
       - .env
     environment:

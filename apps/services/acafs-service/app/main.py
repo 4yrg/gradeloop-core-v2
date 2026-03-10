@@ -9,6 +9,7 @@ from threading import Thread
 from uuid import UUID
 
 from fastapi import APIRouter, FastAPI, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import get_settings
@@ -512,6 +513,15 @@ app = FastAPI(
     description="Automated Code Analysis & Feedback System Engine for Gradeloop",
     version="0.1.0",
     lifespan=lifespan,
+)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Origin", "Content-Type", "Accept", "Authorization", "X-Request-ID"],
 )
 
 # Include API router
