@@ -39,6 +39,8 @@ export interface RawKeystrokeEvent {
     dwellTime: number;   // ms key was held down
     flightTime: number;  // ms from previous keyup to this keydown
     keyCode: number;
+    assignmentId?: string;
+    courseId?: string;
 }
 
 export interface EnrollPhaseRequest {
@@ -89,6 +91,53 @@ export interface MonitorResponse {
     authenticated?: boolean;
     verification_count?: number;
     max_risk_score?: number;
+}
+
+export interface ActiveSessionEntry {
+    user_id: string;
+    session_id: string;
+    assignment_id: string;
+    risk_score: number;
+    event_count: number;
+    status: "COLLECTING_DATA" | "AUTHENTICATED" | "SUSPICIOUS" | "REJECTED";
+    is_struggling: boolean;
+    last_verification: string | null;
+    session_started: string | null;
+}
+
+export interface ActiveSessionsResponse {
+    success: boolean;
+    assignment_id: string;
+    active_count: number;
+    sessions: ActiveSessionEntry[];
+}
+
+export interface StudentSummaryEntry {
+    user_id: string;
+    session_id: string;
+    assignment_id: string;
+    event_count: number;
+    avg_risk_score: number;
+    avg_similarity: number;
+    anomaly_count: number;
+    struggle_count: number;
+    has_anomaly: boolean;
+    status: "AUTHENTICATED" | "SUSPICIOUS" | "REJECTED" | "COLLECTING_DATA";
+    last_event_at: string | null;
+    session_started_at: string | null;
+}
+
+export interface StudentSummariesResponse {
+    success: boolean;
+    assignment_id: string;
+    students: StudentSummaryEntry[];
+}
+
+export interface FinalizeSessionResponse {
+    success: boolean;
+    message: string;
+    events_archived: number;
+    assignment_id: string | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -232,5 +281,92 @@ export const keystrokeApi = {
         }
 
         return res.json() as Promise<IdentifyResponse>;
+    },
+
+    /**
+     * GET /api/keystroke/assignment/{assignmentId}/students
+     * Returns per-student auth summaries from the DB (historical / completed sessions).
+     * Used by the instructor Auth Monitor page alongside live sessions.
+     */
+    getAssignmentStudentSummaries: async (
+        assignmentId: string,
+    ): Promise<StudentSummariesResponse> => {
+        const token = await getAccessToken();
+
+        const res = await fetch(
+            `${GATEWAY_URL}/api/keystroke/assignment/${encodeURIComponent(assignmentId)}/students`,
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+            },
+        );
+
+        if (!res.ok) {
+            const detail = await res.text().catch(() => res.status.toString());
+            throw new Error(detail);
+        }
+
+        return res.json() as Promise<StudentSummariesResponse>;
+    },
+
+    /**
+     * GET /api/keystroke/active-sessions/assignment/{assignmentId}
+     * Returns all active Redis sessions for an assignment.
+     * Used by the instructor Live Monitor page.
+     */
+    getActiveSessionsByAssignment: async (
+        assignmentId: string,
+    ): Promise<ActiveSessionsResponse> => {
+        const token = await getAccessToken();
+
+        const res = await fetch(
+            `${GATEWAY_URL}/api/keystroke/active-sessions/assignment/${encodeURIComponent(assignmentId)}`,
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+            },
+        );
+
+        if (!res.ok) {
+            const detail = await res.text().catch(() => res.status.toString());
+            throw new Error(detail);
+        }
+
+        return res.json() as Promise<ActiveSessionsResponse>;
+    },
+
+    /**
+     * POST /api/keystroke/session/finalize
+     * Archive raw keystroke buffer from Redis → PostgreSQL and clean up Redis.
+     * Call this immediately on assignment submission.
+     */
+    finalizeSession: async (payload: {
+        userId: string;
+        sessionId: string;
+        assignmentId?: string;
+        courseId?: string;
+        finalCode?: string;
+    }): Promise<FinalizeSessionResponse> => {
+        const token = await getAccessToken();
+
+        const res = await fetch(`${GATEWAY_URL}/api/keystroke/session/finalize`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+            const detail = await res.text().catch(() => res.status.toString());
+            throw new Error(detail);
+        }
+
+        return res.json() as Promise<FinalizeSessionResponse>;
     },
 };
