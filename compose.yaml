@@ -35,7 +35,8 @@ services:
       - "5432:5432" # Optional: expose for local debugging; remove in strict prod
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./init/databases.sql:/docker-entrypoint-initdb.d/databases.sql:ro # Auto-create DBs
+      - ./init/databases.sql:/docker-entrypoint-initdb.d/databases.sql:ro # Auto-create DBs (if present)
+      - ./apps/services/cipas-services/cipas-syntactics/scripts/01-create-cipas-db.sh:/docker-entrypoint-initdb.d/01-create-cipas-db.sh:ro # cipas-db for syntactics
     networks:
       - gradeloop-network
     healthcheck:
@@ -311,6 +312,9 @@ services:
       dockerfile: Dockerfile
     container_name: cipas-syntactics
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.cipas-syntactics.rule=PathPrefix(`/api/v1/syntactics`)"
@@ -333,6 +337,7 @@ services:
     environment:
       - CIPAS_SYNTACTICS_PORT=${CIPAS_SYN_SVC_PORT:-8086}
       - CIPAS_SYNTACTICS_HOST=0.0.0.0
+      - DATABASE_URL=postgresql://${GRA_DB_USER}:${GRA_DB_PASSWORD}@postgres:${GRA_DB_PORT}/${CIPAS_SVC_DB_NAME:-cipas-db}?sslmode=${GRA_DB_SSLMODE}
     expose:
       - "${CIPAS_SYN_SVC_PORT:-8086}"
     networks:

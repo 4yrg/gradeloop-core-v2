@@ -17,6 +17,7 @@ Features:
 import asyncio
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import APIRouter, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -79,6 +80,30 @@ from schemas import (
 logger = setup_logging(__name__)
 
 
+async def _run_migrations() -> None:
+    """Run db_migrations/*.sql in order (V001, V002, ...). Idempotent (CREATE IF NOT EXISTS)."""
+    try:
+        from database import get_db_connection
+    except RuntimeError:
+        return
+    migrations_dir = Path(__file__).resolve().parent / "db_migrations"
+    if not migrations_dir.exists():
+        return
+    sql_files = sorted(migrations_dir.glob("*.sql"))
+    if not sql_files:
+        return
+    for path in sql_files:
+        sql = path.read_text()
+        if not sql.strip():
+            continue
+        try:
+            async with get_db_connection() as conn:
+                await conn.execute(sql)
+            logger.info("Ran migration: %s", path.name)
+        except Exception as e:
+            logger.warning("Migration %s: %s (may already be applied)", path.name, e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -94,10 +119,11 @@ async def lifespan(app: FastAPI):
     from routes import _get_model_status, _load_syntactic_model
     from database import init_db_pool, close_db_pool
 
-    # Initialize database connection pool
+    # Initialize database connection pool and run migrations
     try:
         await init_db_pool()
         logger.info("Database connection pool initialized successfully")
+        await _run_migrations()
     except Exception as e:
         logger.warning(
             f"Failed to initialize database pool: {e}. Running without persistence."

@@ -771,7 +771,21 @@ async def get_similarity_report(assignment_id: str):
 
     except HTTPException:
         raise
+    except RuntimeError as exc:
+        # DB pool not initialized (e.g. DATABASE_URL wrong or DB down at startup)
+        logger.warning("Report fetch skipped (DB unavailable): %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No similarity report found for this assignment.",
+        )
     except Exception as exc:
+        err_msg = str(exc).lower()
+        if "pool not initialized" in err_msg or "relation" in err_msg and "does not exist" in err_msg or "asyncpg" in type(exc).__module__:
+            logger.warning("Report fetch skipped (DB error): %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No similarity report found for this assignment.",
+            )
         logger.error(
             "Failed to retrieve report for %s: %s", assignment_id, exc, exc_info=True
         )
