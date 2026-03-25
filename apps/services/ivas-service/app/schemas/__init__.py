@@ -12,6 +12,14 @@ from app.schemas.assignment import (
     QuestionOut,
     QuestionUpdate,
 )
+from app.schemas.voice import (
+    VoiceEnrollmentOut,
+    VoiceEnrollmentRequest,
+    VoiceProfileOut,
+    VoiceProfileStatus,
+    VoiceVerifyOut,
+    VoiceVerifyRequest,
+)
 
 __all__ = [
     "AssignmentCreate",
@@ -24,4 +32,10 @@ __all__ = [
     "QuestionCreate",
     "QuestionOut",
     "QuestionUpdate",
+    "VoiceEnrollmentOut",
+    "VoiceEnrollmentRequest",
+    "VoiceProfileOut",
+    "VoiceProfileStatus",
+    "VoiceVerifyOut",
+    "VoiceVerifyRequest",
 ]

@@ -242,6 +242,42 @@ class PostgresClient:
             )
             return int(result.split()[-1])
 
+    # =========================================================================
+    # Voice Profiles
+    # =========================================================================
+
+    async def get_voice_profile(self, student_id: str) -> dict | None:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT * FROM voice_profiles WHERE student_id = $1", student_id
+            )
+            return dict(row) if row else None
+
+    async def upsert_voice_profile(
+        self, student_id: str, embedding: bytes, samples_count: int
+    ) -> dict:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO voice_profiles (student_id, embedding, samples_count)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (student_id) DO UPDATE
+                    SET embedding = EXCLUDED.embedding,
+                        samples_count = EXCLUDED.samples_count,
+                        updated_at = now()
+                RETURNING *
+                """,
+                student_id, embedding, samples_count,
+            )
+            return dict(row)
+
+    async def delete_voice_profile(self, student_id: str) -> bool:
+        async with self._pool.acquire() as conn:
+            result = await conn.execute(
+                "DELETE FROM voice_profiles WHERE student_id = $1", student_id
+            )
+            return result == "DELETE 1"
+
 
 SCHEMA_SQL = """
 -- =============================================================================
