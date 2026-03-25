@@ -1,6 +1,7 @@
 """PostgreSQL client for IVAS Service."""
 
 from urllib.parse import urlparse
+from uuid import UUID
 
 import asyncpg
 
@@ -49,6 +50,197 @@ class PostgresClient:
         async with self._pool.acquire() as conn:
             await conn.execute(SCHEMA_SQL)
         logger.info("postgres_schema_ready")
+
+    # =========================================================================
+    # Assignments CRUD
+    # =========================================================================
+
+    async def create_assignment(
+        self,
+        title: str,
+        instructor_id: str,
+        description: str | None = None,
+        code_context: str | None = None,
+        programming_language: str = "python",
+        course_id: str | None = None,
+    ) -> dict:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO assignments (title, description, code_context, programming_language,
+                                         course_id, instructor_id)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                RETURNING *
+                """,
+                title, description, code_context, programming_language, course_id, instructor_id,
+            )
+            return dict(row)
+
+    async def get_assignment(self, assignment_id: UUID) -> dict | None:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT * FROM assignments WHERE id = $1", assignment_id)
+            return dict(row) if row else None
+
+    async def list_assignments(
+        self, instructor_id: str | None = None, course_id: str | None = None
+    ) -> list[dict]:
+        async with self._pool.acquire() as conn:
+            if instructor_id and course_id:
+                rows = await conn.fetch(
+                    "SELECT * FROM assignments WHERE instructor_id = $1 AND course_id = $2 ORDER BY created_at DESC",
+                    instructor_id, course_id,
+                )
+            elif instructor_id:
+                rows = await conn.fetch(
+                    "SELECT * FROM assignments WHERE instructor_id = $1 ORDER BY created_at DESC",
+                    instructor_id,
+                )
+            elif course_id:
+                rows = await conn.fetch(
+                    "SELECT * FROM assignments WHERE course_id = $1 ORDER BY created_at DESC",
+                    course_id,
+                )
+            else:
+                rows = await conn.fetch("SELECT * FROM assignments ORDER BY created_at DESC")
+            return [dict(r) for r in rows]
+
+    async def update_assignment(self, assignment_id: UUID, **fields) -> dict | None:
+        if not fields:
+            return await self.get_assignment(assignment_id)
+        sets = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(fields))
+        sets += f", updated_at = now()"
+        sql = f"UPDATE assignments SET {sets} WHERE id = $1 RETURNING *"
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(sql, assignment_id, *fields.values())
+            return dict(row) if row else None
+
+    async def delete_assignment(self, assignment_id: UUID) -> bool:
+        async with self._pool.acquire() as conn:
+            result = await conn.execute("DELETE FROM assignments WHERE id = $1", assignment_id)
+            return result == "DELETE 1"
+
+    # =========================================================================
+    # Grading Criteria CRUD
+    # =========================================================================
+
+    async def create_criteria(
+        self,
+        assignment_id: UUID,
+        competency: str,
+        description: str | None = None,
+        max_score: float = 10.0,
+        weight: float = 1.0,
+        difficulty: int = 3,
+    ) -> dict:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO grading_criteria (assignment_id, competency, description,
+                                              max_score, weight, difficulty)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                RETURNING *
+                """,
+                assignment_id, competency, description, max_score, weight, difficulty,
+            )
+            return dict(row)
+
+    async def list_criteria(self, assignment_id: UUID) -> list[dict]:
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT * FROM grading_criteria WHERE assignment_id = $1 ORDER BY created_at",
+                assignment_id,
+            )
+            return [dict(r) for r in rows]
+
+    async def get_criteria(self, criteria_id: UUID) -> dict | None:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT * FROM grading_criteria WHERE id = $1", criteria_id)
+            return dict(row) if row else None
+
+    async def update_criteria(self, criteria_id: UUID, **fields) -> dict | None:
+        if not fields:
+            return await self.get_criteria(criteria_id)
+        sets = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(fields))
+        sql = f"UPDATE grading_criteria SET {sets} WHERE id = $1 RETURNING *"
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(sql, criteria_id, *fields.values())
+            return dict(row) if row else None
+
+    async def delete_criteria(self, criteria_id: UUID) -> bool:
+        async with self._pool.acquire() as conn:
+            result = await conn.execute("DELETE FROM grading_criteria WHERE id = $1", criteria_id)
+            return result == "DELETE 1"
+
+    # =========================================================================
+    # Questions CRUD
+    # =========================================================================
+
+    async def create_question(
+        self,
+        assignment_id: UUID,
+        question_text: str,
+        criteria_id: UUID | None = None,
+        competency: str | None = None,
+        difficulty: int = 3,
+        expected_topics: list[str] | None = None,
+    ) -> dict:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO questions (assignment_id, criteria_id, question_text,
+                                       competency, difficulty, expected_topics)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                RETURNING *
+                """,
+                assignment_id, criteria_id, question_text,
+                competency, difficulty, expected_topics,
+            )
+            return dict(row)
+
+    async def list_questions(
+        self, assignment_id: UUID, status_filter: str | None = None
+    ) -> list[dict]:
+        async with self._pool.acquire() as conn:
+            if status_filter:
+                rows = await conn.fetch(
+                    "SELECT * FROM questions WHERE assignment_id = $1 AND status = $2 ORDER BY created_at",
+                    assignment_id, status_filter,
+                )
+            else:
+                rows = await conn.fetch(
+                    "SELECT * FROM questions WHERE assignment_id = $1 ORDER BY created_at",
+                    assignment_id,
+                )
+            return [dict(r) for r in rows]
+
+    async def get_question(self, question_id: UUID) -> dict | None:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT * FROM questions WHERE id = $1", question_id)
+            return dict(row) if row else None
+
+    async def update_question(self, question_id: UUID, **fields) -> dict | None:
+        if not fields:
+            return await self.get_question(question_id)
+        sets = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(fields))
+        sql = f"UPDATE questions SET {sets} WHERE id = $1 RETURNING *"
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(sql, question_id, *fields.values())
+            return dict(row) if row else None
+
+    async def delete_question(self, question_id: UUID) -> bool:
+        async with self._pool.acquire() as conn:
+            result = await conn.execute("DELETE FROM questions WHERE id = $1", question_id)
+            return result == "DELETE 1"
+
+    async def bulk_update_question_status(
+        self, question_ids: list[UUID], new_status: str
+    ) -> int:
+        async with self._pool.acquire() as conn:
+            result = await conn.execute(
+                "UPDATE questions SET status = $1 WHERE id = ANY($2)",
+                new_status, question_ids,
+            )
+            return int(result.split()[-1])
 
 
 SCHEMA_SQL = """

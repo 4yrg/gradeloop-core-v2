@@ -100,8 +100,8 @@ IVAS Service (FastAPI, port 8088)
 
 | Phase | What | Status |
 |-------|------|--------|
-| **1** | Service scaffold — FastAPI + Docker + compose.yaml + DB schema + health check | |
-| **2** | Assignment & question management REST APIs | |
+| **1** | Service scaffold — FastAPI + Docker + compose.yaml + DB schema + health check | ✅ |
+| **2** | Assignment & question management REST APIs | ✅ |
 | **3** | Voice enrollment module (Resemblyzer + enrollment flow) | |
 | **4** | Live viva engine — Gemini Live API WebSocket integration | |
 | **5** | Technical term accuracy layers (prompt + code grounding + post-hoc) | |
