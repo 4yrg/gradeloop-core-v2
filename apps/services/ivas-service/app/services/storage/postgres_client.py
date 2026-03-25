@@ -278,6 +278,93 @@ class PostgresClient:
             )
             return result == "DELETE 1"
 
+    # =========================================================================
+    # Sessions
+    # =========================================================================
+
+    async def create_session(
+        self, assignment_id: UUID, student_id: str, metadata: dict | None = None
+    ) -> dict:
+        import json as _json
+
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO sessions (assignment_id, student_id, metadata)
+                VALUES ($1, $2, $3::jsonb)
+                RETURNING *
+                """,
+                assignment_id, student_id, _json.dumps(metadata or {}),
+            )
+            return dict(row)
+
+    async def get_session(self, session_id: UUID) -> dict | None:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT * FROM sessions WHERE id = $1", session_id)
+            return dict(row) if row else None
+
+    async def list_sessions(
+        self,
+        student_id: str | None = None,
+        assignment_id: UUID | None = None,
+        status_filter: str | None = None,
+    ) -> list[dict]:
+        conditions = []
+        params = []
+        idx = 1
+
+        if student_id:
+            conditions.append(f"student_id = ${idx}")
+            params.append(student_id)
+            idx += 1
+        if assignment_id:
+            conditions.append(f"assignment_id = ${idx}")
+            params.append(assignment_id)
+            idx += 1
+        if status_filter:
+            conditions.append(f"status = ${idx}")
+            params.append(status_filter)
+            idx += 1
+
+        where = f" WHERE {' AND '.join(conditions)}" if conditions else ""
+        sql = f"SELECT * FROM sessions{where} ORDER BY started_at DESC"
+
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(sql, *params)
+            return [dict(r) for r in rows]
+
+    async def update_session_status(
+        self, session_id: UUID, new_status: str
+    ) -> dict | None:
+        async with self._pool.acquire() as conn:
+            if new_status in ("completed", "abandoned"):
+                row = await conn.fetchrow(
+                    """
+                    UPDATE sessions SET status = $2, completed_at = now()
+                    WHERE id = $1 RETURNING *
+                    """,
+                    session_id, new_status,
+                )
+            else:
+                row = await conn.fetchrow(
+                    "UPDATE sessions SET status = $2 WHERE id = $1 RETURNING *",
+                    session_id, new_status,
+                )
+            return dict(row) if row else None
+
+    async def update_session_scores(
+        self, session_id: UUID, total_score: float, max_possible: float
+    ) -> dict | None:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                UPDATE sessions SET total_score = $2, max_possible = $3
+                WHERE id = $1 RETURNING *
+                """,
+                session_id, total_score, max_possible,
+            )
+            return dict(row) if row else None
+
 
 SCHEMA_SQL = """
 -- =============================================================================

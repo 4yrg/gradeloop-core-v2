@@ -12,6 +12,7 @@ from app.schemas.assignment import (
     QuestionOut,
     QuestionUpdate,
 )
+from app.schemas.session import SessionCreate, SessionOut
 from app.schemas.voice import (
     VoiceEnrollmentOut,
     VoiceEnrollmentRequest,
@@ -32,6 +33,8 @@ __all__ = [
     "QuestionCreate",
     "QuestionOut",
     "QuestionUpdate",
+    "SessionCreate",
+    "SessionOut",
     "VoiceEnrollmentOut",
     "VoiceEnrollmentRequest",
     "VoiceProfileOut",

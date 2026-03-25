@@ -51,7 +51,7 @@ class Settings(BaseSettings):
         alias="GEMINI_API_KEY",
     )
     gemini_live_model: str = Field(
-        default="gemini-2.0-flash-live-001",
+        default="gemini-2.5-flash-native-audio-preview-12-2025",
         alias="GEMINI_LIVE_MODEL",
     )
     gemini_model: str = Field(
