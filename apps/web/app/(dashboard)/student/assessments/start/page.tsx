@@ -23,7 +23,7 @@ export default function StartAssessmentPage() {
     const router = useRouter();
     const { addToast } = useToast();
     const user = useAuthStore((s) => s.user);
-    
+
     const [assignments, setAssignments] = React.useState<IvasAssignment[]>([]);
     const [selectedAssignment, setSelectedAssignment] = React.useState<string>("");
     const [codeContext, setCodeContext] = React.useState("");
@@ -31,31 +31,39 @@ export default function StartAssessmentPage() {
     const [starting, setStarting] = React.useState(false);
 
     React.useEffect(() => {
+        let mounted = true;
         async function loadAssignments() {
             try {
                 setLoading(true);
-                const data = await ivasApi.getAssignments();
-                setAssignments(data);
-                if (data.length > 0 && !selectedAssignment) {
-                    setSelectedAssignment(data[0].assignment_id);
+                const data = await ivasApi.listAssignments();
+                if (mounted) {
+                    setAssignments(data);
+                    if (data.length > 0 && !selectedAssignment) {
+                        setSelectedAssignment(data[0].id);
+                    }
                 }
             } catch (error) {
-                addToast({ 
-                    title: "Failed to load assignments", 
-                    variant: "error",
-                    description: error instanceof Error ? error.message : "Unknown error"
-                });
+                if (mounted) {
+                    addToast({
+                        title: "Failed to load assignments",
+                        variant: "error",
+                        description: error instanceof Error ? error.message : "Unknown error"
+                    });
+                }
             } finally {
-                setLoading(false);
+                if (mounted) setLoading(false);
             }
         }
         loadAssignments();
-    }, [addToast, selectedAssignment]);
+        return () => { mounted = false; };
+    }, [addToast]);
+
+    const selectedData = assignments.find(a => a.id === selectedAssignment);
 
     const handleStartAssessment = async () => {
         if (!selectedAssignment || !user?.id) {
-            addToast({ 
-                title: "Missing information", 
+            addToast({
+                title: "Missing information",
                 variant: "warning",
                 description: "Please select an assignment and ensure you're logged in."
             });
@@ -64,22 +72,21 @@ export default function StartAssessmentPage() {
 
         try {
             setStarting(true);
-            const result = await ivasApi.startAssessment({
-                student_id: user.id,
+            const session = await ivasApi.createSession({
                 assignment_id: selectedAssignment,
-                code_context: codeContext.trim() || undefined,
+                student_id: user.id,
             });
 
             addToast({
-                title: "Assessment started!",
+                title: "Session created!",
                 variant: "success",
                 description: "Redirecting to your viva session..."
             });
 
-            router.push(`/student/assessments/viva/${result.session_id}`);
+            router.push(`/student/assessments/viva/${session.id}`);
         } catch (error) {
-            addToast({ 
-                title: "Failed to start assessment", 
+            addToast({
+                title: "Failed to start assessment",
                 variant: "error",
                 description: error instanceof Error ? error.message : "Please try again."
             });
@@ -113,7 +120,7 @@ export default function StartAssessmentPage() {
                 <div>
                     <h1 className="text-2xl font-black tracking-tight">Start Viva Assessment</h1>
                     <p className="text-sm text-muted-foreground">
-                        Select an assignment and begin your oral assessment.
+                        Select an assignment and begin your AI-powered oral examination.
                     </p>
                 </div>
             </div>
@@ -144,8 +151,8 @@ export default function StartAssessmentPage() {
                         ) : (
                             <div className="space-y-2">
                                 <Label htmlFor="assignment-select">Assignment</Label>
-                                <Select 
-                                    value={selectedAssignment} 
+                                <Select
+                                    value={selectedAssignment}
                                     onValueChange={setSelectedAssignment}
                                 >
                                     <SelectTrigger id="assignment-select" className="w-full">
@@ -153,25 +160,31 @@ export default function StartAssessmentPage() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         {assignments.map((assignment) => (
-                                            <SelectItem 
-                                                key={assignment.assignment_id} 
-                                                value={assignment.assignment_id}
+                                            <SelectItem
+                                                key={assignment.id}
+                                                value={assignment.id}
                                             >
                                                 {assignment.title}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                {selectedAssignment && (
+                                {selectedData && (
                                     <div className="mt-3 p-3 rounded-lg bg-muted/50 border border-border/60">
                                         <p className="text-xs text-muted-foreground mb-2 font-medium">Selected Assignment:</p>
-                                        <p className="text-sm font-semibold">{assignments.find(a => a.assignment_id === selectedAssignment)?.title}</p>
+                                        <p className="text-sm font-semibold">{selectedData.title}</p>
+                                        {selectedData.description && (
+                                            <p className="text-xs text-muted-foreground mt-1">{selectedData.description}</p>
+                                        )}
                                         <div className="mt-2 flex flex-wrap gap-1">
-                                            {assignments.find(a => a.assignment_id === selectedAssignment)?.competencies.map((c) => (
-                                                <span key={c} className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                                                    {c}
+                                            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                                {selectedData.programming_language}
+                                            </span>
+                                            {selectedData.course_id && (
+                                                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                                                    {selectedData.course_id}
                                                 </span>
-                                            ))}
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -180,45 +193,16 @@ export default function StartAssessmentPage() {
                     </CardContent>
                 </Card>
 
-                {/* Code Context (Optional) */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Code2 className="h-5 w-5" />
-                            Code Context (Optional)
-                        </CardTitle>
-                        <CardDescription>
-                            Provide your code for context-based questions. This helps the AI understand your implementation.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="code-context">Your Code</Label>
-                            <Textarea
-                                id="code-context"
-                                rows={10}
-                                placeholder="// Paste your code here...&#10;public class Solution {&#10;    public static void main(String[] args) {&#10;        // Your implementation&#10;    }&#10;}"
-                                value={codeContext}
-                                onChange={(e) => setCodeContext(e.target.value)}
-                                className="font-mono text-sm resize-none"
-                            />
-                            <p className="text-xs text-muted-foreground">
-                                The AI will analyze your code to ask relevant questions about your implementation choices.
-                            </p>
-                        </div>
-                    </CardContent>
-                </Card>
-
                 {/* Start Button */}
                 <div className="flex justify-end gap-3">
-                    <Button 
-                        variant="outline" 
+                    <Button
+                        variant="outline"
                         onClick={() => router.back()}
                         disabled={starting}
                     >
                         Cancel
                     </Button>
-                    <Button 
+                    <Button
                         onClick={handleStartAssessment}
                         disabled={starting || !selectedAssignment || assignments.length === 0}
                         className="gap-2"
@@ -230,8 +214,8 @@ export default function StartAssessmentPage() {
                             </>
                         ) : (
                             <>
-                                <Play className="h-4 w-4" />
-                                Start Viva Assessment
+                                <Mic2 className="h-4 w-4" />
+                                Start Voice Viva
                             </>
                         )}
                     </Button>
@@ -249,7 +233,7 @@ export default function StartAssessmentPage() {
                             1
                         </div>
                         <p className="text-muted-foreground">
-                            Select an assignment from the list above. Make sure you've completed the required work.
+                            Select an assignment from the list above. Make sure you&apos;ve completed the required work.
                         </p>
                     </div>
                     <div className="flex gap-3">
@@ -257,7 +241,7 @@ export default function StartAssessmentPage() {
                             2
                         </div>
                         <p className="text-muted-foreground">
-                            Optionally paste your code in the code context box. This allows the AI to ask specific questions about your implementation.
+                            Click &quot;Start Voice Viva&quot; — your browser will connect to the AI examiner via real-time audio.
                         </p>
                     </div>
                     <div className="flex gap-3">
@@ -265,7 +249,7 @@ export default function StartAssessmentPage() {
                             3
                         </div>
                         <p className="text-muted-foreground">
-                            Click &quot;Start Viva Assessment&quot; to begin. You'll be presented with a series of questions about your understanding.
+                            The AI will ask you questions about your code. Speak naturally — it adapts follow-ups based on your answers.
                         </p>
                     </div>
                     <div className="flex gap-3">
@@ -273,7 +257,7 @@ export default function StartAssessmentPage() {
                             4
                         </div>
                         <p className="text-muted-foreground">
-                            Answer questions using voice or text. The AI will evaluate your responses and provide immediate feedback.
+                            Your voice is verified during the session. Every score comes with a written justification — nothing is black-box.
                         </p>
                     </div>
                 </CardContent>

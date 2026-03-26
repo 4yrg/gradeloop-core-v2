@@ -1,40 +1,30 @@
 "use client";
 
 import * as React from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
     Loader2,
     Mic2,
     ChevronDown,
     ChevronUp,
-    Edit2,
     Save,
     X,
-    RefreshCw,
     Trash2,
     CheckCircle2,
+    Plus,
+    AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import { ivasApi } from "@/lib/ivas-api";
-import { instructorAssessmentsApi, assessmentsApi } from "@/lib/api/assessments";
-import type { AssignmentResponse } from "@/types/assessments.types";
-import { useToast } from "@/components/ui/toaster";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { BulkActionToolbar } from "@/components/instructor/BulkActionToolbar";
-import { SelectCheckbox } from "@/components/instructor/SelectCheckbox";
-import type {
-    GradingCriteria,
-    IvasQuestion,
-    UpdateGradingCriteriaRequest,
-    UpdateQuestionRequest,
-} from "@/types/ivas";
+import type { AssignmentDetail, GradingCriteria, IvasQuestion } from "@/types/ivas";
 
 const DIFFICULTY_LABELS: Record<number, { label: string; color: string }> = {
     1: { label: "Beginner", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" },
@@ -45,724 +35,343 @@ const DIFFICULTY_LABELS: Record<number, { label: string; color: string }> = {
 };
 
 function DifficultyBadge({ level }: { level: number }) {
-    const info = DIFFICULTY_LABELS[level] ?? { label: `L${level}`, color: "bg-zinc-100 text-zinc-700" };
-    return (
-        <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium", info.color)}>
-            {info.label}
-        </span>
-    );
+    const info = DIFFICULTY_LABELS[level] || DIFFICULTY_LABELS[3];
+    return <Badge variant="outline" className={cn("border-0 text-xs", info.color)}>{info.label}</Badge>;
 }
 
-interface CriteriaCardProps {
-    criteria: GradingCriteria;
-    onUpdate: (id: string, data: UpdateGradingCriteriaRequest) => Promise<void>;
-    onDelete: (id: string) => void;
-    selected: boolean;
-    onSelectedChange: (checked: boolean) => void;
-}
-
-function CriteriaRow({ criteria, onUpdate, onDelete, selected, onSelectedChange }: CriteriaCardProps) {
-    const [editing, setEditing] = React.useState(false);
-    const [expanded, setExpanded] = React.useState(false);
-    const [saving, setSaving] = React.useState(false);
-    const [form, setForm] = React.useState<UpdateGradingCriteriaRequest>({
-        competency: criteria.competency,
-        difficulty_level: criteria.difficulty_level,
-        level_label: criteria.level_label,
-        level_description: criteria.level_description,
-        marking_criteria: criteria.marking_criteria,
-        programming_language: criteria.programming_language,
-        learning_objectives: [...criteria.learning_objectives],
-    });
-
-    const handleSave = async () => {
-        try {
-            setSaving(true);
-            await onUpdate(criteria.id, form);
-            setEditing(false);
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    return (
-        <tbody>
-            <tr className={cn("border-b border-border/40 hover:bg-muted/30 transition-colors", selected && "bg-primary/5")}>
-                <td className="w-8 px-3 py-3">
-                    <SelectCheckbox
-                        id={`criteria-${criteria.id}`}
-                        checked={selected}
-                        onCheckedChange={onSelectedChange}
-                    />
-                </td>
-                <td className="px-3 py-3 font-semibold text-sm max-w-[180px]">
-                    {editing ? (
-                        <Input
-                            value={form.competency ?? ""}
-                            onChange={(e) => setForm((f) => ({ ...f, competency: e.target.value }))}
-                            className="h-7 text-sm"
-                        />
-                    ) : (
-                        <span className="block truncate" title={criteria.competency}>{criteria.competency}</span>
-                    )}
-                </td>
-                <td className="px-3 py-3">
-                    <DifficultyBadge level={criteria.difficulty_level} />
-                </td>
-                <td className="px-3 py-3 text-sm text-muted-foreground">
-                    {editing ? (
-                        <Input
-                            value={form.level_label ?? ""}
-                            onChange={(e) => setForm((f) => ({ ...f, level_label: e.target.value }))}
-                            className="h-7 text-xs w-28"
-                        />
-                    ) : (
-                        criteria.level_label
-                    )}
-                </td>
-                <td className="px-3 py-3 text-xs text-muted-foreground">{criteria.programming_language}</td>
-                <td className="px-3 py-3">
-                    <div className="flex items-center justify-end gap-1">
-                        <Button
-                            size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                            onClick={() => setExpanded((v) => !v)}
-                            title={expanded ? "Collapse" : "Expand details"}
-                        >
-                            {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                        </Button>
-                        {editing ? (
-                            <>
-                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleSave} disabled={saving}>
-                                    {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                                </Button>
-                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditing(false)}>
-                                    <X className="h-3.5 w-3.5" />
-                                </Button>
-                            </>
-                        ) : (
-                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditing(true)}>
-                                <Edit2 className="h-3.5 w-3.5" />
-                            </Button>
-                        )}
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500 hover:text-red-700" onClick={() => onDelete(criteria.id)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                    </div>
-                </td>
-            </tr>
-            {expanded && (
-                <tr className="bg-muted/20 border-b border-border/40">
-                    <td colSpan={6} className="px-6 py-4">
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <div>
-                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Level Description</p>
-                                {editing ? (
-                                    <Textarea rows={2} value={form.level_description ?? ""}
-                                        onChange={(e) => setForm((f) => ({ ...f, level_description: e.target.value }))} />
-                                ) : (
-                                    <p className="text-sm text-foreground/80">{criteria.level_description}</p>
-                                )}
-                            </div>
-                            <div>
-                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Marking Criteria</p>
-                                {editing ? (
-                                    <Textarea rows={3} value={form.marking_criteria ?? ""}
-                                        onChange={(e) => setForm((f) => ({ ...f, marking_criteria: e.target.value }))} />
-                                ) : (
-                                    <p className="text-sm text-foreground/80">{criteria.marking_criteria}</p>
-                                )}
-                            </div>
-                            {criteria.learning_objectives.length > 0 && (
-                                <div className="sm:col-span-2">
-                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Learning Objectives</p>
-                                    <ul className="list-disc pl-4 space-y-0.5">
-                                        {criteria.learning_objectives.map((obj, i) => (
-                                            <li key={i} className="text-sm text-foreground/80">{obj}</li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-                        </div>
-                    </td>
-                </tr>
-            )}
-        </tbody>
-    );
-}
-
-interface QuestionCardProps {
-    question: IvasQuestion;
-    onUpdate: (id: string, data: UpdateQuestionRequest) => Promise<void>;
-    onDelete: (id: string) => void;
-    selected: boolean;
-    onSelectedChange: (checked: boolean) => void;
-}
-
-function QuestionRow({ question, onUpdate, onDelete, selected, onSelectedChange }: QuestionCardProps) {
-    const [expanded, setExpanded] = React.useState(false);
-    const [editing, setEditing] = React.useState(false);
-    const [form, setForm] = React.useState<UpdateQuestionRequest>({
-        question_text: question.question_text,
-        expected_answer: question.expected_answer,
-        competency: question.competency,
-        difficulty: question.difficulty,
-        max_points: question.max_points,
-        status: question.status as "draft" | "approved" | "rejected",
-    });
-
-    const handleSave = async () => {
-        try {
-            await onUpdate(question.id, form);
-            setEditing(false);
-        } catch (error) {
-            console.error("Failed to update question:", error);
-        }
-    };
-
-    return (
-        <tbody>
-            <tr className={cn("border-b border-border/40 hover:bg-muted/30 transition-colors", selected && "bg-primary/5")}>
-                <td className="w-8 px-3 py-3">
-                    <SelectCheckbox
-                        id={`question-${question.id}`}
-                        checked={selected}
-                        onCheckedChange={onSelectedChange}
-                    />
-                </td>
-                <td className="px-3 py-3 text-sm font-medium max-w-[260px]">
-                    {editing ? (
-                        <Input
-                            value={form.question_text}
-                            onChange={(e) => setForm((f) => ({ ...f, question_text: e.target.value }))}
-                            className="h-7 text-sm"
-                        />
-                    ) : (
-                        <span className="block truncate" title={question.question_text}>{question.question_text}</span>
-                    )}
-                </td>
-                <td className="px-3 py-3">
-                    <Badge variant="outline" className="text-xs whitespace-nowrap">{question.competency}</Badge>
-                </td>
-                <td className="px-3 py-3">
-                    <DifficultyBadge level={question.difficulty} />
-                </td>
-                <td className="px-3 py-3 text-sm text-center font-mono">{question.max_points}</td>
-                <td className="px-3 py-3">
-                    <Badge
-                        variant="outline"
-                        className={cn(
-                            "text-xs cursor-pointer select-none",
-                            question.status === "approved"
-                                ? "border-emerald-500 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
-                                : "border-amber-500 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20"
-                        )}
-                        onClick={() => !editing && onUpdate(question.id, {
-                            status: question.status === "approved" ? "draft" : "approved"
-                        })}
-                    >
-                        {question.status}
-                    </Badge>
-                </td>
-                <td className="px-3 py-3">
-                    <div className="flex items-center justify-end gap-1">
-                        <Button
-                            size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                            onClick={() => setExpanded((v) => !v)}
-                            title={expanded ? "Hide answer" : "Show expected answer"}
-                        >
-                            {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                        </Button>
-                        {editing ? (
-                            <>
-                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleSave}>
-                                    <Save className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditing(false)}>
-                                    <X className="h-3.5 w-3.5" />
-                                </Button>
-                            </>
-                        ) : (
-                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditing(true)}>
-                                <Edit2 className="h-3.5 w-3.5" />
-                            </Button>
-                        )}
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500 hover:text-red-700" onClick={() => onDelete(question.id)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                    </div>
-                </td>
-            </tr>
-            {expanded && (
-                <tr className="bg-muted/20 border-b border-border/40">
-                    <td colSpan={7} className="px-6 py-3">
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Expected Answer</p>
-                        {editing ? (
-                            <Textarea
-                                rows={3}
-                                value={form.expected_answer ?? ""}
-                                onChange={(e) => setForm((f) => ({ ...f, expected_answer: e.target.value }))}
-                            />
-                        ) : (
-                            <p className="text-sm text-foreground/80 border-l-2 border-border pl-3">{question.expected_answer}</p>
-                        )}
-                    </td>
-                </tr>
-            )}
-        </tbody>
-    );
-}
-
-export default function VivaSetupPage() {
+export default function AssessmentSetupPage() {
     const params = useParams<{ assignmentId: string }>();
-    const assignmentId = params.assignmentId;
+    const router = useRouter();
     const { addToast } = useToast();
+    const assignmentId = params.assignmentId;
 
-    const [realAssignment, setRealAssignment] = React.useState<AssignmentResponse | null>(null);
+    const [assignment, setAssignment] = React.useState<AssignmentDetail | null>(null);
     const [criteria, setCriteria] = React.useState<GradingCriteria[]>([]);
     const [questions, setQuestions] = React.useState<IvasQuestion[]>([]);
-    const [assignmentText, setAssignmentText] = React.useState("");
-    const [loadingInitial, setLoadingInitial] = React.useState(true);
-    const [generatingCriteria, setGeneratingCriteria] = React.useState(false);
-    const [generatingQuestions, setGeneratingQuestions] = React.useState(false);
+    const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
-    const [successMsg, setSuccessMsg] = React.useState<string | null>(null);
 
-    // Bulk selection state
-    const [selectedCriteria, setSelectedCriteria] = React.useState<Set<string>>(new Set());
-    const [selectedQuestions, setSelectedQuestions] = React.useState<Set<string>>(new Set());
-    const [bulkLoading, setBulkLoading] = React.useState(false);
+    // Add criteria form
+    const [showAddCriteria, setShowAddCriteria] = React.useState(false);
+    const [newCriteriaCompetency, setNewCriteriaCompetency] = React.useState("");
+    const [newCriteriaDesc, setNewCriteriaDesc] = React.useState("");
+    const [addingCriteria, setAddingCriteria] = React.useState(false);
 
-    // Delete confirmation dialogs
-    const [deleteDialog, setDeleteDialog] = React.useState<{
-        open: boolean;
-        type: 'criteria' | 'question';
-        id?: string;
-    }>({ open: false, type: 'criteria' });
+    // Add question form
+    const [showAddQuestion, setShowAddQuestion] = React.useState(false);
+    const [newQuestionText, setNewQuestionText] = React.useState("");
+    const [newQuestionCompetency, setNewQuestionCompetency] = React.useState("");
+    const [addingQuestion, setAddingQuestion] = React.useState(false);
 
-    const showSuccess = (msg: string) => {
-        addToast({ title: msg, variant: "success" });
-    };
+    // Expanded rows
+    const [expandedCriteria, setExpandedCriteria] = React.useState<Set<string>>(new Set());
+    const [expandedQuestions, setExpandedQuestions] = React.useState<Set<string>>(new Set());
 
-    const showError = (msg: string) => {
-        addToast({ title: msg, variant: "error" });
-    };
-
+    // Load data
     React.useEffect(() => {
         let mounted = true;
         async function load() {
             try {
-                setLoadingInitial(true);
-                const [realAsgn, crit, qs] = await Promise.allSettled([
-                    assessmentsApi.getAssignment(assignmentId),
-                    ivasApi.getCriteria(assignmentId),
-                    ivasApi.getQuestions(assignmentId),
-                ]);
+                const detail = await ivasApi.getAssignment(assignmentId);
                 if (!mounted) return;
-                if (realAsgn.status === "fulfilled") {
-                    setRealAssignment(realAsgn.value);
-                    // Auto-populate the assignment text from the real assignment description
-                    if (realAsgn.value.description) {
-                        setAssignmentText(realAsgn.value.description);
-                    }
-                }
-                if (crit.status === "fulfilled") setCriteria(crit.value);
-                if (qs.status === "fulfilled") setQuestions(qs.value);
-            } catch {
-                if (mounted) setError("Failed to load assignment data.");
+                setAssignment(detail);
+                setCriteria(detail.criteria);
+                setQuestions(detail.questions);
+            } catch (err) {
+                if (mounted) setError(err instanceof Error ? err.message : "Failed to load assignment");
             } finally {
-                if (mounted) setLoadingInitial(false);
+                if (mounted) setLoading(false);
             }
         }
         load();
         return () => { mounted = false; };
     }, [assignmentId]);
 
-    const handleGenerateCriteria = async () => {
-        if (!assignmentText.trim()) {
-            setError("Please enter assignment text before generating criteria.");
-            return;
-        }
+    const refreshData = async () => {
         try {
-            setError(null);
-            setGeneratingCriteria(true);
-            await ivasApi.generateCriteria(assignmentId, {
-                assignment_text: assignmentText,
-                num_criteria: 5,
-                replace_existing: true,
+            const detail = await ivasApi.getAssignment(assignmentId);
+            setAssignment(detail);
+            setCriteria(detail.criteria);
+            setQuestions(detail.questions);
+        } catch {
+            // Silent refresh failure
+        }
+    };
+
+    // --- Criteria Actions ---
+    const handleAddCriteria = async () => {
+        if (!newCriteriaCompetency.trim()) return;
+        setAddingCriteria(true);
+        try {
+            await ivasApi.createCriteria(assignmentId, {
+                competency: newCriteriaCompetency.trim(),
+                description: newCriteriaDesc.trim() || undefined,
             });
-            const fresh = await ivasApi.getCriteria(assignmentId);
-            setCriteria(fresh);
-            showSuccess(`Generated ${fresh.length} grading criteria successfully.`);
+            addToast({ title: "Criteria added", variant: "success" });
+            setNewCriteriaCompetency("");
+            setNewCriteriaDesc("");
+            setShowAddCriteria(false);
+            await refreshData();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to generate criteria.");
+            addToast({ title: "Failed to add criteria", variant: "error", description: err instanceof Error ? err.message : "" });
         } finally {
-            setGeneratingCriteria(false);
+            setAddingCriteria(false);
         }
     };
 
-    const handleGenerateQuestions = async () => {
-        if (!assignmentText.trim()) {
-            setError("Please enter assignment text before generating questions.");
-            return;
-        }
+    const handleDeleteCriteria = async (id: string) => {
         try {
-            setError(null);
-            setGeneratingQuestions(true);
-            await ivasApi.generateQuestions(assignmentId, {
-                assignment_text: assignmentText,
-                num_questions: 2,
+            await ivasApi.deleteCriteria(id);
+            setCriteria(prev => prev.filter(c => c.id !== id));
+            addToast({ title: "Criteria deleted", variant: "success" });
+        } catch (err) {
+            addToast({ title: "Failed to delete", variant: "error" });
+        }
+    };
+
+    // --- Question Actions ---
+    const handleAddQuestion = async () => {
+        if (!newQuestionText.trim()) return;
+        setAddingQuestion(true);
+        try {
+            await ivasApi.createQuestion(assignmentId, {
+                question_text: newQuestionText.trim(),
+                competency: newQuestionCompetency.trim() || undefined,
             });
-            const fresh = await ivasApi.getQuestions(assignmentId);
-            setQuestions(fresh);
-            showSuccess(`Generated ${fresh.length} questions successfully.`);
+            addToast({ title: "Question added", variant: "success" });
+            setNewQuestionText("");
+            setNewQuestionCompetency("");
+            setShowAddQuestion(false);
+            await refreshData();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to generate questions.");
+            addToast({ title: "Failed to add question", variant: "error", description: err instanceof Error ? err.message : "" });
         } finally {
-            setGeneratingQuestions(false);
+            setAddingQuestion(false);
         }
     };
 
-    const handleUpdateCriteria = async (id: string, data: UpdateGradingCriteriaRequest) => {
+    const handleToggleQuestionStatus = async (q: IvasQuestion) => {
+        const newStatus = q.status === "approved" ? "draft" : "approved";
         try {
-            const updated = await ivasApi.updateCriteria(id, data);
-            setCriteria((prev) => prev.map((c) => (c.id === id ? updated : c)));
-            showSuccess("Criteria updated.");
-        } catch (error) {
-            showError("Failed to update criteria.");
-            throw error;
+            const updated = await ivasApi.updateQuestion(q.id, { status: newStatus });
+            setQuestions(prev => prev.map(x => x.id === q.id ? updated : x));
+        } catch {
+            addToast({ title: "Failed to update status", variant: "error" });
         }
     };
 
-    const handleDeleteCriteria = (id: string) => {
-        setDeleteDialog({ open: true, type: 'criteria', id });
-    };
-
-    const handleBulkDeleteCriteria = async () => {
-        if (selectedCriteria.size === 0) return;
+    const handleDeleteQuestion = async (id: string) => {
         try {
-            setBulkLoading(true);
-            await ivasApi.batchDeleteCriteria(assignmentId, Array.from(selectedCriteria));
-            setCriteria((prev) => prev.filter((c) => !selectedCriteria.has(c.id)));
-            setSelectedCriteria(new Set());
-            showSuccess(`Deleted ${selectedCriteria.size} criteria.`);
-        } catch (error) {
-            showError("Failed to delete criteria.");
-            throw error;
-        } finally {
-            setBulkLoading(false);
+            await ivasApi.deleteQuestion(id);
+            setQuestions(prev => prev.filter(q => q.id !== id));
+            addToast({ title: "Question deleted", variant: "success" });
+        } catch {
+            addToast({ title: "Failed to delete", variant: "error" });
         }
     };
 
-    const handleUpdateQuestion = async (id: string, data: UpdateQuestionRequest) => {
-        try {
-            const updated = await ivasApi.updateQuestion(id, data);
-            setQuestions((prev) => prev.map((q) => (q.id === id ? updated : q)));
-            showSuccess("Question updated.");
-        } catch (error) {
-            showError("Failed to update question.");
-            throw error;
-        }
-    };
+    // Toggle expanded
+    const toggleCriteria = (id: string) => setExpandedCriteria(prev => {
+        const next = new Set(prev);
+        next.has(id) ? next.delete(id) : next.add(id);
+        return next;
+    });
+    const toggleQuestion = (id: string) => setExpandedQuestions(prev => {
+        const next = new Set(prev);
+        next.has(id) ? next.delete(id) : next.add(id);
+        return next;
+    });
 
-    const handleDeleteQuestion = (id: string) => {
-        setDeleteDialog({ open: true, type: 'question', id });
-    };
+    if (loading) {
+        return (
+            <div className="max-w-5xl mx-auto space-y-6 pb-8">
+                <Skeleton className="h-10 w-64" />
+                <Skeleton className="h-40 w-full" />
+                <Skeleton className="h-60 w-full" />
+            </div>
+        );
+    }
 
-    const handleBulkDeleteQuestions = async () => {
-        if (selectedQuestions.size === 0) return;
-        try {
-            setBulkLoading(true);
-            await ivasApi.batchDeleteQuestions(Array.from(selectedQuestions));
-            setQuestions((prev) => prev.filter((q) => !selectedQuestions.has(q.id)));
-            setSelectedQuestions(new Set());
-            showSuccess(`Deleted ${selectedQuestions.size} questions.`);
-        } catch (error) {
-            showError("Failed to delete questions.");
-            throw error;
-        } finally {
-            setBulkLoading(false);
-        }
-    };
-
-    const handleBulkApproveQuestions = async () => {
-        if (selectedQuestions.size === 0) return;
-        try {
-            setBulkLoading(true);
-            await ivasApi.batchUpdateQuestions(Array.from(selectedQuestions), { status: "approved" });
-            setQuestions((prev) => prev.map((q) =>
-                selectedQuestions.has(q.id) ? { ...q, status: "approved" } : q
-            ));
-            setSelectedQuestions(new Set());
-            showSuccess(`Approved ${selectedQuestions.size} questions.`);
-        } catch (error) {
-            showError("Failed to approve questions.");
-            throw error;
-        } finally {
-            setBulkLoading(false);
-        }
-    };
+    if (error || !assignment) {
+        return (
+            <div className="flex items-center justify-center h-[60vh]">
+                <Card className="max-w-md">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-red-600">
+                            <AlertCircle className="h-5 w-5" />
+                            Error
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-sm text-muted-foreground">{error || "Assignment not found."}</p>
+                        <Button className="mt-4" variant="outline" onClick={() => router.back()}>Go Back</Button>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
 
     return (
-        <div className="flex flex-col gap-8 pb-8">
-            {/* Page Header */}
-            <div className="flex items-center gap-3 border-b border-border/40 pb-6">
-                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <Mic2 className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                    <h1 className="text-2xl font-black tracking-tight">Viva Setup</h1>
-                    <p className="text-sm text-muted-foreground">
-                        Configure AI-generated grading criteria and questions for this assignment&apos;s oral viva.
-                    </p>
-                </div>
+        <div className="max-w-5xl mx-auto space-y-6 pb-8">
+            {/* Header */}
+            <div className="border-b border-border/40 pb-6">
+                <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
+                    <Mic2 className="h-6 w-6" />
+                    Setup: {assignment.title}
+                </h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                    {assignment.programming_language} &middot; {assignment.course_id || "No course"}
+                </p>
             </div>
 
-            {/* Feedback */}
-            {error && (
-                <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-400">
-                    {error}
-                </div>
-            )}
-            {successMsg && (
-                <div className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-900/20 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400">
-                    {successMsg}
-                </div>
-            )}
-
-            <div className="grid gap-8 lg:grid-cols-[380px_1fr]">
-                {/* Left Panel */}
-                <div className="space-y-6">
-                    {loadingInitial ? (
-                        <div className="space-y-3">
-                            <Skeleton className="h-6 w-48" />
-                            <Skeleton className="h-4 w-full" />
-                            <Skeleton className="h-4 w-3/4" />
-                        </div>
-                    ) : (
-                        <div>
-                            <h2 className="text-lg font-semibold">
-                                {realAssignment?.title ?? assignmentId}
-                            </h2>
-                            {realAssignment?.description && (
-                                <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                                    {realAssignment.description}
-                                </p>
-                            )}
+            {/* ===== Grading Criteria ===== */}
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle className="text-base">Grading Criteria</CardTitle>
+                        <CardDescription>{criteria.length} criteria defined</CardDescription>
+                    </div>
+                    <Button size="sm" variant="outline" className="gap-1" onClick={() => setShowAddCriteria(!showAddCriteria)}>
+                        <Plus className="h-3.5 w-3.5" />
+                        Add Criteria
+                    </Button>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    {/* Add form */}
+                    {showAddCriteria && (
+                        <div className="border border-dashed border-border/60 rounded-lg p-4 space-y-3 bg-muted/30">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <Label className="text-xs">Competency</Label>
+                                    <Input placeholder="e.g. Recursion" value={newCriteriaCompetency} onChange={e => setNewCriteriaCompetency(e.target.value)} />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label className="text-xs">Description (optional)</Label>
+                                    <Input placeholder="What to assess" value={newCriteriaDesc} onChange={e => setNewCriteriaDesc(e.target.value)} />
+                                </div>
+                            </div>
+                            <div className="flex justify-end gap-2">
+                                <Button variant="ghost" size="sm" onClick={() => setShowAddCriteria(false)}><X className="h-3.5 w-3.5" /></Button>
+                                <Button size="sm" onClick={handleAddCriteria} disabled={addingCriteria || !newCriteriaCompetency.trim()} className="gap-1">
+                                    {addingCriteria ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                                    Save
+                                </Button>
+                            </div>
                         </div>
                     )}
 
-                    <div className="space-y-2">
-                        <Label htmlFor="assignment-text">Assignment Text</Label>
-                        <Textarea
-                            id="assignment-text"
-                            rows={10}
-                            placeholder="Paste the full assignment description here. This text is used by the AI to generate relevant criteria and questions..."
-                            value={assignmentText}
-                            onChange={(e) => setAssignmentText(e.target.value)}
-                            className="resize-none"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                            The AI uses this text to extract competencies and generate viva questions.
-                        </p>
-                    </div>
-
-                    <div className="flex flex-col gap-3">
-                        <Button
-                            onClick={handleGenerateCriteria}
-                            disabled={generatingCriteria || !assignmentText.trim()}
-                            className="w-full"
-                        >
-                            {generatingCriteria ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    Generating criteria…
-                                </>
-                            ) : (
-                                <>
-                                    <RefreshCw className="h-4 w-4 mr-2" />
-                                    Generate Grading Criteria
-                                </>
+                    {criteria.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-6">No criteria yet. Add some to define your rubric.</p>
+                    ) : criteria.map(c => (
+                        <div key={c.id} className="border border-border/60 rounded-lg">
+                            <div
+                                className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/30"
+                                onClick={() => toggleCriteria(c.id)}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <span className="font-medium text-sm">{c.competency}</span>
+                                    <DifficultyBadge level={c.difficulty} />
+                                    <span className="text-xs text-muted-foreground">max {c.max_score} pts, weight {c.weight}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-700" onClick={(e) => { e.stopPropagation(); handleDeleteCriteria(c.id); }}>
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                    {expandedCriteria.has(c.id) ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                </div>
+                            </div>
+                            {expandedCriteria.has(c.id) && (
+                                <div className="px-4 pb-3 text-sm text-muted-foreground border-t border-border/40 pt-2">
+                                    {c.description || "No description."}
+                                </div>
                             )}
-                        </Button>
-                        <Button
-                            variant="outline"
-                            onClick={handleGenerateQuestions}
-                            disabled={generatingQuestions || criteria.length === 0 || !assignmentText.trim()}
-                            className="w-full"
-                        >
-                            {generatingQuestions ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    Generating questions…
-                                </>
-                            ) : (
-                                <>
-                                    <RefreshCw className="h-4 w-4 mr-2" />
-                                    Generate Questions
-                                </>
-                            )}
-                        </Button>
-                        {criteria.length === 0 && !generatingCriteria && (
-                            <p className="text-xs text-muted-foreground text-center">
-                                Generate grading criteria first to unlock question generation.
-                            </p>
-                        )}
+                        </div>
+                    ))}
+                </CardContent>
+            </Card>
+
+            {/* ===== Questions ===== */}
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle className="text-base">Questions</CardTitle>
+                        <CardDescription>
+                            {questions.filter(q => q.status === "approved").length} approved / {questions.length} total
+                        </CardDescription>
                     </div>
-                </div>
-
-                {/* Right Panel */}
-                <div className="space-y-8">
-                    {/* Grading Criteria */}
-                    <section>
-                        <BulkActionToolbar
-                            selectedCount={selectedCriteria.size}
-                            onBulkDelete={handleBulkDeleteCriteria}
-                            onClearSelection={() => setSelectedCriteria(new Set())}
-                            isLoading={bulkLoading}
-                        />
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base font-semibold">
-                                Grading Criteria
-                                {criteria.length > 0 && (
-                                    <span className="ml-2 text-sm font-normal text-muted-foreground">
-                                        ({criteria.length})
-                                    </span>
-                                )}
-                            </h3>
+                    <Button size="sm" variant="outline" className="gap-1" onClick={() => setShowAddQuestion(!showAddQuestion)}>
+                        <Plus className="h-3.5 w-3.5" />
+                        Add Question
+                    </Button>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    {/* Add form */}
+                    {showAddQuestion && (
+                        <div className="border border-dashed border-border/60 rounded-lg p-4 space-y-3 bg-muted/30">
+                            <div className="space-y-1">
+                                <Label className="text-xs">Question Text</Label>
+                                <Textarea rows={2} placeholder="e.g. Explain how your function handles edge cases" value={newQuestionText} onChange={e => setNewQuestionText(e.target.value)} />
+                            </div>
+                            <div className="space-y-1">
+                                <Label className="text-xs">Competency (optional)</Label>
+                                <Input placeholder="e.g. Error Handling" value={newQuestionCompetency} onChange={e => setNewQuestionCompetency(e.target.value)} />
+                            </div>
+                            <div className="flex justify-end gap-2">
+                                <Button variant="ghost" size="sm" onClick={() => setShowAddQuestion(false)}><X className="h-3.5 w-3.5" /></Button>
+                                <Button size="sm" onClick={handleAddQuestion} disabled={addingQuestion || !newQuestionText.trim()} className="gap-1">
+                                    {addingQuestion ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                                    Save
+                                </Button>
+                            </div>
                         </div>
-                        {loadingInitial ? (
-                            <div className="space-y-3">
-                                {Array.from({ length: 3 }).map((_, i) => (
-                                    <Skeleton key={i} className="h-32 w-full rounded-xl" />
-                                ))}
-                            </div>
-                        ) : criteria.length === 0 ? (
-                            <div className="rounded-xl border border-dashed border-border/60 p-8 text-center text-muted-foreground text-sm">
-                                No criteria yet. Enter the assignment text and click &quot;Generate Grading Criteria&quot;.
-                            </div>
-                        ) : (
-                            <div className="rounded-xl border border-border/60 overflow-hidden">
-                                <table className="w-full text-sm">
-                                    <thead className="bg-muted/50">
-                                        <tr className="border-b border-border/60">
-                                            <th className="w-8 px-3 py-2" />
-                                            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Competency</th>
-                                            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Difficulty</th>
-                                            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Level</th>
-                                            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Language</th>
-                                            <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    {criteria.map((c) => (
-                                        <CriteriaRow
-                                            key={c.id}
-                                            criteria={c}
-                                            onUpdate={handleUpdateCriteria}
-                                            onDelete={handleDeleteCriteria}
-                                            selected={selectedCriteria.has(c.id)}
-                                            onSelectedChange={(checked) => {
-                                                const next = new Set(selectedCriteria);
-                                                if (checked) next.add(c.id); else next.delete(c.id);
-                                                setSelectedCriteria(next);
-                                            }}
-                                        />
-                                    ))}
-                                </table>
-                            </div>
-                        )}
-                    </section>
+                    )}
 
-                    {/* Questions */}
-                    <section>
-                        <BulkActionToolbar
-                            selectedCount={selectedQuestions.size}
-                            onBulkDelete={handleBulkDeleteQuestions}
-                            onBulkApprove={handleBulkApproveQuestions}
-                            onClearSelection={() => setSelectedQuestions(new Set())}
-                            isLoading={bulkLoading}
-                        />
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base font-semibold">
-                                Generated Questions
-                                {questions.length > 0 && (
-                                    <span className="ml-2 text-sm font-normal text-muted-foreground">
-                                        ({questions.length})
-                                    </span>
-                                )}
-                            </h3>
+                    {questions.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-6">No questions yet. Add questions for the viva examiner to use.</p>
+                    ) : questions.map(q => (
+                        <div key={q.id} className="border border-border/60 rounded-lg">
+                            <div
+                                className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/30"
+                                onClick={() => toggleQuestion(q.id)}
+                            >
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm truncate">{q.question_text}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        {q.competency && <Badge variant="secondary" className="text-xs">{q.competency}</Badge>}
+                                        <DifficultyBadge level={q.difficulty} />
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0 ml-3">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className={cn("h-7 text-xs px-2", q.status === "approved" ? "text-emerald-600" : "text-amber-600")}
+                                        onClick={(e) => { e.stopPropagation(); handleToggleQuestionStatus(q); }}
+                                    >
+                                        {q.status === "approved" ? (
+                                            <><CheckCircle2 className="h-3 w-3 mr-1" />Approved</>
+                                        ) : (
+                                            "Draft"
+                                        )}
+                                    </Button>
+                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-700" onClick={(e) => { e.stopPropagation(); handleDeleteQuestion(q.id); }}>
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                    {expandedQuestions.has(q.id) ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                </div>
+                            </div>
+                            {expandedQuestions.has(q.id) && (
+                                <div className="px-4 pb-3 text-sm text-muted-foreground border-t border-border/40 pt-2 space-y-1">
+                                    <p><strong>Full text:</strong> {q.question_text}</p>
+                                    {q.expected_topics && q.expected_topics.length > 0 && (
+                                        <p><strong>Expected topics:</strong> {q.expected_topics.join(", ")}</p>
+                                    )}
+                                </div>
+                            )}
                         </div>
-                        {loadingInitial ? (
-                            <div className="space-y-3">
-                                {Array.from({ length: 2 }).map((_, i) => (
-                                    <Skeleton key={i} className="h-20 w-full rounded-xl" />
-                                ))}
-                            </div>
-                        ) : questions.length === 0 ? (
-                            <div className="rounded-xl border border-dashed border-border/60 p-8 text-center text-muted-foreground text-sm">
-                                No questions yet. Generate criteria first, then click &quot;Generate Questions&quot;.
-                            </div>
-                        ) : (
-                            <div className="rounded-xl border border-border/60 overflow-hidden">
-                                <table className="w-full text-sm">
-                                    <thead className="bg-muted/50">
-                                        <tr className="border-b border-border/60">
-                                            <th className="w-8 px-3 py-2" />
-                                            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Question</th>
-                                            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Competency</th>
-                                            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Difficulty</th>
-                                            <th className="px-3 py-2 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pts</th>
-                                            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
-                                            <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    {questions.map((q) => (
-                                        <QuestionRow
-                                            key={q.id}
-                                            question={q}
-                                            onUpdate={handleUpdateQuestion}
-                                            onDelete={handleDeleteQuestion}
-                                            selected={selectedQuestions.has(q.id)}
-                                            onSelectedChange={(checked) => {
-                                                const next = new Set(selectedQuestions);
-                                                if (checked) next.add(q.id); else next.delete(q.id);
-                                                setSelectedQuestions(next);
-                                            }}
-                                        />
-                                    ))}
-                                </table>
-                            </div>
-                        )}
-                    </section>
-                </div>
-            </div>
-
-            {/* Delete Confirmation Dialogs */}
-            <ConfirmDialog
-                open={deleteDialog.open && deleteDialog.type === 'criteria'}
-                onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}
-                title="Delete Grading Criteria"
-                description={`Are you sure you want to delete this grading criteria? This action cannot be undone.`}
-                variant="destructive"
-                confirmText="Delete"
-                onConfirm={async () => {
-                    if (deleteDialog.id) {
-                        await handleDeleteCriteria(deleteDialog.id);
-                    }
-                }}
-            />
-            <ConfirmDialog
-                open={deleteDialog.open && deleteDialog.type === 'question'}
-                onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}
-                title="Delete Question"
-                description={`Are you sure you want to delete this question? This action cannot be undone.`}
-                variant="destructive"
-                confirmText="Delete"
-                onConfirm={async () => {
-                    if (deleteDialog.id) {
-                        await handleDeleteQuestion(deleteDialog.id);
-                    }
-                }}
-            />
+                    ))}
+                </CardContent>
+            </Card>
         </div>
     );
 }
