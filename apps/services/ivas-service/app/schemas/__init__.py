@@ -1,5 +1,6 @@
 """IVAS Service schemas."""
 
+from app.schemas.session import SessionCreate, SessionOut
 from app.schemas.assignment import (
     AssignmentCreate,
     AssignmentDetailOut,
@@ -22,6 +23,8 @@ from app.schemas.voice import (
 )
 
 __all__ = [
+    "SessionCreate",
+    "SessionOut",
     "AssignmentCreate",
     "AssignmentDetailOut",
     "AssignmentOut",
