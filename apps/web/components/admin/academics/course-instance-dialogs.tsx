@@ -506,13 +506,9 @@ function validateStep1(semesterId: string): AcademicFormErrors {
   return e;
 }
 
-function validateStep2(
-  batchId: string,
-  students: UserListItem[],
-): AcademicFormErrors {
+function validateStep2(batchId: string): AcademicFormErrors {
   const e: AcademicFormErrors = {};
-  if (!batchId && students.length === 0)
-    e.batch_id = "Select a batch or add at least one student";
+  if (!batchId) e.batch_id = "Batch is required";
   return e;
 }
 
@@ -600,7 +596,7 @@ export function CreateCourseInstanceDialog({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const errs = validateStep2(batchId, students);
+    const errs = validateStep2(batchId);
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
       return;
@@ -816,7 +812,7 @@ export function CreateCourseInstanceDialog({
 
               <div className="space-y-4 mb-6">
                 <div className="space-y-1.5">
-                  <Label htmlFor="ci_batch">Select Batch / Group</Label>
+                  <Label htmlFor="ci_batch">Select Batch / Group <span className="text-destructive">*</span></Label>
                   {metaLoading ? (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground h-9">
                       <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…

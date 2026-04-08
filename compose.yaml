@@ -779,6 +779,102 @@ services:
         max-file: "3"
         compress: "true"
 
+  # =============================================================================
+  # IVAS Service (Python FastAPI) — Intelligent Viva Assessment System
+  # =============================================================================
+  ivas-postgres:
+    image: postgres:16-alpine
+    container_name: ivas-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=ivas_user
+      - POSTGRES_PASSWORD=ivas_pass
+      - POSTGRES_DB=ivas-db
+    ports:
+      - "5434:5432"
+    volumes:
+      - ivas-postgres-data:/var/lib/postgresql/data
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ivas_user -d ivas-db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+
+  ivas-service:
+    build:
+      context: ./apps/services/ivas-service
+      dockerfile: Dockerfile
+      target: development
+    volumes:
+      - ./apps/services/ivas-service:/app
+    container_name: ivas-service
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ivas.rule=PathPrefix(`/api/v1/ivas`)"
+      - "traefik.http.routers.ivas.entrypoints=web"
+      - "traefik.http.services.ivas-service.loadbalancer.server.port=8088"
+      - "traefik.http.routers.ivas-ws.rule=PathPrefix(`/ws/ivas`)"
+      - "traefik.http.routers.ivas-ws.entrypoints=web"
+      - "traefik.http.middlewares.ivas-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,PATCH,OPTIONS"
+      - "traefik.http.middlewares.ivas-cors.headers.accesscontrolalloworiginlist=http://localhost:3000,http://localhost:3001"
+      - "traefik.http.middlewares.ivas-cors.headers.accesscontrolallowheaders=Origin,Content-Type,Accept,Authorization,X-Request-ID"
+      - "traefik.http.middlewares.ivas-cors.headers.accesscontrolallowcredentials=true"
+      - "traefik.http.middlewares.ivas-cors.headers.addvaryheader=true"
+      - "traefik.http.routers.ivas.middlewares=ivas-cors"
+      - "traefik.http.routers.ivas-ws.middlewares=ivas-cors"
+    env_file:
+      - .env
+    environment:
+      - SERVICE_NAME=ivas-service
+      - SERVICE_PORT=8088
+      - SERVICE_HOST=0.0.0.0
+      - LOG_LEVEL=DEBUG
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql://ivas_user:ivas_pass@ivas-postgres:5432/ivas-db
+      - REDIS_URL=redis://redis:6379/1
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
+      - MINIO_BUCKET=ivas-audio
+      - MINIO_USE_SSL=false
+      - IVAS_GEMINI_API_KEY=${IVAS_GEMINI_API_KEY}
+      - IVAS_GEMINI_LIVE_MODEL=${IVAS_GEMINI_LIVE_MODEL}
+      - VOICE_SIMILARITY_THRESHOLD=0.75
+      - VOICE_ENROLLMENT_SAMPLES=3
+    expose:
+      - "8088"
+    depends_on:
+      ivas-postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8088/api/v1/ivas/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+
 # =============================================================================
 # Configs (inline init scripts — no external files required)
 # =============================================================================
@@ -827,4 +923,6 @@ volumes:
   minio-data:
     driver: local
   redis-data:
+    driver: local
+  ivas-postgres-data:
     driver: local
