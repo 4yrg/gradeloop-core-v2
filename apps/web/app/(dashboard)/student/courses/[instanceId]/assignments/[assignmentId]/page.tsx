@@ -34,6 +34,7 @@ import {
     SheetTitle,
 } from "@/components/ui/sheet";
 import { studentAssessmentsApi, acafsApi } from "@/lib/api/assessments";
+import { ivasApi } from "@/lib/ivas-api";
 import { useAuthStore } from "@/lib/stores/authStore";
 import type { AssignmentResponse, SubmissionResponse, SubmissionGrade } from "@/types/assessments.types";
 import { handleApiError } from "@/lib/api/axios";
@@ -169,8 +170,19 @@ export default function StudentAssignmentDetailPage() {
         try {
             setStartingViva(true);
             setVivaError(null);
-            // Navigate to the viva page with "new" session — the viva page handles triggering
-            router.push(`/student/assessments/viva/new?assignmentId=${assignmentId}`);
+            // Build assignment context from the assignment data
+            const assignmentContext = {
+                title: assignment.title,
+                description: assignment.description || "",
+                code: assignment.code,
+                programming_language: assignment.code.toLowerCase(),
+            };
+            const session = await ivasApi.createSession({
+                assignment_id: assignmentId,
+                student_id: user.id,
+                assignment_context: assignmentContext,
+            });
+            router.push(`/student/assessments/viva/${session.id}`);
         } catch (err) {
             setVivaError(err instanceof Error ? err.message : "Failed to start viva.");
             setStartingViva(false);

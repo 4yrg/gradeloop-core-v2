@@ -19,10 +19,10 @@ import type {
 } from "@/types/ivas";
 
 const IVAS_BASE_URL =
-    process.env.NEXT_PUBLIC_IVAS_API_URL || "http://localhost:8088/api/v1/ivas";
+    process.env.NEXT_PUBLIC_IVAS_API_URL || "http://localhost:8000/api/v1/ivas";
 
 const IVAS_WS_URL =
-    process.env.NEXT_PUBLIC_IVAS_WS_URL || "ws://localhost:8088";
+    process.env.NEXT_PUBLIC_IVAS_WS_URL || "ws://localhost:8000";
 
 // Retry configuration
 const MAX_RETRIES = 3;

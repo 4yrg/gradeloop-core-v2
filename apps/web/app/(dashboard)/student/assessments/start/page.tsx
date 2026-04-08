@@ -2,11 +2,10 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Mic2, Play, BookOpen, Code2, Loader2, AlertCircle } from "lucide-react";
+import { Mic2, BookOpen, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toaster";
 import { ivasApi } from "@/lib/ivas-api";
 import { useAuthStore } from "@/lib/stores/authStore";
@@ -26,7 +25,6 @@ export default function StartAssessmentPage() {
 
     const [assignments, setAssignments] = React.useState<IvasAssignment[]>([]);
     const [selectedAssignment, setSelectedAssignment] = React.useState<string>("");
-    const [codeContext, setCodeContext] = React.useState("");
     const [loading, setLoading] = React.useState(true);
     const [starting, setStarting] = React.useState(false);
 

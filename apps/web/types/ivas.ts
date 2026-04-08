@@ -107,6 +107,7 @@ export interface QuestionUpdate {
 export interface VivaSession {
     id: string;
     assignment_id: string;
+    assignment_context: Record<string, unknown>;
     student_id: string;
     status: "initializing" | "in_progress" | "paused" | "completed" | "abandoned";
     total_score: number | null;
@@ -119,6 +120,7 @@ export interface VivaSession {
 export interface SessionCreate {
     assignment_id: string;
     student_id: string;
+    assignment_context?: Record<string, unknown>;
 }
 
 // ============================================================
@@ -154,7 +156,7 @@ export interface VoiceVerifyOut {
 // ============================================================
 
 export interface WsMessageOutgoing {
-    type: "audio" | "end_viva" | "ping";
+    type: "audio" | "end_session" | "ping";
     data?: string;
 }
 

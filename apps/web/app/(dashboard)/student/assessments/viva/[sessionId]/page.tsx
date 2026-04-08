@@ -259,7 +259,7 @@ export default function VivaSessionPage() {
     const endViva = React.useCallback(() => {
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
             stopRecording();
-            wsRef.current.send(JSON.stringify({ type: "end_viva" }));
+            wsRef.current.send(JSON.stringify({ type: "end_session" }));
             addMessage("system", "Ending viva... waiting for AI to wrap up.");
         }
     }, [stopRecording, addMessage]);
