@@ -45,18 +45,14 @@ class Settings(BaseSettings):
     minio_bucket: str = Field(default="ivas-audio", alias="MINIO_BUCKET")
     minio_use_ssl: bool = Field(default=False, alias="MINIO_USE_SSL")
 
-    # Gemini Live API
+    # Gemini Live API (IVAS-specific key)
     gemini_api_key: str = Field(
         default="SET_YOUR_API_KEY_HERE",
-        alias="GEMINI_API_KEY",
+        alias="IVAS_GEMINI_API_KEY",
     )
     gemini_live_model: str = Field(
         default="gemini-2.0-flash-live-001",
-        alias="GEMINI_LIVE_MODEL",
-    )
-    gemini_model: str = Field(
-        default="gemini-2.5-flash",
-        alias="GEMINI_MODEL",
+        alias="IVAS_GEMINI_LIVE_MODEL",
     )
 
     # Voice Authentication
