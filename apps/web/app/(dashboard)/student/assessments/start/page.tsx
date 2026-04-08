@@ -70,9 +70,30 @@ export default function StartAssessmentPage() {
 
         try {
             setStarting(true);
+
+            // Fetch full assignment details to build context for the AI
+            const assignment = await ivasApi.getAssignment(selectedAssignment);
+
+            const assignmentContext: Record<string, unknown> = {
+                title: assignment.title,
+                description: assignment.description,
+                programming_language: assignment.programming_language,
+            };
+
+            // Add questions if available
+            if (assignment.questions && assignment.questions.length > 0) {
+                assignmentContext.questions = assignment.questions.map((q: { question_text: string }) => q.question_text);
+            }
+
+            // Add grading criteria if available
+            if (assignment.criteria && assignment.criteria.length > 0) {
+                assignmentContext.grading_criteria = assignment.criteria.map((c: { description: string | null }) => c.description);
+            }
+
             const session = await ivasApi.createSession({
                 assignment_id: selectedAssignment,
                 student_id: user.id,
+                assignment_context: assignmentContext,
             });
 
             addToast({
