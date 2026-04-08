@@ -9,11 +9,13 @@ from pydantic import BaseModel
 class SessionCreate(BaseModel):
     assignment_id: UUID
     student_id: str
+    assignment_context: dict | None = None
 
 
 class SessionOut(BaseModel):
     id: UUID
     assignment_id: UUID
+    assignment_context: dict = {}
     student_id: str
     status: str
     total_score: float | None = None

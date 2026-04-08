@@ -448,7 +448,7 @@ function connect() {
 
 function disconnect(sendEnd = true) {
   if (sendEnd && ws?.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: 'end_viva' }));
+    ws.send(JSON.stringify({ type: 'end_session' }));
   }
   stopRecording();
   ws?.close();

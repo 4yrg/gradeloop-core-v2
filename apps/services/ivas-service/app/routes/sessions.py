@@ -27,6 +27,7 @@ async def create_session(body: SessionCreate) -> SessionOut:
     row = await db.create_session(
         assignment_id=body.assignment_id,
         student_id=body.student_id,
+        assignment_context=body.assignment_context,
     )
     return SessionOut(**row)
 
