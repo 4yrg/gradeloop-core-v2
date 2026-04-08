@@ -278,6 +278,68 @@ class PostgresClient:
             )
             return result == "DELETE 1"
 
+    # =========================================================================
+    # Sessions CRUD
+    # =========================================================================
+
+    async def create_session(self, assignment_id: UUID, student_id: str) -> dict:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO sessions (assignment_id, student_id)
+                VALUES ($1, $2)
+                RETURNING *
+                """,
+                assignment_id, student_id,
+            )
+            return dict(row)
+
+    async def get_session(self, session_id: UUID) -> dict | None:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT * FROM sessions WHERE id = $1", session_id)
+            return dict(row) if row else None
+
+    async def list_sessions(
+        self,
+        student_id: str | None = None,
+        assignment_id: UUID | None = None,
+        status: str | None = None,
+    ) -> list[dict]:
+        conditions = []
+        params: list = []
+        if student_id:
+            params.append(student_id)
+            conditions.append(f"student_id = ${len(params)}")
+        if assignment_id:
+            params.append(assignment_id)
+            conditions.append(f"assignment_id = ${len(params)}")
+        if status:
+            params.append(status)
+            conditions.append(f"status = ${len(params)}")
+        where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                f"SELECT * FROM sessions {where} ORDER BY started_at DESC", *params
+            )
+            return [dict(r) for r in rows]
+
+    async def update_session_status(self, session_id: UUID, status: str) -> dict | None:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                UPDATE sessions
+                SET status = $2,
+                    completed_at = CASE
+                        WHEN $2 IN ('completed', 'abandoned') THEN now()
+                        ELSE completed_at
+                    END
+                WHERE id = $1
+                RETURNING *
+                """,
+                session_id, status,
+            )
+            return dict(row) if row else None
+
 
 SCHEMA_SQL = """
 -- =============================================================================
