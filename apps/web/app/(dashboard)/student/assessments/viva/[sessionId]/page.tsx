@@ -44,6 +44,7 @@ export default function VivaSessionPage() {
     // Refs
     const wsRef = React.useRef<WebSocket | null>(null);
     const audioContextRef = React.useRef<AudioContext | null>(null);
+    const nextPlayStartRef = React.useRef(0);
     const mediaStreamRef = React.useRef<MediaStream | null>(null);
     const processorRef = React.useRef<ScriptProcessorNode | null>(null);
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
@@ -111,7 +112,11 @@ export default function VivaSessionPage() {
             const source = ctx.createBufferSource();
             source.buffer = buffer;
             source.connect(ctx.destination);
-            source.start();
+
+            // Schedule right after the previous chunk ends — no gaps
+            const startAt = Math.max(ctx.currentTime, nextPlayStartRef.current);
+            source.start(startAt);
+            nextPlayStartRef.current = startAt + buffer.duration;
         } catch (err) {
             console.error("Audio playback error:", err);
         }
@@ -140,6 +145,7 @@ export default function VivaSessionPage() {
                     case "session_started":
                         addMessage("system", "Session started. The AI examiner will greet you shortly.");
                         setAiState("speaking");
+                        nextPlayStartRef.current = 0;
                         break;
 
                     case "audio":
@@ -157,6 +163,7 @@ export default function VivaSessionPage() {
 
                     case "turn_complete":
                         setAiState("idle");
+                        nextPlayStartRef.current = 0;
                         break;
 
                     case "session_ended":
