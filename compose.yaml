@@ -838,7 +838,7 @@ services:
       - SERVICE_NAME=ivas-service
       - SERVICE_PORT=8088
       - SERVICE_HOST=0.0.0.0
-      - LOG_LEVEL=INFO
+      - LOG_LEVEL=DEBUG
       - ENVIRONMENT=development
       - DATABASE_URL=postgresql://ivas_user:ivas_pass@ivas-postgres:5432/ivas-db
       - REDIS_URL=redis://redis:6379/1
@@ -847,9 +847,8 @@ services:
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
       - MINIO_BUCKET=ivas-audio
       - MINIO_USE_SSL=false
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - GEMINI_LIVE_MODEL=gemini-2.0-flash-live-001
-      - GEMINI_MODEL=gemini-2.5-flash
+      - IVAS_GEMINI_API_KEY=${IVAS_GEMINI_API_KEY}
+      - IVAS_GEMINI_LIVE_MODEL=${IVAS_GEMINI_LIVE_MODEL}
       - VOICE_SIMILARITY_THRESHOLD=0.75
       - VOICE_ENROLLMENT_SAMPLES=3
     expose:

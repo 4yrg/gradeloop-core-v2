@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from app.config import get_settings
 from app.logging_config import configure_logging, get_logger
 from app.routes.assignments import router as assignments_router
+from app.routes.chat_ui import router as chat_ui_router
 from app.routes.sessions import router as sessions_router
 from app.routes.voice import router as voice_router
 from app.routes.viva_ws import router as viva_ws_router
@@ -37,10 +38,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         environment=settings.environment,
     )
 
-    # Initialize PostgreSQL client
-    postgres_client = PostgresClient(settings.database_dsn)
-    await postgres_client.connect()
-    await postgres_client.ensure_tables()
+    # Initialize PostgreSQL client (non-fatal — Gemini chat works without DB)
+    try:
+        postgres_client = PostgresClient(settings.database_dsn)
+        await postgres_client.connect()
+        await postgres_client.ensure_tables()
+        logger.info("ivas_postgres_ready")
+    except Exception as e:
+        postgres_client = None
+        logger.warning("ivas_postgres_unavailable", error=str(e))
 
     logger.info("ivas_service_ready")
 
@@ -117,7 +123,8 @@ api_router.include_router(sessions_router)
 api_router.include_router(voice_router)
 app.include_router(api_router)
 
-# WebSocket routes (no /api/v1/ivas prefix — matches frontend ws://host/ws/ivas/...)
+# Standalone chat UI + WebSocket (no prefix)
+app.include_router(chat_ui_router)
 app.include_router(viva_ws_router)
 
 
