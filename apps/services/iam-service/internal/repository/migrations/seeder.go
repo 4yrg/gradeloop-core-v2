@@ -27,8 +27,48 @@ func (s *Seeder) Seed() error {
 	if err := s.seedSuperAdmin(); err != nil {
 		return fmt.Errorf("seeding super_admin: %w", err)
 	}
+	if err := s.seedDevUser("student@gradeloop.com", "Student User", "student"); err != nil {
+		return fmt.Errorf("seeding student: %w", err)
+	}
+	if err := s.seedDevUser("instructor@gradeloop.com", "Instructor User", "instructor"); err != nil {
+		return fmt.Errorf("seeding instructor: %w", err)
+	}
 
 	s.logger.Info("database seeding completed successfully")
+	return nil
+}
+
+func (s *Seeder) seedDevUser(email, fullName, userType string) error {
+	password := "Strong#Pass123!"
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hashing password: %w", err)
+	}
+
+	var existing domain.User
+	if err := s.db.Where("email = ?", email).First(&existing).Error; err == nil {
+		s.logger.Info("dev user already exists, skipping", zap.String("email", email))
+		return nil
+	} else if err != gorm.ErrRecordNotFound {
+		return fmt.Errorf("checking for existing user: %w", err)
+	}
+
+	user := domain.User{
+		ID:                      uuid.New(),
+		Email:                   email,
+		FullName:                fullName,
+		PasswordHash:            string(hashedPassword),
+		UserType:                userType,
+		IsActive:                true,
+		IsPasswordResetRequired: false,
+	}
+
+	if err := s.db.Create(&user).Error; err != nil {
+		return fmt.Errorf("creating dev user: %w", err)
+	}
+
+	s.logger.Info("created dev user", zap.String("email", email), zap.String("type", userType))
 	return nil
 }
 
