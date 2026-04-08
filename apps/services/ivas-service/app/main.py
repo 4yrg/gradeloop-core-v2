@@ -11,7 +11,9 @@ from fastapi.responses import JSONResponse
 from app.config import get_settings
 from app.logging_config import configure_logging, get_logger
 from app.routes.assignments import router as assignments_router
+from app.routes.sessions import router as sessions_router
 from app.routes.voice import router as voice_router
+from app.routes.viva_ws import router as viva_ws_router
 from app.services.storage.postgres_client import PostgresClient
 
 logger = get_logger(__name__)
@@ -111,8 +113,12 @@ app = FastAPI(
 
 # Include routers — sub-routers first, then mount to app
 api_router.include_router(assignments_router)
+api_router.include_router(sessions_router)
 api_router.include_router(voice_router)
 app.include_router(api_router)
+
+# WebSocket routes (no /api/v1/ivas prefix — matches frontend ws://host/ws/ivas/...)
+app.include_router(viva_ws_router)
 
 
 def signal_handler(sig, frame) -> None:
