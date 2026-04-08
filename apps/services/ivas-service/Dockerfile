@@ -16,6 +16,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
+    libc-dev \
     libpq-dev \
     libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
