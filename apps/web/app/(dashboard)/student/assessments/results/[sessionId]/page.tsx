@@ -9,13 +9,17 @@ import {
     Clock,
     XCircle,
     ArrowLeft,
+    MessageSquare,
+    Star,
+    BookOpen,
+    User,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ivasApi } from "@/lib/ivas-api";
-import type { VivaSession, IvasAssignment } from "@/types/ivas";
+import type { SessionDetail, GradedQA, Transcript } from "@/types/ivas";
 
 function StatusBadge({ status }: { status: string }) {
     if (status === "completed") {
@@ -47,8 +51,7 @@ export default function ResultsPage() {
     const router = useRouter();
     const sessionId = params.sessionId;
 
-    const [session, setSession] = React.useState<VivaSession | null>(null);
-    const [assignment, setAssignment] = React.useState<IvasAssignment | null>(null);
+    const [details, setDetails] = React.useState<SessionDetail | null>(null);
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
 
@@ -56,17 +59,8 @@ export default function ResultsPage() {
         let mounted = true;
         async function load() {
             try {
-                const sess = await ivasApi.getSession(sessionId);
-                if (!mounted) return;
-                setSession(sess);
-
-                // Load assignment details
-                try {
-                    const detail = await ivasApi.getAssignment(sess.assignment_id);
-                    if (mounted) setAssignment(detail);
-                } catch {
-                    // Assignment may have been deleted
-                }
+                const d = await ivasApi.getSessionDetails(sessionId);
+                if (mounted) setDetails(d);
             } catch (err) {
                 if (mounted) setError(err instanceof Error ? err.message : "Failed to load results");
             } finally {
@@ -87,7 +81,7 @@ export default function ResultsPage() {
         );
     }
 
-    if (error || !session) {
+    if (error || !details) {
         return (
             <div className="flex items-center justify-center h-[60vh]">
                 <Card className="max-w-md">
@@ -105,6 +99,7 @@ export default function ResultsPage() {
         );
     }
 
+    const { session, transcripts, graded_qa } = details;
     const duration = session.completed_at
         ? differenceInMinutes(new Date(session.completed_at), new Date(session.started_at))
         : null;
@@ -125,7 +120,7 @@ export default function ResultsPage() {
                         Viva Results
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        {assignment?.title ?? session.assignment_id}
+                        {session.assignment_context?.title ?? session.assignment_id}
                     </p>
                 </div>
                 <StatusBadge status={session.status} />
@@ -168,43 +163,86 @@ export default function ResultsPage() {
                 </Card>
             </div>
 
-            {/* Assignment Info */}
-            {assignment && (
+            {/* Full transcript */}
+            {transcripts.length > 0 && (
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-base">Assignment Details</CardTitle>
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <MessageSquare className="h-4 w-4" />
+                            Full Transcript
+                        </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <Badge variant="outline">{assignment.programming_language}</Badge>
-                            {assignment.course_id && (
-                                <Badge variant="secondary">{assignment.course_id}</Badge>
-                            )}
-                        </div>
-                        {assignment.description && (
-                            <p className="text-sm text-muted-foreground">{assignment.description}</p>
-                        )}
-                        {assignment.code_context && (
-                            <div className="mt-3">
-                                <p className="text-xs text-muted-foreground mb-1 font-medium">Code Context:</p>
-                                <pre className="text-xs bg-muted p-3 rounded-lg overflow-x-auto max-h-40">
-                                    {assignment.code_context}
-                                </pre>
+                    <CardContent className="space-y-4">
+                        {transcripts.map((turn: Transcript) => (
+                            <div key={turn.id} className="flex gap-3">
+                                <div className={`shrink-0 w-16 text-xs font-medium mt-0.5 ${turn.role === "examiner" ? "text-blue-600" : "text-emerald-600"}`}>
+                                    {turn.role === "examiner" ? "Examiner" : "You"}
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-sm leading-relaxed">{turn.content}</p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        {format(new Date(turn.timestamp), "HH:mm:ss")}
+                                    </p>
+                                </div>
                             </div>
-                        )}
+                        ))}
                     </CardContent>
                 </Card>
             )}
 
-            {/* Note about grading */}
-            <Card className="bg-muted/50 border-dashed">
-                <CardContent className="pt-6">
-                    <p className="text-sm text-muted-foreground">
-                        Detailed per-question scoring, competency breakdown, and transcript review will be available
-                        once white-box grading is implemented. Your session audio and responses have been recorded.
-                    </p>
-                </CardContent>
-            </Card>
+            {/* Per-Question Scoring */}
+            {graded_qa.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <Star className="h-4 w-4" />
+                            Per-Question Scoring
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        {graded_qa.map((item: GradedQA) => (
+                            <div key={item.sequence_num} className="border border-border/60 rounded-lg p-4 space-y-3">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="flex items-start gap-2">
+                                        <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full px-2 py-0.5 font-medium">
+                                            Q{item.sequence_num}
+                                        </span>
+                                        <p className="text-sm font-medium">{item.question_text}</p>
+                                    </div>
+                                    {item.score !== null && (
+                                        <div className="text-right shrink-0">
+                                            <span className="text-lg font-bold">{item.score}</span>
+                                            <span className="text-sm text-muted-foreground">/{item.max_score ?? 10}</span>
+                                        </div>
+                                    )}
+                                </div>
+                                {item.response_text && (
+                                    <div>
+                                        <p className="text-xs text-muted-foreground mb-1">Your answer:</p>
+                                        <p className="text-sm bg-muted/60 rounded-lg px-3 py-2">{item.response_text}</p>
+                                    </div>
+                                )}
+                                {item.score_justification && (
+                                    <div className="border-l-2 border-amber-400 pl-3">
+                                        <p className="text-xs text-muted-foreground mb-0.5">Why you got this mark:</p>
+                                        <p className="text-sm italic text-amber-700 dark:text-amber-400">{item.score_justification}</p>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
+            )}
+
+            {session.status !== "completed" && (
+                <Card className="bg-muted/50 border-dashed">
+                    <CardContent className="pt-6">
+                        <p className="text-sm text-muted-foreground">
+                            This session is still in progress. Full transcript and scoring will appear once the session is completed.
+                        </p>
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 }

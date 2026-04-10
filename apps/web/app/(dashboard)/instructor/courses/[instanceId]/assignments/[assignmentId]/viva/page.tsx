@@ -90,7 +90,7 @@ export default function InstructorVivaDashboardPage() {
     const completedCount = sessions.filter(s => s.status === "completed").length;
     const activeCount = sessions.filter(s => s.status === "in_progress" || s.status === "initializing").length;
     const avgScore = (() => {
-        const completed = sessions.filter(s => s.status === "completed" && s.total_score !== null);
+        const completed = sessions.filter(s => s.status === "completed" && s.total_score !== null && s.max_possible !== null && s.max_possible > 0);
         if (completed.length === 0) return null;
         const sum = completed.reduce((acc, s) => acc + (s.total_score ?? 0), 0);
         const max = completed.reduce((acc, s) => acc + (s.max_possible ?? 0), 0);
