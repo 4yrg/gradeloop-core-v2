@@ -14,13 +14,15 @@ import {
     ChevronDown,
     ChevronUp,
     AlertCircle,
+    Sliders,
+    BookOpen,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ivasApi } from "@/lib/ivas-api";
-import type { SessionDetail, GradedQA, Transcript } from "@/types/ivas";
+import type { SessionDetail, GradedQA, Transcript, CompetencyScoreOut } from "@/types/ivas";
 
 const TRANSCRIPT_COLLAPSE_THRESHOLD = 8;
 
@@ -117,6 +119,59 @@ function TranscriptSection({ transcripts }: { transcripts: Transcript[] }) {
                         </div>
                     </div>
                 ))}
+            </CardContent>
+        </Card>
+    );
+}
+
+function CompetencyBreakdownStudent({ sessionId, studentId }: { sessionId: string; studentId: string }) {
+    const [scores, setScores] = React.useState<CompetencyScoreOut[]>([]);
+    const [loading, setLoading] = React.useState(true);
+
+    React.useEffect(() => {
+        let mounted = true;
+        ivasApi.listStudentCompetencyScores(studentId).then(data => {
+            if (mounted) setScores(data);
+        }).catch(() => {}).finally(() => {
+            if (mounted) setLoading(false);
+        });
+        return () => { mounted = false; };
+    }, [studentId]);
+
+    if (loading) {
+        return <Skeleton className="h-32 w-full" />;
+    }
+    if (scores.length === 0) return null;
+
+    return (
+        <Card>
+            <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                    <Sliders className="h-4 w-4" />
+                    Your Competency Breakdown
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+                {scores.map(s => {
+                    const pct = s.score !== null && s.max_score !== null && s.max_score > 0
+                        ? (s.score / s.max_score) * 100 : 0;
+                    const color = pct >= 80 ? "text-emerald-600" : pct >= 60 ? "text-amber-600" : "text-red-600";
+                    const barColor = pct >= 80 ? "bg-emerald-500" : pct >= 60 ? "bg-amber-500" : "bg-red-500";
+                    return (
+                        <div key={s.competency_id} className="flex items-center gap-3">
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium mb-1.5">{s.competency_name ?? "—"}</p>
+                                <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
+                                    <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
+                                </div>
+                            </div>
+                            <span className={`font-bold text-sm shrink-0 ${color}`}>
+                                {s.score !== null ? Math.round(s.score) : "—"}
+                                <span className="text-xs font-normal text-muted-foreground">/{s.max_score ?? 10}</span>
+                            </span>
+                        </div>
+                    );
+                })}
             </CardContent>
         </Card>
     );
@@ -320,6 +375,11 @@ export default function ResultsPage() {
                         </div>
                     </CardContent>
                 </Card>
+            )}
+
+            {/* Competency Breakdown (User Story 8) */}
+            {session.status === "completed" && (
+                <CompetencyBreakdownStudent sessionId={sessionId} studentId={session.student_id} />
             )}
 
             {/* Meta row — only duration + date when completed */}

@@ -34,6 +34,7 @@ async def create_session(body: SessionCreate) -> SessionOut:
         assignment_id=body.assignment_id,
         student_id=body.student_id,
         assignment_context=body.assignment_context,
+        difficulty_distribution=body.difficulty_distribution,
     )
     return SessionOut(**row)
 

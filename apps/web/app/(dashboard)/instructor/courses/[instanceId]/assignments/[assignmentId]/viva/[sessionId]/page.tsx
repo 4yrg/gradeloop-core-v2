@@ -18,6 +18,11 @@ import {
     ChevronUp,
     AlertCircle,
     Eye,
+    Sliders,
+    Edit2,
+    Check,
+    X,
+    Loader2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,7 +30,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { ivasApi } from "@/lib/ivas-api";
-import type { SessionDetail, GradedQA, Transcript } from "@/types/ivas";
+import type { SessionDetail, GradedQA, Transcript, CompetencyScoreOut } from "@/types/ivas";
 
 const TRANSCRIPT_COLLAPSE_THRESHOLD = 8;
 
@@ -199,6 +204,142 @@ function QuestionCard({ item }: { item: GradedQA }) {
                 </div>
             )}
         </div>
+    );
+}
+
+function DifficultyBadge({ difficulty }: { difficulty: number }) {
+    if (difficulty >= 3) {
+        return <Badge variant="outline" className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0 text-xs">Advanced</Badge>;
+    }
+    if (difficulty >= 2) {
+        return <Badge variant="outline" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0 text-xs">Intermediate</Badge>;
+    }
+    return <Badge variant="outline" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-xs">Beginner</Badge>;
+}
+
+function CompetencyScoresSection({ studentId, assignmentId }: { studentId: string; assignmentId: string }) {
+    const [scores, setScores] = React.useState<CompetencyScoreOut[]>([]);
+    const [loading, setLoading] = React.useState(true);
+    const [editingId, setEditingId] = React.useState<string | null>(null);
+    const [editValue, setEditValue] = React.useState<number | null>(null);
+    const [saving, setSaving] = React.useState(false);
+    const [showAll, setShowAll] = React.useState(false);
+
+    React.useEffect(() => {
+        let mounted = true;
+        ivasApi.listStudentCompetencyScores(studentId).then(data => {
+            if (mounted) setScores(data);
+        }).catch(() => {}).finally(() => {
+            if (mounted) setLoading(false);
+        });
+        return () => { mounted = false; };
+    }, [studentId]);
+
+    async function handleOverride(competencyId: string) {
+        if (editValue === null) return;
+        try {
+            setSaving(true);
+            const updated = await ivasApi.overrideCompetencyScore({
+                student_id: studentId,
+                competency_id: competencyId,
+                new_score: editValue,
+                override_by: "instructor",
+            });
+            setScores(prev => prev.map(s =>
+                s.competency_id === competencyId ? { ...s, score: updated.score, is_override: true } : s
+            ));
+            setEditingId(null);
+            setEditValue(null);
+        } catch {}
+        finally { setSaving(false); }
+    }
+
+    const displayed = showAll ? scores : scores.slice(0, 5);
+
+    return (
+        <Card>
+            <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                    <Sliders className="h-4 w-4" />
+                    Competency Scores
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+                {loading ? (
+                    <div className="space-y-2">{[1,2,3].map(i => <Skeleton key={i} className="h-12 rounded-lg" />)}</div>
+                ) : scores.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">No competency scores yet.</p>
+                ) : (
+                    <>
+                        {displayed.map(s => {
+                            const pct = s.score !== null && s.max_score !== null && s.max_score > 0
+                                ? (s.score / s.max_score) * 100 : 0;
+                            const color = pct >= 80 ? "text-emerald-600" : pct >= 60 ? "text-amber-600" : "text-red-600";
+                            const isEditing = editingId === s.competency_id;
+                            return (
+                                <div key={s.competency_id} className="flex items-center gap-3 py-2 border-b border-border/20 last:border-0">
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <p className="text-sm font-medium">{s.competency_name ?? "—"}</p>
+                                            {s.is_override && (
+                                                <Badge variant="outline" className="text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0">Override</Badge>
+                                            )}
+                                        </div>
+                                        <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
+                                            <div
+                                                className={`h-full rounded-full transition-all ${pct >= 80 ? "bg-emerald-500" : pct >= 60 ? "bg-amber-500" : "bg-red-500"}`}
+                                                style={{ width: `${pct}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        {isEditing ? (
+                                            <>
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    max={s.max_score ?? 10}
+                                                    value={editValue ?? s.score ?? 0}
+                                                    onChange={e => setEditValue(parseFloat(e.target.value))}
+                                                    className="w-16 h-8 rounded-md border border-input bg-background px-2 text-sm text-center"
+                                                    autoFocus
+                                                />
+                                                <span className="text-xs text-muted-foreground">/ {s.max_score ?? 10}</span>
+                                                <Button size="sm" variant="ghost" onClick={() => handleOverride(s.competency_id)} disabled={saving} className="gap-1">
+                                                    <Check className="h-3.5 w-3.5 text-emerald-600" />
+                                                </Button>
+                                                <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="gap-1">
+                                                    <X className="h-3.5 w-3.5" />
+                                                </Button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <span className={`font-bold text-sm ${color}`}>
+                                                    {s.score !== null ? Math.round(s.score) : "—"}
+                                                    <span className="text-xs font-normal text-muted-foreground">/{s.max_score ?? 10}</span>
+                                                </span>
+                                                <Button size="sm" variant="ghost" onClick={() => {
+                                                    setEditingId(s.competency_id);
+                                                    setEditValue(s.score ?? 0);
+                                                }} className="gap-1">
+                                                    <Edit2 className="h-3.5 w-3.5" />
+                                                </Button>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                        {scores.length > 5 && (
+                            <Button variant="ghost" size="sm" onClick={() => setShowAll(v => !v)} className="gap-1 w-full mt-2">
+                                {showAll ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                {showAll ? "Show less" : `Show all ${scores.length} competencies`}
+                            </Button>
+                        )}
+                    </>
+                )}
+            </CardContent>
+        </Card>
     );
 }
 
@@ -397,6 +538,14 @@ export default function InstructorVivaReviewPage() {
                     </div>
                 )}
             </div>
+
+            {/* Competency Scores & Override (User Story 7) */}
+            {session.status === "completed" && (
+                <CompetencyScoresSection
+                    studentId={session.student_id}
+                    assignmentId={assignmentId}
+                />
+            )}
 
             {/* Code context */}
             {session.assignment_context?.code_context && (

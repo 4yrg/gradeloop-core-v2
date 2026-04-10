@@ -22,7 +22,6 @@ import {
   Users2,
   Plus,
   Mic2,
-  ShieldCheck,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/stores/authStore";
 import { useLogoutMutation } from "@/lib/hooks/useAuthMutation";
@@ -138,14 +137,9 @@ const studentNavItems: NavItem[] = [
     icon: ClipboardList,
   },
   {
-    title: "Viva Assessments",
+    title: "Viva",
     href: "/student/assessments/my-sessions",
     icon: Mic2,
-  },
-  {
-    title: "Voice Enrollment",
-    href: "/student/assessments/voice-enrollment",
-    icon: ShieldCheck,
   },
   {
     title: "Settings",

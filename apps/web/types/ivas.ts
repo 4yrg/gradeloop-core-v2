@@ -112,6 +112,7 @@ export interface VivaSession {
     status: "initializing" | "in_progress" | "paused" | "completed" | "abandoned" | "grading_failed";
     total_score: number | null;
     max_possible: number | null;
+    difficulty_distribution: Record<number, number> | null;
     started_at: string;
     completed_at: string | null;
     metadata: Record<string, unknown>;
@@ -121,6 +122,7 @@ export interface SessionCreate {
     assignment_id: string;
     student_id: string;
     assignment_context?: Record<string, unknown>;
+    difficulty_distribution?: Record<number, number>;
 }
 
 // ============================================================
@@ -227,6 +229,86 @@ export interface SessionDetail {
     session: VivaSession;
     transcripts: Transcript[];
     graded_qa: GradedQA[];
+}
+
+// ============================================================
+// Competency types (matches backend competency schemas)
+// ============================================================
+
+export interface CompetencyOut {
+    id: string;
+    name: string;
+    description: string | null;
+    difficulty: number;
+    max_score: number;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface CompetencyAssignmentLinkOut {
+    link_id: string;
+    competency_id: string;
+    name: string;
+    description: string | null;
+    difficulty: number;
+    max_score: number;
+    weight: number;
+}
+
+export interface CompetencyScoreOut {
+    id: string;
+    student_id: string;
+    competency_id: string;
+    competency_name: string | null;
+    difficulty: number | null;
+    max_score: number | null;
+    session_id: string | null;
+    score: number | null;
+    is_override: boolean;
+    override_by: string | null;
+    override_at: string | null;
+    created_at: string;
+}
+
+export interface CompetencyScoreSummary {
+    student_id: string;
+    competency_id: string;
+    competency_name: string;
+    difficulty: number;
+    max_score: number;
+    avg_score: number | null;
+    session_count: number;
+    has_override: boolean;
+}
+
+export interface SetCompetenciesRequest {
+    competencies: { competency_id: string; weight?: number }[];
+}
+
+export interface GenerateCompetenciesRequest {
+    assignment_id: string;
+    code_context?: string;
+    description?: string;
+    title?: string;
+}
+
+export interface GeneratedCompetency {
+    name: string;
+    description: string;
+    difficulty: number;
+    max_score: number;
+    weight: number;
+}
+
+export interface GenerateCompetenciesResponse {
+    competencies: GeneratedCompetency[];
+}
+
+export interface OverrideScoreRequest {
+    student_id: string;
+    competency_id: string;
+    new_score: number;
+    override_by: string;
 }
 
 // ============================================================

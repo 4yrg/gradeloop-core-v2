@@ -1,6 +1,5 @@
 """PostgreSQL client for IVAS Service."""
 
-from json import dumps as json_dumps
 from json import dumps as json_dumps, loads as json_loads
 from urllib.parse import urlparse
 from uuid import UUID
@@ -128,6 +127,8 @@ class PostgresClient:
             d["assignment_context"] = json_loads(d["assignment_context"])
         if isinstance(d.get("metadata"), str):
             d["metadata"] = json_loads(d["metadata"])
+        if isinstance(d.get("difficulty_distribution"), str):
+            d["difficulty_distribution"] = json_loads(d["difficulty_distribution"])
         return d
 
     async def create_session(
@@ -135,15 +136,19 @@ class PostgresClient:
         assignment_id: UUID,
         student_id: str,
         assignment_context: dict | None = None,
+        difficulty_distribution: dict[int, int] | None = None,
     ) -> dict:
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
-                INSERT INTO sessions (assignment_id, student_id, assignment_context)
-                VALUES ($1, $2, $3::jsonb)
+                INSERT INTO sessions (assignment_id, student_id, assignment_context, difficulty_distribution)
+                VALUES ($1, $2, $3::jsonb, $4::jsonb)
                 RETURNING *
                 """,
-                assignment_id, student_id, json_dumps(assignment_context or {}),
+                assignment_id,
+                student_id,
+                json_dumps(assignment_context or {}),
+                json_dumps(difficulty_distribution or {}),
             )
             return self._parse_session_row(row)
 
@@ -266,6 +271,7 @@ class PostgresClient:
         self,
         session_id: UUID,
         graded: list[dict],
+        competency_metadata: dict[int, dict] | None = None,
     ) -> None:
         """Persist a list of graded Q&A items for a session.
 
@@ -277,10 +283,12 @@ class PostgresClient:
             score_justification: str | None
             sequence_num: int
 
-        Replaces any existing graded Q&A for the session (idempotent).
+        competency_metadata: optional dict mapping sequence_num → {competency_id, competency_name, difficulty}
+        for competency tracking. If provided, question_instances are saved with competency info.
         """
         if not graded:
             return
+        meta = competency_metadata or {}
         async with self._pool.acquire() as conn:
             async with conn.transaction():
                 # Remove any previously graded Q&A for this session (idempotency).
@@ -299,16 +307,20 @@ class PostgresClient:
                     session_id,
                 )
                 for item in graded:
+                    seq = item.get("sequence_num", 1)
+                    cmeta = meta.get(seq, {})
                     qi = await conn.fetchrow(
                         """
                         INSERT INTO question_instances
-                            (session_id, question_text, sequence_num)
-                        VALUES ($1, $2, $3)
+                            (session_id, question_text, sequence_num, competency, difficulty)
+                        VALUES ($1, $2, $3, $4, $5)
                         RETURNING id
                         """,
                         session_id,
                         item["question_text"],
-                        item["sequence_num"],
+                        seq,
+                        cmeta.get("competency_name"),
+                        cmeta.get("difficulty"),
                     )
                     await conn.execute(
                         """
@@ -349,6 +361,504 @@ class PostgresClient:
             )
             return [dict(r) for r in rows]
 
+    # =========================================================================
+    # Assignments
+    # =========================================================================
+
+    async def create_assignment(
+        self,
+        title: str,
+        instructor_id: str,
+        description: str | None = None,
+        code_context: str | None = None,
+        programming_language: str = "python",
+        course_id: str | None = None,
+    ) -> dict:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO assignments
+                    (title, instructor_id, description, code_context, programming_language, course_id)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                RETURNING *
+                """,
+                title, instructor_id, description, code_context, programming_language, course_id,
+            )
+            return dict(row)
+
+    async def list_assignments(
+        self,
+        instructor_id: str | None = None,
+        course_id: str | None = None,
+    ) -> list[dict]:
+        conditions = []
+        params: list = []
+        if instructor_id:
+            params.append(instructor_id)
+            conditions.append(f"instructor_id = ${len(params)}")
+        if course_id:
+            params.append(course_id)
+            conditions.append(f"course_id = ${len(params)}")
+        where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                f"SELECT * FROM assignments {where} ORDER BY created_at DESC", *params,
+            )
+            return [dict(r) for r in rows]
+
+    async def get_assignment(self, assignment_id: UUID) -> dict | None:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT * FROM assignments WHERE id = $1", assignment_id,
+            )
+            return dict(row) if row else None
+
+    async def update_assignment(
+        self, assignment_id: UUID, **fields: str | None,
+    ) -> dict | None:
+        if not fields:
+            return await self.get_assignment(assignment_id)
+        set_clauses = []
+        params: list = []
+        for i, (k, v) in enumerate(fields.items(), start=1):
+            set_clauses.append(f"{k} = ${i}")
+            params.append(v)
+        params.append(assignment_id)
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                f"UPDATE assignments SET {', '.join(set_clauses)}, updated_at = now() "
+                f"WHERE id = ${len(params)} RETURNING *",
+                *params,
+            )
+            return dict(row) if row else None
+
+    async def delete_assignment(self, assignment_id: UUID) -> bool:
+        async with self._pool.acquire() as conn:
+            result = await conn.execute(
+                "DELETE FROM assignments WHERE id = $1", assignment_id,
+            )
+            return result == "DELETE 1"
+
+    # =========================================================================
+    # Grading Criteria
+    # =========================================================================
+
+    async def create_criteria(
+        self,
+        assignment_id: UUID,
+        competency: str,
+        description: str | None = None,
+        max_score: float = 10.0,
+        weight: float = 1.0,
+        difficulty: int = 3,
+    ) -> dict:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO grading_criteria
+                    (assignment_id, competency, description, max_score, weight, difficulty)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                RETURNING *
+                """,
+                assignment_id, competency, description, max_score, weight, difficulty,
+            )
+            return dict(row)
+
+    async def list_criteria(self, assignment_id: UUID) -> list[dict]:
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT * FROM grading_criteria WHERE assignment_id = $1 ORDER BY created_at ASC",
+                assignment_id,
+            )
+            return [dict(r) for r in rows]
+
+    async def update_criteria(
+        self, criteria_id: UUID, **fields: str | float | int | None,
+    ) -> dict | None:
+        if not fields:
+            async with self._pool.acquire() as conn:
+                row = await conn.fetchrow(
+                    "SELECT * FROM grading_criteria WHERE id = $1", criteria_id,
+                )
+                return dict(row) if row else None
+        set_clauses = []
+        params: list = []
+        for i, (k, v) in enumerate(fields.items(), start=1):
+            set_clauses.append(f"{k} = ${i}")
+            params.append(v)
+        params.append(criteria_id)
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                f"UPDATE grading_criteria SET {', '.join(set_clauses)} "
+                f"WHERE id = ${len(params)} RETURNING *",
+                *params,
+            )
+            return dict(row) if row else None
+
+    async def delete_criteria(self, criteria_id: UUID) -> bool:
+        async with self._pool.acquire() as conn:
+            result = await conn.execute(
+                "DELETE FROM grading_criteria WHERE id = $1", criteria_id,
+            )
+            return result == "DELETE 1"
+
+    # =========================================================================
+    # Questions
+    # =========================================================================
+
+    async def create_question(
+        self,
+        assignment_id: UUID,
+        question_text: str,
+        criteria_id: UUID | None = None,
+        competency: str | None = None,
+        difficulty: int = 3,
+        expected_topics: list[str] | None = None,
+    ) -> dict:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO questions
+                    (assignment_id, criteria_id, question_text, competency, difficulty, expected_topics)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                RETURNING *
+                """,
+                assignment_id, criteria_id, question_text, competency, difficulty,
+                expected_topics,
+            )
+            return dict(row)
+
+    async def list_questions(
+        self, assignment_id: UUID, status_filter: str | None = None,
+    ) -> list[dict]:
+        conditions = ["assignment_id = $1"]
+        params: list = [assignment_id]
+        if status_filter:
+            params.append(status_filter)
+            conditions.append(f"status = ${len(params)}")
+        where = f"WHERE {' AND '.join(conditions)}"
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                f"SELECT * FROM questions {where} ORDER BY created_at ASC",
+                *params,
+            )
+            return [dict(r) for r in rows]
+
+    async def update_question(
+        self, question_id: UUID, **fields: str | float | int | list | None,
+    ) -> dict | None:
+        if not fields:
+            async with self._pool.acquire() as conn:
+                row = await conn.fetchrow(
+                    "SELECT * FROM questions WHERE id = $1", question_id,
+                )
+                return dict(row) if row else None
+        set_clauses = []
+        params: list = []
+        for i, (k, v) in enumerate(fields.items(), start=1):
+            set_clauses.append(f"{k} = ${i}")
+            params.append(v)
+        params.append(question_id)
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                f"UPDATE questions SET {', '.join(set_clauses)} "
+                f"WHERE id = ${len(params)} RETURNING *",
+                *params,
+            )
+            return dict(row) if row else None
+
+    async def delete_question(self, question_id: UUID) -> bool:
+        async with self._pool.acquire() as conn:
+            result = await conn.execute(
+                "DELETE FROM questions WHERE id = $1", question_id,
+            )
+            return result == "DELETE 1"
+
+    async def bulk_update_question_status(
+        self, question_ids: list[UUID], new_status: str,
+    ) -> int:
+        async with self._pool.acquire() as conn:
+            result = await conn.execute(
+                """
+                UPDATE questions SET status = $1
+                WHERE id = ANY($2::uuid[])
+                """,
+                new_status, question_ids,
+            )
+            # result is "UPDATE N" — extract N
+            if result.startswith("UPDATE "):
+                return int(result.split(" ")[1])
+            return 0
+
+    # =========================================================================
+    # Competencies
+    # =========================================================================
+
+    async def upsert_competency(
+        self,
+        name: str,
+        description: str | None = None,
+        difficulty: int = 1,
+        max_score: float = 10.0,
+    ) -> dict:
+        """Insert or update a competency by name. Returns the row."""
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO competencies (name, description, difficulty, max_score)
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT (name) DO UPDATE SET
+                    description = EXCLUDED.description,
+                    difficulty  = EXCLUDED.difficulty,
+                    max_score   = EXCLUDED.max_score,
+                    updated_at  = now()
+                RETURNING *
+                """,
+                name, description, difficulty, max_score,
+            )
+            return dict(row)
+
+    async def list_competencies(self) -> list[dict]:
+        """Return all competencies ordered by name."""
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT * FROM competencies ORDER BY name ASC"
+            )
+            return [dict(r) for r in rows]
+
+    async def get_competency_by_name(self, name: str) -> dict | None:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT * FROM competencies WHERE name = $1", name,
+            )
+            return dict(row) if row else None
+
+    async def delete_competency(self, competency_id: UUID) -> bool:
+        async with self._pool.acquire() as conn:
+            result = await conn.execute(
+                "DELETE FROM competencies WHERE id = $1", competency_id,
+            )
+            return result == "DELETE 1"
+
+    # =========================================================================
+    # Competency-Assignment linking
+    # =========================================================================
+
+    async def set_assignment_competencies(
+        self,
+        assignment_id: UUID,
+        competency_entries: list[dict],
+    ) -> list[dict]:
+        """Replace all competency links for an assignment.
+
+        competency_entries: [{competency_id: UUID, weight: float}, ...]
+        """
+        async with self._pool.acquire() as conn:
+            async with conn.transaction():
+                await conn.execute(
+                    "DELETE FROM competency_assignments WHERE assignment_id = $1",
+                    assignment_id,
+                )
+                rows = []
+                for entry in competency_entries:
+                    row = await conn.fetchrow(
+                        """
+                        INSERT INTO competency_assignments (assignment_id, competency_id, weight)
+                        VALUES ($1, $2, $3)
+                        RETURNING *
+                        """,
+                        assignment_id,
+                        entry["competency_id"],
+                        entry.get("weight", 1.0),
+                    )
+                    rows.append(dict(row))
+                return rows
+
+    async def list_assignment_competencies(self, assignment_id: UUID) -> list[dict]:
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT c.*, ca.weight, ca.id AS link_id
+                FROM competency_assignments ca
+                JOIN competencies c ON c.id = ca.competency_id
+                WHERE ca.assignment_id = $1
+                ORDER BY c.name ASC
+                """,
+                assignment_id,
+            )
+            return [dict(r) for r in rows]
+
+    # =========================================================================
+    # Competency scores
+    # =========================================================================
+
+    async def upsert_competency_score(
+        self,
+        student_id: str,
+        competency_id: UUID,
+        session_id: UUID | None,
+        score: float,
+        is_override: bool = False,
+        override_by: str | None = None,
+    ) -> dict:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO competency_scores
+                    (student_id, competency_id, session_id, score, is_override, override_by, override_at)
+                VALUES ($1, $2, $3, $4, $5, $6, CASE WHEN $5 THEN now() ELSE NULL END)
+                ON CONFLICT (student_id, competency_id, session_id) DO UPDATE SET
+                    score       = EXCLUDED.score,
+                    is_override = EXCLUDED.is_override,
+                    override_by = EXCLUDED.override_by,
+                    override_at = CASE WHEN EXCLUDED.is_override THEN now() ELSE competency_scores.override_at END
+                RETURNING *
+                """,
+                student_id, competency_id, session_id, score, is_override, override_by,
+            )
+            return dict(row)
+
+    async def list_student_competency_scores(
+        self,
+        student_id: str,
+    ) -> list[dict]:
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT cs.*, c.name AS competency_name, c.difficulty, c.max_score
+                FROM competency_scores cs
+                JOIN competencies c ON c.id = cs.competency_id
+                WHERE cs.student_id = $1
+                ORDER BY c.name ASC
+                """,
+                student_id,
+            )
+            return [dict(r) for r in rows]
+
+    async def list_competency_scores_for_assignment(
+        self,
+        assignment_id: UUID,
+    ) -> list[dict]:
+        """Return competency scores aggregated per student for a given assignment.
+
+        Groups by student + competency and averages the scores across sessions.
+        """
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT
+                    cs.student_id,
+                    cs.competency_id,
+                    c.name          AS competency_name,
+                    c.difficulty,
+                    c.max_score,
+                    AVG(cs.score)   AS avg_score,
+                    COUNT(cs.session_id) AS session_count,
+                    BOOL_OR(cs.is_override) AS has_override
+                FROM competency_scores cs
+                JOIN competencies c ON c.id = cs.competency_id
+                JOIN sessions s ON s.id = cs.session_id
+                WHERE s.assignment_id = $1
+                GROUP BY cs.student_id, cs.competency_id, c.name, c.difficulty, c.max_score
+                ORDER BY cs.student_id, c.name
+                """,
+                assignment_id,
+            )
+            return [dict(r) for r in rows]
+
+    async def list_students_by_competency(
+        self,
+        competency_id: UUID,
+        assignment_id: UUID | None = None,
+    ) -> list[dict]:
+        """Return all students with their scores for a given competency.
+
+        Optionally filter to a specific assignment.
+        """
+        async with self._pool.acquire() as conn:
+            if assignment_id:
+                rows = await conn.fetch(
+                    """
+                    SELECT
+                        cs.student_id,
+                        c.name          AS competency_name,
+                        AVG(cs.score)   AS avg_score,
+                        c.max_score,
+                        COUNT(cs.session_id) AS session_count,
+                        BOOL_OR(cs.is_override) AS has_override
+                    FROM competency_scores cs
+                    JOIN competencies c ON c.id = cs.competency_id
+                    JOIN sessions s ON s.id = cs.session_id
+                    WHERE cs.competency_id = $1 AND s.assignment_id = $2
+                    GROUP BY cs.student_id, c.name, c.max_score
+                    ORDER BY avg_score ASC NULLS LAST
+                    """,
+                    competency_id, assignment_id,
+                )
+            else:
+                rows = await conn.fetch(
+                    """
+                    SELECT
+                        cs.student_id,
+                        c.name          AS competency_name,
+                        AVG(cs.score)   AS avg_score,
+                        c.max_score,
+                        COUNT(cs.session_id) AS session_count,
+                        BOOL_OR(cs.is_override) AS has_override
+                    FROM competency_scores cs
+                    JOIN competencies c ON c.id = cs.competency_id
+                    WHERE cs.competency_id = $1
+                    GROUP BY cs.student_id, c.name, c.max_score
+                    ORDER BY avg_score ASC NULLS LAST
+                    """,
+                    competency_id,
+                )
+            return [dict(r) for r in rows]
+
+    async def override_competency_score(
+        self,
+        student_id: str,
+        competency_id: UUID,
+        new_score: float,
+        override_by: str,
+    ) -> dict:
+        """Override the aggregated competency score for a student (instructor manual correction).
+
+        Uses session_id = NULL as a sentinel for manual overrides.
+        """
+        async with self._pool.acquire() as conn:
+            existing = await conn.fetchrow(
+                """
+                SELECT id FROM competency_scores
+                WHERE student_id = $1 AND competency_id = $2 AND session_id IS NULL
+                """,
+                student_id, competency_id,
+            )
+            if existing:
+                row = await conn.fetchrow(
+                    """
+                    UPDATE competency_scores SET
+                        score       = $2,
+                        is_override = TRUE,
+                        override_by = $3,
+                        override_at = now()
+                    WHERE id = $1
+                    RETURNING *
+                    """,
+                    existing["id"], new_score, override_by,
+                )
+            else:
+                row = await conn.fetchrow(
+                    """
+                    INSERT INTO competency_scores
+                        (student_id, competency_id, session_id, score, is_override, override_by, override_at)
+                    VALUES ($1, $2, NULL, $3, TRUE, $4, now())
+                    RETURNING *
+                    """,
+                    student_id, competency_id, new_score, override_by,
+                )
+            return dict(row)
+
 
 SCHEMA_SQL = """
 -- =============================================================================
@@ -357,17 +867,18 @@ SCHEMA_SQL = """
 -- =============================================================================
 
 CREATE TABLE IF NOT EXISTS sessions (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    assignment_id       UUID NOT NULL,
-    assignment_context  JSONB DEFAULT '{}'::jsonb,
-    student_id          TEXT NOT NULL,
-    status              TEXT DEFAULT 'initializing'
-                        CHECK (status IN ('initializing', 'in_progress', 'paused', 'completed', 'abandoned', 'grading_failed')),
-    total_score         NUMERIC(5,2),
-    max_possible        NUMERIC(5,2),
-    started_at          TIMESTAMPTZ DEFAULT now(),
-    completed_at        TIMESTAMPTZ,
-    metadata            JSONB DEFAULT '{}'
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    assignment_id           UUID NOT NULL,
+    assignment_context      JSONB DEFAULT '{}'::jsonb,
+    student_id              TEXT NOT NULL,
+    status                  TEXT DEFAULT 'initializing'
+                            CHECK (status IN ('initializing', 'in_progress', 'paused', 'completed', 'abandoned', 'grading_failed')),
+    total_score             NUMERIC(5,2),
+    max_possible            NUMERIC(5,2),
+    difficulty_distribution JSONB DEFAULT '{}'::jsonb,
+    started_at              TIMESTAMPTZ DEFAULT now(),
+    completed_at            TIMESTAMPTZ,
+    metadata                JSONB DEFAULT '{}'
 );
 
 CREATE TABLE IF NOT EXISTS question_instances (
@@ -448,4 +959,105 @@ CREATE INDEX IF NOT EXISTS idx_student_responses_session ON student_responses(se
 CREATE INDEX IF NOT EXISTS idx_voice_profiles_student ON voice_profiles(student_id);
 CREATE INDEX IF NOT EXISTS idx_voice_auth_events_session ON voice_auth_events(session_id);
 CREATE INDEX IF NOT EXISTS idx_transcripts_session ON transcripts(session_id);
+
+-- =============================================================================
+-- Competencies (reusable, course/assignment-wide conceptual areas)
+-- =============================================================================
+
+-- Difficulty levels: 1=beginner, 2=intermediate, 3=advanced, 4=expert, 5=master
+CREATE TABLE IF NOT EXISTS competencies (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name            TEXT NOT NULL,                        -- e.g. "Loops", "Recursion"
+    description     TEXT,
+    difficulty      INTEGER DEFAULT 1
+                        CHECK (difficulty BETWEEN 1 AND 5),
+    max_score       NUMERIC(4,1) DEFAULT 10.0,
+    created_at      TIMESTAMPTZ DEFAULT now(),
+    updated_at      TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(name)
+);
+
+-- Which competencies are active for a given assignment + their weight
+CREATE TABLE IF NOT EXISTS competency_assignments (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    assignment_id   UUID NOT NULL,
+    competency_id   UUID NOT NULL REFERENCES competencies(id) ON DELETE CASCADE,
+    weight          NUMERIC(3,2) DEFAULT 1.0,  -- importance weight (0.5 = half weight)
+    created_at      TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(assignment_id, competency_id)
+);
+
+-- Per-student per-competency scores across all their viva sessions
+-- Also stores instructor override so human judgment can correct AI marks
+CREATE TABLE IF NOT EXISTS competency_scores (
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id              TEXT NOT NULL,
+    competency_id           UUID NOT NULL REFERENCES competencies(id) ON DELETE CASCADE,
+    session_id              UUID REFERENCES sessions(id) ON DELETE SET NULL,
+    score                   NUMERIC(4,1),       -- raw score for this session
+    is_override             BOOLEAN DEFAULT FALSE,  -- TRUE if manually set by instructor
+    override_by             TEXT,               -- instructor who set the override
+    override_at             TIMESTAMPTZ,
+    created_at              TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(student_id, competency_id, session_id)
+);
+
+-- =============================================================================
+-- Indexes
+-- =============================================================================
+
+CREATE INDEX IF NOT EXISTS idx_competencies_name ON competencies(name);
+CREATE INDEX IF NOT EXISTS idx_competency_assignments_assignment ON competency_assignments(assignment_id);
+CREATE INDEX IF NOT EXISTS idx_competency_assignments_competency ON competency_assignments(competency_id);
+CREATE INDEX IF NOT EXISTS idx_competency_scores_student ON competency_scores(student_id);
+CREATE INDEX IF NOT EXISTS idx_competency_scores_competency ON competency_scores(competency_id);
+CREATE INDEX IF NOT EXISTS idx_competency_scores_session ON competency_scores(session_id);
+
+-- =============================================================================
+-- Assignments, Grading Criteria, and Questions
+-- (IVAS-managed versions for viva setup — not shared with ACAFS)
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS assignments (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title               TEXT NOT NULL,
+    description         TEXT,
+    code_context        TEXT,
+    programming_language TEXT DEFAULT 'python',
+    course_id           TEXT,
+    instructor_id       TEXT NOT NULL,
+    created_at          TIMESTAMPTZ DEFAULT now(),
+    updated_at          TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS grading_criteria (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    assignment_id   UUID NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
+    competency      TEXT NOT NULL,
+    description     TEXT,
+    max_score       NUMERIC(4,1) DEFAULT 10.0,
+    weight          NUMERIC(3,2) DEFAULT 1.0,
+    difficulty      INTEGER DEFAULT 3
+                    CHECK (difficulty BETWEEN 1 AND 5),
+    created_at      TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS questions (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    assignment_id   UUID NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
+    criteria_id     UUID REFERENCES grading_criteria(id) ON DELETE SET NULL,
+    question_text   TEXT NOT NULL,
+    competency      TEXT,
+    difficulty      INTEGER DEFAULT 3
+                    CHECK (difficulty BETWEEN 1 AND 5),
+    expected_topics TEXT[],
+    status          TEXT DEFAULT 'draft'
+                    CHECK (status IN ('draft', 'approved', 'rejected')),
+    created_at      TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_assignments_instructor ON assignments(instructor_id);
+CREATE INDEX IF NOT EXISTS idx_grading_criteria_assignment ON grading_criteria(assignment_id);
+CREATE INDEX IF NOT EXISTS idx_questions_assignment ON questions(assignment_id);
+CREATE INDEX IF NOT EXISTS idx_questions_criteria ON questions(criteria_id);
 """

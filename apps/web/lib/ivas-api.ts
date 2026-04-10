@@ -19,6 +19,14 @@ import type {
     VoiceVerifyOut,
     HealthResponse,
     ReadyResponse,
+    CompetencyOut,
+    CompetencyAssignmentLinkOut,
+    CompetencyScoreOut,
+    CompetencyScoreSummary,
+    SetCompetenciesRequest,
+    GenerateCompetenciesRequest,
+    GenerateCompetenciesResponse,
+    OverrideScoreRequest,
 } from "@/types/ivas";
 
 const IVAS_BASE_URL =
@@ -238,4 +246,60 @@ export const ivasApi = {
     // --- WebSocket URL helper ---
     getVivaWebSocketUrl: (sessionId: string) =>
         `${IVAS_WS_URL}/ws/ivas/session/${encodeURIComponent(sessionId)}`,
+
+    // --- Competencies (global) ---
+    listCompetencies: () =>
+        ivasRequest<CompetencyOut[]>("/competencies"),
+
+    createCompetency: (name: string, description?: string, difficulty?: number, maxScore?: number) =>
+        ivasRequest<CompetencyOut>("/competencies", {
+            method: "POST",
+            body: JSON.stringify({ name, description, difficulty, max_score: maxScore }),
+        }),
+
+    deleteCompetency: (competencyId: string) =>
+        ivasRequest<void>(`/competencies/${encodeURIComponent(competencyId)}`, { method: "DELETE" }),
+
+    // --- Competency-Assignment linking ---
+    listAssignmentCompetencies: (assignmentId: string) =>
+        ivasRequest<CompetencyAssignmentLinkOut[]>(
+            `/competencies/assignment/${encodeURIComponent(assignmentId)}`
+        ),
+
+    setAssignmentCompetencies: (assignmentId: string, body: SetCompetenciesRequest) =>
+        ivasRequest<CompetencyAssignmentLinkOut[]>(
+            `/competencies/assignment/${encodeURIComponent(assignmentId)}/set`,
+            { method: "POST", body: JSON.stringify(body) }
+        ),
+
+    // --- AI Competency Generation ---
+    generateCompetencies: (body: GenerateCompetenciesRequest) =>
+        ivasRequest<GenerateCompetenciesResponse>("/competencies/generate", {
+            method: "POST",
+            body: JSON.stringify(body),
+        }),
+
+    // --- Competency Scores ---
+    listStudentCompetencyScores: (studentId: string) =>
+        ivasRequest<CompetencyScoreOut[]>(`/competencies/scores/student/${encodeURIComponent(studentId)}`),
+
+    listCompetencyScoresForAssignment: (assignmentId: string) =>
+        ivasRequest<CompetencyScoreSummary[]>(
+            `/competencies/scores/assignment/${encodeURIComponent(assignmentId)}`
+        ),
+
+    listStudentsByCompetency: (competencyId: string, assignmentId?: string) => {
+        const query = assignmentId
+            ? `?assignment_id=${encodeURIComponent(assignmentId)}`
+            : "";
+        return ivasRequest<Record<string, unknown>[]>(
+            `/competencies/scores/competency/${encodeURIComponent(competencyId)}${query}`
+        );
+    },
+
+    overrideCompetencyScore: (body: OverrideScoreRequest) =>
+        ivasRequest<CompetencyScoreOut>("/competencies/scores/override", {
+            method: "POST",
+            body: JSON.stringify(body),
+        }),
 };

@@ -3,13 +3,15 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class SessionCreate(BaseModel):
     assignment_id: UUID
     student_id: str
     assignment_context: dict | None = None
+    # Difficulty distribution: e.g. {1: 3, 2: 3, 3: 2} → 3 beginner, 3 intermediate, 2 advanced questions
+    difficulty_distribution: dict[int, int] | None = None
 
 
 class SessionOut(BaseModel):
@@ -22,6 +24,7 @@ class SessionOut(BaseModel):
     max_possible: float | None = None
     started_at: datetime
     completed_at: datetime | None = None
+    difficulty_distribution: dict[int, int] | None = None
     metadata: dict = {}
 
 

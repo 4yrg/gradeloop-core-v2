@@ -30,8 +30,15 @@ router = APIRouter()
 # Core Gemini Live bridge
 # =============================================================================
 
-def _build_viva_system_instruction(assignment_context: dict | None) -> str:
-    """Build the examiner system prompt from the session's assignment context."""
+def _build_viva_system_instruction(
+    assignment_context: dict | None,
+    selected_questions: list[dict] | None = None,
+) -> str:
+    """Build the examiner system prompt from the session's assignment context.
+
+    If selected_questions is provided, injects the structured competency-based
+    question plan so the AI examiner follows the planned rubric.
+    """
     ctx = assignment_context or {}
     title = (ctx.get("title") or "").strip()
     description = (ctx.get("description") or "").strip()
@@ -72,6 +79,25 @@ def _build_viva_system_instruction(assignment_context: dict | None) -> str:
     if len(lines) == len([l for l in lines if not l.startswith("- ")]):
         lines.append("- (No assignment details were provided — briefly ask the student which assignment they are defending, then conduct the conceptual viva on that basis.)")
 
+    # Inject structured question plan if provided (competency-based viva).
+    if selected_questions:
+        lines.append("")
+        lines.append("Structured question plan — ask questions in this order:")
+        DIFFICULTY_LABELS = {1: "Beginner", 2: "Intermediate", 3: "Advanced", 4: "Expert", 5: "Master"}
+        for q in selected_questions:
+            level = q.get("difficulty", 2)
+            label = DIFFICULTY_LABELS.get(level, str(level))
+            lines.append(
+                f"  [{q['sequence_num']}] ({label}) {q['question_text']} "
+                f"[competency: {q.get('competency_name', 'unknown')}]"
+            )
+        lines.append("")
+        lines.append(
+            "You MUST cover all questions above in order. "
+            "You may ask follow-up questions to probe deeper, but after each "
+            "top-level question return to the plan. Do not skip planned questions."
+        )
+
     return "\n".join(lines)
 
 
@@ -79,6 +105,7 @@ async def _bridge_gemini_live(
     websocket: WebSocket,
     settings,
     assignment_context: dict | None = None,
+    selected_questions: list[dict] | None = None,
 ) -> list[dict]:
     """Bridge a browser WebSocket to a Gemini Live session.
 
@@ -98,7 +125,10 @@ async def _bridge_gemini_live(
     from google.genai import types
 
     client = genai.Client(api_key=settings.gemini_api_key)
-    system_instruction = _build_viva_system_instruction(assignment_context)
+    system_instruction = _build_viva_system_instruction(
+        assignment_context,
+        selected_questions=selected_questions,
+    )
     config = types.LiveConnectConfig(
         response_modalities=["AUDIO"],
         input_audio_transcription=types.AudioTranscriptionConfig(),
@@ -292,6 +322,7 @@ async def _finalize_session(
     sid: UUID,
     transcript_turns: list[dict],
     assignment_context: dict,
+    selected_questions: list[dict] | None = None,
 ) -> None:
     """Persist transcripts, run grading, save Q&A, and update session score.
 
@@ -342,12 +373,31 @@ async def _finalize_session(
         await db.update_session_status(sid, "completed")
         return
 
+    # Build competency metadata for Q&A persistence.
+    competency_metadata: dict[int, dict] = {}
+    if selected_questions:
+        for q in selected_questions:
+            seq = q.get("sequence_num")
+            if seq:
+                competency_metadata[seq] = {
+                    "competency_id": q.get("competency_id"),
+                    "competency_name": q.get("competency_name"),
+                    "difficulty": q.get("difficulty"),
+                }
+
     try:
-        await db.save_graded_qa(sid, items)
+        await db.save_graded_qa(sid, items, competency_metadata=competency_metadata or None)
     except Exception as exc:
         logger.error("save_graded_qa_failed", error=str(exc))
         await db.update_session_status(sid, "grading_failed")
         return
+
+    # Derive and persist per-competency scores for this session.
+    if selected_questions:
+        try:
+            await _derive_competency_scores(db, sid, items, competency_metadata)
+        except Exception as exc:
+            logger.error("derive_competency_scores_failed", error=str(exc))
 
     try:
         await db.update_session_score(
@@ -360,6 +410,45 @@ async def _finalize_session(
 
     # Mark completed only after everything succeeded.
     await db.update_session_status(sid, "completed")
+
+
+async def _derive_competency_scores(
+    db,
+    sid: UUID,
+    items: list[dict],
+    competency_metadata: dict[int, dict],
+) -> None:
+    """Average per-question scores per competency and persist to competency_scores."""
+    from collections import defaultdict
+
+    # Group scores by competency
+    by_comp: dict[str, list[float]] = defaultdict(list)
+    for item in items:
+        seq = item.get("sequence_num")
+        meta = competency_metadata.get(seq, {})
+        comp_id = meta.get("competency_id")
+        if not comp_id:
+            continue
+        score = item.get("score")
+        if score is not None:
+            by_comp[str(comp_id)].append(float(score))
+
+    # Persist avg score per competency for this session.
+    for comp_id, scores in by_comp.items():
+        from uuid import UUID as _UUID
+
+        avg = sum(scores) / len(scores)
+        try:
+            await db.upsert_competency_score(
+                student_id=(await db.get_session(sid)).get("student_id", ""),
+                competency_id=_UUID(comp_id),
+                session_id=sid,
+                score=round(avg, 1),
+                is_override=False,
+                override_by=None,
+            )
+        except Exception as exc:
+            logger.warning("upsert_competency_score_failed", comp_id=comp_id, error=str(exc))
 
 
 @router.websocket("/ws/ivas/session/{session_id}")
@@ -390,14 +479,34 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
     await db.update_session_status(sid, "in_progress")
 
     assignment_context = session.get("assignment_context") or {}
+    difficulty_distribution = session.get("difficulty_distribution") or {}
     settings = get_settings()
     transcript_turns: list[dict] = []
+    selected_questions: list[dict] = []
+
+    # Load competencies for this assignment and pre-select questions.
+    competency_rows = await db.list_assignment_competencies(sid)
+    if competency_rows and difficulty_distribution:
+        from app.services.viva.question_selector import select_questions_ai
+
+        try:
+            selected_questions = await select_questions_ai(
+                gemini_api_key=settings.gemini_api_key,
+                model=settings.gemini_grader_model,
+                assignment_context=assignment_context,
+                competencies=competency_rows,
+                difficulty_distribution=difficulty_distribution,
+            )
+        except Exception as exc:
+            logger.warning("question_selection_failed_fallback", error=str(exc))
+            selected_questions = []
 
     try:
         transcript_turns = await _bridge_gemini_live(
             websocket,
             settings,
             assignment_context=assignment_context,
+            selected_questions=selected_questions or None,
         ) or []
     except Exception as exc:
         logger.error("session_ws_error", error=str(exc))
@@ -416,5 +525,6 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
         with suppress(Exception):
             await _finalize_session(
                 db, settings, sid, transcript_turns, assignment_context,
+                selected_questions=selected_questions or None,
             )
         logger.info("session_ws_closed", session_id=session_id)
