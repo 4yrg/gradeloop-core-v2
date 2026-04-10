@@ -14,13 +14,20 @@ import {
     MessageSquare,
     Star,
     BookOpen,
+    ChevronDown,
+    ChevronUp,
+    AlertCircle,
+    Eye,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { ivasApi } from "@/lib/ivas-api";
 import type { SessionDetail, GradedQA, Transcript } from "@/types/ivas";
+
+const TRANSCRIPT_COLLAPSE_THRESHOLD = 8;
 
 function StatusBadge({ status }: { status: string }) {
     if (status === "completed") {
@@ -55,6 +62,164 @@ function StatusBadge({ status }: { status: string }) {
     );
 }
 
+function TranscriptSection({ transcripts }: { transcripts: Transcript[] }) {
+    const [expanded, setExpanded] = React.useState(false);
+    const visible = expanded ? transcripts : transcripts.slice(0, TRANSCRIPT_COLLAPSE_THRESHOLD);
+    const hasMore = transcripts.length > TRANSCRIPT_COLLAPSE_THRESHOLD;
+
+    return (
+        <Card>
+            <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                    <CardTitle className="text-base flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4" />
+                        Full Transcript
+                        <span className="text-xs font-normal text-muted-foreground">
+                            ({transcripts.length} turns)
+                        </span>
+                    </CardTitle>
+                    {hasMore && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setExpanded(!expanded)}
+                            className="gap-1 text-xs h-7"
+                        >
+                            {expanded ? (
+                                <><ChevronUp className="h-3 w-3" />Show less</>
+                            ) : (
+                                <><ChevronDown className="h-3 w-3" />Show all</>
+                            )}
+                        </Button>
+                    )}
+                </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+                {visible.map((turn: Transcript) => (
+                    <div key={turn.id} className="flex gap-3">
+                        <div className={`shrink-0 w-16 text-xs font-medium mt-0.5 ${turn.role === "examiner" ? "text-blue-600" : "text-emerald-600"}`}>
+                            {turn.role === "examiner" ? "Examiner" : "Student"}
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-sm leading-relaxed">{turn.content}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                {format(new Date(turn.timestamp), "HH:mm:ss")}
+                            </p>
+                        </div>
+                    </div>
+                ))}
+            </CardContent>
+        </Card>
+    );
+}
+
+function CodeBlock({ code }: { code: string }) {
+    const [expanded, setExpanded] = React.useState(false);
+    const COLLAPSE_HEIGHT = 160;
+    const isLong = code.split("\n").length > 12;
+
+    return (
+        <Card>
+            <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                    <CardTitle className="text-base flex items-center gap-2">
+                        <BookOpen className="h-4 w-4" />
+                        Student&apos;s Code
+                    </CardTitle>
+                    {isLong && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setExpanded(!expanded)}
+                            className="gap-1 text-xs h-7"
+                        >
+                            {expanded ? (
+                                <><ChevronUp className="h-3 w-3" />Collapse</>
+                            ) : (
+                                <><ChevronDown className="h-3 w-3" />Expand</>
+                            )}
+                        </Button>
+                    )}
+                </div>
+            </CardHeader>
+            <CardContent>
+                <div className={!expanded && isLong ? `overflow-hidden max-h-[${COLLAPSE_HEIGHT}px]` : ""}>
+                    <pre className="text-xs bg-muted p-3 rounded-lg overflow-x-auto leading-relaxed">
+                        {code}
+                    </pre>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+function QuestionCard({ item }: { item: GradedQA }) {
+    const max = item.max_score ?? 10;
+    const pct = item.score !== null && max > 0 ? (item.score / max) * 100 : 0;
+
+    const scoreColor =
+        pct >= 80 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400" :
+        pct >= 60 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400" :
+        "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400";
+
+    return (
+        <div className="border border-border/60 rounded-xl p-5 space-y-4">
+            {/* Question + Score */}
+            <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full px-2.5 py-1 font-semibold shrink-0 mt-0.5">
+                        Q{item.sequence_num}
+                    </span>
+                    <p className="text-sm font-medium leading-snug">{item.question_text}</p>
+                </div>
+                {item.score !== null && (
+                    <div className={`rounded-full px-3 py-1.5 text-sm font-bold shrink-0 ${scoreColor}`}>
+                        {item.score}/{max}
+                    </div>
+                )}
+            </div>
+
+            {/* Answer */}
+            {item.response_text && (
+                <div>
+                    <p className="text-xs text-muted-foreground mb-1.5 font-medium">Student&apos;s answer</p>
+                    <p className="text-sm bg-muted/70 rounded-lg px-4 py-3 leading-relaxed">
+                        {item.response_text}
+                    </p>
+                </div>
+            )}
+
+            {/* Justification */}
+            {item.score_justification && (
+                <div className="border-l-2 border-amber-400 pl-3.5">
+                    <p className="text-xs text-muted-foreground mb-1 font-medium">Grading rationale</p>
+                    <p className="text-sm italic text-amber-700 dark:text-amber-400 leading-relaxed">
+                        {item.score_justification}
+                    </p>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function StudentIdCell({ studentId }: { studentId: string }) {
+    if (studentId.length <= 12) {
+        return <span className="text-sm font-medium font-mono">{studentId}</span>;
+    }
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <span className="text-sm font-medium font-mono cursor-help">
+                    {studentId.slice(0, 8)}…{studentId.slice(-4)}
+                </span>
+            </TooltipTrigger>
+            <TooltipContent>
+                <p className="font-mono text-xs">{studentId}</p>
+            </TooltipContent>
+        </Tooltip>
+    );
+}
+
 export default function InstructorVivaReviewPage() {
     const params = useParams<{ sessionId: string; assignmentId: string; instanceId: string }>();
     const router = useRouter();
@@ -85,9 +250,9 @@ export default function InstructorVivaReviewPage() {
     if (loading) {
         return (
             <div className="max-w-4xl mx-auto space-y-6 pb-8">
-                <Skeleton className="h-10 w-64" />
-                <Skeleton className="h-40 w-full" />
-                <Skeleton className="h-60 w-full" />
+                <Skeleton className="h-8 w-64" />
+                <Skeleton className="h-48 w-full" />
+                <Skeleton className="h-80 w-full" />
             </div>
         );
     }
@@ -97,7 +262,10 @@ export default function InstructorVivaReviewPage() {
             <div className="flex items-center justify-center h-[60vh]">
                 <Card className="max-w-md">
                     <CardHeader>
-                        <CardTitle className="text-red-600">Error</CardTitle>
+                        <CardTitle className="flex items-center gap-2 text-red-600">
+                            <AlertCircle className="h-5 w-5" />
+                            Error
+                        </CardTitle>
                     </CardHeader>
                     <CardContent>
                         <p className="text-sm text-muted-foreground">{error || "Session not found."}</p>
@@ -113,9 +281,15 @@ export default function InstructorVivaReviewPage() {
         ? differenceInMinutes(new Date(session.completed_at), new Date(session.started_at))
         : null;
 
+    const scorePct = session.total_score !== null && session.max_possible !== null && session.max_possible > 0
+        ? Math.round((session.total_score / session.max_possible) * 100)
+        : null;
+
     return (
-        <div className="max-w-4xl mx-auto space-y-6 pb-8">
-            <Button variant="ghost" size="sm" asChild className="gap-1 self-start">
+        <TooltipProvider>
+        <div className="max-w-4xl mx-auto space-y-6 pb-12">
+            {/* Back */}
+            <Button variant="ghost" size="sm" asChild className="gap-1.5 px-0 text-muted-foreground hover:text-foreground self-start">
                 <Link href={`/instructor/courses/${instanceId}/assignments/${assignmentId}/viva`}>
                     <ArrowLeft className="h-4 w-4" />
                     Back to Viva Sessions
@@ -123,7 +297,7 @@ export default function InstructorVivaReviewPage() {
             </Button>
 
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-border/40 pb-6">
+            <div className="flex items-start justify-between gap-4 border-b border-border/40 pb-6">
                 <div>
                     <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
                         <Mic2 className="h-6 w-6" />
@@ -132,140 +306,125 @@ export default function InstructorVivaReviewPage() {
                     <p className="text-sm text-muted-foreground mt-1">
                         {session.assignment_context?.title ?? session.assignment_id}
                     </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                        {format(new Date(session.started_at), "EEEE, MMMM d, yyyy 'at' HH:mm")}
+                    </p>
                 </div>
                 <StatusBadge status={session.status} />
             </div>
 
-            {/* Meta cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Card>
-                    <CardContent className="pt-6 text-center">
-                        <p className="text-xs text-muted-foreground mb-1">Student</p>
-                        <p className="text-sm font-bold font-mono flex items-center justify-center gap-1">
-                            <User className="h-3.5 w-3.5" />
-                            {session.student_id}
-                        </p>
+            {/* Score Hero */}
+            {session.total_score !== null && session.max_possible !== null && session.status === "completed" && (
+                <Card className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 border-slate-200 dark:border-slate-700">
+                    <CardContent className="pt-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs text-muted-foreground mb-1 font-medium uppercase tracking-wide">Overall Score</p>
+                                <div className="flex items-baseline gap-2">
+                                    <span className="text-4xl font-black tracking-tight">
+                                        {session.total_score}
+                                    </span>
+                                    <span className="text-xl font-medium text-muted-foreground">/ {session.max_possible}</span>
+                                </div>
+                                {scorePct !== null && (
+                                    <p className={`text-sm font-semibold mt-1 ${
+                                        scorePct >= 80 ? "text-emerald-600" :
+                                        scorePct >= 60 ? "text-amber-600" :
+                                        "text-red-600"
+                                    }`}>
+                                        {scorePct}% — {
+                                            scorePct >= 80 ? "Excellent" :
+                                            scorePct >= 60 ? "Good" :
+                                            "Needs Improvement"
+                                        }
+                                    </p>
+                                )}
+                            </div>
+                            {scorePct !== null && (
+                                <div className="w-24 shrink-0">
+                                    <div className="h-2.5 w-full bg-secondary rounded-full overflow-hidden">
+                                        <div
+                                            className={`h-full rounded-full transition-all ${
+                                                scorePct >= 80 ? "bg-emerald-500" :
+                                                scorePct >= 60 ? "bg-amber-500" :
+                                                "bg-red-500"
+                                            }`}
+                                            style={{ width: `${scorePct}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </CardContent>
                 </Card>
-                <Card>
-                    <CardContent className="pt-6 text-center">
-                        <p className="text-xs text-muted-foreground mb-1">Score</p>
-                        <p className="text-lg font-bold">
-                            {session.total_score !== null ? `${session.total_score}/${session.max_possible}` : "—"}
-                        </p>
+            )}
+
+            {/* In-progress / non-completed banner */}
+            {session.status !== "completed" && (
+                <Card className="bg-muted/50 border-dashed">
+                    <CardContent className="pt-6 flex items-center gap-3">
+                        <Clock className="h-5 w-5 text-muted-foreground shrink-0" />
+                        <div>
+                            <p className="text-sm font-medium">Session not yet complete</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                                Transcript and scoring will appear once the session ends.
+                            </p>
+                        </div>
                     </CardContent>
                 </Card>
-                <Card>
-                    <CardContent className="pt-6 text-center">
-                        <p className="text-xs text-muted-foreground mb-1">Duration</p>
-                        <p className="text-lg font-bold">{duration !== null ? `${duration} min` : "—"}</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="pt-6 text-center">
-                        <p className="text-xs text-muted-foreground mb-1">Date</p>
-                        <p className="text-lg font-bold">{format(new Date(session.started_at), "MMM d, yyyy")}</p>
-                    </CardContent>
-                </Card>
+            )}
+
+            {/* Meta row */}
+            <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    <StudentIdCell studentId={session.student_id} />
+                </div>
+                {duration !== null && (
+                    <div className="flex items-center gap-1.5">
+                        <Clock className="h-4 w-4" />
+                        <span>{duration} min</span>
+                    </div>
+                )}
+                <div className="flex items-center gap-1.5">
+                    <MessageSquare className="h-4 w-4" />
+                    <span>{graded_qa.length} questions · {transcripts.length} turns</span>
+                </div>
+                {session.assignment_context?.programming_language && (
+                    <div className="flex items-center gap-1.5">
+                        <BookOpen className="h-4 w-4" />
+                        <span>{session.assignment_context.programming_language}</span>
+                    </div>
+                )}
             </div>
 
-            {/* Assignment context */}
+            {/* Code context */}
             {session.assignment_context?.code_context && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-base flex items-center gap-2">
-                            <BookOpen className="h-4 w-4" />
-                            Student&apos;s Code
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <pre className="text-xs bg-muted p-3 rounded-lg overflow-x-auto max-h-60">
-                            {session.assignment_context.code_context}
-                        </pre>
-                    </CardContent>
-                </Card>
+                <CodeBlock code={session.assignment_context.code_context} />
             )}
 
-            {/* Full transcript */}
+            {/* Transcript */}
             {transcripts.length > 0 && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-base flex items-center gap-2">
-                            <MessageSquare className="h-4 w-4" />
-                            Full Transcript
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {transcripts.map((turn: Transcript) => (
-                            <div key={turn.id} className="flex gap-3">
-                                <div className={`shrink-0 w-16 text-xs font-medium mt-0.5 ${turn.role === "examiner" ? "text-blue-600" : "text-emerald-600"}`}>
-                                    {turn.role === "examiner" ? "Examiner" : "Student"}
-                                </div>
-                                <div className="flex-1">
-                                    <p className="text-sm leading-relaxed">{turn.content}</p>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                        {format(new Date(turn.timestamp), "HH:mm:ss")}
-                                    </p>
-                                </div>
-                            </div>
-                        ))}
-                    </CardContent>
-                </Card>
+                <TranscriptSection transcripts={transcripts} />
             )}
 
-            {/* Graded Q&A with scores */}
+            {/* Per-Question Scoring */}
             {graded_qa.length > 0 && (
                 <Card>
-                    <CardHeader>
+                    <CardHeader className="pb-3">
                         <CardTitle className="text-base flex items-center gap-2">
                             <Star className="h-4 w-4" />
                             Per-Question Scoring
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-6">
+                    <CardContent className="space-y-4">
                         {graded_qa.map((item: GradedQA) => (
-                            <div key={item.sequence_num} className="border border-border/60 rounded-lg p-4 space-y-3">
-                                <div className="flex items-start justify-between gap-4">
-                                    <div className="flex items-start gap-2">
-                                        <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full px-2 py-0.5 font-medium">
-                                            Q{item.sequence_num}
-                                        </span>
-                                        <p className="text-sm font-medium">{item.question_text}</p>
-                                    </div>
-                                    {item.score !== null && (
-                                        <div className="text-right shrink-0">
-                                            <span className="text-lg font-bold">{item.score}</span>
-                                            <span className="text-sm text-muted-foreground">/{item.max_score ?? 10}</span>
-                                        </div>
-                                    )}
-                                </div>
-                                {item.response_text && (
-                                    <div className="ml-0">
-                                        <p className="text-xs text-muted-foreground mb-1">Student&apos;s answer:</p>
-                                        <p className="text-sm bg-muted/60 rounded-lg px-3 py-2">{item.response_text}</p>
-                                    </div>
-                                )}
-                                {item.score_justification && (
-                                    <div className="border-l-2 border-amber-400 pl-3">
-                                        <p className="text-xs text-muted-foreground mb-0.5">Justification:</p>
-                                        <p className="text-sm italic text-amber-700 dark:text-amber-400">{item.score_justification}</p>
-                                    </div>
-                                )}
-                            </div>
+                            <QuestionCard key={item.sequence_num} item={item} />
                         ))}
                     </CardContent>
                 </Card>
             )}
-
-            {session.status !== "completed" && (
-                <Card className="bg-muted/50 border-dashed">
-                    <CardContent className="pt-6">
-                        <p className="text-sm text-muted-foreground">
-                            This session is still in progress. Full transcript and scoring will appear once the session is completed.
-                        </p>
-                    </CardContent>
-                </Card>
-            )}
         </div>
+        </TooltipProvider>
     );
 }
