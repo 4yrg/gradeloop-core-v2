@@ -9,7 +9,9 @@ import {
     ChevronDown,
     ChevronRight,
     Info,
+    RefreshCw,
     ShieldCheck,
+    Sparkles,
     TrendingUp,
     Users,
 } from "lucide-react";
@@ -20,10 +22,13 @@ import { ProcessScoreGauge } from "./ProcessScoreGauge";
 import { RiskTimelineChart } from "./RiskTimelineChart";
 import { CognitiveLoadChart } from "./CognitiveLoadChart";
 import { FrictionPointHeatmap } from "./FrictionPointHeatmap";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 
 interface BehaviorAnalyticsPanelProps {
     data: AnalyticsData;
+    /** Called when the instructor clicks \"Retry AI Analysis\". */
+    onRetryAi?: () => Promise<void>;
 }
 
 // ─── Utility sub-components ───────────────────────────────────────────────────
@@ -104,7 +109,18 @@ function MetricRow({ label, value }: { label: string; value: React.ReactNode }) 
 
 // ─── Main panel ───────────────────────────────────────────────────────────────
 
-export function BehaviorAnalyticsPanel({ data }: BehaviorAnalyticsPanelProps) {
+export function BehaviorAnalyticsPanel({ data, onRetryAi }: BehaviorAnalyticsPanelProps) {
+    const [retrying, setRetrying] = useState(false);
+
+    async function handleRetry() {
+        if (!onRetryAi) return;
+        setRetrying(true);
+        try {
+            await onRetryAi();
+        } finally {
+            setRetrying(false);
+        }
+    }
     if (!data.analysis_available || !data.behavioral_analysis) {
         return (
             <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
@@ -132,16 +148,45 @@ export function BehaviorAnalyticsPanel({ data }: BehaviorAnalyticsPanelProps) {
     const overallVariant =
         overallScore >= 75 ? "success" : overallScore >= 50 ? "warning" : "danger";
 
-    // Derive LLM narrative text (may arrive in various shapes)
+    // ── LLM / AI insights ─────────────────────────────────────────────────────
+    // ba.pedagogical_feedback is ALWAYS populated (rule-based fallback or LLM).
+    // ba.llm_insights is {} when no Gemini key; has llm_analysis when Gemini ran.
     const llm = ba.llm_insights ?? {};
-    const narrativeText: string =
-        (typeof llm.narrative === "string" && llm.narrative) ||
-        (typeof llm.summary === "string" && llm.summary) ||
-        (typeof llm.feedback === "string" && llm.feedback) ||
-        "";
+    const llmAnalysis = llm.llm_analysis ?? {};
+    // Top-level pedagogical_feedback (always present — rule-based or LLM)
+    const pedFeedback = ba.pedagogical_feedback ?? {};
 
+    const narrativeText: string = pedFeedback.narrative ?? llmAnalysis.narrative_summary ?? "";
+    // Filter out null placeholders produced by the rule-based fallback
     const recommendations: string[] =
-        Array.isArray(llm.recommendations) ? llm.recommendations as string[] : [];
+        (pedFeedback.recommendations ?? llmAnalysis.pedagogical_recommendations ?? [])
+            .filter((r): r is string => typeof r === "string" && r.trim().length > 0);
+    const struggleConcepts: string[] =
+        (pedFeedback.struggle_concepts ?? llmAnalysis.struggle_concepts ?? [])
+            .filter((c): c is string => typeof c === "string" && c.trim().length > 0);
+    const developmentalLogic: string = llmAnalysis.developmental_logic ?? "";
+    const cognitiveInsights: string = llmAnalysis.cognitive_insights ?? "";
+    const authenticityAssessment: string = llmAnalysis.authenticity_assessment ?? "";
+    const confidenceAssessment: string = llmAnalysis.confidence_assessment ?? "";
+    // Gemini produced rich analysis
+    const hasGeminiAnalysis = !!(developmentalLogic || cognitiveInsights || authenticityAssessment || narrativeText);
+    // At least rule-based recommendations exist
+    const hasBasicFeedback = recommendations.length > 0 || struggleConcepts.length > 0;
+    const llmError: string | undefined = llm.error;
+    // Filter the backend placeholder that appears when friction_points is empty
+    const filteredFrictionConcepts = ca.high_friction_concepts.filter(
+        (c) => c !== "See friction points for details",
+    );
+
+    // Log LLM error to console so it's visible in dev-tools / server logs
+    useEffect(() => {
+        if (llmError) {
+            console.error(
+                `[BehaviorAnalytics] Gemini AI analysis failed for session ${data.session_id}:`,
+                llmError,
+            );
+        }
+    }, [llmError, data.session_id]);
 
     return (
         <div className="space-y-6">
@@ -278,32 +323,147 @@ export function BehaviorAnalyticsPanel({ data }: BehaviorAnalyticsPanelProps) {
                 </div>
             )}
 
-            {/* ── 9. LLM pedagogical narrative ──────────────────────────────── */}
-            {(narrativeText || recommendations.length > 0) && (
-                <div className="rounded-xl border border-border p-4">
-                    <SectionHeader icon={CheckCircle2} title="Pedagogical Insights" />
-                    {narrativeText && (
-                        <div className="prose prose-sm dark:prose-invert max-w-none text-sm mb-3">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                {narrativeText}
-                            </ReactMarkdown>
-                        </div>
-                    )}
-                    {recommendations.length > 0 && (
-                        <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                                Recommendations
-                            </p>
-                            {recommendations.map((rec, i) => (
-                                <div key={i} className="flex items-start gap-2 text-sm">
-                                    <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
-                                    <span>{rec}</span>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+            {/* ── 9. AI Deep Analysis (Gemini) ──────────────────────────────── */}
+            <div className="rounded-xl border border-violet-200 dark:border-violet-800 bg-violet-50/40 dark:bg-violet-950/20 p-4 space-y-4">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-violet-600 dark:text-violet-400 shrink-0" />
+                        <h3 className="font-semibold text-sm">AI Analysis</h3>
+                        {hasGeminiAnalysis && (
+                            <span className="text-[10px] text-muted-foreground bg-violet-100 dark:bg-violet-900/40 border border-violet-200 dark:border-violet-700 rounded px-1.5 py-0.5">
+                                Gemini 2.5 Flash
+                            </span>
+                        )}
+                        {!hasGeminiAnalysis && (
+                            <span className="text-[10px] text-muted-foreground bg-muted border border-border rounded px-1.5 py-0.5">
+                                Rule-based
+                            </span>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {confidenceAssessment && (
+                            <span
+                                className={cn(
+                                    "text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full border",
+                                    confidenceAssessment === "HIGH"
+                                        ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-300 text-emerald-700 dark:text-emerald-400"
+                                        : confidenceAssessment === "MEDIUM"
+                                        ? "bg-yellow-50 dark:bg-yellow-950/30 border-yellow-300 text-yellow-700 dark:text-yellow-400"
+                                        : "bg-red-50 dark:bg-red-950/30 border-red-300 text-red-700 dark:text-red-400",
+                                )}
+                            >
+                                {confidenceAssessment} confidence
+                            </span>
+                        )}
+                        {onRetryAi && !hasGeminiAnalysis && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-violet-600 dark:text-violet-400 border-violet-300 dark:border-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950/40"
+                                onClick={handleRetry}
+                                disabled={retrying}
+                            >
+                                <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${retrying ? "animate-spin" : ""}`} />
+                                {retrying ? "Retrying…" : "Retry with Gemini"}
+                            </Button>
+                        )}
+                    </div>
                 </div>
-            )}
+
+                {/* Gemini-only: narrative + 3 columns */}
+                {hasGeminiAnalysis && (
+                    <>
+                        {narrativeText && (
+                            <div className="rounded-lg bg-white dark:bg-muted/20 border border-violet-100 dark:border-violet-800/50 px-4 py-3">
+                                <p className="text-[10px] font-medium uppercase tracking-wider text-violet-500 dark:text-violet-400 mb-1.5">
+                                    Summary
+                                </p>
+                                <div className="prose prose-sm dark:prose-invert max-w-none text-sm">
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{narrativeText}</ReactMarkdown>
+                                </div>
+                            </div>
+                        )}
+                        {(developmentalLogic || cognitiveInsights || authenticityAssessment) && (
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                {developmentalLogic && (
+                                    <div className="rounded-lg bg-white dark:bg-muted/20 border border-violet-100 dark:border-violet-800/50 px-3 py-3">
+                                        <p className="text-[10px] font-medium uppercase tracking-wider text-violet-500 dark:text-violet-400 mb-1">
+                                            Developmental Logic
+                                        </p>
+                                        <p className="text-sm text-foreground/80 leading-snug">{developmentalLogic}</p>
+                                    </div>
+                                )}
+                                {cognitiveInsights && (
+                                    <div className="rounded-lg bg-white dark:bg-muted/20 border border-violet-100 dark:border-violet-800/50 px-3 py-3">
+                                        <p className="text-[10px] font-medium uppercase tracking-wider text-violet-500 dark:text-violet-400 mb-1">
+                                            Cognitive Insights
+                                        </p>
+                                        <p className="text-sm text-foreground/80 leading-snug">{cognitiveInsights}</p>
+                                    </div>
+                                )}
+                                {authenticityAssessment && (
+                                    <div className="rounded-lg bg-white dark:bg-muted/20 border border-violet-100 dark:border-violet-800/50 px-3 py-3">
+                                        <p className="text-[10px] font-medium uppercase tracking-wider text-violet-500 dark:text-violet-400 mb-1">
+                                            Authenticity Assessment
+                                        </p>
+                                        <p className="text-sm text-foreground/80 leading-snug">{authenticityAssessment}</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </>
+                )}
+
+                {/* Always-present: recommendations + struggle concepts (rule-based or LLM) */}
+                {hasBasicFeedback && (
+                    <div className="space-y-3">
+                        {struggleConcepts.length > 0 && (
+                            <div>
+                                <p className="text-[10px] font-medium uppercase tracking-wider text-violet-500 dark:text-violet-400 mb-2">
+                                    Struggle Concepts
+                                </p>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {struggleConcepts.map((c, i) => (
+                                        <span
+                                            key={i}
+                                            className="text-xs rounded-full border border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/20 px-2.5 py-0.5"
+                                        >
+                                            {c}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        {recommendations.length > 0 && (
+                            <div>
+                                <p className="text-[10px] font-medium uppercase tracking-wider text-violet-500 dark:text-violet-400 mb-2">
+                                    Recommendations
+                                </p>
+                                <div className="space-y-1.5">
+                                    {recommendations.map((rec, i) => (
+                                        <div key={i} className="flex items-start gap-2 text-sm">
+                                            <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                                            <span className="text-foreground/80">{rec}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Gemini not configured */}
+                {!hasGeminiAnalysis && !hasBasicFeedback && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground/70 pt-1">
+                        <Info className="h-3.5 w-3.5 shrink-0" />
+                        {llmError
+                            ? <span className="text-destructive/80 break-words">Error: {llmError}</span>
+                            : <span>Set <code className="bg-muted px-1 rounded">GEMINI_API_KEY</code> in the keystroke service for Gemini-powered insights.</span>
+                        }
+                    </div>
+                )}
+            </div>
 
             {/* ── 10. Raw session metrics ───────────────────────────────────── */}
             <Accordion title="Raw session metrics">
@@ -326,7 +486,7 @@ export function BehaviorAnalyticsPanel({ data }: BehaviorAnalyticsPanelProps) {
             </Accordion>
 
             {/* ── 11. Mastery & struggle indicators ────────────────────────── */}
-            {(ca.mastery_indicators.length > 0 || ca.high_friction_concepts.length > 0) && (
+            {(ca.mastery_indicators.length > 0 || filteredFrictionConcepts.length > 0) && (
                 <Accordion title="Mastery & struggle indicators" defaultOpen>
                     {ca.mastery_indicators.length > 0 && (
                         <div className="mb-3">
@@ -341,13 +501,13 @@ export function BehaviorAnalyticsPanel({ data }: BehaviorAnalyticsPanelProps) {
                             ))}
                         </div>
                     )}
-                    {ca.high_friction_concepts.length > 0 && (
+                    {filteredFrictionConcepts.length > 0 && (
                         <div>
                             <p className="text-xs font-medium text-orange-600 dark:text-orange-400 uppercase tracking-wide mb-1">
                                 High friction areas
                             </p>
                             <div className="flex flex-wrap gap-1.5">
-                                {ca.high_friction_concepts.map((c, i) => (
+                                {filteredFrictionConcepts.map((c, i) => (
                                     <Badge key={i} variant="outline" className="text-xs border-orange-300 text-orange-700 dark:text-orange-400">
                                         {c}
                                     </Badge>

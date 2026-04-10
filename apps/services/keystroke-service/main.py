@@ -21,7 +21,7 @@ from behavioral_analysis import (
 
 # Import new clients
 from db import get_db_client
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from feature_extraction import KeystrokeFeatureExtractor
 from pydantic import BaseModel
@@ -995,6 +995,43 @@ async def finalize_session(request: Dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/keystroke/archive/lookup")
+async def lookup_archive(assignment_id: str, user_id: str):
+    """
+    Look up the most recent archived session by assignment_id and user_id.
+    Returns session_id and summary statistics used to load playback/analytics.
+    """
+    if not db_client.enabled:
+        raise HTTPException(status_code=503, detail="Database not enabled")
+
+    archive = db_client.lookup_archive_by_assignment(assignment_id, user_id)
+    if not archive:
+        raise HTTPException(
+            status_code=404,
+            detail="No session archive found for this assignment and user",
+        )
+
+    archived_at = archive.get("archived_at")
+    return {
+        "success": True,
+        "session_id": archive["session_id"],
+        "user_id": archive["user_id"],
+        "assignment_id": archive["assignment_id"],
+        "course_id": archive.get("course_id"),
+        "event_count": archive.get("event_count", 0),
+        "session_duration_seconds": archive.get("session_duration_seconds", 0),
+        "average_risk_score": float(archive.get("average_risk_score") or 0.0),
+        "max_risk_score": float(archive.get("max_risk_score") or 0.0),
+        "anomaly_count": int(archive.get("anomaly_count") or 0),
+        "authentication_failures": int(archive.get("authentication_failures") or 0),
+        "archived_at": (
+            archived_at.isoformat()
+            if hasattr(archived_at, "isoformat")
+            else str(archived_at or "")
+        ),
+    }
+
+
 @app.get("/api/keystroke/archive/{session_id}")
 async def get_archived_session(session_id: str, format: str = "raw"):
     """
@@ -1136,43 +1173,6 @@ async def list_enrolled_users():
 # ==================== Session Playback & Behavior Analytics ====================
 
 
-@app.get("/api/keystroke/archive/lookup")
-async def lookup_archive(assignment_id: str, user_id: str):
-    """
-    Look up the most recent archived session by assignment_id and user_id.
-    Returns session_id and summary statistics used to load playback/analytics.
-    """
-    if not db_client.enabled:
-        raise HTTPException(status_code=503, detail="Database not enabled")
-
-    archive = db_client.lookup_archive_by_assignment(assignment_id, user_id)
-    if not archive:
-        raise HTTPException(
-            status_code=404,
-            detail="No session archive found for this assignment and user",
-        )
-
-    archived_at = archive.get("archived_at")
-    return {
-        "success": True,
-        "session_id": archive["session_id"],
-        "user_id": archive["user_id"],
-        "assignment_id": archive["assignment_id"],
-        "course_id": archive.get("course_id"),
-        "event_count": archive.get("event_count", 0),
-        "session_duration_seconds": archive.get("session_duration_seconds", 0),
-        "average_risk_score": float(archive.get("average_risk_score") or 0.0),
-        "max_risk_score": float(archive.get("max_risk_score") or 0.0),
-        "anomaly_count": int(archive.get("anomaly_count") or 0),
-        "authentication_failures": int(archive.get("authentication_failures") or 0),
-        "archived_at": (
-            archived_at.isoformat()
-            if hasattr(archived_at, "isoformat")
-            else str(archived_at or "")
-        ),
-    }
-
-
 @app.get("/api/keystroke/playback/{session_id}")
 async def get_playback_data(session_id: str):
     """
@@ -1237,11 +1237,16 @@ async def get_playback_data(session_id: str):
 
 
 @app.get("/api/keystroke/analytics/{session_id}")
-async def get_session_analytics(session_id: str):
+async def get_session_analytics(
+    session_id: str,
+    force: bool = Query(False, description="Force re-analysis even if a cached result exists"),
+):
     """
     Retrieve or compute behavioral analytics for an archived session.
 
     If analysis hasn't been run yet, runs it now and caches it.
+    Pass ?force=true to bypass the cache and re-run analysis (useful when
+    GEMINI_API_KEY was added after the first analysis run).
     Returns:
     - Full behavioral analysis (session metrics, authenticity, cognitive, process scores)
     - Risk timeline (from auth_events)
@@ -1254,8 +1259,8 @@ async def get_session_analytics(session_id: str):
     if not archive:
         raise HTTPException(status_code=404, detail="Session archive not found")
 
-    # Retrieve cached behavioral analysis (may be None if not yet run)
-    behavioral_analysis = archive.get("behavioral_analysis")
+    # Retrieve cached behavioral analysis — skip if force re-analysis requested
+    behavioral_analysis = None if force else archive.get("behavioral_analysis")
     if isinstance(behavioral_analysis, str):
         try:
             behavioral_analysis = json.loads(behavioral_analysis)

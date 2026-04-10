@@ -42,8 +42,9 @@ import { keystrokeApi, type RawKeystrokeEvent } from "@/lib/api/keystroke";
 import { useAuthStore } from "@/lib/stores/authStore";
 // ─── Phase content ────────────────────────────────────────────────────────────
 
-// Judge0 language IDs: 43 = Plain Text, 71 = Python 3.8
+// Judge0 language IDs: 43 = Plain Text, 62 = Java, 71 = Python 3.8
 const PYTHON_LANG_ID = 71;
+const JAVA_LANG_ID = 62;
 const PLAINTEXT_LANG_ID = 43;
 
 interface PhaseContent {
@@ -71,20 +72,41 @@ const PHASE_CONTENT: Record<string, PhaseContent> = {
     transcription: {
         title: "Transcription — Copy the Code",
         instruction:
-            "Transcribe the Python code shown below into the editor. Focus on accuracy — copy it character by character. " +
-            "This captures your typing mechanics separate from problem-solving.",
+            "Transcribe the Java code shown below into the editor exactly as written. " +
+            "Focus on accuracy over speed — copy it character by character including brackets, semicolons and capitalisation. " +
+            "This captures your pure typing mechanics without problem-solving.",
         referenceText:
-`def bubble_sort(arr):
-    n = len(arr)
-    for i in range(n):
-        for j in range(0, n-i-1):
-            if arr[j] > arr[j+1]:
-                arr[j], arr[j+1] = arr[j+1], arr[j]
-    return arr
+`import java.util.ArrayList;
 
-result = bubble_sort([64, 34, 25, 12, 22, 11, 90])
-print(result)`,
-        languageId: PYTHON_LANG_ID,
+public class NumberUtils {
+
+    public static boolean isPrime(int n) {
+        if (n < 2) return false;
+        for (int i = 2; i * i <= n; i++) {
+            if (n % i == 0) return false;
+        }
+        return true;
+    }
+
+    public static int sumDigits(int number) {
+        int total = 0;
+        while (number > 0) {
+            total += number % 10;
+            number /= 10;
+        }
+        return total;
+    }
+
+    public static void main(String[] args) {
+        ArrayList<Integer> primes = new ArrayList<>();
+        for (int i = 2; i <= 50; i++) {
+            if (isPrime(i)) primes.add(i);
+        }
+        System.out.println("Primes up to 50: " + primes);
+        System.out.println("Sum of 1234 digits: " + sumDigits(1234));
+    }
+}`,
+        languageId: JAVA_LANG_ID,
         starterCode: "",
     },
     stress: {

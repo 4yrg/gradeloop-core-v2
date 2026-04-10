@@ -2,15 +2,14 @@
 
 import { useState, useEffect, use, useCallback } from "react";
 import { useAuthStore } from "@/lib/stores/authStore";
+import { keystrokeApi, type ArchiveLookupResult } from "@/lib/api/keystroke";
 import { acafsApi, instructorAssessmentsApi, assessmentsApi } from "@/lib/api/assessments";
-import { keystrokeApi } from "@/lib/api/keystroke";
 import {
     detectAICode,
     getSemanticSimilarity,
     saveSubmissionAnalysis,
 } from "@/lib/api/cipas-client";
 import type { SubmissionGrade, SubmissionResponse } from "@/types/assessments.types";
-import type { ArchiveLookupResult } from "@/lib/api/keystroke";
 import { GradeResultPanel } from "@/components/assessments/grade-result-panel";
 import { InstructorGradeOverridePanel } from "@/components/instructor/instructor-grade-override-panel";
 import { SemanticSimilarityScore, SemanticSimilarityBar } from "@/components/ui/semantic-similarity-score";
@@ -19,8 +18,8 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, BarChart3, BrainCircuit, Loader2, RefreshCw, Sparkles, Video } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, BarChart3, BrainCircuit, RefreshCw, Sparkles, Loader2, Video } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -55,19 +54,21 @@ export default function SubmissionReviewPage({ params }: PageProps) {
     // Keystroke session archive (if available)
     const [archive, setArchive] = useState<ArchiveLookupResult | null>(null);
 
-    // Fetch full submission metadata (includes CIPAS analysis fields)
+    // Fetch submission + keystroke archive on mount
     useEffect(() => {
+        const fetchArchive = (userId: string) => {
+            keystrokeApi
+                .lookupArchive(assignmentId, userId)
+                .then(setArchive)
+                .catch(() => {/* No archive — silently ignore */});
+        };
+
+        // Try full submission first (includes CIPAS analysis fields)
         instructorAssessmentsApi
             .getSubmission(submissionId)
             .then((sub) => {
                 setSubmission(sub);
-                // Try to look up keystroke archive for this submission
-                if (sub.user_id) {
-                    keystrokeApi
-                        .lookupArchive(assignmentId, sub.user_id)
-                        .then(setArchive)
-                        .catch(() => {/* No archive — silently ignore */});
-                }
+                if (sub.user_id) fetchArchive(sub.user_id);
             })
             .catch(() => {
                 // Fallback: search through the list
@@ -77,12 +78,7 @@ export default function SubmissionReviewPage({ params }: PageProps) {
                         const found = resp.find((s: SubmissionResponse) => s.id === submissionId);
                         if (found) {
                             setSubmission(found);
-                            if (found.user_id) {
-                                keystrokeApi
-                                    .lookupArchive(assignmentId, found.user_id)
-                                    .then(setArchive)
-                                    .catch(() => {/* No archive — silently ignore */});
-                            }
+                            if (found.user_id) fetchArchive(found.user_id);
                         }
                     })
                     .catch(() => {/* non-critical */});

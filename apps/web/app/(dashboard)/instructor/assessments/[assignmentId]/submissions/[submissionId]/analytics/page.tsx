@@ -25,10 +25,10 @@ export default function BehaviorAnalyticsPage({ params }: PageProps) {
     const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
 
     const loadAnalytics = useCallback(
-        async (sid: string, showComputing = false) => {
+        async (sid: string, showComputing = false, force = false) => {
             try {
                 if (showComputing) setComputing(true);
-                const data = await keystrokeApi.getAnalytics(sid);
+                const data = await keystrokeApi.getAnalytics(sid, force);
                 setAnalyticsData(data);
 
                 // If analysis still not available, poll once more after 5s
@@ -157,7 +157,10 @@ export default function BehaviorAnalyticsPage({ params }: PageProps) {
                             Analysis is being computed — refreshing automatically…
                         </div>
                     )}
-                    <BehaviorAnalyticsPanel data={analyticsData} />
+                    <BehaviorAnalyticsPanel
+                        data={analyticsData}
+                        onRetryAi={sessionId ? () => loadAnalytics(sessionId, true, true) : undefined}
+                    />
                 </>
             )}
         </div>

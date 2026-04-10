@@ -559,7 +559,7 @@ class DatabaseClient:
                             session_id,
                             assignment_id,
                             course_id,
-                            json.dumps(events),
+                            json.dumps(events, default=str),
                             len(events),
                             duration,
                             avg_risk,
@@ -567,7 +567,7 @@ class DatabaseClient:
                             anomaly_count,
                             failure_count,
                             final_code,
-                            json.dumps(behavioral_analysis),
+                            json.dumps(behavioral_analysis, default=str),
                             retention_until,
                         ),
                     )
@@ -644,7 +644,7 @@ class DatabaseClient:
                         SET behavioral_analysis = %s
                         WHERE session_id = %s
                         """,
-                        (json.dumps(behavioral_analysis), session_id),
+                        (json.dumps(behavioral_analysis, default=str), session_id),
                     )
             return True
         except Exception as e:
