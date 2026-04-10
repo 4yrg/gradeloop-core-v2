@@ -11,6 +11,9 @@ import type {
     QuestionUpdate,
     VivaSession,
     SessionCreate,
+    SessionDetail,
+    GradedQA,
+    Transcript,
     VoiceEnrollmentOut,
     VoiceProfileStatus,
     VoiceVerifyOut,
@@ -202,6 +205,10 @@ export const ivasApi = {
     getSession: (sessionId: string) =>
         ivasRequest<VivaSession>(
             `/sessions/${encodeURIComponent(sessionId)}`
+        ),
+    getSessionDetails: (sessionId: string) =>
+        ivasRequest<SessionDetail>(
+            `/sessions/${encodeURIComponent(sessionId)}/details`
         ),
 
     // --- Voice Enrollment ---

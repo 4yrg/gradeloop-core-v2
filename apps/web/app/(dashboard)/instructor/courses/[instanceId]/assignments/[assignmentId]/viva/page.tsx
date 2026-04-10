@@ -2,23 +2,22 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { format } from "date-fns";
 import {
     Mic2,
-    Loader2,
     Search,
     CheckCircle2,
     Clock,
     XCircle,
     Eye,
+    ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
 import { ivasApi } from "@/lib/ivas-api";
-import { useAuthStore } from "@/lib/stores/authStore";
-import type { VivaSession, IvasAssignment } from "@/types/ivas";
+import type { VivaSession } from "@/types/ivas";
 import {
     Select,
     SelectContent,
@@ -52,62 +51,92 @@ function StatusBadge({ status }: { status: string }) {
     );
 }
 
-export default function InstructorDashboardPage() {
-    const user = useAuthStore((s) => s.user);
+export default function InstructorVivaDashboardPage() {
+    const params = useParams();
+    const assignmentId = params.assignmentId as string;
+    const instanceId = params.instanceId as string;
 
     const [sessions, setSessions] = React.useState<VivaSession[]>([]);
-    const [assignments, setAssignments] = React.useState<IvasAssignment[]>([]);
     const [loading, setLoading] = React.useState(true);
 
     // Filters
     const [studentFilter, setStudentFilter] = React.useState("");
-    const [assignmentFilter, setAssignmentFilter] = React.useState("all");
     const [statusFilter, setStatusFilter] = React.useState("all");
 
     React.useEffect(() => {
         let mounted = true;
         async function load() {
             try {
-                const [sess, asgns] = await Promise.allSettled([
-                    ivasApi.listSessions(),
-                    ivasApi.listAssignments(),
-                ]);
-                if (!mounted) return;
-                if (sess.status === "fulfilled") setSessions(sess.value);
-                if (asgns.status === "fulfilled") setAssignments(asgns.value);
+                const sess = await ivasApi.listSessions({ assignment_id: assignmentId });
+                if (mounted) setSessions(sess);
             } finally {
                 if (mounted) setLoading(false);
             }
         }
         load();
         return () => { mounted = false; };
-    }, []);
-
-    const assignmentMap = React.useMemo(
-        () => new Map(assignments.map(a => [a.id, a.title])),
-        [assignments]
-    );
+    }, [assignmentId]);
 
     const filteredSessions = React.useMemo(() => {
         return sessions.filter(s => {
             if (studentFilter && !s.student_id.toLowerCase().includes(studentFilter.toLowerCase())) return false;
-            if (assignmentFilter !== "all" && s.assignment_id !== assignmentFilter) return false;
             if (statusFilter !== "all" && s.status !== statusFilter) return false;
             return true;
         });
-    }, [sessions, studentFilter, assignmentFilter, statusFilter]);
+    }, [sessions, studentFilter, statusFilter]);
+
+    // Stats
+    const totalSessions = sessions.length;
+    const completedCount = sessions.filter(s => s.status === "completed").length;
+    const activeCount = sessions.filter(s => s.status === "in_progress" || s.status === "initializing").length;
+    const avgScore = (() => {
+        const completed = sessions.filter(s => s.status === "completed" && s.total_score !== null);
+        if (completed.length === 0) return null;
+        const sum = completed.reduce((acc, s) => acc + (s.total_score ?? 0), 0);
+        const max = completed.reduce((acc, s) => acc + (s.max_possible ?? 0), 0);
+        if (max === 0) return null;
+        return Math.round((sum / max) * 100);
+    })();
 
     return (
         <div className="flex flex-col gap-6 pb-8">
-            {/* Header */}
+            {/* Back + Header */}
             <div className="border-b border-border/40 pb-6">
+                <div className="flex items-center gap-2 mb-4">
+                    <Button variant="ghost" size="sm" asChild className="gap-1">
+                        <Link href={`/instructor/courses/${instanceId}/assignments/${assignmentId}`}>
+                            <ArrowLeft className="h-4 w-4" />
+                            Back to Assignment
+                        </Link>
+                    </Button>
+                </div>
                 <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
                     <Mic2 className="h-6 w-6" />
-                    Viva Sessions Dashboard
+                    Viva Sessions
                 </h1>
-                <p className="text-sm text-muted-foreground">
-                    Monitor all student viva assessment sessions.
+                <p className="text-sm text-muted-foreground mt-1">
+                    Monitor and review all student viva sessions for this assignment.
                 </p>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="border border-border/60 rounded-lg p-4 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Total Sessions</p>
+                    <p className="text-2xl font-bold">{loading ? "—" : totalSessions}</p>
+                </div>
+                <div className="border border-border/60 rounded-lg p-4 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Completed</p>
+                    <p className="text-2xl font-bold text-emerald-600">{loading ? "—" : completedCount}</p>
+                </div>
+                <div className="border border-border/60 rounded-lg p-4 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Active</p>
+                    <p className="text-2xl font-bold text-blue-600">{loading ? "—" : activeCount}</p>
+                </div>
+                <div className="border border-border/60 rounded-lg p-4 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Avg Score</p>
+                    <p className="text-2xl font-bold">{loading ? "—" : avgScore !== null ? `${avgScore}%` : "—"}</p>
+                </div>
             </div>
 
             {/* Filters */}
@@ -121,19 +150,8 @@ export default function InstructorDashboardPage() {
                         className="pl-9"
                     />
                 </div>
-                <Select value={assignmentFilter} onValueChange={setAssignmentFilter}>
-                    <SelectTrigger className="w-[200px]">
-                        <SelectValue placeholder="Assignment" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Assignments</SelectItem>
-                        {assignments.map(a => (
-                            <SelectItem key={a.id} value={a.id}>{a.title}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[150px]">
+                    <SelectTrigger className="w-[160px]">
                         <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -156,7 +174,7 @@ export default function InstructorDashboardPage() {
             ) : filteredSessions.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border/60 p-12 text-center text-muted-foreground">
                     <Mic2 className="h-8 w-8 mx-auto mb-3 opacity-40" />
-                    <p className="text-sm">No sessions found.</p>
+                    <p className="text-sm">No sessions found for this assignment.</p>
                 </div>
             ) : (
                 <div className="border border-border/60 rounded-lg overflow-hidden">
@@ -165,7 +183,6 @@ export default function InstructorDashboardPage() {
                             <tr className="bg-muted/50 border-b border-border/40">
                                 <th className="text-left px-4 py-2 font-medium">Date</th>
                                 <th className="text-left px-4 py-2 font-medium">Student</th>
-                                <th className="text-left px-4 py-2 font-medium">Assignment</th>
                                 <th className="text-left px-4 py-2 font-medium">Status</th>
                                 <th className="text-left px-4 py-2 font-medium">Score</th>
                                 <th className="text-right px-4 py-2 font-medium">Actions</th>
@@ -179,9 +196,6 @@ export default function InstructorDashboardPage() {
                                     </td>
                                     <td className="px-4 py-3 font-mono text-xs">{s.student_id}</td>
                                     <td className="px-4 py-3">
-                                        {assignmentMap.get(s.assignment_id) || s.assignment_id.slice(0, 8)}
-                                    </td>
-                                    <td className="px-4 py-3">
                                         <StatusBadge status={s.status} />
                                     </td>
                                     <td className="px-4 py-3 text-muted-foreground">
@@ -189,7 +203,7 @@ export default function InstructorDashboardPage() {
                                     </td>
                                     <td className="px-4 py-3 text-right">
                                         <Button asChild variant="ghost" size="sm">
-                                            <Link href={`/instructor/assessments/review/${s.id}`}>
+                                            <Link href={`/instructor/courses/${instanceId}/assignments/${assignmentId}/viva/${s.id}`}>
                                                 <Eye className="h-3.5 w-3.5 mr-1" />
                                                 Review
                                             </Link>

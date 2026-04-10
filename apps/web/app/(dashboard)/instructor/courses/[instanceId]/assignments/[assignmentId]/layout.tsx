@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, CheckSquare, Settings, BarChart3, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, CheckSquare, Settings, BarChart3, ShieldCheck, Mic2 } from "lucide-react";
 import { instructorAssessmentsApi } from "@/lib/api/assessments";
 import { useUIStore } from "@/lib/stores/uiStore";
 import { cn } from "@/lib/utils";
@@ -55,6 +55,7 @@ export default function AssignmentLayout({
             items: [
                 { name: "Overview", href: basePath },
                 { name: "Submissions", href: `${basePath}/submissions` },
+                { name: "Viva Sessions", href: `${basePath}/viva` },
                 { name: "Similarity", href: `${basePath}/similarity` },
                 { name: "Auth Monitor", href: `${basePath}/monitoring` },
                 { name: "Settings", href: `${basePath}/settings` },
@@ -79,6 +80,7 @@ export default function AssignmentLayout({
             items: [
                 { name: "Overview", href: basePath },
                 { name: "Submissions", href: `${basePath}/submissions` },
+                { name: "Viva Sessions", href: `${basePath}/viva` },
                 { name: "Similarity", href: `${basePath}/similarity` },
                 { name: "Auth Monitor", href: `${basePath}/monitoring` },
                 { name: "Settings", href: `${basePath}/settings` },
@@ -90,6 +92,7 @@ export default function AssignmentLayout({
     const mobileTabs = [
         { name: "Overview", href: basePath, icon: LayoutDashboard },
         { name: "Submissions", href: `${basePath}/submissions`, icon: CheckSquare },
+        { name: "Viva", href: `${basePath}/viva`, icon: Mic2 },
         { name: "Similarity", href: `${basePath}/similarity`, icon: BarChart3 },
         { name: "Auth Monitor", href: `${basePath}/monitoring`, icon: ShieldCheck },
         { name: "Settings", href: `${basePath}/settings`, icon: Settings },

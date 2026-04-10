@@ -161,8 +161,18 @@ export interface WsMessageOutgoing {
 }
 
 export interface WsMessageIncoming {
-    type: "audio" | "text" | "turn_complete" | "session_started" | "session_ended" | "error" | "pong";
+    type:
+        | "audio"
+        | "text"
+        | "user_transcript"
+        | "ai_transcript"
+        | "turn_complete"
+        | "session_started"
+        | "session_ended"
+        | "error"
+        | "pong";
     data?: string;
+    finished?: boolean;
     session_id?: string;
     status?: string;
     mime_type?: string;
@@ -184,6 +194,42 @@ export interface ReadyResponse {
 }
 
 // ============================================================
+// Graded Q&A (from session details endpoint)
+// ============================================================
+
+export interface GradedQA {
+    sequence_num: number;
+    question_text: string;
+    response_text: string | null;
+    score: number | null;
+    max_score: number | null;
+    score_justification: string | null;
+}
+
+// ============================================================
+// Transcript turn (from session details endpoint)
+// ============================================================
+
+export interface Transcript {
+    id: string;
+    session_id: string;
+    turn_number: number;
+    role: "examiner" | "student";
+    content: string;
+    timestamp: string;
+}
+
+// ============================================================
+// Session detail (full picture for instructor review)
+// ============================================================
+
+export interface SessionDetail {
+    session: VivaSession;
+    transcripts: Transcript[];
+    graded_qa: GradedQA[];
+}
+
+// ============================================================
 // Chat Message (UI-only, for viva transcript display)
 // ============================================================
 
@@ -193,4 +239,6 @@ export interface ChatMessage {
     content: string;
     timestamp: Date;
     isAudio?: boolean;
+    /** True while transcript is still streaming for this message. */
+    streaming?: boolean;
 }

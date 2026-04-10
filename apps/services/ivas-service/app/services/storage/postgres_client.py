@@ -193,6 +193,139 @@ class PostgresClient:
             )
             return self._parse_session_row(row) if row else None
 
+    async def update_session_score(
+        self,
+        session_id: UUID,
+        total_score: float,
+        max_possible: float,
+    ) -> dict | None:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                UPDATE sessions
+                SET total_score = $2,
+                    max_possible = $3
+                WHERE id = $1
+                RETURNING *
+                """,
+                session_id, total_score, max_possible,
+            )
+            return self._parse_session_row(row) if row else None
+
+    # =========================================================================
+    # Transcripts
+    # =========================================================================
+
+    async def save_transcript_turns(
+        self,
+        session_id: UUID,
+        turns: list[dict],
+    ) -> None:
+        """Bulk insert transcript turns.
+
+        Each turn is a dict with keys: turn_number, role, content.
+        Safe to call with an empty list (no-op).
+        """
+        if not turns:
+            return
+        async with self._pool.acquire() as conn:
+            await conn.executemany(
+                """
+                INSERT INTO transcripts (session_id, turn_number, role, content)
+                VALUES ($1, $2, $3, $4)
+                """,
+                [
+                    (session_id, t["turn_number"], t["role"], t["content"])
+                    for t in turns
+                ],
+            )
+
+    async def list_transcripts(self, session_id: UUID) -> list[dict]:
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT * FROM transcripts
+                WHERE session_id = $1
+                ORDER BY turn_number ASC
+                """,
+                session_id,
+            )
+            return [dict(r) for r in rows]
+
+    # =========================================================================
+    # Graded Q&A (question_instances + student_responses)
+    # =========================================================================
+
+    async def save_graded_qa(
+        self,
+        session_id: UUID,
+        graded: list[dict],
+    ) -> None:
+        """Persist a list of graded Q&A items for a session.
+
+        Each item is a dict with keys:
+            question_text: str
+            response_text: str | None
+            score: float | None
+            max_score: float | None
+            score_justification: str | None
+            sequence_num: int
+        """
+        if not graded:
+            return
+        async with self._pool.acquire() as conn:
+            async with conn.transaction():
+                for item in graded:
+                    qi = await conn.fetchrow(
+                        """
+                        INSERT INTO question_instances
+                            (session_id, question_text, sequence_num)
+                        VALUES ($1, $2, $3)
+                        RETURNING id
+                        """,
+                        session_id,
+                        item["question_text"],
+                        item["sequence_num"],
+                    )
+                    await conn.execute(
+                        """
+                        INSERT INTO student_responses
+                            (question_instance_id, session_id, response_text,
+                             score, score_justification)
+                        VALUES ($1, $2, $3, $4, $5)
+                        """,
+                        qi["id"],
+                        session_id,
+                        item.get("response_text"),
+                        item.get("score"),
+                        item.get("score_justification"),
+                    )
+
+    async def list_graded_qa(self, session_id: UUID) -> list[dict]:
+        """Return a list of graded Q&A rows (question joined with response).
+
+        Rows are ordered by sequence_num. `max_score` is derived from the
+        existing session's max_possible / question count if absent.
+        """
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT
+                    qi.sequence_num,
+                    qi.question_text,
+                    sr.response_text,
+                    sr.score,
+                    sr.score_justification
+                FROM question_instances qi
+                LEFT JOIN student_responses sr
+                    ON sr.question_instance_id = qi.id
+                WHERE qi.session_id = $1
+                ORDER BY qi.sequence_num ASC
+                """,
+                session_id,
+            )
+            return [dict(r) for r in rows]
+
 
 SCHEMA_SQL = """
 -- =============================================================================
