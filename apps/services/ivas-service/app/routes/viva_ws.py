@@ -297,6 +297,10 @@ async def _finalize_session(
 
     Runs after the live WS has closed. Any failure here is logged but never
     raised — the session must always end cleanly even if grading misbehaves.
+
+    Status is set to 'completed' only after grading succeeds. On grading
+    failure the status is set to 'grading_failed' so the session is clearly
+    marked as needing attention.
     """
     # 1. Always persist raw transcripts first (cheap, no external calls).
     try:
@@ -307,10 +311,12 @@ async def _finalize_session(
     # 2. Grade the session (AI instructor stories #2 and #4).
     if not transcript_turns:
         logger.info("grading_skipped_empty_transcript", session_id=str(sid))
+        await db.update_session_status(sid, "completed")
         return
 
     from app.services.viva.grader import grade_viva_transcript
 
+    graded = None
     try:
         graded = await asyncio.wait_for(
             grade_viva_transcript(
@@ -323,20 +329,24 @@ async def _finalize_session(
         )
     except asyncio.TimeoutError:
         logger.error("grading_timeout", session_id=str(sid))
+        await db.update_session_status(sid, "grading_failed")
         return
     except Exception as exc:
         logger.error("grading_failed", error=str(exc))
+        await db.update_session_status(sid, "grading_failed")
         return
 
     items = graded.get("items") or []
     if not items:
         logger.info("grading_produced_no_items", session_id=str(sid))
+        await db.update_session_status(sid, "completed")
         return
 
     try:
         await db.save_graded_qa(sid, items)
     except Exception as exc:
         logger.error("save_graded_qa_failed", error=str(exc))
+        await db.update_session_status(sid, "grading_failed")
         return
 
     try:
@@ -347,6 +357,9 @@ async def _finalize_session(
         )
     except Exception as exc:
         logger.error("update_session_score_failed", error=str(exc))
+
+    # Mark completed only after everything succeeded.
+    await db.update_session_status(sid, "completed")
 
 
 @router.websocket("/ws/ivas/session/{session_id}")
@@ -391,7 +404,6 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
         with suppress(Exception):
             await websocket.send_json({"type": "error", "data": str(exc)})
     finally:
-        await db.update_session_status(sid, "completed")
         # Notify the client the live side has ended BEFORE running grading —
         # the browser shouldn't wait on the Gemini grading round-trip.
         with suppress(Exception):
@@ -399,7 +411,8 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
         with suppress(Exception):
             await websocket.close()
 
-        # Grade + persist off the hot path. Any failure is swallowed.
+        # Grade + persist off the hot path. Status ('completed' or 'grading_failed')
+        # is set inside _finalize_session after grading finishes.
         with suppress(Exception):
             await _finalize_session(
                 db, settings, sid, transcript_turns, assignment_context,

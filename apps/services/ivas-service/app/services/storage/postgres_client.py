@@ -221,24 +221,30 @@ class PostgresClient:
         session_id: UUID,
         turns: list[dict],
     ) -> None:
-        """Bulk insert transcript turns.
+        """Bulk upsert transcript turns for a session.
 
         Each turn is a dict with keys: turn_number, role, content.
         Safe to call with an empty list (no-op).
+        Replaces any existing transcript turns for the session (idempotent).
         """
         if not turns:
             return
         async with self._pool.acquire() as conn:
-            await conn.executemany(
-                """
-                INSERT INTO transcripts (session_id, turn_number, role, content)
-                VALUES ($1, $2, $3, $4)
-                """,
-                [
-                    (session_id, t["turn_number"], t["role"], t["content"])
-                    for t in turns
-                ],
-            )
+            async with conn.transaction():
+                await conn.execute(
+                    "DELETE FROM transcripts WHERE session_id = $1",
+                    session_id,
+                )
+                await conn.executemany(
+                    """
+                    INSERT INTO transcripts (session_id, turn_number, role, content)
+                    VALUES ($1, $2, $3, $4)
+                    """,
+                    [
+                        (session_id, t["turn_number"], t["role"], t["content"])
+                        for t in turns
+                    ],
+                )
 
     async def list_transcripts(self, session_id: UUID) -> list[dict]:
         async with self._pool.acquire() as conn:
@@ -270,11 +276,28 @@ class PostgresClient:
             max_score: float | None
             score_justification: str | None
             sequence_num: int
+
+        Replaces any existing graded Q&A for the session (idempotent).
         """
         if not graded:
             return
         async with self._pool.acquire() as conn:
             async with conn.transaction():
+                # Remove any previously graded Q&A for this session (idempotency).
+                await conn.execute(
+                    """
+                    DELETE FROM student_responses
+                    WHERE session_id = $1
+                    """,
+                    session_id,
+                )
+                await conn.execute(
+                    """
+                    DELETE FROM question_instances
+                    WHERE session_id = $1
+                    """,
+                    session_id,
+                )
                 for item in graded:
                     qi = await conn.fetchrow(
                         """
@@ -339,7 +362,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     assignment_context  JSONB DEFAULT '{}'::jsonb,
     student_id          TEXT NOT NULL,
     status              TEXT DEFAULT 'initializing'
-                        CHECK (status IN ('initializing', 'in_progress', 'paused', 'completed', 'abandoned')),
+                        CHECK (status IN ('initializing', 'in_progress', 'paused', 'completed', 'abandoned', 'grading_failed')),
     total_score         NUMERIC(5,2),
     max_possible        NUMERIC(5,2),
     started_at          TIMESTAMPTZ DEFAULT now(),

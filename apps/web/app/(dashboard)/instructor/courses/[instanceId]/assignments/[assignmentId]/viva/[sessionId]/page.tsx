@@ -31,6 +31,14 @@ function StatusBadge({ status }: { status: string }) {
             </Badge>
         );
     }
+    if (status === "grading_failed") {
+        return (
+            <Badge variant="outline" className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0">
+                <XCircle className="h-3 w-3 mr-1" />
+                Grading Failed
+            </Badge>
+        );
+    }
     if (status === "abandoned") {
         return (
             <Badge variant="outline" className="bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 border-0">
