@@ -44,6 +44,7 @@
     "react-dom": "19.2.3",
     "react-markdown": "^10.1.0",
     "react-use-audio-recorder": "^0.4.2",
+    "recharts": "^3.8.0",
     "remark-gfm": "^4.0.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",

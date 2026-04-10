@@ -21,7 +21,7 @@ from behavioral_analysis import (
 
 # Import new clients
 from db import get_db_client
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from feature_extraction import KeystrokeFeatureExtractor
 from pydantic import BaseModel
@@ -995,6 +995,43 @@ async def finalize_session(request: Dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/keystroke/archive/lookup")
+async def lookup_archive(assignment_id: str, user_id: str):
+    """
+    Look up the most recent archived session by assignment_id and user_id.
+    Returns session_id and summary statistics used to load playback/analytics.
+    """
+    if not db_client.enabled:
+        raise HTTPException(status_code=503, detail="Database not enabled")
+
+    archive = db_client.lookup_archive_by_assignment(assignment_id, user_id)
+    if not archive:
+        raise HTTPException(
+            status_code=404,
+            detail="No session archive found for this assignment and user",
+        )
+
+    archived_at = archive.get("archived_at")
+    return {
+        "success": True,
+        "session_id": archive["session_id"],
+        "user_id": archive["user_id"],
+        "assignment_id": archive["assignment_id"],
+        "course_id": archive.get("course_id"),
+        "event_count": archive.get("event_count", 0),
+        "session_duration_seconds": archive.get("session_duration_seconds", 0),
+        "average_risk_score": float(archive.get("average_risk_score") or 0.0),
+        "max_risk_score": float(archive.get("max_risk_score") or 0.0),
+        "anomaly_count": int(archive.get("anomaly_count") or 0),
+        "authentication_failures": int(archive.get("authentication_failures") or 0),
+        "archived_at": (
+            archived_at.isoformat()
+            if hasattr(archived_at, "isoformat")
+            else str(archived_at or "")
+        ),
+    }
+
+
 @app.get("/api/keystroke/archive/{session_id}")
 async def get_archived_session(session_id: str, format: str = "raw"):
     """
@@ -1131,6 +1168,189 @@ async def list_enrolled_users():
     enrolled_users = list(authenticator.user_templates.keys())
 
     return {"success": True, "count": len(enrolled_users), "users": enrolled_users}
+
+
+# ==================== Session Playback & Behavior Analytics ====================
+
+
+@app.get("/api/keystroke/playback/{session_id}")
+async def get_playback_data(session_id: str):
+    """
+    Retrieve full session data for keystroke-by-keystroke playback.
+
+    Returns:
+    - All keystroke events (for virtual editor reconstruction)
+    - Authentication timeline entries with timestamps
+    - Final submitted code
+    - Session summary statistics
+    """
+    if not db_client.enabled:
+        raise HTTPException(status_code=503, detail="Database not enabled")
+
+    archive = db_client.get_archived_session(session_id)
+    if not archive:
+        raise HTTPException(status_code=404, detail="Session archive not found")
+
+    # events_json may be stored as a string (JSONB round-trip) or already a list
+    events_raw = archive.get("events_json") or []
+    if isinstance(events_raw, str):
+        try:
+            events_raw = json.loads(events_raw)
+        except Exception:
+            events_raw = []
+
+    # Build auth timeline from auth_events table
+    timeline_rows = db_client.get_session_timeline(session_id)
+    auth_timeline = [
+        {
+            "offset_seconds": row["offset_seconds"],
+            # Express position in ms so the frontend can correlate with event timestamps
+            "timestamp_ms": int(row["offset_seconds"]) * 1000,
+            "risk_score": float(row["risk_score"]) if row.get("risk_score") is not None else 0.0,
+            "similarity_score": float(row["similarity_score"]) if row.get("similarity_score") is not None else 0.0,
+            "authenticated": bool(row.get("authenticated", True)),
+            "confidence_level": row.get("confidence_level", "LOW"),
+            "is_anomaly": bool(row.get("is_anomaly", False)),
+            "anomaly_type": row.get("anomaly_type"),
+            "is_struggling": bool(row.get("is_struggling", False)),
+        }
+        for row in timeline_rows
+    ]
+
+    return {
+        "success": True,
+        "session_id": session_id,
+        "user_id": archive.get("user_id"),
+        "assignment_id": archive.get("assignment_id"),
+        "session_duration_seconds": int(archive.get("session_duration_seconds") or 0),
+        "total_events": int(archive.get("event_count") or 0),
+        "events": events_raw,
+        "auth_timeline": auth_timeline,
+        "final_code": archive.get("final_code") or "",
+        "summary": {
+            "average_risk_score": float(archive.get("average_risk_score") or 0.0),
+            "max_risk_score": float(archive.get("max_risk_score") or 0.0),
+            "anomaly_count": int(archive.get("anomaly_count") or 0),
+            "authentication_failures": int(archive.get("authentication_failures") or 0),
+        },
+    }
+
+
+@app.get("/api/keystroke/analytics/{session_id}")
+async def get_session_analytics(
+    session_id: str,
+    force: bool = Query(False, description="Force re-analysis even if a cached result exists"),
+):
+    """
+    Retrieve or compute behavioral analytics for an archived session.
+
+    If analysis hasn't been run yet, runs it now and caches it.
+    Pass ?force=true to bypass the cache and re-run analysis (useful when
+    GEMINI_API_KEY was added after the first analysis run).
+    Returns:
+    - Full behavioral analysis (session metrics, authenticity, cognitive, process scores)
+    - Risk timeline (from auth_events)
+    - Friction points (from behavioral metrics)
+    """
+    if not db_client.enabled:
+        raise HTTPException(status_code=503, detail="Database not enabled")
+
+    archive = db_client.get_archived_session(session_id)
+    if not archive:
+        raise HTTPException(status_code=404, detail="Session archive not found")
+
+    # Retrieve cached behavioral analysis — skip if force re-analysis requested
+    behavioral_analysis = None if force else archive.get("behavioral_analysis")
+    if isinstance(behavioral_analysis, str):
+        try:
+            behavioral_analysis = json.loads(behavioral_analysis)
+        except Exception:
+            behavioral_analysis = None
+
+    if not behavioral_analysis:
+        # Reconstruct events and run analysis on-demand
+        events_raw = archive.get("events_json") or []
+        if isinstance(events_raw, str):
+            try:
+                events_raw = json.loads(events_raw)
+            except Exception:
+                events_raw = []
+
+        session_events = []
+        for ev in events_raw:
+            try:
+                session_events.append(
+                    KeystrokeSessionEvent(
+                        timestamp=ev.get("timestamp", 0),
+                        key=ev.get("key", ""),
+                        keyCode=ev.get("keyCode", 0),
+                        dwellTime=ev.get("dwellTime", 0),
+                        flightTime=ev.get("flightTime", 0),
+                        action=ev.get("action", "type"),
+                        lineNumber=ev.get("lineNumber"),
+                        columnNumber=ev.get("columnNumber"),
+                        codeSnapshot=ev.get("codeSnapshot"),
+                    )
+                )
+            except Exception:
+                continue
+
+        if len(session_events) >= 10:
+            try:
+                result = behavioral_analyzer.analyze_session(
+                    session_id=session_id,
+                    student_id=archive.get("user_id", "unknown"),
+                    events=session_events,
+                    final_code=archive.get("final_code") or "",
+                )
+                behavioral_analysis = result.model_dump()
+                # Ensure datetime is JSON-serializable
+                ts = behavioral_analysis.get("timestamp")
+                if hasattr(ts, "isoformat"):
+                    behavioral_analysis["timestamp"] = ts.isoformat()
+                db_client.update_archive_behavioral_analysis(session_id, behavioral_analysis)
+            except Exception as e:
+                print(f"⚠️ On-demand analytics failed for {session_id}: {e}")
+                behavioral_analysis = None
+
+    # Risk timeline from auth_events
+    timeline_rows = db_client.get_session_timeline(session_id)
+    risk_timeline = [
+        {
+            "offset_seconds": row["offset_seconds"],
+            "risk_score": float(row["risk_score"]) if row.get("risk_score") is not None else 0.0,
+            "similarity_score": float(row["similarity_score"]) if row.get("similarity_score") is not None else 0.0,
+            "is_anomaly": bool(row.get("is_anomaly", False)),
+            "is_struggling": bool(row.get("is_struggling", False)),
+        }
+        for row in timeline_rows
+    ]
+
+    # Friction points from behavioral analysis session metrics
+    friction_points = []
+    if behavioral_analysis:
+        raw_fps = (behavioral_analysis.get("session_metrics") or {}).get("friction_points", [])
+        for fp in raw_fps:
+            # timestamp is ms since session start → convert to seconds
+            ts_ms = fp.get("timestamp", 0)
+            friction_points.append(
+                {
+                    "offset_seconds": int(ts_ms / 1000),
+                    "duration": fp.get("duration", 0.0),
+                    "deletion_rate": fp.get("deletion_rate", 0.0),
+                    "long_pauses": fp.get("long_pauses", 0),
+                    "severity": fp.get("severity", "medium"),
+                }
+            )
+
+    return {
+        "success": True,
+        "session_id": session_id,
+        "analysis_available": behavioral_analysis is not None,
+        "behavioral_analysis": behavioral_analysis,
+        "risk_timeline": risk_timeline,
+        "friction_points": friction_points,
+    }
 
 
 # ==================== WebSocket for Real-Time Monitoring ====================
