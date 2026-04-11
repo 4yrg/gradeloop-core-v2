@@ -6,7 +6,7 @@ _format_version: "3.0"
 
 services:
   - name: ivas-service
-    url: http://ivas-service:8088
+    url: http://ivas-service:8101
     routes:
       - name: ivas-api
         paths:
@@ -18,12 +18,20 @@ services:
           - /ws/ivas
         strip_path: false
         preserve_host: false
+      - name: ivas-docs
+        paths:
+          - /docs/ivas
+        strip_path: true
+        preserve_host: false
     plugins:
       - name: cors
         config:
           origins:
             - http://localhost:3000
             - http://localhost:3001
+            - http://localhost:80
+            - http://localhost:8080
+            - http://localhost:443
           methods:
             - GET
             - POST

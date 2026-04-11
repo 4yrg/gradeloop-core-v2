@@ -1,21 +1,21 @@
 # =============================================================================
-# Email Service - Kong Configuration
-# Handles email notifications
+# CIPAS-AI Service - Kong Configuration
+# AI Detection Service
 # =============================================================================
 _format_version: "3.0"
 
 services:
-  - name: email-service
-    url: http://email-service:8082
+  - name: cipas-ai-service
+    url: http://cipas-ai-service:8104
     routes:
-      - name: email-routes
+      - name: cipas-ai-api
         paths:
-          - /api/v1/emails
+          - /api/v1/ai
         strip_path: false
         preserve_host: false
-      - name: email-docs
+      - name: cipas-ai-docs
         paths:
-          - /docs/email
+          - /docs/cipas-ai
         strip_path: true
         preserve_host: false
     plugins:
@@ -26,12 +26,6 @@ services:
             - http://localhost:80
             - http://localhost:8080
             - http://localhost:443
-            - http://localhost:8101
-            - http://localhost:8102
-            - http://localhost:8103
-            - http://localhost:8104
-            - http://localhost:8105
-            - http://localhost:8106
           methods:
             - GET
             - POST
@@ -45,14 +39,13 @@ services:
             - Accept
             - Authorization
             - X-Request-ID
-            - X-Requested-With
           credentials: true
           max_age: 3600
       - name: jwt-validation
         run_on_first_request: false
       - name: rate-limiting
         config:
-          minute: 1000
+          minute: 500
           policy: local
           fault_tolerant: true
           hide_client_headers: false

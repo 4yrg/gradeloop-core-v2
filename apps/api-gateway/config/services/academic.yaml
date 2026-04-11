@@ -78,12 +78,18 @@ services:
           - /api/v1/debug
         strip_path: false
         preserve_host: false
+      - name: academic-docs
+        paths:
+          - /docs/academic
+        strip_path: true
+        preserve_host: false
     plugins:
       - name: cors
         config:
           origins:
             - http://localhost:3000
             - http://localhost:80
+            - http://localhost:8080
             - http://localhost:443
           methods:
             - GET

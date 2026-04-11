@@ -939,7 +939,7 @@ if __name__ == "__main__":
 
     import uvicorn
 
-    port = int(os.getenv("CIPAS_SYNTACTICS_PORT", 8086))
+    port = int(os.getenv("CIPAS_SYNTACTICS_PORT", 8106))
     host = os.getenv("CIPAS_SYNTACTICS_HOST", "0.0.0.0")
 
     uvicorn.run(app, host=host, port=port)

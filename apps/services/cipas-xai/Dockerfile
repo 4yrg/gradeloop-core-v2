@@ -18,12 +18,18 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -trimpath \
     -o cipas-xai ./cmd/main.go
 
-FROM alpine:3.19
+FROM builder AS dev
+RUN go install github.com/air-verse/air@latest
+ENV GOFLAGS="-mod=mod"
+CMD ["air"]
+
+FROM alpine:3.19 AS production
 
 RUN apk add --no-cache ca-certificates
 
 WORKDIR /app
 
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /app/cipas-xai .
 COPY --from=builder /app/.env.example .env
 
@@ -36,5 +42,7 @@ EXPOSE 8085
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD wget -q -O - http://localhost:8085/health || exit 1
+
+ENV HOST=0.0.0.0
 
 CMD ["./cipas-xai"]

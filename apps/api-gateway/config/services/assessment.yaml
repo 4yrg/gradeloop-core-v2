@@ -43,12 +43,18 @@ services:
           - /api/v1/student-submissions
         strip_path: false
         preserve_host: false
+      - name: assessment-docs
+        paths:
+          - /docs/assessment
+        strip_path: true
+        preserve_host: false
     plugins:
       - name: cors
         config:
           origins:
             - http://localhost:3000
             - http://localhost:80
+            - http://localhost:8080
             - http://localhost:443
           methods:
             - GET

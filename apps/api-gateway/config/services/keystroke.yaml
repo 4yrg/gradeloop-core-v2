@@ -6,7 +6,7 @@ _format_version: "3.0"
 
 services:
   - name: keystroke-service
-    url: http://keystroke-service:8003
+    url: http://keystroke-service:8103
     routes:
       - name: keystroke-api
         paths:
@@ -18,12 +18,18 @@ services:
           - /ws/monitor
         strip_path: false
         preserve_host: false
+      - name: keystroke-docs
+        paths:
+          - /docs/keystroke
+        strip_path: true
+        preserve_host: false
     plugins:
       - name: cors
         config:
           origins:
             - http://localhost:3000
             - http://localhost:80
+            - http://localhost:8080
             - http://localhost:443
           methods:
             - GET

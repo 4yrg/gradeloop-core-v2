@@ -6,7 +6,7 @@ _format_version: "3.0"
 
 services:
   - name: iam-service
-    url: http://iam-service:8081
+    url: http://kong-service:8081
     routes:
       - name: iam-auth
         paths:
@@ -28,12 +28,18 @@ services:
           - /api/v1/tokens
         strip_path: false
         preserve_host: false
+      - name: iam-docs
+        paths:
+          - /docs/iam
+        strip_path: true
+        preserve_host: false
     plugins:
       - name: cors
         config:
           origins:
             - http://localhost:3000
             - http://localhost:80
+            - http://localhost:8080
             - http://localhost:443
           methods:
             - GET
@@ -75,6 +81,7 @@ services:
           origins:
             - http://localhost:3000
             - http://localhost:80
+            - http://localhost:8080
             - http://localhost:443
           methods:
             - GET

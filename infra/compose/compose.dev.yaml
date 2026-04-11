@@ -99,7 +99,7 @@ services:
       start_period: 10s
 
   seaweed:
-    image: docker.io/seaweedfs/seaweedfs:latest
+    image: docker.io/seaweedfs/seaweedfs:3.71
     container_name: gradeloop-seaweed
     restart: unless-stopped
     environment:
@@ -107,7 +107,7 @@ services:
     ports:
       - "9333:9333"   # S3 API
       - "9320:9320"   # Console
-      - "8080:8080"   # Volume server
+      - "9080:8080"   # Volume server
     volumes:
       - seaweed-data:/data
     networks:
@@ -300,6 +300,7 @@ services:
     build:
       context: ../../apps/services/ivas
       dockerfile: Dockerfile
+      target: development
     volumes:
       - ./apps/services/ivas:/app
     container_name: gradeloop-ivas
@@ -307,10 +308,10 @@ services:
     env_file:
       - .env
     environment:
-      - API_PORT=${IVAS_SVC_PORT:-8088}
+      - SERVICE_PORT=${IVAS_SVC_PORT:-8101}
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${IVAS_SVC_DB_NAME:-ivas_db}
     expose:
-      - "8088"
+      - "8101"
     depends_on:
       postgres:
         condition: service_healthy
@@ -324,6 +325,7 @@ services:
     build:
       context: ../../apps/services/acafs
       dockerfile: Dockerfile
+      target: development
     volumes:
       - ./apps/services/acafs:/app
     container_name: gradeloop-acafs
@@ -331,10 +333,10 @@ services:
     env_file:
       - .env
     environment:
-      - SERVER_PORT=${ACAFS_SVC_PORT:-8086}
+      - SERVICE_PORT=${ACAFS_SVC_PORT:-8102}
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${ACAFS_SVC_DB_NAME:-acafs_db}
     expose:
-      - "8086"
+      - "8102"
     depends_on:
       postgres:
         condition: service_healthy
@@ -348,6 +350,7 @@ services:
     build:
       context: ../../apps/services/keystroke
       dockerfile: Dockerfile
+      target: development
     volumes:
       - ./apps/services/keystroke:/app
     container_name: gradeloop-keystroke
@@ -355,10 +358,10 @@ services:
     env_file:
       - .env
     environment:
-      - SERVER_PORT=${KEYSTROKE_SVC_PORT:-8003}
+      - PORT=${KEYSTROKE_SVC_PORT:-8103}
       - DATABASE_URL=postgresql://keystroke_user:keystroke_pass@postgres-keystroke:5432/keystroke-db
     expose:
-      - "8003"
+      - "8103"
     depends_on:
       postgres-keystroke:
         condition: service_healthy
@@ -372,6 +375,7 @@ services:
     build:
       context: ../../apps/services/cipas-syntactics
       dockerfile: Dockerfile
+      target: development
     volumes:
       - ./apps/services/cipas-syntactics:/app
     container_name: gradeloop-cipas-syntactics
@@ -379,10 +383,10 @@ services:
     env_file:
       - .env
     environment:
-      - CIPAS_SYNTACTICS_PORT=${CIPAS_SYN_SVC_PORT:-8086}
+      - CIPAS_SYNTACTICS_PORT=${CIPAS_SYN_SVC_PORT:-8106}
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
     expose:
-      - "8086"
+      - "8106"
     depends_on:
       postgres:
         condition: service_healthy
@@ -396,6 +400,7 @@ services:
     build:
       context: ../../apps/services/cipas-semantics
       dockerfile: Dockerfile
+      target: development
     volumes:
       - ./apps/services/cipas-semantics:/app
     container_name: gradeloop-cipas-semantics
@@ -403,10 +408,10 @@ services:
     env_file:
       - .env
     environment:
-      - API_PORT=${CIPAS_SEM_SVC_PORT:-8087}
+      - API_PORT=${CIPAS_SEM_SVC_PORT:-8105}
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
     expose:
-      - "8087"
+      - "8105"
     depends_on:
       postgres:
         condition: service_healthy
@@ -420,6 +425,7 @@ services:
     build:
       context: ../../apps/services/cipas-xai
       dockerfile: Dockerfile
+      target: dev
     volumes:
       - ./apps/services/cipas-xai:/app
     container_name: gradeloop-cipas-xai

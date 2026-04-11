@@ -22,24 +22,27 @@ OUT_DIR ?= bin
 # Discover service directories under apps/services (takes the immediate children)
 SERVICES := $(notdir $(wildcard apps/services/*))
 
-.PHONY: all help build-all build clean $(SERVICES)
+.PHONY: all help build-all build clean dev-logs dev-down dev prod-up prod-down prod-logs prod-restart $(SERVICES)
 
 all: build-all
 
 help:
 	@echo "Makefile targets:"
-	@echo "  make            -> build-all (builds every service under apps/services)"
-	@echo "  make build-all  -> build all services"
-	@echo "  make build SERVICE=<name> -> build single service (directory name in apps/services)"
-	@echo "  make clean      -> remove built binaries in each service's $(OUT_DIR)/"
+	@echo "  make            -> dev (runs all services in Docker)"
+	@echo "  make dev        -> start all services in Docker (development)"
+	@echo "  make dev-logs   -> view logs for all services"
+	@echo "  make dev-down   -> stop all development services"
+	@echo "  make prod-up    -> start production environment in Docker"
+	@echo "  make prod-down  -> stop production environment"
 	@echo ""
-	@echo "Build behavior:"
-	@echo " - If the host has the 'go' command available it will be used."
-	@echo " - Otherwise a Dockerized Go environment ($(GO_IMAGE)) will be used as a fallback."
+	@echo "Build commands:"
+	@echo "  make build SERVICE=<name> -> build a single service"
+	@echo "  make build-all            -> build all services"
+	@echo "  make clean                -> remove built binaries"
 	@echo ""
 	@echo "Examples:"
+	@echo "  make dev                  # Start all services in Docker"
 	@echo "  make build SERVICE=academic-service"
-	@echo "  make build-all"
 
 # Default entry to build every discovered service
 # Builds every discovered service (regardless of language)
@@ -157,74 +160,45 @@ COMPOSE_DIR := $(ROOT)/infra/compose
 # Development Targets (Local Service Execution)
 # =============================================================================
 
-# Start infrastructure services in Docker
-dev:
-	@echo "Starting infrastructure services..."
-	$(COMPOSE) -f $(COMPOSE_DIR)/compose.yaml up -d postgres postgres-keystroke rabbitmq redis seaweed
-	@echo ""
-	@echo "Infrastructure started! To run services locally:"
-	@echo "  make dev SERVICE=iam       # Run IAM service with air"
-	@echo "  make dev-go SERVICE=iam   # Same as above"
-	@echo "  make dev-py SERVICE=ivas PORT=8088  # Run Python service with uvicorn"
-	@echo ""
+GO_SERVICES := iam email academic assessment cipas-xai
+PY_SERVICES := ivas acafs keystroke cipas-ai cipas-semantics cipas-syntactics
 
-# Start infrastructure with Kong gateway
-dev-gateway:
-	@echo "Starting infrastructure + Kong gateway..."
-	$(COMPOSE) -f $(COMPOSE_DIR)/compose.yaml up -d postgres postgres-keystroke rabbitmq redis seaweed kong-database
-	@cd apps/api-gateway && $(COMPOSE) up -d
-	@echo ""
+dev-logs:
+	$(COMPOSE) -f $(COMPOSE_DIR)/compose.dev.yaml logs -f
 
-# Run a single Go service locally with air (hot reload)
-dev-go:
-	@if [ -z "$(SERVICE)" ]; then \
-		echo "ERROR: SERVICE variable not set. Example: make dev-go SERVICE=iam"; \
-		exit 1; \
-	fi
-	@echo "Starting Go service $(SERVICE) with air..."
-	@cd "apps/services/$(SERVICE)" && air -c .air.toml
-
-# Run a single Python service locally with uvicorn (hot reload)
-dev-py:
-	@if [ -z "$(SERVICE)" ]; then \
-		echo "ERROR: SERVICE variable not set. Example: make dev-py SERVICE=ivas"; \
-		exit 1; \
-	fi
-	@if [ -z "$(PORT)" ]; then \
-		echo "ERROR: PORT variable not set. Example: make dev-py SERVICE=ivas PORT=8088"; \
-		exit 1; \
-	fi
-	@echo "Starting Python service $(SERVICE) with uvicorn on port $(PORT)..."
-	@cd "apps/services/$(SERVICE)" && uvicorn app.main:app --reload --host 0.0.0.0 --port $(PORT)
-
-# Run all Go services locally with air
-dev-go-all:
-	@echo "Starting all Go services with air..."
-	@echo "This will start all Go services in separate terminals or background jobs."
-	@echo "Use 'make dev SERVICE=<name>' to run individual services."
-
-# Run all Python services locally with uvicorn
-dev-py-all:
-	@echo "Starting all Python services with uvicorn..."
-	@echo "This will start all Python services in separate terminals or background jobs."
-	@echo "Use 'make dev-py SERVICE=<name>' to run individual services."
-
-# Run all services locally (mixed Go + Python)
-dev-all: dev-go-all dev-py-all
-	@echo "All services started locally!"
-
-# Stop all running services
-dev-stop:
-	@echo "Stopping all running services..."
-	@pkill -f "air run" || true
-	@pkill -f "uvicorn" || true
-	@echo "Local services stopped."
-
-# Stop infrastructure
 dev-down:
-	@echo "Stopping infrastructure..."
-	$(COMPOSE) -f $(COMPOSE_DIR)/compose.yaml down
-	@echo "Infrastructure stopped."
+	@echo "Stopping development environment..."
+	$(COMPOSE) -f $(COMPOSE_DIR)/compose.dev.yaml down
+	@echo "Development environment stopped."
+
+dev:
+	@echo "Starting development environment (all in Docker)..."
+	$(COMPOSE) -f $(COMPOSE_DIR)/compose.dev.yaml up -d
+	@echo ""
+	@echo "Development environment started!"
+	@echo ""
+	@echo "Services:"
+	@echo "  - Gateway:    http://localhost:8000"
+	@echo "  - RabbitMQ:   http://localhost:15672"
+	@echo "  - SeaweedFS:  http://localhost:9320"
+	@echo ""
+	@echo "Go Services (80xx):"
+	@echo "  - IAM:        http://localhost:8081"
+	@echo "  - Email:      http://localhost:8082"
+	@echo "  - Academic:   http://localhost:8083"
+	@echo "  - Assessment: http://localhost:8084"
+	@echo "  - CIPAS-XAI:  http://localhost:8085"
+	@echo ""
+	@echo "Python Services (81xx):"
+	@echo "  - IVAS:            http://localhost:8101"
+	@echo "  - ACAFS:           http://localhost:8102"
+	@echo "  - Keystroke:       http://localhost:8103"
+	@echo "  - CIPAS-AI:        http://localhost:8104"
+	@echo "  - CIPAS-Semantics: http://localhost:8105"
+	@echo "  - CIPAS-Syntactics: http://localhost:8106"
+	@echo ""
+	@echo "View logs: make dev-logs"
+	@echo "Stop services: make dev-down"
 
 # =============================================================================
 # Production Targets (Docker-based)
@@ -259,22 +233,4 @@ prod-restart:
 	@echo "Restarting service $(SERVICE)..."
 	$(COMPOSE) -f $(COMPOSE_DIR)/compose.prod.yaml restart $(SERVICE)
 
-# =============================================================================
-# Development Docker Compose Targets
-# =============================================================================
 
-# Start all services in Docker (dev mode - for testing)
-dev-docker-up:
-	@echo "Starting development environment (all in Docker)..."
-	$(COMPOSE) -f $(COMPOSE_DIR)/compose.dev.yaml up -d
-	@echo ""
-
-# Stop development environment
-dev-docker-down:
-	@echo "Stopping development environment..."
-	$(COMPOSE) -f $(COMPOSE_DIR)/compose.dev.yaml down
-	@echo ""
-
-# View development logs
-dev-docker-logs:
-	$(COMPOSE) -f $(COMPOSE_DIR)/compose.dev.yaml logs -f

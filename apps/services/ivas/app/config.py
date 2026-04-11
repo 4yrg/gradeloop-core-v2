@@ -21,7 +21,7 @@ class Settings(BaseSettings):
 
     # Service
     service_name: str = Field(default="ivas-service", alias="SERVICE_NAME")
-    service_port: int = Field(default=8088, alias="SERVICE_PORT")
+    service_port: int = Field(default=8101, alias="SERVICE_PORT")
     service_host: str = Field(default="0.0.0.0", alias="SERVICE_HOST")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     environment: str = Field(default="development", alias="ENVIRONMENT")

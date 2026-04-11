@@ -1442,5 +1442,5 @@ async def websocket_monitor(websocket: WebSocket, user_id: str, session_id: str)
 if __name__ == "__main__":
     import uvicorn
 
-    port = int(os.getenv("PORT", 8003))
+    port = int(os.getenv("PORT", 8103))
     uvicorn.run(app, host="0.0.0.0", port=port)

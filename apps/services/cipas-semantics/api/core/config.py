@@ -19,7 +19,7 @@ class Settings:
 
     # Server Settings
     HOST: str = os.getenv("API_HOST", "0.0.0.0")
-    PORT: int = int(os.getenv("API_PORT", "8000"))
+    PORT: int = int(os.getenv("API_PORT", "8105"))
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
 
     # Model Settings

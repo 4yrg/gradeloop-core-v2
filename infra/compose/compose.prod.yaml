@@ -132,7 +132,7 @@ services:
           memory: 512M
 
   seaweed:
-    image: docker.io/seaweedfs/seaweedfs:latest
+    image: docker.io/seaweedfs/seaweedfs:3.71
     container_name: gradeloop-seaweed
     restart: always
     environment:
@@ -350,6 +350,7 @@ services:
     build:
       context: ../../apps/services/ivas
       dockerfile: Dockerfile
+      target: production
     container_name: gradeloop-ivas
     restart: always
     environment:
@@ -373,6 +374,7 @@ services:
     build:
       context: ../../apps/services/acafs
       dockerfile: Dockerfile
+      target: production
     container_name: gradeloop-acafs
     restart: always
     environment:
@@ -396,6 +398,7 @@ services:
     build:
       context: ../../apps/services/keystroke
       dockerfile: Dockerfile
+      target: production
     container_name: gradeloop-keystroke
     restart: always
     environment:
@@ -419,6 +422,7 @@ services:
     build:
       context: ../../apps/services/cipas-syntactics
       dockerfile: Dockerfile
+      target: production
     container_name: gradeloop-cipas-syntactics
     restart: always
     environment:
@@ -442,6 +446,7 @@ services:
     build:
       context: ../../apps/services/cipas-semantics
       dockerfile: Dockerfile
+      target: production
     container_name: gradeloop-cipas-semantics
     restart: always
     environment:
@@ -465,6 +470,7 @@ services:
     build:
       context: ../../apps/services/cipas-xai
       dockerfile: Dockerfile
+      target: production
     container_name: gradeloop-cipas-xai
     restart: always
     environment:

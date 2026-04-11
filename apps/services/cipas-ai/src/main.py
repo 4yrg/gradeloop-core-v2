@@ -152,7 +152,7 @@ if __name__ == "__main__":
     import uvicorn
 
     host = os.getenv("CIPAS_AI_HOST", "0.0.0.0")
-    port = int(os.getenv("CIPAS_AI_PORT", "8087"))
+    port = int(os.getenv("CIPAS_AI_PORT", "8104"))
 
     uvicorn.run(
         "main:app",

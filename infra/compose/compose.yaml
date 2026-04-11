@@ -140,7 +140,7 @@ services:
   # SeaweedFS (Object Storage - S3 Compatible)
   # =============================================================================
   seaweed:
-    image: docker.io/seaweedfs/seaweedfs:latest
+    image: docker.io/chrislusf/seaweedfs:3.71
     container_name: gradeloop-seaweed
     restart: unless-stopped
     environment:
@@ -148,7 +148,7 @@ services:
     ports:
       - "9333:9333"   # S3 API
       - "9320:9320"   # Console
-      - "8080:8080"   # Volume server
+      - "9080:8080"   # Volume server
     volumes:
       - seaweed-data:/data
     networks:
@@ -168,7 +168,7 @@ services:
         compress: "true"
 
   # =============================================================================
-  # Kong Database (Separate PostgreSQL for Kong Gateway)
+  # SeaweedFS (Object Storage - S3 Compatible)
   # =============================================================================
   kong-database:
     image: docker.io/postgres:16-alpine
@@ -179,7 +179,7 @@ services:
       - POSTGRES_PASSWORD=${KONG_DB_PASSWORD:-kong_pass}
       - POSTGRES_DB=kong
     ports:
-      - "5433:5432"
+      - "5434:5432"
     volumes:
       - kong-database-data:/var/lib/postgresql/data
     networks:
