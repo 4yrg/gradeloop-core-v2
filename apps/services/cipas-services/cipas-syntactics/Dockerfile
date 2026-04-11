@@ -1,31 +1,24 @@
 # =============================================================================
-# CIPAS Syntactics Service - Optimized Dockerfile
-# Target Image Size: <150MB
+# CIPAS Syntactics Service - Alpine Dockerfile
 # =============================================================================
 
-# -----------------------------------------------------------------------------
-# Stage 1: Builder
-# -----------------------------------------------------------------------------
-FROM python:3.11-slim AS builder
+FROM python:3.11-alpine AS builder
 
 WORKDIR /app
 
-# Set environment variables
+RUN apk add --no-cache \
+    build-base \
+    curl \
+    git \
+    && rm -rf /var/cache/apk/*
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy dependency files first for layer caching
 COPY pyproject.toml ./
 
-# Install dependencies directly (package-mode = false in pyproject.toml)
-RUN pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org \
+RUN pip install --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org \
     fastapi \
     uvicorn \
     pydantic \
@@ -47,65 +40,50 @@ RUN pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org \
     asyncpg \
     "sqlalchemy[asyncio]"
 
-# Copy application code
 COPY main.py routes.py schemas.py database.py ./
 COPY clone_detection/ ./clone_detection/
 COPY repositories/ ./repositories/
 
-# Verify tree-sitter tokenizer installation
 RUN python -c "from clone_detection.tokenizers.tree_sitter_tokenizer import TreeSitterTokenizer; TreeSitterTokenizer(); print('Tree-sitter parsers loaded successfully')" 2>/dev/null || true
 
-# -----------------------------------------------------------------------------
-# Stage 2: Production Runtime
-# -----------------------------------------------------------------------------
-FROM python:3.11-slim AS production
+FROM python:3.11-alpine AS production
 
 WORKDIR /app
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apk add --no-cache \
+    libpq \
     curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+    && rm -rf /var/cache/apk/*
 
-# Copy installed packages from builder
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    CUDA_VISIBLE_DEVICES=""
+
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
-
-# Copy application code
 COPY --from=builder /app/main.py /app/routes.py /app/schemas.py /app/database.py ./
 COPY --from=builder /app/clone_detection ./clone_detection
 COPY --from=builder /app/repositories ./repositories
 
-# Create models directory and non-root user
 RUN mkdir -p /app/models \
-    && useradd --create-home --uid 1000 cipas-syntactics \
-    && chown -R cipas-syntactics:cipas-syntactics /app
+    && addgroup -S cipas && adduser -S cipas -G cipas \
+    && chown -R cipas:cipas /app
 
-USER cipas-syntactics
+USER cipas
 
-# Expose port (default 8086; override via CIPAS_SYNTACTICS_PORT)
 EXPOSE 8086
 
-# Health check (app listens on 8086 by default)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8086/api/v1/syntactics/health || exit 1
 
 CMD ["sh", "-c", "exec uvicorn main:app --host 0.0.0.0 --port ${CIPAS_SYNTACTICS_PORT:-8086} --workers 1"]
 
-# -----------------------------------------------------------------------------
-# Stage 3: Development
-# -----------------------------------------------------------------------------
 FROM builder AS development
 
 WORKDIR /app
 
-# Install dev dependencies
-RUN pip install pytest 2>/dev/null || true
+RUN apk add --no-cache python3-dev \
+    && pip install pytest 2>/dev/null || true
 
 COPY main.py routes.py schemas.py database.py ./
 COPY clone_detection/ ./clone_detection/

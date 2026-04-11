@@ -1,4 +1,4 @@
-module github.com/gradeloop/cipas-xai
+module github.com/4yrg/gradeloop-core-v2/apps/services/cipas/cipas-xai
 
 go 1.25.0
 
@@ -7,6 +7,12 @@ require (
 	github.com/joho/godotenv v1.5.1
 	go.uber.org/zap v1.26.0
 )
+
+replace github.com/4yrg/gradeloop-core-v2/packages/go/logger => ../../../packages/go/logger
+replace github.com/4yrg/gradeloop-core-v2/packages/go/middleware => ../../../packages/go/middleware
+replace github.com/4yrg/gradeloop-core-v2/packages/go/errors => ../../../packages/go/errors
+replace github.com/4yrg/gradeloop-core-v2/packages/go/secrets => ../../../packages/go/secrets
+replace github.com/4yrg/gradeloop-core-v2/packages/go/grpc => ../../../packages/go/grpc
 
 require (
 	github.com/andybalholm/brotli v1.2.0 // indirect

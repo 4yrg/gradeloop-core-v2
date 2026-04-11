@@ -1,33 +1,40 @@
+# =============================================================================
+# CIPAS XAI Service - Alpine Dockerfile
+# =============================================================================
+
 FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
-# Install dependencies
-RUN apk add --no-cache git
+RUN apk add --no-cache git ca-certificates
 
-# Copy go mod files
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy source code
 COPY . .
 
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -ldflags="-s -w -buildid=" \
+    -trimpath \
+    -o cipas-xai ./cmd/main.go
 
-# Final stage
-FROM alpine:latest
+FROM alpine:3.19
 
-RUN apk --no-cache add ca-certificates
+RUN apk add --no-cache ca-certificates
 
-WORKDIR /root/
+WORKDIR /app
 
-# Copy the binary from builder
-COPY --from=builder /app/main .
-
-# Copy env example
+COPY --from=builder /app/cipas-xai .
 COPY --from=builder /app/.env.example .env
+
+RUN addgroup -S cipas-xai && adduser -S cipas-xai -G cipas-xai \
+    && chown -R cipas-xai:cipas-xai /app
+
+USER cipas-xai
 
 EXPOSE 8085
 
-CMD ["./main"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget -q -O - http://localhost:8085/health || exit 1
+
+CMD ["./cipas-xai"]
