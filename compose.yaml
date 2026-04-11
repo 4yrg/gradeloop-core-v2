@@ -1,9 +1,9 @@
 services:
   # =============================================================================
-  # Kong API Gateway (External - gradeloop-api-gateway/docker-compose.yaml)
+  # Kong API Gateway
   # =============================================================================
-  # Kong gateway runs via: cd gradeloop-api-gateway && docker compose up -d
-  # All routing is handled by Kong declarative config in gradeloop-api-gateway/config/
+  # Kong gateway runs via: cd apps/api-gateway && docker compose up -d
+  # All routing is handled by Kong declarative config in apps/api-gateway/config/
 
   # =============================================================================
   # PostgreSQL (Single Instance — All Services Share, Isolated by DB Name)
@@ -70,11 +70,11 @@ services:
   # =============================================================================
   iam-service:
     build:
-      context: ./apps/services/iam-service
+      context: ./apps/services/iam
       dockerfile: Dockerfile
       target: dev
     volumes:
-      - ./apps/services/iam-service:/app
+      - ./apps/services/iam:/app
     container_name: iam-service
     restart: unless-stopped
     labels:
@@ -144,11 +144,11 @@ services:
   # =============================================================================
   email-service:
     build:
-      context: ./apps/services/email-service
+      context: ./apps/services/email
       dockerfile: Dockerfile
       target: dev
     volumes:
-      - ./apps/services/email-service:/app
+      - ./apps/services/email:/app
     container_name: email-service
     restart: unless-stopped
     labels:
@@ -194,7 +194,7 @@ services:
   # =============================================================================
   academic-service:
     build:
-      context: ./apps/services/academic-service
+      context: ./apps/services/academic
       dockerfile: Dockerfile
       target: dev
     volumes:
@@ -252,7 +252,7 @@ services:
   # =============================================================================
   assessment-service:
     build:
-      context: ./apps/services/assessment-service
+      context: ./apps/services/assessment
       dockerfile: Dockerfile
       target: dev
     volumes:
@@ -490,11 +490,11 @@ services:
   # # =============================================================================
   # acafs-service:
   #   build:
-  #     context: ./apps/services/acafs-service
+  #     context: ./apps/services/acafs
   #     dockerfile: Dockerfile
   #     target: development
   #   volumes:
-  #     - ./apps/services/acafs-service:/app
+  #     - ./apps/services/acafs:/app
   #   container_name: acafs-service
   #   restart: unless-stopped
   #   labels:
@@ -625,7 +625,7 @@ services:
   # =============================================================================
   keystroke-service:
     build:
-      context: ./apps/services/keystroke-service
+      context: ./apps/services/keystroke
       dockerfile: Dockerfile
     container_name: keystroke-service
     restart: unless-stopped
@@ -654,7 +654,7 @@ services:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - MIN_EVENTS_FOR_ENROLLMENT=150
     volumes:
-      - ./apps/services/keystroke-service/models:/app/models
+      - ./apps/services/keystroke/models:/app/models
     expose:
       - "8003"
     depends_on:
@@ -786,11 +786,11 @@ services:
 
   ivas-service:
     build:
-      context: ./apps/services/ivas-service
+      context: ./apps/services/ivas
       dockerfile: Dockerfile
       target: development
     volumes:
-      - ./apps/services/ivas-service:/app
+      - ./apps/services/ivas:/app
     container_name: ivas-service
     restart: unless-stopped
     labels:
