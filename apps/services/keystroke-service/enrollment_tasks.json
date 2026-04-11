@@ -25,29 +25,21 @@
     
     "transcription": {
       "name": "Code Transcription",
-      "description": "Type pre-written code to capture pure motor rhythm without cognitive load",
+      "description": "Type pre-written Java code to capture pure motor rhythm without cognitive load",
       "duration_minutes": 5,
       "tasks": [
         {
           "type": "code_transcription",
-          "prompt": "Transcribe the following code exactly as shown",
+          "prompt": "Transcribe the following Java code exactly as shown",
           "instructions": [
-            "Copy the code character-by-character",
+            "Copy the code character-by-character including all brackets, semicolons and capitalisation",
             "Focus on accuracy, not speed",
             "This measures your typing mechanics without problem-solving"
           ],
           "code_samples": [
             {
-              "language": "python",
-              "code": "def bubble_sort(arr):\n    n = len(arr)\n    for i in range(n):\n        for j in range(0, n-i-1):\n            if arr[j] > arr[j+1]:\n                arr[j], arr[j+1] = arr[j+1], arr[j]\n    return arr\n\nresult = bubble_sort([64, 34, 25, 12, 22, 11, 90])\nprint(result)"
-            },
-            {
               "language": "java",
-              "code": "public class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println(\"Hello, World!\");\n        int sum = 0;\n        for (int i = 1; i <= 10; i++) {\n            sum += i;\n        }\n        System.out.println(\"Sum: \" + sum);\n    }\n}"
-            },
-            {
-              "language": "javascript",
-              "code": "function calculateFactorial(n) {\n    if (n === 0 || n === 1) {\n        return 1;\n    }\n    return n * calculateFactorial(n - 1);\n}\n\nconst result = calculateFactorial(5);\nconsole.log(`Factorial: ${result}`);"
+              "code": "import java.util.ArrayList;\n\npublic class NumberUtils {\n\n    public static boolean isPrime(int n) {\n        if (n < 2) return false;\n        for (int i = 2; i * i <= n; i++) {\n            if (n % i == 0) return false;\n        }\n        return true;\n    }\n\n    public static int sumDigits(int number) {\n        int total = 0;\n        while (number > 0) {\n            total += number % 10;\n            number /= 10;\n        }\n        return total;\n    }\n\n    public static void main(String[] args) {\n        ArrayList<Integer> primes = new ArrayList<>();\n        for (int i = 2; i <= 50; i++) {\n            if (isPrime(i)) primes.add(i);\n        }\n        System.out.println(\"Primes up to 50: \" + primes);\n        System.out.println(\"Sum of 1234 digits: \" + sumDigits(1234));\n    }\n}"
             }
           ]
         }
