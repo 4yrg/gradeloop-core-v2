@@ -31,10 +31,12 @@ services:
     environment:
       - POSTGRES_USER=${GRA_DB_USER}
       - POSTGRES_PASSWORD=${GRA_DB_PASSWORD}
+      - POSTGRES_DB=${IAM_SVC_DB_NAME} # Default database for connections
     ports:
       - "5432:5432" # Optional: expose for local debugging; remove in strict prod
     volumes:
       - postgres-data:/var/lib/postgresql/data
+<<<<<<< HEAD:compose.yaml
     configs:
       - source: init-databases
         target: /docker-entrypoint-initdb.d/databases.sh
@@ -42,7 +44,7 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${GRA_DB_USER}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${GRA_DB_USER}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -112,7 +114,7 @@ services:
       - "traefik.http.middlewares.login-ratelimit.ratelimit.period=1m"
       - "traefik.http.middlewares.login-ratelimit.ratelimit.burst=10"
       - "traefik.http.middlewares.iam-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,PATCH,OPTIONS"
-      - "traefik.http.middlewares.iam-cors.headers.accesscontrolalloworiginlist=http://localhost:3000,http://localhost:3001"
+      - "traefik.http.middlewares.iam-cors.headers.accesscontrolalloworiginlist=http://localhost:80,http://localhost:443"
       - "traefik.http.middlewares.iam-cors.headers.accesscontrolallowheaders=Origin,Content-Type,Accept,Authorization,X-Request-ID,X-Requested-With,X-HTTP-Method-Override"
       - "traefik.http.middlewares.iam-cors.headers.accesscontrolallowcredentials=true"
       - "traefik.http.middlewares.iam-cors.headers.addvaryheader=true"
@@ -230,7 +232,7 @@ services:
       - "traefik.http.middlewares.academic-ratelimit.ratelimit.period=1m"
       - "traefik.http.middlewares.academic-ratelimit.ratelimit.burst=50"
       - "traefik.http.middlewares.academic-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,PATCH,OPTIONS"
-      - "traefik.http.middlewares.academic-cors.headers.accesscontrolalloworiginlist=http://localhost:3000,http://localhost:3001"
+      - "traefik.http.middlewares.academic-cors.headers.accesscontrolalloworiginlist=http://localhost:80,http://localhost:443"
       - "traefik.http.middlewares.academic-cors.headers.accesscontrolallowheaders=Origin,Content-Type,Accept,Authorization,X-Request-ID,X-Requested-With"
       - "traefik.http.middlewares.academic-cors.headers.accesscontrolallowcredentials=true"
       - "traefik.http.middlewares.academic-cors.headers.addvaryheader=true"
@@ -338,6 +340,7 @@ services:
   # =============================================================================
   # CIPAS Syntactics Service (Python FastAPI)
   # =============================================================================
+<<<<<<< HEAD:compose.yaml
   # cipas-syntactics:
   #   build:
   #     context: ./apps/services/cipas-services/cipas-syntactics
@@ -654,7 +657,7 @@ services:
       - "traefik.http.routers.keystroke.entrypoints=web"
       - "traefik.http.services.keystroke-service.loadbalancer.server.port=8003"
       - "traefik.http.middlewares.keystroke-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,OPTIONS"
-      - "traefik.http.middlewares.keystroke-cors.headers.accesscontrolalloworiginlist=http://localhost:3000,http://localhost:3001"
+      - "traefik.http.middlewares.keystroke-cors.headers.accesscontrolalloworiginlist=http://localhost:80,http://localhost:443"
       - "traefik.http.middlewares.keystroke-cors.headers.accesscontrolallowheaders=Origin,Content-Type,Accept,Authorization"
       - "traefik.http.middlewares.keystroke-cors.headers.accesscontrolallowcredentials=true"
       - "traefik.http.routers.keystroke.middlewares=keystroke-cors"
@@ -686,13 +689,7 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')",
-        ]
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -759,7 +756,7 @@ services:
     image: redis:7-alpine
     container_name: redis
     restart: unless-stopped
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    command: [ "redis-server", "--save", "", "--appendonly", "no" ]
     ports:
       - "6379:6379"
     volumes:
@@ -767,7 +764,7 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
