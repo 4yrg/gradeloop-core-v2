@@ -82,6 +82,14 @@ class GeneratedCompetency(BaseModel):
     weight: float = 1.0
 
 
+class CreateCompetencyRequest(BaseModel):
+    """Request body for creating a new competency."""
+    name: str
+    description: str | None = None
+    difficulty: int = Field(default=1, ge=1, le=5)
+    max_score: float = 10.0
+
+
 class OverrideScoreRequest(BaseModel):
     student_id: str
     competency_id: UUID

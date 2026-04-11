@@ -307,7 +307,7 @@ export default function ResultsPage() {
                         Viva Results
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        {session.assignment_context?.title ?? session.assignment_id}
+                        {String(session.assignment_context?.title ?? session.assignment_id)}
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                         {format(new Date(session.started_at), "EEEE, MMMM d, yyyy 'at' HH:mm")}

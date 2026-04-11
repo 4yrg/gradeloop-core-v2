@@ -9,6 +9,7 @@ from app.schemas.competency import (
     CompetencyOut,
     CompetencyScoreOut,
     CompetencyScoreSummary,
+    CreateCompetencyRequest,
     GenerateCompetenciesRequest,
     GenerateCompetenciesResponse,
     GeneratedCompetency,
@@ -48,19 +49,14 @@ async def list_competencies() -> list[CompetencyOut]:
 
 
 @router.post("", response_model=CompetencyOut, status_code=status.HTTP_201_CREATED)
-async def create_competency(
-    name: str,
-    description: str | None = None,
-    difficulty: int = 1,
-    max_score: float = 10.0,
-) -> CompetencyOut:
+async def create_competency(body: CreateCompetencyRequest) -> CompetencyOut:
     """Create a new competency."""
     db = _get_db()
     row = await db.upsert_competency(
-        name=name,
-        description=description,
-        difficulty=difficulty,
-        max_score=max_score,
+        name=body.name,
+        description=body.description,
+        difficulty=body.difficulty,
+        max_score=body.max_score,
     )
     return CompetencyOut(**row)
 

@@ -26,6 +26,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ivasApi } from "@/lib/ivas-api";
+import { instructorAssessmentsApi } from "@/lib/api/assessments";
+
 import type {
     CompetencyOut,
     CompetencyAssignmentLinkOut,
@@ -137,11 +139,17 @@ export default function CompetenciesPage() {
         try {
             setGenerating(true);
             setError(null);
-            // Fetch assignment details for code context and description
-            const assignment = await ivasApi.getAssignment(assignmentId);
+            // Use the instructor-scoped endpoint which allows instructor access.
+            // The general GET /assignments/:id requires admin role, so we fetch
+            // via /instructor-assignments/me and find our assignment by ID.
+            const myAssignments = await instructorAssessmentsApi.listMyAssignments(instanceId);
+            const assignment = myAssignments.find(a => a.id === assignmentId);
+            if (!assignment) {
+                throw new Error("Assignment not found. Make sure you are the instructor for this assignment.");
+            }
             const result = await ivasApi.generateCompetencies({
                 assignment_id: assignmentId,
-                code_context: assignment.code_context || undefined,
+                code_context: assignment.code || undefined,
                 description: assignment.description || undefined,
                 title: assignment.title,
             });
@@ -596,7 +604,9 @@ export default function CompetenciesPage() {
                 description="Remove this competency from the assignment? Students will no longer be assessed on this concept."
                 confirmText="Remove"
                 variant="destructive"
-                onConfirm={() => deleteId && handleDeleteLink(deleteId)}
+                onConfirm={() => {
+                    if (deleteId) handleDeleteLink(deleteId);
+                }}
             />
         </div>
     );

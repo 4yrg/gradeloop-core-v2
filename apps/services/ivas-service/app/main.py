@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 from app.logging_config import configure_logging, get_logger
+from app.routes.assignments import router as assignments_router
 from app.routes.chat_ui import router as chat_ui_router
 from app.routes.competencies import router as competencies_router
 from app.routes.sessions import router as sessions_router
@@ -118,6 +119,7 @@ app = FastAPI(
 )
 
 # Include routers — sub-routers first, then mount to app
+api_router.include_router(assignments_router)
 api_router.include_router(sessions_router)
 api_router.include_router(competencies_router)
 api_router.include_router(voice_router)

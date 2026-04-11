@@ -127,6 +127,7 @@ export default function SimilarityOverviewPage() {
     if (!report || !assignment) return;
 
     async function analyzeSubmissions() {
+      if (!assignment) return;
       try {
         setIsAnalyzingSubmissions(true);
 
@@ -145,7 +146,7 @@ export default function SimilarityOverviewPage() {
 
         // Fetch instructor template if available
         let instructorTemplate: string | null = null;
-        if (assignment.instructor_template_id) {
+        if (assignment && assignment.instructor_template_id) {
           try {
             const templateCode = await assessmentsApi.getSubmissionCode(
               assignment.instructor_template_id
@@ -293,7 +294,7 @@ export default function SimilarityOverviewPage() {
             assignment.instructor_template_id
           );
           instructorTemplate = templateCode.code || undefined;
-          logger.info(`Fetched instructor template: ${instructorTemplate?.length || 0} characters`);
+          console.info(`Fetched instructor template: ${instructorTemplate?.length || 0} characters`);
         } catch (err) {
           console.warn("Could not fetch instructor template for clustering:", err);
         }

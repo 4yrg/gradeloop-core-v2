@@ -1,3 +1,4 @@
+import { axiosInstance } from "@/lib/api/axios";
 import type {
     IvasAssignment,
     AssignmentCreate,
@@ -29,87 +30,31 @@ import type {
     OverrideScoreRequest,
 } from "@/types/ivas";
 
-const IVAS_BASE_URL =
-    process.env.NEXT_PUBLIC_IVAS_API_URL || "http://localhost:8000/api/v1/ivas";
-
 const IVAS_WS_URL =
     process.env.NEXT_PUBLIC_IVAS_WS_URL || "ws://localhost:8000";
 
-// Retry configuration
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000;
+async function ivasRequest<T>(path: string, options: { method?: string; body?: string } = {}): Promise<T> {
+    const url = `/ivas${path}`;
+    const method = options.method || "GET";
 
-async function retryableRequest<T>(
-    path: string,
-    options: RequestInit = {}
-): Promise<T> {
-    let lastError: Error | null = null;
+    const response = await axiosInstance.request<T>({
+        url,
+        method,
+        data: options.body ? JSON.parse(options.body) : undefined,
+    });
 
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-        try {
-            const url = `${IVAS_BASE_URL}${path}`;
-            const response = await fetch(url, {
-                ...options,
-                headers: {
-                    "Content-Type": "application/json",
-                    ...options.headers,
-                },
-            });
-
-            if (!response.ok) {
-                const error = await response
-                    .json()
-                    .catch(() => ({ detail: "Unknown error" }));
-                throw new Error(error.detail || response.statusText);
-            }
-
-            if (response.status === 204) return {} as T;
-            return response.json();
-        } catch (error) {
-            lastError = error instanceof Error ? error : new Error("Unknown error");
-
-            if (lastError.message.includes("4")) {
-                throw lastError;
-            }
-
-            if (attempt < MAX_RETRIES) {
-                await new Promise(resolve =>
-                    setTimeout(resolve, RETRY_DELAY * Math.pow(2, attempt - 1))
-                );
-            }
-        }
-    }
-
-    throw lastError || new Error("Request failed after retries");
-}
-
-async function ivasRequest<T>(
-    path: string,
-    options: RequestInit = {}
-): Promise<T> {
-    return retryableRequest<T>(path, options);
+    return response.data;
 }
 
 // Multipart form request (for voice enrollment)
-async function ivasFormRequest<T>(
-    path: string,
-    formData: FormData
-): Promise<T> {
-    const url = `${IVAS_BASE_URL}${path}`;
-    const response = await fetch(url, {
-        method: "POST",
-        body: formData,
-        // No Content-Type header — browser sets multipart boundary automatically
+async function ivasFormRequest<T>(path: string, formData: FormData): Promise<T> {
+    const url = `/ivas${path}`;
+    const response = await axiosInstance.post<T>(url, formData, {
+        headers: {
+            "Content-Type": "multipart/form-data",
+        },
     });
-
-    if (!response.ok) {
-        const error = await response
-            .json()
-            .catch(() => ({ detail: "Unknown error" }));
-        throw new Error(error.detail || response.statusText);
-    }
-
-    return response.json();
+    return response.data;
 }
 
 export const ivasApi = {
