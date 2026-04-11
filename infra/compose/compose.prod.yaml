@@ -1,32 +1,40 @@
 # =============================================================================
-# GradeLoop Core v2 - Development Compose
+# GradeLoop Core v2 - Production Compose
 # =============================================================================
-# This file runs ALL services in Docker for development/testing
+# This file runs everything in Docker for production deployment
+# Uses optimized production images without source mounting
 #
 # Usage:
-#   docker compose -f compose.dev.yaml up -d           # Start all in background
-#   docker compose -f compose.dev.yaml up              # Start all with logs
-#   docker compose -f compose.dev.yaml down             # Stop all
-#   docker compose -f compose.dev.yaml logs -f <svc> # View service logs
+#   docker compose -f compose.prod.yaml up -d           # Start all in background
+#   docker compose -f compose.prod.yaml up              # Start all with logs
+#   docker compose -f compose.prod.yaml down             # Stop all
+#   docker compose -f compose.prod.yaml logs -f <svc> # View service logs
 #
-# To run locally instead (recommended for dev):
-#   docker compose up -d                               # Start infrastructure only
-#   make dev SERVICE=<name>                         # Run services locally
+# Important:
+#   - Set all required environment variables before deploying
+#   - Use secrets management in production (e.g., Docker secrets, Vault)
+#   - All services run in internal network (no exposed ports for app services)
+
+x-shared-environment: &shared_env
+  GRA_DB_USER: ${GRA_DB_USER:-postgres}
+  GRA_DB_PASSWORD: ${GRA_DB_PASSWORD:-postgres}
+  GRA_DB_HOST: postgres
+  GRA_DB_PORT: 5432
+  GRA_DB_SSLMODE: ${GRA_DB_SSLMODE:-disable}
 
 services:
   # =============================================================================
-  # Infrastructure (always needed)
+  # Infrastructure (Production)
   # =============================================================================
   postgres:
     image: postgres:16-alpine
     container_name: gradeloop-postgres
-    restart: unless-stopped
+    restart: always
     environment:
       - POSTGRES_USER=${GRA_DB_USER:-postgres}
       - POSTGRES_PASSWORD=${GRA_DB_PASSWORD:-postgres}
       - POSTGRES_DB=${IAM_SVC_DB_NAME:-iam_db}
-    ports:
-      - "5432:5432"
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
@@ -37,17 +45,23 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
 
   postgres-keystroke:
     image: postgres:16-alpine
     container_name: gradeloop-postgres-keystroke
-    restart: unless-stopped
+    restart: always
     environment:
       - POSTGRES_USER=keystroke_user
-      - POSTGRES_PASSWORD=keystroke_pass
+      - POSTGRES_PASSWORD=${KEYSTROKE_DB_PASSWORD:-keystroke_pass}
       - POSTGRES_DB=keystroke-db
-    ports:
-      - "5433:5432"
     volumes:
       - postgres-keystroke-data:/var/lib/postgresql/data
     networks:
@@ -58,17 +72,22 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
 
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
     container_name: gradeloop-rabbitmq
-    restart: unless-stopped
+    restart: always
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-guest}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-guest}
-    ports:
-      - "5672:5672"
-      - "15672:15672"
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     networks:
@@ -79,13 +98,19 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
 
   redis:
     image: redis:7-alpine
     container_name: gradeloop-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
+    restart: always
     volumes:
       - redis-data:/data
     networks:
@@ -97,17 +122,22 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
 
   minio:
     image: minio/minio:latest
     container_name: gradeloop-minio
-    restart: unless-stopped
+    restart: always
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
-    ports:
-      - "9000:9000"
-      - "9001:9001"
     volumes:
       - minio-data:/data
     networks:
@@ -119,14 +149,22 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
 
   # =============================================================================
-  # Kong Gateway (Optional - can run separately)
+  # Kong Gateway (Production)
   # =============================================================================
   kong-gateway:
     image: kong:3.4-alpine
     container_name: gradeloop-kong-gateway
-    restart: unless-stopped
+    restart: always
     environment:
       - KONG_DATABASE=postgres
       - KONG_PG_HOST=kong-database
@@ -142,46 +180,50 @@ services:
       - "8000:8000"
       - "8443:8443"
       - "8001:8001"
-      - "8444:8444"
     volumes:
       - ./apps/api-gateway/config:/usr/local/kong/declarative:ro
     depends_on:
-      postgres:
+      kong-database:
         condition: service_healthy
     networks:
       - gradeloop-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
 
   kong-database:
     image: postgres:16-alpine
     container_name: gradeloop-kong-db
-    restart: unless-stopped
+    restart: always
     environment:
       - POSTGRES_USER=kong
       - POSTGRES_PASSWORD=${KONG_DB_PASSWORD:-kong_pass}
       - POSTGRES_DB=kong
-    ports:
-      - "5433:5432"
     volumes:
       - kong-database-data:/var/lib/postgresql/data
     networks:
       - gradeloop-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kong -d kong"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   # =============================================================================
-  # IAM Service (Go)
+  # IAM Service (Go - Production)
   # =============================================================================
   iam:
     build:
-      context: ./apps/services/iam
+      context: ../../apps/services/iam
       dockerfile: Dockerfile
-      target: dev
-    volumes:
-      - ./apps/services/iam:/app
+      target: production
     container_name: gradeloop-iam
-    restart: unless-stopped
-    env_file:
-      - .env
+    restart: always
     environment:
-      - SERVER_PORT=${IAM_SVC_PORT:-8081}
+      - SERVER_PORT=8081
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USER=${GRA_DB_USER:-postgres}
@@ -190,8 +232,11 @@ services:
       - DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
       - EMAIL_SERVICE_URL=http://email:8082
       - MINIO_ENDPOINT=minio:9000
-    expose:
-      - "8081"
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - JWT_ACCESS_TOKEN_EXPIRY=${JWT_ACCESS_TOKEN_EXPIRY:-15}
+      - JWT_REFRESH_TOKEN_EXPIRY=${JWT_REFRESH_TOKEN_EXPIRY:-10080}
     depends_on:
       postgres:
         condition: service_healthy
@@ -199,31 +244,30 @@ services:
         condition: service_started
     networks:
       - gradeloop-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
 
   # =============================================================================
-  # Academic Service (Go)
+  # Academic Service (Go - Production)
   # =============================================================================
   academic:
     build:
-      context: ./apps/services/academic
+      context: ../../apps/services/academic
       dockerfile: Dockerfile
-      target: dev
-    volumes:
-      - ./apps/services/academic:/app
+      target: production
     container_name: gradeloop-academic
-    restart: unless-stopped
-    env_file:
-      - .env
+    restart: always
     environment:
-      - SERVER_PORT=${ACADEMIC_SVC_PORT:-8083}
+      - SERVER_PORT=8083
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USER=${GRA_DB_USER:-postgres}
       - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
       - DB_NAME=${ACADEMIC_SVC_DB_NAME:-academic_db}
       - IAM_SERVICE_URL=http://iam:8081
-    expose:
-      - "8083"
     depends_on:
       postgres:
         condition: service_healthy
@@ -231,60 +275,58 @@ services:
         condition: service_started
     networks:
       - gradeloop-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
 
   # =============================================================================
-  # Assessment Service (Go)
+  # Assessment Service (Go - Production)
   # =============================================================================
   assessment:
     build:
-      context: ./apps/services/assessment
+      context: ../../apps/services/assessment
       dockerfile: Dockerfile
-      target: dev
-    volumes:
-      - ./apps/services/assessment:/app
+      target: production
     container_name: gradeloop-assessment
-    restart: unless-stopped
-    env_file:
-      - .env
+    restart: always
     environment:
-      - SERVER_PORT=${ASSESSMENT_SVC_PORT:-8084}
+      - SERVER_PORT=8084
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USER=${GRA_DB_USER:-postgres}
       - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
       - DB_NAME=${ASSESSMENT_SVC_DB_NAME:-assessment_db}
       - ACADEMIC_SERVICE_URL=http://academic:8083
-    expose:
-      - "8084"
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - gradeloop-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
 
   # =============================================================================
-  # Email Service (Go)
+  # Email Service (Go - Production)
   # =============================================================================
   email:
     build:
-      context: ./apps/services/email
+      context: ../../apps/services/email
       dockerfile: Dockerfile
-      target: dev
-    volumes:
-      - ./apps/services/email:/app
+      target: production
     container_name: gradeloop-email
-    restart: unless-stopped
-    env_file:
-      - .env
+    restart: always
     environment:
-      - SERVER_PORT=${EMAIL_SVC_PORT:-8082}
+      - SERVER_PORT=8082
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USER=${GRA_DB_USER:-postgres}
       - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
       - DB_NAME=${EMAIL_SVC_DB_NAME:-email_db}
-    expose:
-      - "8082"
     depends_on:
       postgres:
         condition: service_healthy
@@ -292,146 +334,145 @@ services:
         condition: service_started
     networks:
       - gradeloop-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
 
   # =============================================================================
-  # IVAS Service (Python)
+  # IVAS Service (Python - Production)
   # =============================================================================
   ivas:
     build:
-      context: ./apps/services/ivas
+      context: ../../apps/services/ivas
       dockerfile: Dockerfile
-    volumes:
-      - ./apps/services/ivas:/app
     container_name: gradeloop-ivas
-    restart: unless-stopped
-    env_file:
-      - .env
+    restart: always
     environment:
-      - API_PORT=${IVAS_SVC_PORT:-8088}
+      - API_PORT=8088
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${IVAS_SVC_DB_NAME:-ivas_db}
-    expose:
-      - "8088"
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - gradeloop-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
 
   # =============================================================================
-  # ACAFS Service (Python)
+  # ACAFS Service (Python - Production)
   # =============================================================================
   acafs:
     build:
-      context: ./apps/services/acafs
+      context: ../../apps/services/acafs
       dockerfile: Dockerfile
-    volumes:
-      - ./apps/services/acafs:/app
     container_name: gradeloop-acafs
-    restart: unless-stopped
-    env_file:
-      - .env
+    restart: always
     environment:
-      - SERVER_PORT=${ACAFS_SVC_PORT:-8086}
+      - SERVER_PORT=8086
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${ACAFS_SVC_DB_NAME:-acafs_db}
-    expose:
-      - "8086"
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - gradeloop-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
 
   # =============================================================================
-  # Keystroke Service (Python)
+  # Keystroke Service (Python - Production)
   # =============================================================================
   keystroke:
     build:
-      context: ./apps/services/keystroke
+      context: ../../apps/services/keystroke
       dockerfile: Dockerfile
-    volumes:
-      - ./apps/services/keystroke:/app
     container_name: gradeloop-keystroke
-    restart: unless-stopped
-    env_file:
-      - .env
+    restart: always
     environment:
-      - SERVER_PORT=${KEYSTROKE_SVC_PORT:-8003}
-      - DATABASE_URL=postgresql://keystroke_user:keystroke_pass@postgres-keystroke:5432/keystroke-db
-    expose:
-      - "8003"
+      - SERVER_PORT=8003
+      - DATABASE_URL=postgresql://keystroke_user:${KEYSTROKE_DB_PASSWORD:-keystroke_pass}@postgres-keystroke:5432/keystroke-db
     depends_on:
       postgres-keystroke:
         condition: service_healthy
     networks:
       - gradeloop-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
 
   # =============================================================================
-  # CIPAS Syntactics Service (Python)
+  # CIPAS Syntactics Service (Python - Production)
   # =============================================================================
   cipas-syntactics:
     build:
-      context: ./apps/services/cipas-syntactics
+      context: ../../apps/services/cipas-syntactics
       dockerfile: Dockerfile
-    volumes:
-      - ./apps/services/cipas-syntactics:/app
     container_name: gradeloop-cipas-syntactics
-    restart: unless-stopped
-    env_file:
-      - .env
+    restart: always
     environment:
-      - CIPAS_SYNTACTICS_PORT=${CIPAS_SYN_SVC_PORT:-8086}
+      - CIPAS_SYNTACTICS_PORT=8086
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
-    expose:
-      - "8086"
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - gradeloop-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
 
   # =============================================================================
-  # CIPAS Semantics Service (Python)
+  # CIPAS Semantics Service (Python - Production)
   # =============================================================================
   cipas-semantics:
     build:
-      context: ./apps/services/cipas-semantics
+      context: ../../apps/services/cipas-semantics
       dockerfile: Dockerfile
-    volumes:
-      - ./apps/services/cipas-semantics:/app
     container_name: gradeloop-cipas-semantics
-    restart: unless-stopped
-    env_file:
-      - .env
+    restart: always
     environment:
-      - API_PORT=${CIPAS_SEM_SVC_PORT:-8087}
+      - API_PORT=8087
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
-    expose:
-      - "8087"
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - gradeloop-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
 
   # =============================================================================
-  # CIPAS XAI Service (Go)
+  # CIPAS XAI Service (Go - Production)
   # =============================================================================
   cipas-xai:
     build:
-      context: ./apps/services/cipas-xai
+      context: ../../apps/services/cipas-xai
       dockerfile: Dockerfile
-    volumes:
-      - ./apps/services/cipas-xai:/app
     container_name: gradeloop-cipas-xai
-    restart: unless-stopped
-    env_file:
-      - .env
+    restart: always
     environment:
-      - SERVER_PORT=${CIPAS_XAI_SVC_PORT:-8085}
-    expose:
-      - "8085"
+      - SERVER_PORT=8085
     networks:
       - gradeloop-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
 
 networks:
   gradeloop-network:

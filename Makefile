@@ -151,6 +151,7 @@ print-go-guidance:
 
 # Container runtime (docker or podman)
 COMPOSE := $(shell if command -v podman >/dev/null 2>&1; then echo "podman compose"; elif command -v docker >/dev/null 2>&1; then echo "docker compose"; else echo "docker compose"; fi)
+COMPOSE_DIR := $(ROOT)/infra/compose
 
 # =============================================================================
 # Development Targets (Local Service Execution)
@@ -159,7 +160,7 @@ COMPOSE := $(shell if command -v podman >/dev/null 2>&1; then echo "podman compo
 # Start infrastructure services in Docker
 dev:
 	@echo "Starting infrastructure services..."
-	$(COMPOSE) up -d postgres postgres-keystroke rabbitmq redis minio
+	$(COMPOSE) -f $(COMPOSE_DIR)/compose.yaml up -d postgres postgres-keystroke rabbitmq redis minio
 	@echo ""
 	@echo "Infrastructure started! To run services locally:"
 	@echo "  make dev SERVICE=iam       # Run IAM service with air"
@@ -170,7 +171,7 @@ dev:
 # Start infrastructure with Kong gateway
 dev-gateway:
 	@echo "Starting infrastructure + Kong gateway..."
-	$(COMPOSE) up -d postgres postgres-keystroke rabbitmq redis minio kong-database
+	$(COMPOSE) -f $(COMPOSE_DIR)/compose.yaml up -d postgres postgres-keystroke rabbitmq redis minio kong-database
 	@cd apps/api-gateway && $(COMPOSE) up -d
 	@echo ""
 
@@ -222,7 +223,7 @@ dev-stop:
 # Stop infrastructure
 dev-down:
 	@echo "Stopping infrastructure..."
-	$(COMPOSE) down
+	$(COMPOSE) -f $(COMPOSE_DIR)/compose.yaml down
 	@echo "Infrastructure stopped."
 
 # =============================================================================
@@ -232,7 +233,7 @@ dev-down:
 # Start everything in Docker (production mode)
 prod-up:
 	@echo "Starting production environment..."
-	$(COMPOSE) -f compose.prod.yaml up -d
+	$(COMPOSE) -f $(COMPOSE_DIR)/compose.prod.yaml up -d
 	@echo ""
 	@echo "Production environment started!"
 	@echo "  Kong Gateway: http://localhost:8000"
@@ -242,12 +243,12 @@ prod-up:
 # Stop production
 prod-down:
 	@echo "Stopping production environment..."
-	$(COMPOSE) -f compose.prod.yaml down
+	$(COMPOSE) -f $(COMPOSE_DIR)/compose.prod.yaml down
 	@echo "Production environment stopped."
 
 # View production logs
 prod-logs:
-	$(COMPOSE) -f compose.prod.yaml logs -f
+	$(COMPOSE) -f $(COMPOSE_DIR)/compose.prod.yaml logs -f
 
 # Restart a specific service
 prod-restart:
@@ -256,7 +257,7 @@ prod-restart:
 		exit 1; \
 	fi
 	@echo "Restarting service $(SERVICE)..."
-	$(COMPOSE) -f compose.prod.yaml restart $(SERVICE)
+	$(COMPOSE) -f $(COMPOSE_DIR)/compose.prod.yaml restart $(SERVICE)
 
 # =============================================================================
 # Development Docker Compose Targets
@@ -265,15 +266,15 @@ prod-restart:
 # Start all services in Docker (dev mode - for testing)
 dev-docker-up:
 	@echo "Starting development environment (all in Docker)..."
-	$(COMPOSE) -f compose.dev.yaml up -d
+	$(COMPOSE) -f $(COMPOSE_DIR)/compose.dev.yaml up -d
 	@echo ""
 
 # Stop development environment
 dev-docker-down:
 	@echo "Stopping development environment..."
-	$(COMPOSE) -f compose.dev.yaml down
+	$(COMPOSE) -f $(COMPOSE_DIR)/compose.dev.yaml down
 	@echo ""
 
 # View development logs
 dev-docker-logs:
-	$(COMPOSE) -f compose.dev.yaml logs -f
+	$(COMPOSE) -f $(COMPOSE_DIR)/compose.dev.yaml logs -f
