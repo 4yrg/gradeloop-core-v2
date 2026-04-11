@@ -1,4 +1,4 @@
-module github.com/gradeloop/email-service
+module github.com/4yrg/gradeloop-core-v2/apps/services/email
 
 go 1.25.0
 
@@ -12,6 +12,12 @@ require (
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.1
 )
+
+replace github.com/4yrg/gradeloop-core-v2/packages/go/logger => ../../../packages/go/logger
+replace github.com/4yrg/gradeloop-core-v2/packages/go/middleware => ../../../packages/go/middleware
+replace github.com/4yrg/gradeloop-core-v2/packages/go/errors => ../../../packages/go/errors
+replace github.com/4yrg/gradeloop-core-v2/packages/go/secrets => ../../../packages/go/secrets
+replace github.com/4yrg/gradeloop-core-v2/packages/go/grpc => ../../../packages/go/grpc
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect

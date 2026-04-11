@@ -1,4 +1,4 @@
-module github.com/gradeloop/iam-service
+module github.com/4yrg/gradeloop-core-v2/apps/services/iam
 
 go 1.25.0
 
@@ -13,6 +13,20 @@ require (
 	golang.org/x/crypto v0.48.0
 	gorm.io/driver/postgres v1.5.4
 	gorm.io/gorm v1.25.5
+)
+
+replace github.com/4yrg/gradeloop-core-v2/packages/go/logger => ../../../packages/go/logger
+replace github.com/4yrg/gradeloop-core-v2/packages/go/middleware => ../../../packages/go/middleware
+replace github.com/4yrg/gradeloop-core-v2/packages/go/errors => ../../../packages/go/errors
+replace github.com/4yrg/gradeloop-core-v2/packages/go/secrets => ../../../packages/go/secrets
+replace github.com/4yrg/gradeloop-core-v2/packages/go/grpc => ../../../packages/go/grpc
+
+replace (
+	github.com/4yrg/gradeloop-core-v2/packages/go/logger => ../../../packages/go/logger
+	github.com/4yrg/gradeloop-core-v2/packages/go/middleware => ../../../packages/go/middleware
+	github.com/4yrg/gradeloop-core-v2/packages/go/errors => ../../../packages/go/errors
+	github.com/4yrg/gradeloop-core-v2/packages/go/secrets => ../../../packages/go/secrets
+	github.com/4yrg/gradeloop-core-v2/packages/go/grpc => ../../../packages/go/grpc
 )
 
 require (
