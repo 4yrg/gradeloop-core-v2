@@ -1,25 +1,9 @@
 services:
   # =============================================================================
-  # Traefik API Gateway
+  # Kong API Gateway (External - gradeloop-api-gateway/docker-compose.yaml)
   # =============================================================================
-  traefik:
-    image: traefik:v3
-    container_name: traefik
-    restart: unless-stopped
-    command:
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:8000"
-    environment:
-      - DOCKER_API_VERSION=1.44
-    ports:
-      - "8000:8000"
-      - "8080:8080"
-    volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-    networks:
-      - gradeloop-network
+  # Kong gateway runs via: cd gradeloop-api-gateway && docker compose up -d
+  # All routing is handled by Kong declarative config in gradeloop-api-gateway/config/
 
   # =============================================================================
   # PostgreSQL (Single Instance — All Services Share, Isolated by DB Name)
@@ -36,11 +20,6 @@ services:
       - "5432:5432" # Optional: expose for local debugging; remove in strict prod
     volumes:
       - postgres-data:/var/lib/postgresql/data
-<<<<<<< HEAD:compose.yaml
-    configs:
-      - source: init-databases
-        target: /docker-entrypoint-initdb.d/databases.sh
-        mode: 0755
     networks:
       - gradeloop-network
     healthcheck:
@@ -340,7 +319,6 @@ services:
   # =============================================================================
   # CIPAS Syntactics Service (Python FastAPI)
   # =============================================================================
-<<<<<<< HEAD:compose.yaml
   # cipas-syntactics:
   #   build:
   #     context: ./apps/services/cipas-services/cipas-syntactics
@@ -618,7 +596,7 @@ services:
   # RabbitMQ (Message Broker)
   # =============================================================================
   rabbitmq:
-    image: rabbitmq:3-management
+    image: rabbitmq:3.13-management-alpine
     container_name: rabbitmq
     restart: unless-stopped
     environment:

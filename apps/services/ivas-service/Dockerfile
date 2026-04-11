@@ -1,72 +1,55 @@
 # =============================================================================
-# IVAS Service - Dockerfile
+# IVAS Service - Alpine Dockerfile
 # =============================================================================
 
-# -----------------------------------------------------------------------------
-# Stage 1: Builder
-# -----------------------------------------------------------------------------
-FROM python:3.11-slim AS builder
+FROM python:3.11-alpine AS builder
 
 WORKDIR /app
+
+RUN apk add --no-cache \
+    gcc \
+    libc-dev \
+    libpq-dev \
+    libsndfile \
+    postgresql-dev \
+    && rm -rf /var/cache/apk/*
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    libc-dev \
-    libpq-dev \
-    libsndfile1 \
-    && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir poetry==1.7.1
 
-# Install Poetry
-RUN pip install poetry==1.7.1
-
-# Copy dependency files first for layer caching
 COPY pyproject.toml poetry.lock* ./
 
-# Install dependencies
 RUN poetry config virtualenvs.create false \
     && poetry install --no-interaction --no-ansi --no-root --only main
 
-# Copy application code
 COPY app/ ./app/
 
-# -----------------------------------------------------------------------------
-# Stage 2: Production Runtime
-# -----------------------------------------------------------------------------
-FROM python:3.11-slim AS production
+FROM python:3.11-alpine AS production
 
 WORKDIR /app
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
-    libsndfile1 \
+RUN apk add --no-cache \
+    libpq \
+    libsndfile \
     curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+    && rm -rf /var/cache/apk/*
 
-# Copy installed packages from builder
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    CUDA_VISIBLE_DEVICES=""
+
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
-
-# Copy application code
 COPY --from=builder /app/app ./app
-
-# Copy models directory
 COPY models/ ./models/
 
-# Create non-root user
-RUN useradd --create-home --uid 1000 ivas-service \
-    && chown -R ivas-service:ivas-service /app
+RUN addgroup -S ivas && adduser -S ivas -G ivas \
+    && chown -R ivas:ivas /app
 
-USER ivas-service
+USER ivas
 
 EXPOSE 8088
 
@@ -75,9 +58,6 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8088"]
 
-# -----------------------------------------------------------------------------
-# Stage 3: Development
-# -----------------------------------------------------------------------------
 FROM builder AS development
 
 WORKDIR /app
