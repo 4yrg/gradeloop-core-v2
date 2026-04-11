@@ -1,0 +1,46 @@
+# =============================================================================
+# Keystroke Service - Kong Configuration
+# Handles keystroke dynamics authentication
+# =============================================================================
+_format_version: "3.0"
+
+services:
+  - name: keystroke-service
+    url: http://keystroke-service:8003
+    routes:
+      - name: keystroke-api
+        paths:
+          - /api/keystroke
+        strip_path: false
+        preserve_host: false
+      - name: keystroke-ws
+        paths:
+          - /ws/monitor
+        strip_path: false
+        preserve_host: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - http://localhost:3000
+            - http://localhost:80
+            - http://localhost:443
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          headers:
+            - Origin
+            - Content-Type
+            - Accept
+            - Authorization
+          credentials: true
+          max_age: 3600
+      - name: rate-limiting
+        config:
+          minute: 100
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false

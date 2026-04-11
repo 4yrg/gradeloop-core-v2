@@ -1,0 +1,5 @@
+# =============================================================================
+# GradeLoop API Gateway - Main Configuration
+# This file imports all modular service and plugin configurations
+# =============================================================================
+_format_version: "3.0"

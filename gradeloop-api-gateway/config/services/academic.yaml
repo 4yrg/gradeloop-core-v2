@@ -1,0 +1,111 @@
+# =============================================================================
+# Academic Service - Kong Configuration
+# Handles departments, faculties, courses, and enrollments
+# =============================================================================
+_format_version: "3.0"
+
+services:
+  - name: academic-service
+    url: http://academic-service:8083
+    routes:
+      - name: academic-departments
+        paths:
+          - /api/v1/departments
+        strip_path: false
+        preserve_host: false
+      - name: academic-faculties
+        paths:
+          - /api/v1/faculties
+        strip_path: false
+        preserve_host: false
+      - name: academic-degrees
+        paths:
+          - /api/v1/degrees
+        strip_path: false
+        preserve_host: false
+      - name: academic-specializations
+        paths:
+          - /api/v1/specializations
+        strip_path: false
+        preserve_host: false
+      - name: academic-batches
+        paths:
+          - /api/v1/batches
+        strip_path: false
+        preserve_host: false
+      - name: academic-batch-members
+        paths:
+          - /api/v1/batch-members
+        strip_path: false
+        preserve_host: false
+      - name: academic-course-instances
+        paths:
+          - /api/v1/course-instances
+        strip_path: false
+        preserve_host: false
+      - name: academic-course-instructors
+        paths:
+          - /api/v1/course-instructors
+        strip_path: false
+        preserve_host: false
+      - name: academic-enrollments
+        paths:
+          - /api/v1/enrollments
+        strip_path: false
+        preserve_host: false
+      - name: academic-courses
+        paths:
+          - /api/v1/courses
+        strip_path: false
+        preserve_host: false
+      - name: academic-semesters
+        paths:
+          - /api/v1/semesters
+        strip_path: false
+        preserve_host: false
+      - name: academic-instructor-courses
+        paths:
+          - /api/v1/instructor-courses
+        strip_path: false
+        preserve_host: false
+      - name: academic-student-courses
+        paths:
+          - /api/v1/student-courses
+        strip_path: false
+        preserve_host: false
+      - name: academic-debug
+        paths:
+          - /api/v1/debug
+        strip_path: false
+        preserve_host: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - http://localhost:3000
+            - http://localhost:80
+            - http://localhost:443
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - PATCH
+            - OPTIONS
+          headers:
+            - Origin
+            - Content-Type
+            - Accept
+            - Authorization
+            - X-Request-ID
+            - X-Requested-With
+          credentials: true
+          max_age: 3600
+      - name: jwt-validation
+        run_on_first_request: false
+      - name: rate-limiting
+        config:
+          minute: 500
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false

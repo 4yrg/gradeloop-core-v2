@@ -1,0 +1,76 @@
+# =============================================================================
+# Assessment Service - Kong Configuration
+# Handles assignments, submissions, and grading
+# =============================================================================
+_format_version: "3.0"
+
+services:
+  - name: assessment-service
+    url: http://assessment-service:8084
+    routes:
+      - name: assessment-assignments
+        paths:
+          - /api/v1/assignments
+        strip_path: false
+        preserve_host: false
+      - name: assessment-submissions
+        paths:
+          - /api/v1/submissions
+        strip_path: false
+        preserve_host: false
+      - name: assessment-groups
+        paths:
+          - /api/v1/groups
+        strip_path: false
+        preserve_host: false
+      - name: assessment-instructor-assignments
+        paths:
+          - /api/v1/instructor-assignments
+        strip_path: false
+        preserve_host: false
+      - name: assessment-instructor-submissions
+        paths:
+          - /api/v1/instructor-submissions
+        strip_path: false
+        preserve_host: false
+      - name: assessment-student-assignments
+        paths:
+          - /api/v1/student-assignments
+        strip_path: false
+        preserve_host: false
+      - name: assessment-student-submissions
+        paths:
+          - /api/v1/student-submissions
+        strip_path: false
+        preserve_host: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - http://localhost:3000
+            - http://localhost:80
+            - http://localhost:443
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - PATCH
+            - OPTIONS
+          headers:
+            - Origin
+            - Content-Type
+            - Accept
+            - Authorization
+            - X-Request-ID
+            - X-Requested-With
+          credentials: true
+          max_age: 3600
+      - name: jwt-validation
+        run_on_first_request: false
+      - name: rate-limiting
+        config:
+          minute: 500
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
