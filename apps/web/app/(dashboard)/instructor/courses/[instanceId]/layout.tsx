@@ -124,7 +124,7 @@ export default function CourseInstanceLayout({
                     })}
                 </nav>
             )}
-            {children}
+            <div className="flex-1 w-full">{children}</div>
         </div>
     );
 }

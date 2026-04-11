@@ -140,12 +140,12 @@ function CompetencyBreakdownStudent({ sessionId, studentId }: { sessionId: strin
     React.useEffect(() => {
         let mounted = true;
         ivasApi.listStudentCompetencyScores(studentId).then(data => {
-            if (mounted) setScores(data);
+            if (mounted) setScores(data.filter(s => s.session_id === sessionId));
         }).catch(() => {}).finally(() => {
             if (mounted) setLoading(false);
         });
         return () => { mounted = false; };
-    }, [studentId]);
+    }, [studentId, sessionId]);
 
     if (loading) {
         return <Skeleton className="h-32 w-full" />;

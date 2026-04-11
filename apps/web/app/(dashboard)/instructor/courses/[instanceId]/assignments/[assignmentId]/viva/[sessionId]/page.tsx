@@ -285,7 +285,7 @@ function CompetencyScoresSection({ studentId, assignmentId }: { studentId: strin
                             const color = pct >= 80 ? "text-emerald-600" : pct >= 60 ? "text-amber-600" : "text-red-600";
                             const isEditing = editingId === s.competency_id;
                             return (
-                                <div key={s.competency_id} className="flex items-center gap-3 py-2 border-b border-border/20 last:border-0">
+                                <div key={s.id} className="flex items-center gap-3 py-2 border-b border-border/20 last:border-0">
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 mb-1">
                                             <p className="text-sm font-medium">{s.competency_name ?? "—"}</p>
