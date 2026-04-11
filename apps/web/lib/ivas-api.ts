@@ -202,6 +202,12 @@ export const ivasApi = {
             body: JSON.stringify({ name, description, difficulty, max_score: maxScore }),
         }),
 
+    updateCompetency: (competencyId: string, name: string, description?: string, difficulty?: number, maxScore?: number) =>
+        ivasRequest<CompetencyOut>(`/competencies/${encodeURIComponent(competencyId)}`, {
+            method: "PUT",
+            body: JSON.stringify({ name, description, difficulty, max_score: maxScore }),
+        }),
+
     deleteCompetency: (competencyId: string) =>
         ivasRequest<void>(`/competencies/${encodeURIComponent(competencyId)}`, { method: "DELETE" }),
 

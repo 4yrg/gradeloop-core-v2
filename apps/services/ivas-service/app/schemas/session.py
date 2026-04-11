@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class SessionCreate(BaseModel):
@@ -12,6 +12,19 @@ class SessionCreate(BaseModel):
     assignment_context: dict | None = None
     # Difficulty distribution: e.g. {1: 3, 2: 3, 3: 2} → 3 beginner, 3 intermediate, 2 advanced questions
     difficulty_distribution: dict[int, int] | None = None
+
+    @field_validator("difficulty_distribution")
+    @classmethod
+    def validate_difficulty_distribution(cls, v: dict[int, int] | None) -> dict[int, int] | None:
+        """Validate that difficulty distribution values are non-negative integers."""
+        if v is None:
+            return v
+        for level, count in v.items():
+            if not isinstance(level, int) or level < 1 or level > 5:
+                raise ValueError(f"Invalid difficulty level {level}. Must be 1-5.")
+            if not isinstance(count, int) or count < 0:
+                raise ValueError(f"Invalid question count {count} for level {level}. Must be non-negative integer.")
+        return v
 
 
 class SessionOut(BaseModel):

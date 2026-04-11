@@ -70,6 +70,22 @@ async def delete_competency(competency_id: UUID) -> None:
         raise HTTPException(status_code=404, detail="Competency not found.")
 
 
+@router.put("/{competency_id}", response_model=CompetencyOut)
+async def update_competency(competency_id: UUID, body: CreateCompetencyRequest) -> CompetencyOut:
+    """Update an existing competency by ID."""
+    db = _get_db()
+    row = await db.update_competency(
+        competency_id=competency_id,
+        name=body.name,
+        description=body.description,
+        difficulty=body.difficulty,
+        max_score=body.max_score,
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="Competency not found.")
+    return CompetencyOut(**row)
+
+
 # =============================================================================
 # Competency-Assignment linking
 # =============================================================================

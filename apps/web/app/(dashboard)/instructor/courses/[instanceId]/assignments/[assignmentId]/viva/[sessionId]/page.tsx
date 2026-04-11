@@ -300,12 +300,17 @@ function CompetencyScoresSection({ studentId, assignmentId }: { studentId: strin
                                                     min={0}
                                                     max={s.max_score ?? 10}
                                                     value={editValue ?? s.score ?? 0}
-                                                    onChange={e => setEditValue(parseFloat(e.target.value))}
+                                                    onChange={e => {
+                                                        const val = parseFloat(e.target.value);
+                                                        if (!isNaN(val) && val >= 0 && val <= (s.max_score ?? 10)) {
+                                                            setEditValue(val);
+                                                        }
+                                                    }}
                                                     className="w-16 h-8 rounded-md border border-input bg-background px-2 text-sm text-center"
                                                     autoFocus
                                                 />
                                                 <span className="text-xs text-muted-foreground">/ {s.max_score ?? 10}</span>
-                                                <Button size="sm" variant="ghost" onClick={() => handleOverride(s.competency_id)} disabled={saving} className="gap-1">
+                                                <Button size="sm" variant="ghost" onClick={() => handleOverride(s.competency_id)} disabled={saving || editValue === null} className="gap-1">
                                                     <Check className="h-3.5 w-3.5 text-emerald-600" />
                                                 </Button>
                                                 <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="gap-1">
@@ -445,7 +450,7 @@ export default function InstructorVivaReviewPage() {
                         Session Review
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        {session.assignment_context?.title ?? session.assignment_id}
+                        {(session.assignment_context?.title as string | undefined) ?? session.assignment_id}
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                         {format(new Date(session.started_at), "EEEE, MMMM d, yyyy 'at' HH:mm")}
@@ -531,10 +536,10 @@ export default function InstructorVivaReviewPage() {
                     <MessageSquare className="h-4 w-4" />
                     <span>{graded_qa.length} questions · {transcripts.length} turns</span>
                 </div>
-                {session.assignment_context?.programming_language && (
+                {(session.assignment_context?.programming_language as string | undefined) && (
                     <div className="flex items-center gap-1.5">
                         <BookOpen className="h-4 w-4" />
-                        <span>{session.assignment_context.programming_language}</span>
+                        <span>{session.assignment_context.programming_language as string}</span>
                     </div>
                 )}
             </div>
@@ -548,8 +553,8 @@ export default function InstructorVivaReviewPage() {
             )}
 
             {/* Code context */}
-            {session.assignment_context?.code_context && (
-                <CodeBlock code={session.assignment_context.code_context} />
+            {(session.assignment_context?.code_context as string | undefined) && (
+                <CodeBlock code={session.assignment_context.code_context as string} />
             )}
 
             {/* Transcript */}

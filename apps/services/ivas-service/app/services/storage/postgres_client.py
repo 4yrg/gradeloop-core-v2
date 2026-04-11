@@ -233,23 +233,29 @@ class PostgresClient:
         Replaces any existing transcript turns for the session (idempotent).
         """
         if not turns:
+            logger.info("save_transcripts_skipped_empty", session_id=str(session_id))
             return
         async with self._pool.acquire() as conn:
             async with conn.transaction():
-                await conn.execute(
-                    "DELETE FROM transcripts WHERE session_id = $1",
-                    session_id,
-                )
-                await conn.executemany(
-                    """
-                    INSERT INTO transcripts (session_id, turn_number, role, content)
-                    VALUES ($1, $2, $3, $4)
-                    """,
-                    [
-                        (session_id, t["turn_number"], t["role"], t["content"])
-                        for t in turns
-                    ],
-                )
+                try:
+                    await conn.execute(
+                        "DELETE FROM transcripts WHERE session_id = $1",
+                        session_id,
+                    )
+                    # Use execute instead of executemany for better error handling
+                    # executemany can fail silently on partial errors
+                    for t in turns:
+                        await conn.execute(
+                            """
+                            INSERT INTO transcripts (session_id, turn_number, role, content)
+                            VALUES ($1, $2, $3, $4)
+                            """,
+                            session_id, t["turn_number"], t["role"], t["content"],
+                        )
+                    logger.info("save_transcripts_success", session_id=str(session_id), count=len(turns))
+                except Exception as e:
+                    logger.error("save_transcripts_failed", session_id=str(session_id), error=str(e))
+                    raise
 
     async def list_transcripts(self, session_id: UUID) -> list[dict]:
         async with self._pool.acquire() as conn:
@@ -617,6 +623,31 @@ class PostgresClient:
                 name, description, difficulty, max_score,
             )
             return dict(row)
+
+    async def update_competency(
+        self,
+        competency_id: UUID,
+        name: str,
+        description: str | None = None,
+        difficulty: int = 1,
+        max_score: float = 10.0,
+    ) -> dict | None:
+        """Update a competency by ID. Returns the row or None if not found."""
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                UPDATE competencies
+                SET name = $2,
+                    description = $3,
+                    difficulty = $4,
+                    max_score = $5,
+                    updated_at = now()
+                WHERE id = $1
+                RETURNING *
+                """,
+                competency_id, name, description, difficulty, max_score,
+            )
+            return dict(row) if row else None
 
     async def list_competencies(self) -> list[dict]:
         """Return all competencies ordered by name."""

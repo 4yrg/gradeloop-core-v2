@@ -112,7 +112,7 @@ export interface VivaSession {
     status: "initializing" | "in_progress" | "paused" | "completed" | "abandoned" | "grading_failed";
     total_score: number | null;
     max_possible: number | null;
-    difficulty_distribution: Record<number, number> | null;
+    difficulty_distribution: Record<string, number> | null;
     started_at: string;
     completed_at: string | null;
     metadata: Record<string, unknown>;
@@ -122,7 +122,7 @@ export interface SessionCreate {
     assignment_id: string;
     student_id: string;
     assignment_context?: Record<string, unknown>;
-    difficulty_distribution?: Record<number, number>;
+    difficulty_distribution?: Record<string, number>;
 }
 
 // ============================================================

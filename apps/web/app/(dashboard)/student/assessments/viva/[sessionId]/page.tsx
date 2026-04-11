@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toaster";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ivasApi } from "@/lib/ivas-api";
 import type { VivaSession, WsMessageIncoming, ChatMessage } from "@/types/ivas";
 
@@ -36,6 +37,9 @@ export default function VivaSessionPage() {
     const [isRecording, setIsRecording] = React.useState(false);
     const [messages, setMessages] = React.useState<ChatMessage[]>([]);
     const [sessionEnded, setSessionEnded] = React.useState(false);
+    const [reconnectAttempts, setReconnectAttempts] = React.useState(0);
+    const MAX_RECONNECT_ATTEMPTS = 3;
+    const [showEndConfirm, setShowEndConfirm] = React.useState(false);
 
     // Refs
     const wsRef = React.useRef<WebSocket | null>(null);
@@ -44,6 +48,7 @@ export default function VivaSessionPage() {
     const mediaStreamRef = React.useRef<MediaStream | null>(null);
     const processorRef = React.useRef<ScriptProcessorNode | null>(null);
     const transcriptEndRef = React.useRef<HTMLDivElement>(null);
+    const reconnectTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
     // Load session info
     React.useEffect(() => {
@@ -154,6 +159,7 @@ export default function VivaSessionPage() {
 
         ws.onopen = () => {
             setConnectionState("connected");
+            setReconnectAttempts(0); // Reset on successful connection
         };
 
         ws.onmessage = (event) => {
@@ -209,6 +215,7 @@ export default function VivaSessionPage() {
                     case "session_ended":
                         setSessionEnded(true);
                         setConnectionState("disconnected");
+                        setReconnectAttempts(MAX_RECONNECT_ATTEMPTS); // Prevent reconnection
                         ivasApi.getSession(sessionId).then(setSession).catch(() => {});
                         break;
 
@@ -230,15 +237,28 @@ export default function VivaSessionPage() {
         };
 
         ws.onclose = () => {
-            if (!sessionEnded) {
+            if (!sessionEnded && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
                 setConnectionState("disconnected");
+                // Attempt reconnection with exponential backoff
+                const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 5000);
+                reconnectTimeoutRef.current = setTimeout(() => {
+                    setReconnectAttempts(prev => prev + 1);
+                    connectWebSocket();
+                }, delay);
+            } else if (!sessionEnded) {
+                setConnectionState("error");
+                addToast({
+                    title: "Connection lost",
+                    variant: "error",
+                    description: "Unable to reconnect. Please refresh the page.",
+                });
             }
         };
 
         ws.onerror = () => {
             setConnectionState("error");
         };
-    }, [sessionId, sessionEnded, playAudioChunk, appendTranscript, addToast]);
+    }, [sessionId, sessionEnded, playAudioChunk, appendTranscript, addToast, reconnectAttempts]);
 
     // --- Microphone Recording ---
     const startRecording = React.useCallback(async () => {
@@ -305,6 +325,11 @@ export default function VivaSessionPage() {
 
     // --- End Viva ---
     const endViva = React.useCallback(() => {
+        setShowEndConfirm(true);
+    }, []);
+
+    const confirmEndViva = React.useCallback(() => {
+        setShowEndConfirm(false);
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
             stopRecording();
             wsRef.current.send(JSON.stringify({ type: "end_session" }));
@@ -317,6 +342,7 @@ export default function VivaSessionPage() {
             if (processorRef.current) processorRef.current.disconnect();
             if (mediaStreamRef.current) mediaStreamRef.current.getTracks().forEach(t => t.stop());
             if (wsRef.current) wsRef.current.close();
+            if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
         };
     }, []);
 
@@ -391,6 +417,7 @@ export default function VivaSessionPage() {
                     : "Ready";
 
     return (
+        <>
         <div className="flex flex-col h-[calc(100vh-8rem)] max-w-3xl mx-auto">
             {/* Top bar */}
             <div className="flex items-center justify-between pb-4">
@@ -475,6 +502,18 @@ export default function VivaSessionPage() {
                 </p>
             </div>
         </div>
+
+        {/* End Viva Confirmation */}
+        <ConfirmDialog
+            open={showEndConfirm}
+            onOpenChange={setShowEndConfirm}
+            title="End Viva Session?"
+            description="This will submit your session for grading. You won't be able to continue after ending."
+            confirmText="End Session"
+            variant="destructive"
+            onConfirm={confirmEndViva}
+        />
+        </>
     );
 }
 

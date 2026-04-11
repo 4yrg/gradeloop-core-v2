@@ -199,9 +199,8 @@ export default function CompetenciesPage() {
         if (!editingId) return;
         try {
             setSaving(true);
-            // Update the competency's own fields (name, description, difficulty, max_score)
-            // createCompetency uses upsert (ON CONFLICT name DO UPDATE), so this updates in-place.
-            await ivasApi.createCompetency(formName, formDescription, formDifficulty, formMaxScore);
+            // Update the competency by ID
+            await ivasApi.updateCompetency(editingId, formName, formDescription, formDifficulty, formMaxScore);
 
             // Update the weight on the assignment link
             const updated = linkedCompetencies.map(c =>
@@ -213,6 +212,11 @@ export default function CompetenciesPage() {
                 competencies: updated.map(c => ({ competency_id: c.competency_id, weight: c.weight })),
             });
             setLinkedCompetencies(linked);
+            setAllCompetencies(prev => prev.map(c =>
+                c.id === editingId
+                    ? { ...c, name: formName, description: formDescription, difficulty: formDifficulty, max_score: formMaxScore }
+                    : c
+            ));
             resetForm();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Save failed");

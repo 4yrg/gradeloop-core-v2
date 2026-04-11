@@ -186,17 +186,24 @@ async def grade_viva_transcript(
             score = 0.0
         score = max(0.0, min(MAX_SCORE_PER_QUESTION, score))
         justification = str(item.get("score_justification") or "").strip() or None
+        # Use per-item max_score if provided, otherwise default to global max
+        item_max = item.get("max_score")
+        try:
+            item_max = float(item_max) if item_max is not None else MAX_SCORE_PER_QUESTION
+        except (TypeError, ValueError):
+            item_max = MAX_SCORE_PER_QUESTION
         cleaned.append({
             "sequence_num": idx,
             "question_text": q,
             "response_text": resp,
             "score": score,
-            "max_score": MAX_SCORE_PER_QUESTION,
+            "max_score": item_max,
             "score_justification": justification,
         })
         total += score
 
-    max_possible = MAX_SCORE_PER_QUESTION * len(cleaned)
+    # Sum per-item max scores instead of assuming uniform max
+    max_possible = sum(item["max_score"] for item in cleaned)
     logger.info(
         "grader_done",
         question_count=len(cleaned),
