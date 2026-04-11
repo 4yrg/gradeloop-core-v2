@@ -4,26 +4,18 @@
 # This file contains INFRASTRUCTURE SERVICES ONLY
 #
 # Usage:
-#   docker compose up -d                    # Start all infrastructure
-#   docker compose up -d postgres          # Start only postgres
-#   docker compose --profile infra up -d   # Start infrastructure profile
+#   podman compose up -d                    # Start all infrastructure
+#   podman compose up -d postgres          # Start only postgres
 #
 # For local development:
-#   1. docker compose up -d                # Start infrastructure
+#   1. podman compose up -d                # Start infrastructure
 #   2. make dev SERVICE=<name>           # Run services locally
 #
 # For full stack in Docker:
-#   docker compose -f compose.dev.yaml up -d
+#   podman compose -f compose.dev.yaml up -d
 #
 # For production:
-#   docker compose -f compose.prod.yaml up -d
-
-x-shared-environment: &shared_env
-  GRA_DB_USER: ${GRA_DB_USER:-postgres}
-  GRA_DB_PASSWORD: ${GRA_DB_PASSWORD:-postgres}
-  GRA_DB_HOST: ${GRA_DB_HOST:-localhost}
-  GRA_DB_PORT: ${GRA_DB_PORT:-5432}
-  GRA_DB_SSLMODE: ${GRA_DB_SSLMODE:-disable}
+#   podman compose -f compose.prod.yaml up -d
 
 services:
   # =============================================================================
@@ -33,16 +25,13 @@ services:
     image: postgres:16-alpine
     container_name: gradeloop-postgres
     restart: unless-stopped
-    profiles:
-      - infra
-      - all
     environment:
       - POSTGRES_USER=${GRA_DB_USER:-postgres}
       - POSTGRES_PASSWORD=${GRA_DB_PASSWORD:-postgres}
       - POSTGRES_DB=${IAM_SVC_DB_NAME:-iam_db}
-      - POSTGRES_INITDB_ARGS=${GRA_DB_INITDB_ARGS:--E UTF-8}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8
     ports:
-      - "${GRA_DB_PORT:-5432}:5432"
+      - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
@@ -67,9 +56,6 @@ services:
     image: postgres:16-alpine
     container_name: gradeloop-postgres-keystroke
     restart: unless-stopped
-    profiles:
-      - infra
-      - all
     environment:
       - POSTGRES_USER=keystroke_user
       - POSTGRES_PASSWORD=keystroke_pass
@@ -100,9 +86,6 @@ services:
     image: rabbitmq:3.13-management-alpine
     container_name: gradeloop-rabbitmq
     restart: unless-stopped
-    profiles:
-      - infra
-      - all
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-guest}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-guest}
@@ -133,9 +116,6 @@ services:
     image: redis:7-alpine
     container_name: gradeloop-redis
     restart: unless-stopped
-    profiles:
-      - infra
-      - all
     ports:
       - "6379:6379"
     volumes:
@@ -163,9 +143,6 @@ services:
     image: minio/minio:latest
     container_name: gradeloop-minio
     restart: unless-stopped
-    profiles:
-      - infra
-      - all
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
@@ -197,9 +174,6 @@ services:
     image: postgres:16-alpine
     container_name: gradeloop-kong-db
     restart: unless-stopped
-    profiles:
-      - infra
-      - all
     environment:
       - POSTGRES_USER=kong
       - POSTGRES_PASSWORD=${KONG_DB_PASSWORD:-kong_pass}
