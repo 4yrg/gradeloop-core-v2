@@ -1,15 +1,37 @@
 {
+  "name": "@gradeloop/monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GradeLoop Core v2 - Monorepo with Bun workspaces and Turborepo",
   "workspaces": [
-    "apps/web"
+    "apps/web",
+    "apps/services/*",
+    "packages/ts/*"
   ],
-  "dependencies": {
-    "clsx": "^2.1.1",
-    "lucide-react": "^0.576.0",
-    "motion": "^12.34.5",
-    "tailwind-merge": "^3.5.0"
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "clean": "turbo clean",
+    "typecheck": "turbo typecheck"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.2.1",
-    "tailwindcss": "^4.2.1"
-  }
+    "turbo": "^2.4.0",
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0",
+    "eslint": "^9.0.0"
+  },
+  "packageManager": "bun@1.136.0",
+  "engines": {
+    "node": ">=18.0.0",
+    "bun": ">=1.136.0"
+  },
+  "keywords": [
+    "gradeloop",
+    "monorepo",
+    "turborepo"
+  ],
+  "author": "GradeLoop Team",
+  "license": "MIT"
 }
