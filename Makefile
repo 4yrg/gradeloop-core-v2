@@ -148,3 +148,130 @@ print-go-guidance:
 	@echo "  Debian/Ubuntu: sudo apt install golang-go"
 	@echo "  or download from https://go.dev/dl"
 	@echo "Alternatively this Makefile will automatically fallback to Docker if 'go' is not present."
+
+# =============================================================================
+# Development Targets (Local Service Execution)
+# =============================================================================
+
+# Start infrastructure services in Docker
+dev:
+	@echo "Starting infrastructure services..."
+	docker compose up -d postgres postgres-keystroke rabbitmq redis minio
+	@echo ""
+	@echo "Infrastructure started! To run services locally:"
+	@echo "  make dev SERVICE=iam       # Run IAM service with air"
+	@echo "  make dev-go SERVICE=iam   # Same as above"
+	@echo "  make dev-py SERVICE=ivas  # Run Python service with uvicorn"
+	@echo ""
+
+# Start infrastructure with Kong gateway
+dev-gateway:
+	@echo "Starting infrastructure + Kong gateway..."
+	docker compose up -d postgres postgres-keystroke rabbitmq redis minio kong-database
+	@cd apps/api-gateway && docker compose up -d
+	@echo ""
+
+# Run a single Go service locally with air (hot reload)
+dev-go:
+	@if [ -z "$(SERVICE)" ]; then \
+		echo "ERROR: SERVICE variable not set. Example: make dev-go SERVICE=iam"; \
+		exit 1; \
+	fi
+	@echo "Starting Go service $(SERVICE) with air..."
+	@if [ -f "apps/services/$(SERVICE)/.air.toml" ]; then \
+		cd "apps/services/$(SERVICE)" && air -c .air.toml; \
+	else \
+		echo "No .air.toml found for $(SERVICE), using default config..."; \
+		cd "apps/services/$(SERVICE)" && air -c ../.air.toml || echo "ERROR: No air config found"; \
+	fi
+
+# Run a single Python service locally with uvicorn (hot reload)
+dev-py:
+	@if [ -z "$(SERVICE)" ]; then \
+		echo "ERROR: SERVICE variable not set. Example: make dev-py SERVICE=ivas"; \
+		exit 1; \
+	fi
+	@echo "Starting Python service $(SERVICE) with uvicorn..."
+	@cd "apps/services/$(SERVICE)" && uvicorn app.main:app --reload --host 0.0.0.0 --port 8088
+
+# Run all Go services locally with air
+dev-go-all:
+	@echo "Starting all Go services with air..."
+	@echo "This will start all Go services in separate terminals or background jobs."
+	@echo "Use 'make dev SERVICE=<name>' to run individual services."
+
+# Run all Python services locally with uvicorn
+dev-py-all:
+	@echo "Starting all Python services with uvicorn..."
+	@echo "This will start all Python services in separate terminals or background jobs."
+	@echo "Use 'make dev-py SERVICE=<name>' to run individual services."
+
+# Run all services locally (mixed Go + Python)
+dev-all: dev-go-all dev-py-all
+	@echo "All services started locally!"
+
+# Stop all running services
+dev-stop:
+	@echo "Stopping all running services..."
+	@pkill -f "air run" || true
+	@pkill -f "uvicorn" || true
+	@echo "Local services stopped."
+
+# Stop infrastructure
+dev-down:
+	@echo "Stopping infrastructure..."
+	docker compose down
+	@echo "Infrastructure stopped."
+
+# =============================================================================
+# Production Targets (Docker-based)
+# =============================================================================
+
+# Start everything in Docker (production mode)
+prod-up:
+	@echo "Starting production environment..."
+	docker compose -f compose.prod.yaml up -d
+	@echo ""
+	@echo "Production environment started!"
+	@echo "  Kong Gateway: http://localhost:8000"
+	@echo "  RabbitMQ:   http://localhost:15672"
+	@echo "  MinIO:     http://localhost:9001"
+
+# Stop production
+prod-down:
+	@echo "Stopping production environment..."
+	docker compose -f compose.prod.yaml down
+	@echo "Production environment stopped."
+
+# View production logs
+prod-logs:
+	docker compose -f compose.prod.yaml logs -f
+
+# Restart a specific service
+prod-restart:
+	@if [ -z "$(SERVICE)" ]; then \
+		echo "ERROR: SERVICE variable not set. Example: make prod-restart SERVICE=iam"; \
+		exit 1; \
+	fi
+	@echo "Restarting service $(SERVICE)..."
+	docker compose -f compose.prod.yaml restart $(SERVICE)
+
+# =============================================================================
+# Development Docker Compose Targets
+# =============================================================================
+
+# Start all services in Docker (dev mode - for testing)
+dev-docker-up:
+	@echo "Starting development environment (all in Docker)..."
+	docker compose -f compose.dev.yaml up -d
+	@echo ""
+
+# Stop development environment
+dev-docker-down:
+	@echo "Stopping development environment..."
+	docker compose -f compose.dev.yaml down
+	@echo ""
+
+# View development logs
+dev-docker-logs:
+	docker compose -f compose.dev.yaml logs -f
