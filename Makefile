@@ -178,12 +178,7 @@ dev-go:
 		exit 1; \
 	fi
 	@echo "Starting Go service $(SERVICE) with air..."
-	@if [ -f "apps/services/$(SERVICE)/.air.toml" ]; then \
-		cd "apps/services/$(SERVICE)" && air -c .air.toml; \
-	else \
-		echo "No .air.toml found for $(SERVICE), using default config..."; \
-		cd "apps/services/$(SERVICE)" && air -c ../.air.toml || echo "ERROR: No air config found"; \
-	fi
+	@cd "apps/services/$(SERVICE)" && air -c .air.toml
 
 # Run a single Python service locally with uvicorn (hot reload)
 dev-py:
@@ -191,8 +186,12 @@ dev-py:
 		echo "ERROR: SERVICE variable not set. Example: make dev-py SERVICE=ivas"; \
 		exit 1; \
 	fi
-	@echo "Starting Python service $(SERVICE) with uvicorn..."
-	@cd "apps/services/$(SERVICE)" && uvicorn app.main:app --reload --host 0.0.0.0 --port 8088
+	@if [ -z "$(PORT)" ]; then \
+		echo "ERROR: PORT variable not set. Example: make dev-py SERVICE=ivas PORT=8088"; \
+		exit 1; \
+	fi
+	@echo "Starting Python service $(SERVICE) with uvicorn on port $(PORT)..."
+	@cd "apps/services/$(SERVICE)" && uvicorn app.main:app --reload --host 0.0.0.0 --port $(PORT)
 
 # Run all Go services locally with air
 dev-go-all:
