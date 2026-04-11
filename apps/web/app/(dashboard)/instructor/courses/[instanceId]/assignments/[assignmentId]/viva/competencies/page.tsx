@@ -83,6 +83,8 @@ export default function CompetenciesPage() {
     const [generating, setGenerating] = React.useState(false);
     const [genResults, setGenResults] = React.useState<GeneratedCompetency[]>([]);
     const [showGenModal, setShowGenModal] = React.useState(false);
+    const [addingName, setAddingName] = React.useState<string | null>(null);
+    const [addedNames, setAddedNames] = React.useState<Set<string>>(new Set());
 
     // Add/edit form
     const [showForm, setShowForm] = React.useState(false);
@@ -176,6 +178,7 @@ export default function CompetenciesPage() {
                 setError("AI did not generate any competencies. Try adding more context to the assignment (title, description, or code).");
             } else {
                 setGenResults(result.competencies);
+                setAddedNames(new Set());
                 setShowGenModal(true);
             }
         } catch (err) {
@@ -186,7 +189,8 @@ export default function CompetenciesPage() {
     }
 
     async function handleAddGenerated(generated: GeneratedCompetency) {
-        // Create the competency globally first
+        if (addingName || addedNames.has(generated.name)) return;
+        setAddingName(generated.name);
         try {
             const created = await ivasApi.createCompetency(
                 generated.name,
@@ -203,8 +207,11 @@ export default function CompetenciesPage() {
             });
             setLinkedCompetencies(linked);
             setAllCompetencies(prev => [...prev, created]);
+            setAddedNames(prev => new Set(prev).add(generated.name));
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to add competency");
+        } finally {
+            setAddingName(null);
         }
     }
 
@@ -616,10 +623,16 @@ export default function CompetenciesPage() {
                                             <Button
                                                 size="sm"
                                                 onClick={() => handleAddGenerated(gen)}
+                                                disabled={addingName === gen.name || addedNames.has(gen.name)}
                                                 className="ml-auto gap-1"
                                             >
-                                                <Plus className="h-3.5 w-3.5" />
-                                                Add
+                                                {addingName === gen.name ? (
+                                                    <><Loader2 className="h-3.5 w-3.5 animate-spin" />Adding…</>
+                                                ) : addedNames.has(gen.name) ? (
+                                                    <><CheckCircle2 className="h-3.5 w-3.5" />Added</>
+                                                ) : (
+                                                    <><Plus className="h-3.5 w-3.5" />Add</>
+                                                )}
                                             </Button>
                                         </div>
                                     </div>
