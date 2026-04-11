@@ -1,0 +1,60 @@
+[root]
+  workdir = "."
+  temp_dir = ".tmp"
+  log_prefix = "air"
+
+[build]
+  args_bin = []
+  bin = "python -m uvicorn app.main:app --reload --host 0.0.0.0 --port {{.Port}}"
+  cmd = ""
+  delay = 1000
+  exclude_dir = ["tmp", ".tmp", "vendor", "tests/*", "*/tests/*", "docs"]
+  exclude_file = []
+  exclude_unchanged = false
+  follow_symlink = false
+  full_bin = []
+  include_dir = []
+  include_file = []
+  include_ext = ["go", "toml", "yaml", "yml", "json", "hcl"]
+  include_txt = ["*.tmpl", "*.lock"}
+  kill_delay = "0s"
+  log = true
+  poll = false
+  poll_interval = 0
+  rerun = false
+  rerun_delay = 0
+  rerun_ignore = []
+  send_interrupt = true
+  stop_delay = 0
+
+[log]
+  main_only = false
+  time = false
+
+[misc]
+  clean_on_exit = false
+  daemon = false
+  force_run = false
+
+[proxy]
+  enable = true
+  proxy_api = ""
+  proxy_bind = "127.0.0.1:32809"
+  proxy_skip_wait = false
+
+[sender]
+  enable = true
+  name = "app"
+  send_delay = "0s"
+  format = "{{.Time}} | {{.LongServingDuration}} | {{.RequestStatusCode}} | {{.ResponseHeaderContentLength}} | {{.Latency}}"
+  header = "server"
+  skip_no_content = false
+
+[watcher]
+  enable = true
+  ext = "go,toml,yaml,yml,json,hcl"
+  ignore = []
+  ignore_changed = ["*.lock", "vendor/*"]
+  include_dir = []
+  include_file = []
+  poll = false
