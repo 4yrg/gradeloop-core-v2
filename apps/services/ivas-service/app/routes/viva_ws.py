@@ -59,13 +59,14 @@ def _build_viva_system_instruction(
         "",
         "=== EXAMINATION RULES ===",
         "- You are NOT a general-purpose assistant, chatbot, tutor, or friend. You are ONLY a viva examiner.",
-        "- Ask ONLY conceptual questions: definitions, reasoning, trade-offs, 'why', 'when', 'what would happen if', comparisons.",
-        "- DO NOT ask coding questions. DO NOT ask the student to write, debug, trace, or read code. DO NOT ask about syntax or specific APIs.",
+        "- This is a SPOKEN viva — the student cannot write or show code. Ask ONLY real-world conceptual questions that test understanding through reasoning, not code recall.",
+        "- Ask about: real-world analogies, 'why' something works, 'when would you use X vs Y', trade-offs, consequences of decisions, how concepts apply in practical scenarios.",
+        "- DO NOT ask about: code syntax, method signatures, specific API names, code tracing, debugging, or anything that requires reading or writing code.",
         "- Ask ONE question at a time. Wait for the student's reply before asking the next.",
-        "- Ask follow-ups that probe deeper into the student's reasoning.",
+        "- Ask follow-ups that probe deeper into the student's reasoning and real-world understanding.",
         "- Keep each turn short and conversational — this is spoken, not written.",
         "- Do NOT give away answers. You may give minimal hints only if the student is completely stuck.",
-        "- Stay strictly on the topic of this assignment and the underlying concepts.",
+        "- Stay strictly within the competencies defined in the question plan below. Do NOT introduce topics or concepts outside those competencies.",
         "",
         "=== TOPIC GUARD ===",
         "- Greetings (hello, hi, hey, good morning) are NOT off-topic. Always greet back.",
@@ -101,8 +102,9 @@ def _build_viva_system_instruction(
         lines.append("")
         lines.append(
             "You MUST cover all questions above in order. "
-            "You may ask follow-up questions to probe deeper, but after each "
-            "top-level question return to the plan. Do not skip planned questions."
+            "You may ask follow-up questions to probe deeper, but ONLY within the same competency. "
+            "After each top-level question return to the plan. Do not skip planned questions. "
+            "Do NOT ask about any topic or competency not listed above."
         )
 
     return "\n".join(lines)
@@ -336,9 +338,10 @@ async def _finalize_session(
     Runs after the live WS has closed. Any failure here is logged but never
     raised — the session must always end cleanly even if grading misbehaves.
 
-    Status is set to 'completed' only after grading succeeds. On grading
-    failure the status is set to 'grading_failed' so the session is clearly
-    marked as needing attention.
+    Status is set to 'completed' only after grading AND score persistence
+    succeed. On any failure the status is set to 'grading_failed' so the
+    session is clearly marked as needing attention (and the instructor can
+    regenerate it later).
     """
     # 1. Always persist raw transcripts first (cheap, no external calls).
     try:
@@ -352,36 +355,82 @@ async def _finalize_session(
     # 2. Grade the session (AI instructor stories #2 and #4).
     if not transcript_turns:
         logger.info("grading_skipped_empty_transcript", session_id=str(sid))
-        await db.update_session_status(sid, "completed")
+        await db.update_session_status(sid, "abandoned")
         return
 
+    await _grade_and_persist(
+        db=db,
+        settings=settings,
+        sid=sid,
+        transcript_turns=transcript_turns,
+        assignment_context=assignment_context,
+        selected_questions=selected_questions,
+    )
+
+
+async def _grade_and_persist(
+    *,
+    db,
+    settings,
+    sid: UUID,
+    transcript_turns: list[dict],
+    assignment_context: dict,
+    selected_questions: list[dict] | None,
+) -> bool:
+    """Run grading on a transcript and persist all derived data.
+
+    Returns True if the session ends in 'completed', False otherwise. Sets
+    `grading_failed` on any failure path. Used by both the WS finalizer and
+    the instructor regrade endpoint.
+    """
     from app.services.viva.grader import grade_viva_transcript
 
-    graded = None
-    try:
-        graded = await asyncio.wait_for(
-            grade_viva_transcript(
-                gemini_api_key=settings.gemini_api_key,
-                grader_model=settings.gemini_grader_model,
-                turns=transcript_turns,
-                assignment_context=assignment_context,
-            ),
-            timeout=90,
-        )
-    except asyncio.TimeoutError:
-        logger.error("grading_timeout", session_id=str(sid))
+    graded: dict | None = None
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            graded = await asyncio.wait_for(
+                grade_viva_transcript(
+                    gemini_api_key=settings.gemini_api_key,
+                    grader_model=settings.gemini_grader_model,
+                    turns=transcript_turns,
+                    assignment_context=assignment_context,
+                    planned_questions=selected_questions or None,
+                ),
+                timeout=90,
+            )
+            break  # Success — exit retry loop
+        except asyncio.TimeoutError:
+            logger.error("grading_timeout", session_id=str(sid))
+            await db.update_session_status(sid, "grading_failed")
+            return False
+        except Exception as exc:
+            exc_str = str(exc)
+            is_rate_limit = "429" in exc_str or "RESOURCE_EXHAUSTED" in exc_str
+            if is_rate_limit and attempt < max_retries - 1:
+                wait_time = 15 * (2 ** attempt)  # 15s, 30s, ...
+                logger.warning(
+                    "grading_rate_limited_retrying",
+                    session_id=str(sid),
+                    attempt=attempt + 1,
+                    wait_seconds=wait_time,
+                    error=exc_str[:200],
+                )
+                await asyncio.sleep(wait_time)
+                continue
+            logger.error("grading_failed", error=str(exc)[:500])
+            await db.update_session_status(sid, "grading_failed")
+            return False
+
+    if graded is None:
         await db.update_session_status(sid, "grading_failed")
-        return
-    except Exception as exc:
-        logger.error("grading_failed", error=str(exc))
-        await db.update_session_status(sid, "grading_failed")
-        return
+        return False
 
     items = graded.get("items") or []
     if not items:
         logger.info("grading_produced_no_items", session_id=str(sid))
-        await db.update_session_status(sid, "completed")
-        return
+        await db.update_session_status(sid, "grading_failed")
+        return False
 
     # Build competency metadata for Q&A persistence.
     competency_metadata: dict[int, dict] = {}
@@ -400,7 +449,7 @@ async def _finalize_session(
     except Exception as exc:
         logger.error("save_graded_qa_failed", error=str(exc))
         await db.update_session_status(sid, "grading_failed")
-        return
+        return False
 
     # Derive and persist per-competency scores for this session.
     if selected_questions:
@@ -417,9 +466,30 @@ async def _finalize_session(
         )
     except Exception as exc:
         logger.error("update_session_score_failed", error=str(exc))
+        await db.update_session_status(sid, "grading_failed")
+        return False
 
     # Mark completed only after everything succeeded.
     await db.update_session_status(sid, "completed")
+    return True
+
+
+def _serialize_planned_questions(planned: list[dict]) -> list[dict]:
+    """Convert a planned-question list into JSON-safe dicts (UUID → str)."""
+    out: list[dict] = []
+    for q in planned:
+        comp_id = q.get("competency_id")
+        if comp_id is not None and not isinstance(comp_id, str):
+            comp_id = str(comp_id)
+        out.append({
+            "sequence_num": int(q.get("sequence_num") or 0),
+            "question_text": q.get("question_text") or "",
+            "competency_id": comp_id,
+            "competency_name": q.get("competency_name"),
+            "difficulty": q.get("difficulty"),
+            "max_score": float(q.get("max_score") or 10.0),
+        })
+    return out
 
 
 async def _derive_competency_scores(
@@ -486,6 +556,14 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
         await websocket.close()
         return
 
+    # Don't allow reconnection to sessions that are already in a terminal state.
+    # This prevents overwriting grading_failed/completed status with in_progress.
+    terminal_states = {"completed", "grading", "grading_failed", "abandoned"}
+    if session.get("status") in terminal_states:
+        await websocket.send_json({"type": "error", "data": "Session already ended."})
+        await websocket.close()
+        return
+
     await db.update_session_status(sid, "in_progress")
 
     assignment_context = session.get("assignment_context") or {}
@@ -546,6 +624,17 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
                 count=len(selected_questions),
                 questions=[q.get("question_text", "")[:60] for q in selected_questions],
             )
+
+            # Persist the selected plan onto the session so the instructor's
+            # regrade endpoint can re-run grading later with the same plan
+            # (and therefore the same competency mapping).
+            if selected_questions:
+                try:
+                    existing_meta = session.get("metadata") or {}
+                    existing_meta["planned_questions"] = _serialize_planned_questions(selected_questions)
+                    await db.update_session_metadata(sid, existing_meta)
+                except Exception as exc:
+                    logger.warning("persist_planned_questions_failed", error=str(exc))
         except Exception as exc:
             logger.warning("question_selection_failed_fallback", error=str(exc))
             selected_questions = []

@@ -210,6 +210,24 @@ class PostgresClient:
             )
             return self._parse_session_row(row) if row else None
 
+    async def update_session_metadata(
+        self,
+        session_id: UUID,
+        metadata: dict,
+    ) -> dict | None:
+        """Replace the session's metadata JSONB column wholesale."""
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                UPDATE sessions
+                SET metadata = $2::jsonb
+                WHERE id = $1
+                RETURNING *
+                """,
+                session_id, json_dumps(metadata),
+            )
+            return self._parse_session_row(row) if row else None
+
     async def update_session_score(
         self,
         session_id: UUID,
@@ -362,6 +380,24 @@ class PostgresClient:
                         item.get("score"),
                         item.get("score_justification"),
                     )
+
+    async def list_question_instances(self, session_id: UUID) -> list[dict]:
+        """Return raw question_instances rows for a session, in plan order.
+
+        Used by the regrade flow to reconstruct the original plan when the
+        session metadata doesn't carry it.
+        """
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT sequence_num, question_text, competency, difficulty
+                FROM question_instances
+                WHERE session_id = $1
+                ORDER BY sequence_num ASC
+                """,
+                session_id,
+            )
+            return [dict(r) for r in rows]
 
     async def list_graded_qa(self, session_id: UUID) -> list[dict]:
         """Return a list of graded Q&A rows (question joined with response).

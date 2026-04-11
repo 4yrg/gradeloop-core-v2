@@ -98,6 +98,25 @@ export default function CompetenciesPage() {
     const [deleteId, setDeleteId] = React.useState<string | null>(null);
     const [deleting, setDeleting] = React.useState(false);
 
+    // Delete global competency (from "Add from Course Competencies" section)
+    const [deleteGlobalId, setDeleteGlobalId] = React.useState<string | null>(null);
+    const [deletingGlobal, setDeletingGlobal] = React.useState(false);
+
+    async function handleDeleteGlobalCompetency() {
+        if (!deleteGlobalId) return;
+        setDeletingGlobal(true);
+        try {
+            await ivasApi.deleteCompetency(deleteGlobalId);
+            setAllCompetencies(prev => prev.filter(c => c.id !== deleteGlobalId));
+            setLinkedCompetencies(prev => prev.filter(c => c.competency_id !== deleteGlobalId));
+            setDeleteGlobalId(null);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to delete competency");
+        } finally {
+            setDeletingGlobal(false);
+        }
+    }
+
     // Difficulty distribution
     const [distBeginner, setDistBeginner] = React.useState(0);
     const [distIntermediate, setDistIntermediate] = React.useState(0);
@@ -153,8 +172,12 @@ export default function CompetenciesPage() {
                 description: assignment.description || undefined,
                 title: assignment.title,
             });
-            setGenResults(result.competencies);
-            setShowGenModal(true);
+            if (result.competencies.length === 0) {
+                setError("AI did not generate any competencies. Try adding more context to the assignment (title, description, or code).");
+            } else {
+                setGenResults(result.competencies);
+                setShowGenModal(true);
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : "Generation failed");
         } finally {
@@ -430,11 +453,11 @@ export default function CompetenciesPage() {
                     <CardContent className="space-y-2">
                         {unlinkedCompetencies.map(c => (
                             <div key={c.id} className="flex items-center justify-between py-2 border-b border-border/20 last:border-0">
-                                <div>
-                                    <p className="font-semibold text-sm">{c.name}</p>
-                                    <p className="text-xs text-muted-foreground">{c.description}</p>
+                                <div className="min-w-0 flex-1">
+                                    <p className="font-semibold text-sm truncate">{c.name}</p>
+                                    <p className="text-xs text-muted-foreground truncate">{c.description}</p>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 shrink-0 ml-3">
                                     <DifficultyBadge difficulty={c.difficulty} />
                                     <Button
                                         size="sm"
@@ -456,6 +479,14 @@ export default function CompetenciesPage() {
                                     >
                                         <Plus className="h-3.5 w-3.5" />
                                         Add
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setDeleteGlobalId(c.id)}
+                                        className="gap-1 text-destructive hover:text-destructive"
+                                    >
+                                        <Trash2 className="h-3.5 w-3.5" />
                                     </Button>
                                 </div>
                             </div>
@@ -604,7 +635,7 @@ export default function CompetenciesPage() {
                 </div>
             )}
 
-            {/* Delete Confirmation */}
+            {/* Delete Confirmation (unlink from assignment) */}
             <ConfirmDialog
                 open={deleteId !== null}
                 onOpenChange={open => { if (!open) setDeleteId(null); }}
@@ -615,6 +646,18 @@ export default function CompetenciesPage() {
                 onConfirm={() => {
                     if (deleteId) handleDeleteLink(deleteId);
                 }}
+            />
+
+            {/* Delete Global Competency Confirmation (permanent delete) */}
+            <ConfirmDialog
+                open={deleteGlobalId !== null}
+                onOpenChange={open => { if (!open) setDeleteGlobalId(null); }}
+                title="Delete Competency"
+                description="Permanently delete this competency? It will be removed from all assignments and cannot be recovered."
+                confirmText="Delete"
+                variant="destructive"
+                onConfirm={handleDeleteGlobalCompetency}
+                isLoading={deletingGlobal}
             />
         </div>
     );

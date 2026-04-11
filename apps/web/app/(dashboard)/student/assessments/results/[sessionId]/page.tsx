@@ -260,6 +260,23 @@ export default function ResultsPage() {
         return () => { mounted = false; };
     }, [sessionId]);
 
+    // Poll for grading completion
+    React.useEffect(() => {
+        if (!details) return;
+        if (details.session.status !== "grading") return;
+
+        const pollInterval = setInterval(async () => {
+            try {
+                const d = await ivasApi.getSessionDetails(sessionId);
+                setDetails(d);
+                if (d.session.status !== "grading") {
+                    clearInterval(pollInterval);
+                }
+            } catch { /* retry on next interval */ }
+        }, 3000);
+        return () => clearInterval(pollInterval);
+    }, [details, sessionId]);
+
     if (loading) {
         return (
             <div className="max-w-4xl mx-auto space-y-6 pb-8">
@@ -377,17 +394,31 @@ export default function ResultsPage() {
                     <CardContent className="pt-6 flex items-center gap-3">
                         {session.status === "grading" ? (
                             <Loader2 className="h-5 w-5 text-violet-500 shrink-0 animate-spin" />
+                        ) : session.status === "grading_failed" ? (
+                            <XCircle className="h-5 w-5 text-red-500 shrink-0" />
+                        ) : session.status === "abandoned" ? (
+                            <XCircle className="h-5 w-5 text-zinc-500 shrink-0" />
                         ) : (
                             <Clock className="h-5 w-5 text-muted-foreground shrink-0" />
                         )}
                         <div>
                             <p className="text-sm font-medium">
-                                {session.status === "grading" ? "Grading in progress" : "Session not yet complete"}
+                                {session.status === "grading"
+                                    ? "Grading in progress"
+                                    : session.status === "grading_failed"
+                                        ? "Grading failed"
+                                        : session.status === "abandoned"
+                                            ? "Session ended without completion"
+                                            : "Session not yet complete"}
                             </p>
                             <p className="text-xs text-muted-foreground mt-0.5">
                                 {session.status === "grading"
                                     ? "Your answers are being evaluated. Results will appear here once grading is done."
-                                    : "Transcript and scoring will appear once the session ends."}
+                                    : session.status === "grading_failed"
+                                        ? "An error occurred while grading your viva. Please contact your instructor."
+                                        : session.status === "abandoned"
+                                            ? "This viva session ended without completing the assessment."
+                                            : "Transcript and scoring will appear once the session ends."}
                             </p>
                         </div>
                     </CardContent>

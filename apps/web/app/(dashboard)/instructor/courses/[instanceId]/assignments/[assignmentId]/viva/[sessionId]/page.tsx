@@ -23,6 +23,7 @@ import {
     Check,
     X,
     Loader2,
+    RefreshCw,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -384,6 +385,7 @@ export default function InstructorVivaReviewPage() {
     const [details, setDetails] = React.useState<SessionDetail | null>(null);
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
+    const [regrading, setRegrading] = React.useState(false);
 
     React.useEffect(() => {
         let mounted = true;
@@ -400,6 +402,24 @@ export default function InstructorVivaReviewPage() {
         load();
         return () => { mounted = false; };
     }, [sessionId]);
+
+    async function handleRegrade() {
+        if (!details || regrading) return;
+        setRegrading(true);
+        try {
+            const updated = await ivasApi.regradeSession(sessionId);
+            setDetails(prev => prev ? { ...prev, session: { ...prev.session, status: updated.status } } : prev);
+            // Re-fetch full details after a short delay to let grading finish or show progress
+            const refreshed = await ivasApi.getSessionDetails(sessionId);
+            setDetails(refreshed);
+        } catch (err) {
+            // If regrade fails, just refresh to show current state
+            const refreshed = await ivasApi.getSessionDetails(sessionId);
+            setDetails(refreshed);
+        } finally {
+            setRegrading(false);
+        }
+    }
 
     if (loading) {
         return (
@@ -464,7 +484,21 @@ export default function InstructorVivaReviewPage() {
                         {format(new Date(session.started_at), "EEEE, MMMM d, yyyy 'at' HH:mm")}
                     </p>
                 </div>
-                <StatusBadge status={session.status} />
+                <div className="flex items-center gap-2">
+                    <StatusBadge status={session.status} />
+                    {(session.status === "completed" || session.status === "grading_failed" || session.status === "abandoned") && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleRegrade}
+                            disabled={regrading}
+                            className="gap-1.5"
+                        >
+                            <RefreshCw className={`h-3.5 w-3.5 ${regrading ? "animate-spin" : ""}`} />
+                            {regrading ? "Regrading…" : "Regrade"}
+                        </Button>
+                    )}
+                </div>
             </div>
 
             {/* Score Hero */}
@@ -519,17 +553,31 @@ export default function InstructorVivaReviewPage() {
                     <CardContent className="pt-6 flex items-center gap-3">
                         {session.status === "grading" ? (
                             <Loader2 className="h-5 w-5 text-violet-500 shrink-0 animate-spin" />
+                        ) : session.status === "grading_failed" ? (
+                            <XCircle className="h-5 w-5 text-red-500 shrink-0" />
+                        ) : session.status === "abandoned" ? (
+                            <XCircle className="h-5 w-5 text-zinc-500 shrink-0" />
                         ) : (
                             <Clock className="h-5 w-5 text-muted-foreground shrink-0" />
                         )}
                         <div>
                             <p className="text-sm font-medium">
-                                {session.status === "grading" ? "Grading in progress" : "Session not yet complete"}
+                                {session.status === "grading"
+                                    ? "Grading in progress"
+                                    : session.status === "grading_failed"
+                                        ? "Grading failed"
+                                        : session.status === "abandoned"
+                                            ? "Session ended without completion"
+                                            : "Session not yet complete"}
                             </p>
                             <p className="text-xs text-muted-foreground mt-0.5">
                                 {session.status === "grading"
                                     ? "Answers are being evaluated. Results will appear here once grading is done."
-                                    : "Transcript and scoring will appear once the session ends."}
+                                    : session.status === "grading_failed"
+                                        ? "An error occurred during grading. Click \"Regrade\" above to try again."
+                                        : session.status === "abandoned"
+                                            ? "This viva session ended without completing the assessment. You can click \"Regrade\" to attempt scoring anyway."
+                                            : "Transcript and scoring will appear once the session ends."}
                             </p>
                         </div>
                     </CardContent>

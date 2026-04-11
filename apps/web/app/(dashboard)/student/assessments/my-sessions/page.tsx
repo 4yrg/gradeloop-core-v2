@@ -180,6 +180,8 @@ export default function MyVivaSessionsPage() {
                                     </span>
                                 ) : s.status === "grading_failed" ? (
                                     <span className="text-xs text-red-600 dark:text-red-400 px-2">Grading Failed</span>
+                                ) : s.status === "abandoned" ? (
+                                    <span className="text-xs text-zinc-500 dark:text-zinc-400 px-2">Abandoned</span>
                                 ) : (
                                     <span className="text-xs text-muted-foreground px-2">Ended</span>
                                 )}

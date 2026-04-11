@@ -113,14 +113,14 @@ async def generate_competencies_ai(
         )
     except Exception as exc:
         logger.error("competency_gen_failed", error=str(exc))
-        return []
+        raise
 
     raw_text = getattr(response, "text", None) or ""
     parsed = _extract_json(raw_text)
 
     if not parsed or not isinstance(parsed, dict):
         logger.warning("competency_gen_parse_failed", raw=raw_text[:500])
-        return []
+        raise ValueError(f"AI model did not return valid JSON. Raw response: {raw_text[:200]}")
 
     raw_competencies: list = parsed.get("competencies") or []
     results: list[GeneratedCompetency] = []

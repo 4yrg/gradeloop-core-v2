@@ -13,6 +13,8 @@ import {
     Eye,
     ArrowLeft,
     Trash2,
+    Loader2,
+    RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +47,30 @@ function StatusBadge({ status }: { status: string }) {
             </span>
         );
     }
+    if (status === "grading") {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Grading
+            </span>
+        );
+    }
+    if (status === "grading_failed") {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                <XCircle className="h-3 w-3" />
+                Grading Failed
+            </span>
+        );
+    }
+    if (status === "abandoned") {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                <XCircle className="h-3 w-3" />
+                Abandoned
+            </span>
+        );
+    }
     return (
         <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
             <XCircle className="h-3 w-3" />
@@ -69,6 +95,9 @@ export default function InstructorVivaDashboardPage() {
     const [sessionToDelete, setSessionToDelete] = React.useState<VivaSession | null>(null);
     const [deleting, setDeleting] = React.useState(false);
 
+    // Regrade session state
+    const [regradingId, setRegradingId] = React.useState<string | null>(null);
+
     const handleDeleteSession = async () => {
         if (!sessionToDelete) return;
         setDeleting(true);
@@ -78,6 +107,18 @@ export default function InstructorVivaDashboardPage() {
             setSessionToDelete(null);
         } finally {
             setDeleting(false);
+        }
+    };
+
+    const handleRegradeSession = async (session: VivaSession) => {
+        setRegradingId(session.id);
+        try {
+            const updated = await ivasApi.regradeSession(session.id);
+            setSessions(prev => prev.map(s => s.id === updated.id ? { ...s, status: updated.status, total_score: updated.total_score, max_possible: updated.max_possible } : s));
+        } catch {
+            // Silently refresh on error
+        } finally {
+            setRegradingId(null);
         }
     };
 
@@ -176,7 +217,9 @@ export default function InstructorVivaDashboardPage() {
                         <SelectItem value="all">All Status</SelectItem>
                         <SelectItem value="initializing">Initializing</SelectItem>
                         <SelectItem value="in_progress">Active</SelectItem>
+                        <SelectItem value="grading">Grading</SelectItem>
                         <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="grading_failed">Grading Failed</SelectItem>
                         <SelectItem value="abandoned">Abandoned</SelectItem>
                     </SelectContent>
                 </Select>
@@ -221,6 +264,18 @@ export default function InstructorVivaDashboardPage() {
                                     </td>
                                     <td className="px-4 py-3 text-right">
                                         <div className="flex items-center justify-end gap-1">
+                                            {(s.status === "grading_failed" || s.status === "completed" || s.status === "abandoned") && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleRegradeSession(s)}
+                                                    disabled={regradingId === s.id}
+                                                    className="gap-1"
+                                                >
+                                                    <RefreshCw className={`h-3.5 w-3.5 ${regradingId === s.id ? "animate-spin" : ""}`} />
+                                                    {regradingId === s.id ? "Regenerating…" : "Regrade"}
+                                                </Button>
+                                            )}
                                             <Button asChild variant="ghost" size="sm">
                                                 <Link href={`/instructor/courses/${instanceId}/assignments/${assignmentId}/viva/${s.id}`}>
                                                     <Eye className="h-3.5 w-3.5 mr-1" />

@@ -168,6 +168,11 @@ export const ivasApi = {
             `/sessions/${encodeURIComponent(sessionId)}`,
             { method: "DELETE" }
         ),
+    regradeSession: (sessionId: string) =>
+        ivasRequest<VivaSession>(
+            `/sessions/${encodeURIComponent(sessionId)}/regrade`,
+            { method: "POST" }
+        ),
 
     // --- Voice Enrollment ---
     enrollVoiceSample: (studentId: string, sampleIndex: number, audioFile: File) => {

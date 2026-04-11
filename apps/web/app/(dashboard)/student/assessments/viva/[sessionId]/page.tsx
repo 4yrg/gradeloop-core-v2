@@ -72,6 +72,23 @@ export default function VivaSessionPage() {
         return () => { mounted = false; };
     }, [sessionId]);
 
+    // Poll session status while grading is in progress
+    React.useEffect(() => {
+        if (!sessionEnded) return;
+        if (session?.status === "completed" || session?.status === "abandoned" || session?.status === "grading_failed") return;
+
+        const pollInterval = setInterval(async () => {
+            try {
+                const s = await ivasApi.getSession(sessionId);
+                setSession(s);
+                if (s.status === "completed" || s.status === "abandoned" || s.status === "grading_failed") {
+                    clearInterval(pollInterval);
+                }
+            } catch { /* retry on next interval */ }
+        }, 3000);
+        return () => clearInterval(pollInterval);
+    }, [sessionEnded, session?.status, sessionId]);
+
     // Scroll transcript to bottom on update
     React.useEffect(() => {
         transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -219,10 +236,19 @@ export default function VivaSessionPage() {
                         ivasApi.getSession(sessionId).then(setSession).catch(() => {});
                         break;
 
+
                     case "error":
-                        setConnectionState("error");
+                        if (msg.data === "Session already ended.") {
+                            // Backend rejected reconnection — session is in a terminal state.
+                            setSessionEnded(true);
+                            setConnectionState("disconnected");
+                            setReconnectAttempts(MAX_RECONNECT_ATTEMPTS);
+                            ivasApi.getSession(sessionId).then(setSession).catch(() => {});
+                        } else {
+                            setConnectionState("error");
+                        }
                         addToast({
-                            title: "Viva error",
+                            title: msg.data === "Session already ended." ? "Session ended" : "Viva error",
                             variant: "error",
                             description: msg.data || "Unknown error",
                         });
@@ -379,12 +405,14 @@ export default function VivaSessionPage() {
     if (sessionEnded) {
         const isGrading = session?.status === "grading";
         const isGradingFailed = session?.status === "grading_failed";
+        const isAbandoned = session?.status === "abandoned";
+        const isCompleted = session?.status === "completed";
         return (
             <div className="flex items-center justify-center h-[60vh]">
                 <Card className="max-w-md text-center">
                     <CardHeader>
                         <CardTitle>
-                            {isGradingFailed ? "Grading Failed" : "Viva Complete"}
+                            {isGradingFailed ? "Grading Failed" : isAbandoned ? "Viva Ended" : "Viva Complete"}
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -399,12 +427,16 @@ export default function VivaSessionPage() {
                             <p className="text-sm text-red-600 dark:text-red-400">
                                 An error occurred while grading your viva. Please contact your instructor.
                             </p>
+                        ) : isAbandoned ? (
+                            <p className="text-sm text-muted-foreground">
+                                This viva session ended without completing the assessment.
+                            </p>
                         ) : (
                             <p className="text-sm text-muted-foreground">
                                 Your oral examination has ended.
                             </p>
                         )}
-                        {session?.total_score !== null && !isGrading && (
+                        {isCompleted && session?.total_score !== null && (
                             <p className="text-2xl font-black">
                                 {session?.total_score} / {session?.max_possible}
                             </p>
@@ -413,7 +445,7 @@ export default function VivaSessionPage() {
                             <Button variant="outline" onClick={() => router.push("/student/assessments/my-sessions")}>
                                 My Sessions
                             </Button>
-                            {session?.status === "completed" && (
+                            {isCompleted && (
                                 <Button onClick={() => router.push(`/student/assessments/results/${sessionId}`)}>
                                     View Results
                                 </Button>
