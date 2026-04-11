@@ -199,6 +199,9 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
   // Determine active primary item
   const activeRoot =
     navItems.find((item) => {
+      // Student viva: highlight Viva item for all /student/assessments/* routes
+      if (isStudent && pathname.startsWith("/student/assessments"))
+        return item.href === "/student/assessments/my-sessions";
       if (item.href === homeHref) return pathname === homeHref;
       // Check if pathname starts with item.href
       if (pathname.startsWith(item.href) && item.href !== homeHref) return true;
@@ -209,7 +212,8 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
     }) || navItems[0];
 
   const hasSubItems = !!(activeRoot?.subItems && activeRoot.subItems.length > 0);
-  const hasSecondaryContent = hasSubItems || !!uiSecondarySidebar;
+  const isStudentInVivaSection = isStudent && pathname.startsWith("/student/assessments/");
+  const hasSecondaryContent = hasSubItems || !!uiSecondarySidebar || isStudentInVivaSection;
   const isCreateAssignment = pathname.includes('/assignments/create');
   const [isHovered, setIsHovered] = React.useState(false);
 
@@ -368,8 +372,8 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
           </div>
         </div>
       </div>
-      {/* Secondary Sidebar Area */}
-      {hasSubItems && (
+      {/* Secondary Sidebar Area — only for subItems (course/instructor) or student viva when no store-driven sidebar */}
+      {(hasSubItems || (isStudentInVivaSection && !uiSecondarySidebar)) && (
         <div className={cn("relative transition-all duration-300 z-10 w-64")}>
           <div
             className={cn(
@@ -378,7 +382,7 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
           >
             <div className={cn("flex h-16 items-center w-full px-6")}>
               <h2 className="text-lg font-semibold tracking-tight text-foreground font-heading">
-                {isCreateAssignment ? "Create Assignment" : activeRoot?.title || "Overview"}
+                {isCreateAssignment ? "Create Assignment" : isStudentInVivaSection ? "Viva" : activeRoot?.title || "Overview"}
               </h2>
             </div>
             <ScrollArea className={cn("flex-1 w-full px-4")}>
@@ -444,24 +448,50 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
                 ) : (
                   /* Contextual Sub-navigation */
                   <div className="flex flex-col gap-1 w-full">
-                    {activeRoot.subItems!.map((subItem) => {
-                      const isChildActive = pathname === subItem.href || pathname.startsWith(subItem.href + "/");
-                      return (
-                        <Link key={subItem.title} href={subItem.href} className="w-full text-left">
-                          <Button
-                            variant="ghost"
-                            className={cn(
-                              "h-10 w-full flex items-center rounded-lg transition-colors justify-start px-3",
-                              isChildActive
-                                ? "bg-primary/10 text-primary font-medium"
-                                : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
-                            )}
-                          >
-                            <span className="truncate text-sm">{subItem.title}</span>
-                          </Button>
-                        </Link>
-                      )
-                    })}
+                    {isStudentInVivaSection ? (
+                      <>
+                        {[
+                          { title: "My Sessions", href: "/student/assessments/my-sessions" },
+                          { title: "Voice Enrollment", href: "/student/assessments/voice-enrollment" },
+                        ].map((subItem) => {
+                          const isChildActive = pathname === subItem.href || pathname.startsWith(subItem.href + "/");
+                          return (
+                            <Link key={subItem.href} href={subItem.href} className="w-full text-left">
+                              <Button
+                                variant="ghost"
+                                className={cn(
+                                  "h-10 w-full flex items-center rounded-lg transition-colors justify-start px-3",
+                                  isChildActive
+                                    ? "bg-primary/10 text-primary font-medium"
+                                    : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
+                                )}
+                              >
+                                <span className="truncate text-sm">{subItem.title}</span>
+                              </Button>
+                            </Link>
+                          );
+                        })}
+                      </>
+                    ) : (
+                      activeRoot.subItems!.map((subItem) => {
+                        const isChildActive = pathname === subItem.href || pathname.startsWith(subItem.href + "/");
+                        return (
+                          <Link key={subItem.title} href={subItem.href} className="w-full text-left">
+                            <Button
+                              variant="ghost"
+                              className={cn(
+                                "h-10 w-full flex items-center rounded-lg transition-colors justify-start px-3",
+                                isChildActive
+                                  ? "bg-primary/10 text-primary font-medium"
+                                  : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
+                              )}
+                            >
+                              <span className="truncate text-sm">{subItem.title}</span>
+                            </Button>
+                          </Link>
+                        );
+                      })
+                    )}
                   </div>
                 )}
               </div>

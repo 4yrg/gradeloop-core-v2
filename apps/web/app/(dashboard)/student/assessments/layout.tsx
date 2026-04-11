@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Mic2, BarChart, ShieldCheck } from "lucide-react";
+import { Mic2, ShieldCheck } from "lucide-react";
 import { useUIStore } from "@/lib/stores/uiStore";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +21,7 @@ export default function AssessmentsLayout({
     const basePath = "/student/assessments";
 
     React.useEffect(() => {
+        setPageTitle("Viva");
         pushSecondarySidebar({
             title: "Viva",
             subtitle: undefined,
@@ -29,7 +30,6 @@ export default function AssessmentsLayout({
             basePath,
             items: [
                 { name: "My Sessions", href: `${basePath}/my-sessions` },
-                { name: "Results", href: `${basePath}/results` },
                 { name: "Voice Enrollment", href: `${basePath}/voice-enrollment` },
             ],
         });
@@ -43,7 +43,6 @@ export default function AssessmentsLayout({
     // Mobile-only tab strip
     const mobileTabs = [
         { name: "My Sessions", href: `${basePath}/my-sessions`, icon: Mic2 },
-        { name: "Results", href: `${basePath}/results`, icon: BarChart },
         { name: "Voice Enroll", href: `${basePath}/voice-enrollment`, icon: ShieldCheck },
     ];
 
