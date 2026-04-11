@@ -137,25 +137,25 @@ services:
         compress: "true"
 
   # =============================================================================
-  # MinIO (Object Storage)
+  # SeaweedFS (Object Storage - S3 Compatible)
   # =============================================================================
-  minio:
-    image: docker.io/minio/minio:latest
-    container_name: gradeloop-minio
+  seaweed:
+    image: docker.io/seaweedfs/seaweedfs:latest
+    container_name: gradeloop-seaweed
     restart: unless-stopped
     environment:
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - WEEAD_IDENTITY=seaweedfs
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9333:9333"   # S3 API
+      - "9320:9320"   # Console
+      - "8080:8080"   # Volume server
     volumes:
-      - minio-data:/data
+      - seaweed-data:/data
     networks:
       - gradeloop-network
-    command: server /data --console-address ":9001"
+    command: server -s3 -identity=seaweedfs -s3Port=9333 -consolePort=9320
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "curl", "-f", "http://localhost:9320/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -210,7 +210,7 @@ volumes:
     name: gradeloop-rabbitmq-data
   redis-data:
     name: gradeloop-redis-data
-  minio-data:
-    name: gradeloop-minio-data
+  seaweed-data:
+    name: gradeloop-seaweed-data
   kong-database-data:
     name: gradeloop-kong-db-data

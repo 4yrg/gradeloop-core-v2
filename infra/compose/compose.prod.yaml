@@ -131,20 +131,23 @@ services:
           cpus: '0.25'
           memory: 512M
 
-  minio:
-    image: minio/minio:latest
-    container_name: gradeloop-minio
+  seaweed:
+    image: docker.io/seaweedfs/seaweedfs:latest
+    container_name: gradeloop-seaweed
     restart: always
     environment:
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - WEEAD_IDENTITY=seaweedfs
+    ports:
+      - "9333:9333"   # S3 API
+      - "9320:9320"   # Console
+      - "8080:8080"   # Volume server
     volumes:
-      - minio-data:/data
+      - seaweed-data:/data
     networks:
       - gradeloop-network
-    command: server /data --console-address ":9001"
+    command: server -s3 -identity=seaweedfs -s3Port=9333 -consolePort=9320
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "curl", "-f", "http://localhost:9320/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -231,7 +234,7 @@ services:
       - DB_NAME=${IAM_SVC_DB_NAME:-iam_db}
       - DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
       - EMAIL_SERVICE_URL=http://email:8082
-      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ENDPOINT=seaweed:9333
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
@@ -240,7 +243,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      minio:
+      seaweed:
         condition: service_started
     networks:
       - gradeloop-network
