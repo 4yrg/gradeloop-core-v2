@@ -22,7 +22,7 @@ services:
   # PostgreSQL (Main Database)
   # =============================================================================
   postgres:
-    image: postgres:16-alpine
+    image: docker.io/postgres:16-alpine
     container_name: gradeloop-postgres
     restart: unless-stopped
     environment:
@@ -53,7 +53,7 @@ services:
   # PostgreSQL — Keystroke Service (Dedicated Instance)
   # =============================================================================
   postgres-keystroke:
-    image: postgres:16-alpine
+    image: docker.io/postgres:16-alpine
     container_name: gradeloop-postgres-keystroke
     restart: unless-stopped
     environment:
@@ -83,7 +83,7 @@ services:
   # RabbitMQ (Message Queue)
   # =============================================================================
   rabbitmq:
-    image: rabbitmq:3.13-management-alpine
+    image: docker.io/rabbitmq:3.13-management-alpine
     container_name: gradeloop-rabbitmq
     restart: unless-stopped
     environment:
@@ -113,7 +113,7 @@ services:
   # Redis (Cache/Sessions)
   # =============================================================================
   redis:
-    image: redis:7-alpine
+    image: docker.io/redis:7-alpine
     container_name: gradeloop-redis
     restart: unless-stopped
     ports:
@@ -140,7 +140,7 @@ services:
   # MinIO (Object Storage)
   # =============================================================================
   minio:
-    image: minio/minio:latest
+    image: docker.io/minio/minio:latest
     container_name: gradeloop-minio
     restart: unless-stopped
     environment:
@@ -171,7 +171,7 @@ services:
   # Kong Database (Separate PostgreSQL for Kong Gateway)
   # =============================================================================
   kong-database:
-    image: postgres:16-alpine
+    image: docker.io/postgres:16-alpine
     container_name: gradeloop-kong-db
     restart: unless-stopped
     environment:

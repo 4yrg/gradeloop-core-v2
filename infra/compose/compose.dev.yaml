@@ -18,7 +18,7 @@ services:
   # Infrastructure (always needed)
   # =============================================================================
   postgres:
-    image: postgres:16-alpine
+    image: docker.io/ postgres:16-alpine
     container_name: gradeloop-postgres
     restart: unless-stopped
     environment:
@@ -39,7 +39,7 @@ services:
       start_period: 20s
 
   postgres-keystroke:
-    image: postgres:16-alpine
+    image: docker.io/ postgres:16-alpine
     container_name: gradeloop-postgres-keystroke
     restart: unless-stopped
     environment:
@@ -60,7 +60,7 @@ services:
       start_period: 20s
 
   rabbitmq:
-    image: rabbitmq:3.13-management-alpine
+    image: docker.io/ rabbitmq:3.13-management-alpine
     container_name: gradeloop-rabbitmq
     restart: unless-stopped
     environment:
@@ -81,7 +81,7 @@ services:
       start_period: 30s
 
   redis:
-    image: redis:7-alpine
+    image: docker.io/ redis:7-alpine
     container_name: gradeloop-redis
     restart: unless-stopped
     ports:
@@ -99,7 +99,7 @@ services:
       start_period: 10s
 
   minio:
-    image: minio/minio:latest
+    image: docker.io/ minio/minio:latest
     container_name: gradeloop-minio
     restart: unless-stopped
     environment:
@@ -124,7 +124,7 @@ services:
   # Kong Gateway (Optional - can run separately)
   # =============================================================================
   kong-gateway:
-    image: kong:3.4-alpine
+    image: docker.io/ kong:3.4-alpine
     container_name: gradeloop-kong-gateway
     restart: unless-stopped
     environment:
@@ -152,7 +152,7 @@ services:
       - gradeloop-network
 
   kong-database:
-    image: postgres:16-alpine
+    image: docker.io/ postgres:16-alpine
     container_name: gradeloop-kong-db
     restart: unless-stopped
     environment:
