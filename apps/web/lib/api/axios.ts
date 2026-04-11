@@ -11,7 +11,7 @@ export const axiosInstance = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 30000,
+  timeout: 120000,
 });
 
 // Request interceptor - attach access token to all requests

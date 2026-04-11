@@ -66,29 +66,31 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	})
 
 	// ── Assignments ───────────────────────────────────────────────────────────
-	// All assignment mutations require super_admin or admin role.
-	assignments := protected.Group("/assignments", requireAdminRole())
+	// Read operations (GET) — accessible to instructor, admin, super_admin.
+	// Mutation operations (POST/PATCH/DELETE) — require super_admin or admin.
+	assignmentsRead := protected.Group("/assignments", middleware.RequireAnyUserType("instructor", "admin", "super_admin"))
+	assignmentsWrite := protected.Group("/assignments", requireAdminRole())
 
-	// POST   /api/v1/assignments                                  — create
-	assignments.Post("/", cfg.AssignmentHandler.CreateAssignment)
+	// POST   /api/v1/assignments                                  — create (admin only)
+	assignmentsWrite.Post("/", cfg.AssignmentHandler.CreateAssignment)
 
 	// GET    /api/v1/assignments/course-instance/:courseInstanceId — list by course instance
 	// NOTE: Must be registered BEFORE GET /:id so that the literal segment
 	// "course-instance" is not swallowed as a UUID parameter value.
-	assignments.Get("/course-instance/:courseInstanceId", cfg.AssignmentHandler.ListAssignmentsByCourseInstance)
+	assignmentsRead.Get("/course-instance/:courseInstanceId", cfg.AssignmentHandler.ListAssignmentsByCourseInstance)
 
 	// GET    /api/v1/assignments/:id/submissions                  — list all versions
 	// GET    /api/v1/assignments/:id/latest                       — get latest version
 	// NOTE: These must be registered BEFORE GET /:id to prevent Fiber from
 	// routing the literal sub-segments as UUID param values.
-	assignments.Get("/:id/submissions", cfg.SubmissionHandler.ListSubmissions)
-	assignments.Get("/:id/latest", cfg.SubmissionHandler.GetLatestSubmission)
+	assignmentsRead.Get("/:id/submissions", cfg.SubmissionHandler.ListSubmissions)
+	assignmentsRead.Get("/:id/latest", cfg.SubmissionHandler.GetLatestSubmission)
 
 	// GET    /api/v1/assignments/:id                              — get by ID (active only)
-	assignments.Get("/:id", cfg.AssignmentHandler.GetAssignment)
+	assignmentsRead.Get("/:id", cfg.AssignmentHandler.GetAssignment)
 
-	// PATCH  /api/v1/assignments/:id                              — update / soft-delete
-	assignments.Patch("/:id", cfg.AssignmentHandler.UpdateAssignment)
+	// PATCH  /api/v1/assignments/:id                              — update / soft-delete (admin only)
+	assignmentsWrite.Patch("/:id", cfg.AssignmentHandler.UpdateAssignment)
 
 	// ── Submissions ───────────────────────────────────────────────────────────
 	// Submissions are accessible to all authenticated users (enrollment is

@@ -54,6 +54,10 @@ class Settings(BaseSettings):
         default="gemini-2.0-flash-live-001",
         alias="IVAS_GEMINI_LIVE_MODEL",
     )
+    gemini_grader_model: str = Field(
+        default="gemma-4-31b-it",
+        alias="IVAS_GEMINI_GRADER_MODEL",
+    )
 
     # Voice Authentication
     voice_similarity_threshold: float = Field(

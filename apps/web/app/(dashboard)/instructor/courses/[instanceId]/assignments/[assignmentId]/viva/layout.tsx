@@ -3,19 +3,12 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-    LayoutDashboard,
-    CheckSquare,
-    Settings,
-    BarChart3,
-    ShieldCheck,
-    Mic2,
-} from "lucide-react";
+import { Mic2, BookOpen, BarChart3 } from "lucide-react";
 import { instructorAssessmentsApi } from "@/lib/api/assessments";
 import { useUIStore } from "@/lib/stores/uiStore";
 import { cn } from "@/lib/utils";
 
-export default function AssignmentLayout({
+export default function VivaLayout({
     children,
     params,
 }: {
@@ -28,14 +21,12 @@ export default function AssignmentLayout({
     const pushSecondarySidebar = useUIStore((s) => s.pushSecondarySidebar);
     const popSecondarySidebar = useUIStore((s) => s.popSecondarySidebar);
     const updateSidebarByBasePath = useUIStore((s) => s.updateSidebarByBasePath);
-    const setPageTitle = useUIStore((s) => s.setPageTitle);
 
-    const coursePath = `/instructor/courses/${instanceId}/assignments`;
-    const basePath = `${coursePath}/${assignmentId}`;
+    const assignmentPath = `/instructor/courses/${instanceId}/assignments/${assignmentId}`;
+    const vivaBasePath = `${assignmentPath}/viva`;
 
     const [assignmentTitle, setAssignmentTitle] = React.useState("Assignment");
 
-    // Fetch assignment title
     React.useEffect(() => {
         let mounted = true;
         async function fetchData() {
@@ -48,63 +39,52 @@ export default function AssignmentLayout({
             }
         }
         fetchData();
-        return () => { mounted = false; };
+        return () => {
+            mounted = false;
+        };
     }, [assignmentId]);
 
-    // Push sidebar on mount, pop on unmount
+    // Push viva-only sidebar on mount, pop on unmount
     React.useEffect(() => {
         pushSecondarySidebar({
-            title: "Assignment",
+            title: "Viva",
             subtitle: "Assessment",
-            backHref: coursePath,
-            backLabel: "Assignments",
-            basePath,
+            backHref: assignmentPath,
+            backLabel: "Back to Assignment",
+            basePath: vivaBasePath,
             items: [
-                { name: "Overview", href: basePath },
-                { name: "Submissions", href: `${basePath}/submissions` },
-                { name: "Viva", href: `${basePath}/viva` },
-                { name: "Similarity", href: `${basePath}/similarity` },
-                { name: "Auth Monitor", href: `${basePath}/monitoring` },
-                { name: "Settings", href: `${basePath}/settings` },
+                { name: "Viva Sessions", href: vivaBasePath },
+                { name: "Competencies", href: `${vivaBasePath}/competencies` },
+                { name: "Analytics", href: `${vivaBasePath}/analytics` },
             ],
         });
         return () => {
             popSecondarySidebar();
-            setPageTitle(null);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [assignmentId]);
+    }, [assignmentId, instanceId]);
 
-    // Update title once fetched. Update our own stack entry by basePath so
-    // we don't stomp a child layout's sidebar (e.g. viva layout) that may
-    // have been pushed on top of ours.
+    // Update subtitle with assignment title once loaded
     React.useEffect(() => {
-        setPageTitle(assignmentTitle);
-        updateSidebarByBasePath(basePath, {
-            title: assignmentTitle,
-            subtitle: "Assessment",
-            backHref: coursePath,
-            backLabel: "Assignments",
-            basePath,
+        updateSidebarByBasePath(vivaBasePath, {
+            title: "Viva",
+            subtitle: assignmentTitle,
+            backHref: assignmentPath,
+            backLabel: "Back to Assignment",
+            basePath: vivaBasePath,
             items: [
-                { name: "Overview", href: basePath },
-                { name: "Submissions", href: `${basePath}/submissions` },
-                { name: "Viva", href: `${basePath}/viva` },
-                { name: "Similarity", href: `${basePath}/similarity` },
-                { name: "Auth Monitor", href: `${basePath}/monitoring` },
-                { name: "Settings", href: `${basePath}/settings` },
+                { name: "Viva Sessions", href: vivaBasePath },
+                { name: "Competencies", href: `${vivaBasePath}/competencies` },
+                { name: "Analytics", href: `${vivaBasePath}/analytics` },
             ],
         });
-    }, [assignmentTitle, assignmentId, basePath, coursePath, setPageTitle, updateSidebarByBasePath]);
+    }, [assignmentTitle, assignmentPath, vivaBasePath, updateSidebarByBasePath]);
 
     // Mobile-only tab strip
     const mobileTabs = [
-        { name: "Overview", href: basePath, icon: LayoutDashboard },
-        { name: "Submissions", href: `${basePath}/submissions`, icon: CheckSquare },
-        { name: "Viva", href: `${basePath}/viva`, icon: Mic2 },
-        { name: "Similarity", href: `${basePath}/similarity`, icon: BarChart3 },
-        { name: "Auth Monitor", href: `${basePath}/monitoring`, icon: ShieldCheck },
-        { name: "Settings", href: `${basePath}/settings`, icon: Settings },
+        { name: "Sessions", href: vivaBasePath, icon: Mic2 },
+        { name: "Competencies", href: `${vivaBasePath}/competencies`, icon: BookOpen },
+        { name: "Analytics", href: `${vivaBasePath}/analytics`, icon: BarChart3 },
     ];
 
     return (
@@ -112,8 +92,8 @@ export default function AssignmentLayout({
             {/* Mobile-only compact tab bar — hidden ≥ lg */}
             <nav className="lg:hidden flex items-center gap-1 overflow-x-auto border-b border-border/40 bg-background/95 backdrop-blur px-4 py-2 shrink-0 sticky top-0 z-10">
                 {mobileTabs.map((tab) => {
-                    const isActive = tab.href === basePath
-                        ? pathname === basePath
+                    const isActive = tab.href === vivaBasePath
+                        ? pathname === vivaBasePath
                         : pathname.startsWith(tab.href);
                     const Icon = tab.icon;
                     return (

@@ -9,14 +9,12 @@ import {
     Loader2,
     AlertCircle,
     Wifi,
-    WifiOff,
-    Volume2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toaster";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ivasApi } from "@/lib/ivas-api";
-import { useAuthStore } from "@/lib/stores/authStore";
 import type { VivaSession, WsMessageIncoming, ChatMessage } from "@/types/ivas";
 
 type ConnectionState = "connecting" | "connected" | "disconnected" | "error";
@@ -26,7 +24,6 @@ export default function VivaSessionPage() {
     const params = useParams<{ sessionId: string }>();
     const router = useRouter();
     const { addToast } = useToast();
-    const user = useAuthStore((s) => s.user);
     const sessionId = params.sessionId;
 
     // Session state
@@ -40,14 +37,25 @@ export default function VivaSessionPage() {
     const [isRecording, setIsRecording] = React.useState(false);
     const [messages, setMessages] = React.useState<ChatMessage[]>([]);
     const [sessionEnded, setSessionEnded] = React.useState(false);
+    const sessionEndedRef = React.useRef(false);
+    const [reconnectAttempts, setReconnectAttempts] = React.useState(0);
+    const reconnectAttemptsRef = React.useRef(0);
+    const MAX_RECONNECT_ATTEMPTS = 3;
+    const [showEndConfirm, setShowEndConfirm] = React.useState(false);
 
     // Refs
     const wsRef = React.useRef<WebSocket | null>(null);
-    const audioContextRef = React.useRef<AudioContext | null>(null);
+    // Two distinct AudioContexts: playback runs at 24kHz (Gemini Live output),
+    // mic runs at 16kHz (Gemini Live input). Sharing one context caused the
+    // mic to silently run at 24kHz, corrupting the audio sent upstream.
+    const playbackCtxRef = React.useRef<AudioContext | null>(null);
+    const micCtxRef = React.useRef<AudioContext | null>(null);
+    const playingSourcesRef = React.useRef<Set<AudioBufferSourceNode>>(new Set());
     const nextPlayStartRef = React.useRef(0);
     const mediaStreamRef = React.useRef<MediaStream | null>(null);
     const processorRef = React.useRef<ScriptProcessorNode | null>(null);
-    const messagesEndRef = React.useRef<HTMLDivElement>(null);
+    const transcriptEndRef = React.useRef<HTMLDivElement>(null);
+    const reconnectTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
     // Load session info
     React.useEffect(() => {
@@ -57,7 +65,8 @@ export default function VivaSessionPage() {
                 const s = await ivasApi.getSession(sessionId);
                 if (mounted) {
                     setSession(s);
-                    if (s.status === "completed" || s.status === "abandoned") {
+                    if (s.status === "completed" || s.status === "abandoned" || s.status === "grading" || s.status === "grading_failed") {
+                        sessionEndedRef.current = true;
                         setSessionEnded(true);
                     }
                 }
@@ -71,29 +80,72 @@ export default function VivaSessionPage() {
         return () => { mounted = false; };
     }, [sessionId]);
 
-    // Scroll messages to bottom
+    // Poll session status while grading is in progress
     React.useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        if (!sessionEnded) return;
+        if (session?.status === "completed" || session?.status === "abandoned" || session?.status === "grading_failed") return;
+
+        const pollInterval = setInterval(async () => {
+            try {
+                const s = await ivasApi.getSession(sessionId);
+                setSession(s);
+                if (s.status === "completed" || s.status === "abandoned" || s.status === "grading_failed") {
+                    clearInterval(pollInterval);
+                }
+            } catch { /* retry on next interval */ }
+        }, 3000);
+        return () => clearInterval(pollInterval);
+    }, [sessionEnded, session?.status, sessionId]);
+
+    // Scroll transcript to bottom on update
+    React.useEffect(() => {
+        transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
-    // Helper to add a message
-    const addMessage = React.useCallback((role: "user" | "assistant" | "system", content: string) => {
-        setMessages(prev => [...prev, {
-            id: crypto.randomUUID(),
-            role,
-            content,
-            timestamp: new Date(),
-        }]);
-    }, []);
+    // Append or extend the last streaming message for a role.
+    // Gemini Live sends incremental transcription chunks — we concat into the
+    // latest message for that role while it is still streaming, then lock it
+    // when `finished` is true or the turn switches.
+    const appendTranscript = React.useCallback(
+        (role: "user" | "assistant", chunk: string, finished: boolean) => {
+            setMessages((prev) => {
+                const next = [...prev];
+                const last = next[next.length - 1];
+                if (last && last.role === role && last.streaming) {
+                    next[next.length - 1] = {
+                        ...last,
+                        content: last.content + chunk,
+                        streaming: !finished,
+                    };
+                } else {
+                    // Seal any previous streaming message (role switch)
+                    if (last && last.streaming) {
+                        next[next.length - 1] = { ...last, streaming: false };
+                    }
+                    next.push({
+                        id: crypto.randomUUID(),
+                        role,
+                        content: chunk,
+                        timestamp: new Date(),
+                        streaming: !finished,
+                    });
+                }
+                return next;
+            });
+        },
+        [],
+    );
 
     // --- Audio Playback ---
-    const playAudioChunk = React.useCallback(async (base64Data: string) => {
+    const playAudioChunk = React.useCallback((base64Data: string) => {
         try {
-            if (!audioContextRef.current) {
-                audioContextRef.current = new AudioContext({ sampleRate: 24000 });
-            }
-            const ctx = audioContextRef.current;
-            if (ctx.state === "suspended") await ctx.resume();
+            const ctx = playbackCtxRef.current;
+            // Context must already exist and be running — it is created inside
+            // the Connect button click handler so autoplay policy allows it.
+            // Dropping a chunk here is strictly better than queueing it onto a
+            // suspended context, which is what caused the "two voices at once"
+            // bug (every queued source fired in unison when ctx later resumed).
+            if (!ctx || ctx.state !== "running") return;
 
             const raw = atob(base64Data);
             const bytes = new Uint8Array(raw.length);
@@ -117,14 +169,67 @@ export default function VivaSessionPage() {
             const startAt = Math.max(ctx.currentTime, nextPlayStartRef.current);
             source.start(startAt);
             nextPlayStartRef.current = startAt + buffer.duration;
+
+            // Track live sources so we can hard-stop on interruption/end.
+            playingSourcesRef.current.add(source);
+            source.onended = () => playingSourcesRef.current.delete(source);
         } catch (err) {
             console.error("Audio playback error:", err);
         }
     }, []);
 
+    // Hard-stop any in-flight audio. Used when the user ends the session or
+    // an interruption / error occurs, so lingering scheduled chunks can't
+    // play over the next turn.
+    const stopAllPlayback = React.useCallback(() => {
+        for (const src of playingSourcesRef.current) {
+            try { src.stop(); } catch { /* already stopped */ }
+        }
+        playingSourcesRef.current.clear();
+        nextPlayStartRef.current = 0;
+    }, []);
+
     // --- WebSocket Connection ---
     const connectWebSocket = React.useCallback(() => {
-        if (sessionEnded) return;
+        if (sessionEndedRef.current) return;
+
+        // CRITICAL: create and resume the playback AudioContext *here*, while
+        // we're still inside a user-gesture event handler (the Connect button
+        // click). If we create it later inside ws.onmessage, Chrome's autoplay
+        // policy leaves it suspended and ctx.resume() becomes a no-op — which
+        // is exactly what caused the initial greeting to be silent and then
+        // blast out in parallel with a later response when the mic button
+        // finally resumed the context.
+        if (!playbackCtxRef.current) {
+            try {
+                playbackCtxRef.current = new AudioContext({ sampleRate: 24000 });
+            } catch (err) {
+                console.error("Failed to create playback AudioContext:", err);
+            }
+        }
+        if (playbackCtxRef.current && playbackCtxRef.current.state === "suspended") {
+            playbackCtxRef.current.resume().catch(() => {});
+        }
+        nextPlayStartRef.current = 0;
+
+        // Tear down any previous socket before opening a new one so we can't
+        // have two live connections streaming audio in parallel. Critically,
+        // detach the handlers first — otherwise the old socket's onclose
+        // fires and schedules *another* reconnect on top of the one we want,
+        // multiplying sockets exponentially.
+        if (wsRef.current) {
+            const old = wsRef.current;
+            wsRef.current = null;
+            old.onopen = null;
+            old.onmessage = null;
+            old.onerror = null;
+            old.onclose = null;
+            try { old.close(); } catch { /* ignore */ }
+        }
+        if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+            reconnectTimeoutRef.current = null;
+        }
 
         const url = ivasApi.getVivaWebSocketUrl(sessionId);
         setConnectionState("connecting");
@@ -134,7 +239,12 @@ export default function VivaSessionPage() {
 
         ws.onopen = () => {
             setConnectionState("connected");
-            addMessage("system", "Connected to viva examiner. Waiting for greeting...");
+            // Do NOT reset reconnectAttempts here. A terminal (already-ended)
+            // session will accept the WS and fire onopen, then immediately
+            // close — if we reset the counter here, every reconnect attempt
+            // would succeed-open-close-reset-retry in a tight infinite loop.
+            // We only reset once we've actually received `session_started`,
+            // which a live session sends but a terminal session never does.
         };
 
         ws.onmessage = (event) => {
@@ -143,8 +253,11 @@ export default function VivaSessionPage() {
 
                 switch (msg.type) {
                     case "session_started":
-                        addMessage("system", "Session started. The AI examiner will greet you shortly.");
-                        setAiState("speaking");
+                        // Real live session confirmed — safe to reset the
+                        // reconnect counter now. (See onopen comment.)
+                        reconnectAttemptsRef.current = 0;
+                        setReconnectAttempts(0);
+                        setAiState("idle");
                         nextPlayStartRef.current = 0;
                         break;
 
@@ -155,28 +268,70 @@ export default function VivaSessionPage() {
                         }
                         break;
 
-                    case "text":
+                    case "user_transcript":
                         if (msg.data) {
-                            addMessage("assistant", msg.data);
+                            appendTranscript("user", msg.data, !!msg.finished);
+                        }
+                        break;
+
+                    case "ai_transcript":
+                        if (msg.data) {
+                            appendTranscript("assistant", msg.data, !!msg.finished);
+                        }
+                        break;
+
+                    case "text":
+                        // Fallback for non-audio text responses (rare with Live API)
+                        if (msg.data) {
+                            appendTranscript("assistant", msg.data, true);
                         }
                         break;
 
                     case "turn_complete":
                         setAiState("idle");
-                        nextPlayStartRef.current = 0;
+                        // Don't reset nextPlayStartRef here — the scheduled
+                        // tail of the current turn is still draining. It'll
+                        // naturally catch up to ctx.currentTime on the next
+                        // turn's first chunk via Math.max(...).
+                        // Seal any in-flight streaming bubble
+                        setMessages((prev) => {
+                            if (prev.length === 0) return prev;
+                            const last = prev[prev.length - 1];
+                            if (!last.streaming) return prev;
+                            const next = [...prev];
+                            next[next.length - 1] = { ...last, streaming: false };
+                            return next;
+                        });
                         break;
 
                     case "session_ended":
+                        stopAllPlayback();
+                        sessionEndedRef.current = true;
                         setSessionEnded(true);
                         setConnectionState("disconnected");
-                        addMessage("system", `Session ended — ${msg.status || "completed"}`);
-                        // Refresh session data
+                        reconnectAttemptsRef.current = MAX_RECONNECT_ATTEMPTS;
+                        setReconnectAttempts(MAX_RECONNECT_ATTEMPTS);
                         ivasApi.getSession(sessionId).then(setSession).catch(() => {});
                         break;
 
+
                     case "error":
-                        addMessage("system", `Error: ${msg.data}`);
-                        setConnectionState("error");
+                        if (msg.data === "Session already ended.") {
+                            // Backend rejected reconnection — session is in a terminal state.
+                            sessionEndedRef.current = true;
+                            setSessionEnded(true);
+                            setConnectionState("disconnected");
+                            reconnectAttemptsRef.current = MAX_RECONNECT_ATTEMPTS;
+                            setReconnectAttempts(MAX_RECONNECT_ATTEMPTS);
+                            ivasApi.getSession(sessionId).then(setSession).catch(() => {});
+                        } else {
+                            setConnectionState("error");
+                        }
+                        addToast({
+                            title: msg.data === "Session already ended." ? "Session ended" : "Viva error",
+                            variant: "error",
+                            description: msg.data || "Unknown error",
+                        });
                         break;
 
                     case "pong":
@@ -188,26 +343,53 @@ export default function VivaSessionPage() {
         };
 
         ws.onclose = () => {
-            if (!sessionEnded) {
+            // If the session has already ended (backend told us via
+            // session_ended or "Session already ended" error), do NOT
+            // attempt reconnection — it will always fail and produce
+            // duplicate toast messages. Use the ref to avoid stale closure.
+            if (sessionEndedRef.current) return;
+
+            const attempts = reconnectAttemptsRef.current;
+            if (attempts < MAX_RECONNECT_ATTEMPTS) {
                 setConnectionState("disconnected");
+                // Attempt reconnection with exponential backoff
+                const delay = Math.min(1000 * Math.pow(2, attempts), 5000);
+                reconnectTimeoutRef.current = setTimeout(() => {
+                    reconnectAttemptsRef.current += 1;
+                    setReconnectAttempts(reconnectAttemptsRef.current);
+                    connectWebSocket();
+                }, delay);
+            } else {
+                setConnectionState("error");
+                addToast({
+                    title: "Connection lost",
+                    variant: "error",
+                    description: "Unable to reconnect. Please refresh the page.",
+                });
             }
         };
 
         ws.onerror = () => {
             setConnectionState("error");
         };
-    }, [sessionId, sessionEnded, playAudioChunk, addMessage]);
+    }, [sessionId, playAudioChunk, appendTranscript, addToast]);
 
     // --- Microphone Recording ---
     const startRecording = React.useCallback(async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
-                audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true }
+                audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true }
             });
             mediaStreamRef.current = stream;
 
-            const ctx = audioContextRef.current || new AudioContext({ sampleRate: 16000 });
-            audioContextRef.current = ctx;
+            // Dedicated 16kHz context for the mic path. Must NOT share the
+            // 24kHz playback context — the ScriptProcessor inherits the
+            // context's sample rate, so a shared context sends wrong-rate
+            // PCM to the backend and the examiner never hears you correctly.
+            if (!micCtxRef.current) {
+                micCtxRef.current = new AudioContext({ sampleRate: 16000 });
+            }
+            const ctx = micCtxRef.current;
             if (ctx.state === "suspended") await ctx.resume();
 
             const source = ctx.createMediaStreamSource(stream);
@@ -239,7 +421,6 @@ export default function VivaSessionPage() {
 
             setIsRecording(true);
             setAiState("listening");
-            addMessage("system", "Microphone active — speak now.");
         } catch {
             addToast({
                 title: "Microphone access denied",
@@ -247,7 +428,7 @@ export default function VivaSessionPage() {
                 description: "Please allow microphone access to participate in the viva.",
             });
         }
-    }, [addToast, addMessage]);
+    }, [addToast]);
 
     const stopRecording = React.useCallback(() => {
         if (processorRef.current) {
@@ -264,12 +445,16 @@ export default function VivaSessionPage() {
 
     // --- End Viva ---
     const endViva = React.useCallback(() => {
+        setShowEndConfirm(true);
+    }, []);
+
+    const confirmEndViva = React.useCallback(() => {
+        setShowEndConfirm(false);
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
             stopRecording();
             wsRef.current.send(JSON.stringify({ type: "end_session" }));
-            addMessage("system", "Ending viva... waiting for AI to wrap up.");
         }
-    }, [stopRecording, addMessage]);
+    }, [stopRecording]);
 
     // Cleanup on unmount
     React.useEffect(() => {
@@ -277,6 +462,19 @@ export default function VivaSessionPage() {
             if (processorRef.current) processorRef.current.disconnect();
             if (mediaStreamRef.current) mediaStreamRef.current.getTracks().forEach(t => t.stop());
             if (wsRef.current) wsRef.current.close();
+            if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+            for (const src of playingSourcesRef.current) {
+                try { src.stop(); } catch { /* already stopped */ }
+            }
+            playingSourcesRef.current.clear();
+            if (playbackCtxRef.current) {
+                playbackCtxRef.current.close().catch(() => {});
+                playbackCtxRef.current = null;
+            }
+            if (micCtxRef.current) {
+                micCtxRef.current.close().catch(() => {});
+                micCtxRef.current = null;
+            }
         };
     }, []);
 
@@ -311,25 +509,53 @@ export default function VivaSessionPage() {
     }
 
     if (sessionEnded) {
+        const isGrading = session?.status === "grading";
+        const isGradingFailed = session?.status === "grading_failed";
+        const isAbandoned = session?.status === "abandoned";
+        const isCompleted = session?.status === "completed";
         return (
             <div className="flex items-center justify-center h-[60vh]">
                 <Card className="max-w-md text-center">
                     <CardHeader>
-                        <CardTitle>Viva Complete</CardTitle>
+                        <CardTitle>
+                            {isGradingFailed ? "Grading Failed" : isAbandoned ? "Viva Ended" : "Viva Complete"}
+                        </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <p className="text-sm text-muted-foreground">
-                            Your oral examination has ended.
-                        </p>
-                        {session.total_score !== null && (
+                        {isGrading ? (
+                            <>
+                                <Loader2 className="h-8 w-8 animate-spin mx-auto text-violet-500" />
+                                <p className="text-sm text-muted-foreground">
+                                    Your answers are being evaluated. This may take a minute.
+                                </p>
+                            </>
+                        ) : isGradingFailed ? (
+                            <p className="text-sm text-red-600 dark:text-red-400">
+                                An error occurred while grading your viva. Please contact your instructor.
+                            </p>
+                        ) : isAbandoned ? (
+                            <p className="text-sm text-muted-foreground">
+                                This viva session ended without completing the assessment.
+                            </p>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">
+                                Your oral examination has ended.
+                            </p>
+                        )}
+                        {isCompleted && session?.total_score !== null && (
                             <p className="text-2xl font-black">
-                                {session.total_score} / {session.max_possible}
+                                {session?.total_score} / {session?.max_possible}
                             </p>
                         )}
                         <div className="flex gap-3 justify-center">
                             <Button variant="outline" onClick={() => router.push("/student/assessments/my-sessions")}>
                                 My Sessions
                             </Button>
+                            {isCompleted && (
+                                <Button onClick={() => router.push(`/student/assessments/results/${sessionId}`)}>
+                                    View Results
+                                </Button>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
@@ -337,105 +563,190 @@ export default function VivaSessionPage() {
         );
     }
 
+    const statusLabel =
+        connectionState !== "connected"
+            ? connectionState === "connecting"
+                ? "Connecting…"
+                : connectionState === "error"
+                    ? "Connection error"
+                    : "Not connected"
+            : aiState === "speaking"
+                ? "Examiner is speaking"
+                : aiState === "listening"
+                    ? "Listening…"
+                    : "Ready";
+
     return (
-        <div className="flex flex-col h-[calc(100vh-8rem)] max-w-4xl mx-auto">
-            {/* Header bar */}
-            <div className="flex items-center justify-between border-b border-border/40 pb-4 mb-4">
-                <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2">
-                        {connectionState === "connected" ? (
-                            <Wifi className="h-4 w-4 text-emerald-500" />
-                        ) : connectionState === "connecting" ? (
-                            <Loader2 className="h-4 w-4 animate-spin text-amber-500" />
-                        ) : (
-                            <WifiOff className="h-4 w-4 text-red-500" />
-                        )}
-                        <span className="text-xs text-muted-foreground capitalize">{connectionState}</span>
-                    </div>
-                    {aiState === "speaking" && (
-                        <span className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
-                            <Volume2 className="h-3 w-3 animate-pulse" />
-                            AI speaking
-                        </span>
-                    )}
-                    {aiState === "listening" && (
-                        <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
-                            <Mic className="h-3 w-3 animate-pulse" />
-                            Listening
-                        </span>
-                    )}
+        <>
+        <div className="flex flex-col h-[calc(100vh-8rem)] max-w-3xl mx-auto">
+            {/* Top bar */}
+            <div className="flex items-center justify-between pb-4">
+                <div className="flex items-center gap-2">
+                    <div
+                        className={`h-2 w-2 rounded-full ${
+                            connectionState === "connected"
+                                ? "bg-emerald-500"
+                                : connectionState === "connecting"
+                                    ? "bg-amber-500 animate-pulse"
+                                    : "bg-red-500"
+                        }`}
+                    />
+                    <span className="text-xs text-muted-foreground">{statusLabel}</span>
                 </div>
-                <Button variant="destructive" size="sm" onClick={endViva} disabled={connectionState !== "connected"}>
-                    <PhoneOff className="h-3.5 w-3.5 mr-1" />
-                    End Viva
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={endViva}
+                    disabled={connectionState !== "connected"}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-500/10"
+                >
+                    <PhoneOff className="h-3.5 w-3.5 mr-1.5" />
+                    End viva
                 </Button>
             </div>
 
             {/* Transcript area */}
-            <div className="flex-1 overflow-y-auto space-y-3 pr-2 mb-4">
-                {messages.length === 0 && connectionState === "disconnected" && (
-                    <div className="flex items-center justify-center h-full text-muted-foreground">
-                        <div className="text-center space-y-2">
-                            <Mic className="h-12 w-12 mx-auto opacity-30" />
-                            <p className="text-sm">Click &quot;Connect to Examiner&quot; to begin your viva</p>
-                        </div>
+            <div className="flex-1 overflow-y-auto px-1 pt-2 pb-6 space-y-5">
+                {messages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-center gap-3 text-muted-foreground">
+                        {/* Idle orb */}
+                        <VoiceOrb state={aiState} connected={connectionState === "connected"} />
+                        <p className="text-sm max-w-xs">
+                            {connectionState === "connected"
+                                ? "Tap the microphone to start speaking with your examiner."
+                                : "Connect to begin your viva. The conversation will be transcribed live."}
+                        </p>
                     </div>
+                ) : (
+                    messages.map((msg) => (
+                        <TranscriptBubble key={msg.id} message={msg} />
+                    ))
                 )}
-                {messages.map((msg) => (
-                    <div
-                        key={msg.id}
-                        className={`flex ${msg.role === "user" ? "justify-end" : msg.role === "system" ? "justify-center" : "justify-start"}`}
-                    >
-                        {msg.role === "system" ? (
-                            <p className="text-xs text-muted-foreground italic px-3 py-1">{msg.content}</p>
-                        ) : (
-                            <div
-                                className={`max-w-[75%] rounded-xl px-4 py-2.5 text-sm ${
-                                    msg.role === "user"
-                                        ? "bg-primary text-primary-foreground"
-                                        : "bg-muted"
-                                }`}
-                            >
-                                {msg.content}
-                            </div>
-                        )}
-                    </div>
-                ))}
-                <div ref={messagesEndRef} />
+                <div ref={transcriptEndRef} />
             </div>
 
-            {/* Controls */}
-            <div className="border-t border-border/40 pt-4 flex items-center justify-center gap-4">
+            {/* Footer controls */}
+            <div className="border-t border-border/40 pt-5 pb-3 flex flex-col items-center gap-3">
                 {connectionState === "disconnected" || connectionState === "error" ? (
-                    <Button onClick={connectWebSocket} className="gap-2">
+                    <Button onClick={connectWebSocket} size="lg" className="gap-2 rounded-full px-6">
                         <Wifi className="h-4 w-4" />
-                        Connect to Examiner
+                        Connect to examiner
                     </Button>
                 ) : connectionState === "connecting" ? (
-                    <Button disabled className="gap-2">
+                    <Button disabled size="lg" className="gap-2 rounded-full px-6">
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Connecting...
+                        Connecting…
                     </Button>
                 ) : (
-                    <Button
-                        size="lg"
-                        variant={isRecording ? "destructive" : "default"}
-                        className="rounded-full w-16 h-16"
+                    <button
+                        type="button"
                         onClick={isRecording ? stopRecording : startRecording}
+                        aria-label={isRecording ? "Mute microphone" : "Start speaking"}
+                        className={`relative flex items-center justify-center h-16 w-16 rounded-full transition-colors duration-200 shadow-lg ${
+                            isRecording
+                                ? "bg-red-500 hover:bg-red-600 text-white"
+                                : "bg-foreground text-background hover:opacity-90"
+                        }`}
                     >
                         {isRecording ? (
                             <MicOff className="h-6 w-6" />
                         ) : (
                             <Mic className="h-6 w-6" />
                         )}
-                    </Button>
+                    </button>
                 )}
-            </div>
-            {connectionState === "connected" && (
-                <p className="text-center text-xs text-muted-foreground mt-2 pb-2">
-                    {isRecording ? "Recording... click to mute" : "Click microphone to speak"}
+
+                <p className="text-xs text-muted-foreground h-4">
+                    {connectionState === "connected" &&
+                        (isRecording ? "Tap to mute" : "Tap microphone to speak")}
                 </p>
+            </div>
+        </div>
+
+        {/* End Viva Confirmation */}
+        <ConfirmDialog
+            open={showEndConfirm}
+            onOpenChange={setShowEndConfirm}
+            title="End Viva Session?"
+            description="This will submit your session for grading. You won't be able to continue after ending."
+            confirmText="End Session"
+            variant="destructive"
+            onConfirm={confirmEndViva}
+        />
+        </>
+    );
+}
+
+// ============================================================
+// Presentational helpers
+// ============================================================
+
+function TranscriptBubble({ message }: { message: ChatMessage }) {
+    const isUser = message.role === "user";
+    return (
+        <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+            <div className="max-w-[80%] space-y-1">
+                <p
+                    className={`text-[10px] uppercase tracking-wide font-medium ${
+                        isUser ? "text-right text-muted-foreground" : "text-muted-foreground"
+                    }`}
+                >
+                    {isUser ? "You" : "Examiner"}
+                </p>
+                <div
+                    className={`rounded-2xl px-4 py-2.5 text-[15px] leading-relaxed ${
+                        isUser
+                            ? "bg-primary text-primary-foreground rounded-br-sm"
+                            : "bg-muted rounded-bl-sm"
+                    }`}
+                >
+                    {message.content}
+                    {message.streaming && (
+                        <span className="inline-block w-1.5 h-3.5 align-middle ml-1 bg-current opacity-60 animate-pulse" />
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function VoiceOrb({
+    state,
+    connected,
+    size = "lg",
+}: {
+    state: AiState;
+    connected: boolean;
+    size?: "sm" | "lg";
+}) {
+    const dim = size === "lg" ? "h-24 w-24" : "h-10 w-10";
+    const inner = size === "lg" ? "h-16 w-16" : "h-6 w-6";
+
+    const active = connected && (state === "speaking" || state === "listening");
+    const color =
+        state === "speaking"
+            ? "from-blue-500 to-indigo-500"
+            : state === "listening"
+                ? "from-emerald-500 to-teal-500"
+                : "from-muted-foreground/30 to-muted-foreground/20";
+
+    return (
+        <div className={`relative ${dim} flex items-center justify-center`}>
+            {active && (
+                <span
+                    className={`absolute inset-0 rounded-full bg-gradient-to-br ${color} opacity-40 animate-ping`}
+                />
             )}
+            <span
+                className={`absolute inset-2 rounded-full bg-gradient-to-br ${color} ${
+                    active ? "opacity-80" : "opacity-50"
+                } blur-[2px]`}
+            />
+            <span
+                className={`relative rounded-full ${inner} bg-gradient-to-br ${color} ${
+                    active ? "animate-pulse" : ""
+                }`}
+            />
         </div>
     );
 }

@@ -28,6 +28,22 @@ function StatusBadge({ status }: { status: string }) {
             </span>
         );
     }
+    if (status === "grading") {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Grading
+            </span>
+        );
+    }
+    if (status === "grading_failed") {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                <XCircle className="h-3 w-3" />
+                Grading Failed
+            </span>
+        );
+    }
     if (status === "in_progress" || status === "initializing") {
         return (
             <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
@@ -157,6 +173,15 @@ export default function MyVivaSessionsPage() {
                                             View Results
                                         </Link>
                                     </Button>
+                                ) : s.status === "grading" ? (
+                                    <span className="inline-flex items-center gap-1 text-xs text-violet-600 dark:text-violet-400 px-2">
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                        Processing…
+                                    </span>
+                                ) : s.status === "grading_failed" ? (
+                                    <span className="text-xs text-red-600 dark:text-red-400 px-2">Grading Failed</span>
+                                ) : s.status === "abandoned" ? (
+                                    <span className="text-xs text-zinc-500 dark:text-zinc-400 px-2">Abandoned</span>
                                 ) : (
                                     <span className="text-xs text-muted-foreground px-2">Ended</span>
                                 )}

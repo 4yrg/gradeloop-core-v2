@@ -104,13 +104,42 @@ export function SecondarySidebar() {
                 /* ── Nav mode (default) ── */
                 <ScrollArea className="flex-1 w-full px-4">
                     <div className="flex flex-col gap-1 w-full py-3">
-                        {config.items.map(({ name, href }) => {
-                            const isFirst = href === config.basePath;
+                        {config.items.map((item) => {
+                            const isFirst = item.href === config.basePath;
                             const isActive = isFirst
                                 ? pathname === config.basePath
-                                : pathname.startsWith(href);
+                                : pathname.startsWith(item.href);
+
+                            if (item.children) {
+                                return (
+                                    <div key={item.href} className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                            {item.name}
+                                        </div>
+                                        {item.children.map((child) => {
+                                            const childActive = pathname.startsWith(child.href);
+                                            return (
+                                                <Link key={child.href} href={child.href} className="w-full text-left pl-4">
+                                                    <Button
+                                                        variant="ghost"
+                                                        className={cn(
+                                                            "h-9 w-full flex items-center rounded-lg transition-colors justify-start px-3",
+                                                            childActive
+                                                                ? "bg-primary/10 text-primary font-medium"
+                                                                : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
+                                                        )}
+                                                    >
+                                                        <span className="truncate text-sm">{child.name}</span>
+                                                    </Button>
+                                                </Link>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            }
+
                             return (
-                                <Link key={name} href={href} className="w-full text-left">
+                                <Link key={item.href} href={item.href} className="w-full text-left">
                                     <Button
                                         variant="ghost"
                                         className={cn(
@@ -120,7 +149,7 @@ export function SecondarySidebar() {
                                                 : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
                                         )}
                                     >
-                                        <span className="truncate text-sm">{name}</span>
+                                        <span className="truncate text-sm">{item.name}</span>
                                     </Button>
                                 </Link>
                             );
