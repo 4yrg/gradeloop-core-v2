@@ -179,6 +179,11 @@ Question requirements (exactly follow this distribution):
         )
 
     # Build a lookup from competency name -> competency id
+    # The competency rows may use either "id" or "competency_id" as the key
+    # depending on whether they come from list_competencies() or list_assignment_competencies().
+    def _comp_id(c: dict) -> str | None:
+        return c.get("competency_id") or c.get("id")
+
     comp_by_name: dict[str, dict] = {c["name"]: c for c in competencies}
     # Also try lowercase for flexibility
     comp_by_name.update({k.lower(): v for k, v in comp_by_name.items()})
@@ -203,7 +208,7 @@ Question requirements (exactly follow this distribution):
 
         results.append({
             "question_text": question_text,
-            "competency_id": comp["id"] if comp else None,
+            "competency_id": _comp_id(comp) if comp else None,
             "competency_name": comp["name"] if comp else comp_name,
             "difficulty": difficulty,
             "sequence_num": idx,
