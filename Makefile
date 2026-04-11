@@ -160,7 +160,7 @@ COMPOSE_DIR := $(ROOT)/infra/compose
 # Start infrastructure services in Docker
 dev:
 	@echo "Starting infrastructure services..."
-	$(COMPOSE) -f $(COMPOSE_DIR)/compose.yaml up -d postgres postgres-keystroke rabbitmq redis minio
+	$(COMPOSE) -f $(COMPOSE_DIR)/compose.yaml up -d postgres postgres-keystroke rabbitmq redis seaweed
 	@echo ""
 	@echo "Infrastructure started! To run services locally:"
 	@echo "  make dev SERVICE=iam       # Run IAM service with air"
@@ -171,7 +171,7 @@ dev:
 # Start infrastructure with Kong gateway
 dev-gateway:
 	@echo "Starting infrastructure + Kong gateway..."
-	$(COMPOSE) -f $(COMPOSE_DIR)/compose.yaml up -d postgres postgres-keystroke rabbitmq redis minio kong-database
+	$(COMPOSE) -f $(COMPOSE_DIR)/compose.yaml up -d postgres postgres-keystroke rabbitmq redis seaweed kong-database
 	@cd apps/api-gateway && $(COMPOSE) up -d
 	@echo ""
 
