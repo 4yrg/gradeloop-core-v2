@@ -37,13 +37,20 @@ export default function VivaSessionPage() {
     const [isRecording, setIsRecording] = React.useState(false);
     const [messages, setMessages] = React.useState<ChatMessage[]>([]);
     const [sessionEnded, setSessionEnded] = React.useState(false);
+    const sessionEndedRef = React.useRef(false);
     const [reconnectAttempts, setReconnectAttempts] = React.useState(0);
+    const reconnectAttemptsRef = React.useRef(0);
     const MAX_RECONNECT_ATTEMPTS = 3;
     const [showEndConfirm, setShowEndConfirm] = React.useState(false);
 
     // Refs
     const wsRef = React.useRef<WebSocket | null>(null);
-    const audioContextRef = React.useRef<AudioContext | null>(null);
+    // Two distinct AudioContexts: playback runs at 24kHz (Gemini Live output),
+    // mic runs at 16kHz (Gemini Live input). Sharing one context caused the
+    // mic to silently run at 24kHz, corrupting the audio sent upstream.
+    const playbackCtxRef = React.useRef<AudioContext | null>(null);
+    const micCtxRef = React.useRef<AudioContext | null>(null);
+    const playingSourcesRef = React.useRef<Set<AudioBufferSourceNode>>(new Set());
     const nextPlayStartRef = React.useRef(0);
     const mediaStreamRef = React.useRef<MediaStream | null>(null);
     const processorRef = React.useRef<ScriptProcessorNode | null>(null);
@@ -59,6 +66,7 @@ export default function VivaSessionPage() {
                 if (mounted) {
                     setSession(s);
                     if (s.status === "completed" || s.status === "abandoned" || s.status === "grading" || s.status === "grading_failed") {
+                        sessionEndedRef.current = true;
                         setSessionEnded(true);
                     }
                 }
@@ -129,13 +137,15 @@ export default function VivaSessionPage() {
     );
 
     // --- Audio Playback ---
-    const playAudioChunk = React.useCallback(async (base64Data: string) => {
+    const playAudioChunk = React.useCallback((base64Data: string) => {
         try {
-            if (!audioContextRef.current) {
-                audioContextRef.current = new AudioContext({ sampleRate: 24000 });
-            }
-            const ctx = audioContextRef.current;
-            if (ctx.state === "suspended") await ctx.resume();
+            const ctx = playbackCtxRef.current;
+            // Context must already exist and be running — it is created inside
+            // the Connect button click handler so autoplay policy allows it.
+            // Dropping a chunk here is strictly better than queueing it onto a
+            // suspended context, which is what caused the "two voices at once"
+            // bug (every queued source fired in unison when ctx later resumed).
+            if (!ctx || ctx.state !== "running") return;
 
             const raw = atob(base64Data);
             const bytes = new Uint8Array(raw.length);
@@ -159,14 +169,67 @@ export default function VivaSessionPage() {
             const startAt = Math.max(ctx.currentTime, nextPlayStartRef.current);
             source.start(startAt);
             nextPlayStartRef.current = startAt + buffer.duration;
+
+            // Track live sources so we can hard-stop on interruption/end.
+            playingSourcesRef.current.add(source);
+            source.onended = () => playingSourcesRef.current.delete(source);
         } catch (err) {
             console.error("Audio playback error:", err);
         }
     }, []);
 
+    // Hard-stop any in-flight audio. Used when the user ends the session or
+    // an interruption / error occurs, so lingering scheduled chunks can't
+    // play over the next turn.
+    const stopAllPlayback = React.useCallback(() => {
+        for (const src of playingSourcesRef.current) {
+            try { src.stop(); } catch { /* already stopped */ }
+        }
+        playingSourcesRef.current.clear();
+        nextPlayStartRef.current = 0;
+    }, []);
+
     // --- WebSocket Connection ---
     const connectWebSocket = React.useCallback(() => {
-        if (sessionEnded) return;
+        if (sessionEndedRef.current) return;
+
+        // CRITICAL: create and resume the playback AudioContext *here*, while
+        // we're still inside a user-gesture event handler (the Connect button
+        // click). If we create it later inside ws.onmessage, Chrome's autoplay
+        // policy leaves it suspended and ctx.resume() becomes a no-op — which
+        // is exactly what caused the initial greeting to be silent and then
+        // blast out in parallel with a later response when the mic button
+        // finally resumed the context.
+        if (!playbackCtxRef.current) {
+            try {
+                playbackCtxRef.current = new AudioContext({ sampleRate: 24000 });
+            } catch (err) {
+                console.error("Failed to create playback AudioContext:", err);
+            }
+        }
+        if (playbackCtxRef.current && playbackCtxRef.current.state === "suspended") {
+            playbackCtxRef.current.resume().catch(() => {});
+        }
+        nextPlayStartRef.current = 0;
+
+        // Tear down any previous socket before opening a new one so we can't
+        // have two live connections streaming audio in parallel. Critically,
+        // detach the handlers first — otherwise the old socket's onclose
+        // fires and schedules *another* reconnect on top of the one we want,
+        // multiplying sockets exponentially.
+        if (wsRef.current) {
+            const old = wsRef.current;
+            wsRef.current = null;
+            old.onopen = null;
+            old.onmessage = null;
+            old.onerror = null;
+            old.onclose = null;
+            try { old.close(); } catch { /* ignore */ }
+        }
+        if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+            reconnectTimeoutRef.current = null;
+        }
 
         const url = ivasApi.getVivaWebSocketUrl(sessionId);
         setConnectionState("connecting");
@@ -176,7 +239,12 @@ export default function VivaSessionPage() {
 
         ws.onopen = () => {
             setConnectionState("connected");
-            setReconnectAttempts(0); // Reset on successful connection
+            // Do NOT reset reconnectAttempts here. A terminal (already-ended)
+            // session will accept the WS and fire onopen, then immediately
+            // close — if we reset the counter here, every reconnect attempt
+            // would succeed-open-close-reset-retry in a tight infinite loop.
+            // We only reset once we've actually received `session_started`,
+            // which a live session sends but a terminal session never does.
         };
 
         ws.onmessage = (event) => {
@@ -185,7 +253,11 @@ export default function VivaSessionPage() {
 
                 switch (msg.type) {
                     case "session_started":
-                        setAiState("speaking");
+                        // Real live session confirmed — safe to reset the
+                        // reconnect counter now. (See onopen comment.)
+                        reconnectAttemptsRef.current = 0;
+                        setReconnectAttempts(0);
+                        setAiState("idle");
                         nextPlayStartRef.current = 0;
                         break;
 
@@ -217,7 +289,10 @@ export default function VivaSessionPage() {
 
                     case "turn_complete":
                         setAiState("idle");
-                        nextPlayStartRef.current = 0;
+                        // Don't reset nextPlayStartRef here — the scheduled
+                        // tail of the current turn is still draining. It'll
+                        // naturally catch up to ctx.currentTime on the next
+                        // turn's first chunk via Math.max(...).
                         // Seal any in-flight streaming bubble
                         setMessages((prev) => {
                             if (prev.length === 0) return prev;
@@ -230,9 +305,12 @@ export default function VivaSessionPage() {
                         break;
 
                     case "session_ended":
+                        stopAllPlayback();
+                        sessionEndedRef.current = true;
                         setSessionEnded(true);
                         setConnectionState("disconnected");
-                        setReconnectAttempts(MAX_RECONNECT_ATTEMPTS); // Prevent reconnection
+                        reconnectAttemptsRef.current = MAX_RECONNECT_ATTEMPTS;
+                        setReconnectAttempts(MAX_RECONNECT_ATTEMPTS);
                         ivasApi.getSession(sessionId).then(setSession).catch(() => {});
                         break;
 
@@ -240,8 +318,10 @@ export default function VivaSessionPage() {
                     case "error":
                         if (msg.data === "Session already ended.") {
                             // Backend rejected reconnection — session is in a terminal state.
+                            sessionEndedRef.current = true;
                             setSessionEnded(true);
                             setConnectionState("disconnected");
+                            reconnectAttemptsRef.current = MAX_RECONNECT_ATTEMPTS;
                             setReconnectAttempts(MAX_RECONNECT_ATTEMPTS);
                             ivasApi.getSession(sessionId).then(setSession).catch(() => {});
                         } else {
@@ -263,15 +343,23 @@ export default function VivaSessionPage() {
         };
 
         ws.onclose = () => {
-            if (!sessionEnded && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+            // If the session has already ended (backend told us via
+            // session_ended or "Session already ended" error), do NOT
+            // attempt reconnection — it will always fail and produce
+            // duplicate toast messages. Use the ref to avoid stale closure.
+            if (sessionEndedRef.current) return;
+
+            const attempts = reconnectAttemptsRef.current;
+            if (attempts < MAX_RECONNECT_ATTEMPTS) {
                 setConnectionState("disconnected");
                 // Attempt reconnection with exponential backoff
-                const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 5000);
+                const delay = Math.min(1000 * Math.pow(2, attempts), 5000);
                 reconnectTimeoutRef.current = setTimeout(() => {
-                    setReconnectAttempts(prev => prev + 1);
+                    reconnectAttemptsRef.current += 1;
+                    setReconnectAttempts(reconnectAttemptsRef.current);
                     connectWebSocket();
                 }, delay);
-            } else if (!sessionEnded) {
+            } else {
                 setConnectionState("error");
                 addToast({
                     title: "Connection lost",
@@ -284,18 +372,24 @@ export default function VivaSessionPage() {
         ws.onerror = () => {
             setConnectionState("error");
         };
-    }, [sessionId, sessionEnded, playAudioChunk, appendTranscript, addToast, reconnectAttempts]);
+    }, [sessionId, playAudioChunk, appendTranscript, addToast]);
 
     // --- Microphone Recording ---
     const startRecording = React.useCallback(async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
-                audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true }
+                audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true }
             });
             mediaStreamRef.current = stream;
 
-            const ctx = audioContextRef.current || new AudioContext({ sampleRate: 16000 });
-            audioContextRef.current = ctx;
+            // Dedicated 16kHz context for the mic path. Must NOT share the
+            // 24kHz playback context — the ScriptProcessor inherits the
+            // context's sample rate, so a shared context sends wrong-rate
+            // PCM to the backend and the examiner never hears you correctly.
+            if (!micCtxRef.current) {
+                micCtxRef.current = new AudioContext({ sampleRate: 16000 });
+            }
+            const ctx = micCtxRef.current;
             if (ctx.state === "suspended") await ctx.resume();
 
             const source = ctx.createMediaStreamSource(stream);
@@ -369,6 +463,18 @@ export default function VivaSessionPage() {
             if (mediaStreamRef.current) mediaStreamRef.current.getTracks().forEach(t => t.stop());
             if (wsRef.current) wsRef.current.close();
             if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+            for (const src of playingSourcesRef.current) {
+                try { src.stop(); } catch { /* already stopped */ }
+            }
+            playingSourcesRef.current.clear();
+            if (playbackCtxRef.current) {
+                playbackCtxRef.current.close().catch(() => {});
+                playbackCtxRef.current = null;
+            }
+            if (micCtxRef.current) {
+                micCtxRef.current.close().catch(() => {});
+                micCtxRef.current = null;
+            }
         };
     }, []);
 

@@ -14,7 +14,9 @@ Architecture:
 import asyncio
 import base64
 import json
+import wave
 from contextlib import suppress
+from pathlib import Path
 from uuid import UUID
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -24,6 +26,70 @@ from app.logging_config import get_logger
 
 logger = get_logger(__name__)
 router = APIRouter()
+
+
+# =============================================================================
+# Examiner-first kickoff
+# -----------------------------------------------------------------------------
+# Stream a short pre-recorded "student says hello" PCM16 blob into Gemini
+# Live as the first realtime audio turn. Gemini's VAD commits it as a
+# student utterance, which triggers the examiner's greeting per the
+# GREETING PROTOCOL in the system prompt — so the student hears the
+# examiner open the viva before having to say anything.
+#
+# The audio is shipped as a static WAV asset (app/assets/kickoff_hello.wav,
+# PCM16 mono 16 kHz) so there is no runtime TTS dependency — no API calls,
+# no model availability concerns, no latency on the first session. We cache
+# the extracted PCM bytes at module level so the file is only read and
+# header-stripped once per process.
+#
+# The transcription of this synthetic turn is suppressed in the receiver
+# loop so it never appears in the UI or the stored transcript.
+# =============================================================================
+
+_KICKOFF_WAV_PATH = Path(__file__).resolve().parent.parent / "assets" / "kickoff_hello.wav"
+
+# Bytes of PCM16 mono 16 kHz audio (no header), populated on first session.
+_KICKOFF_AUDIO_CACHE: bytes | None = None
+
+
+def _get_kickoff_audio() -> bytes:
+    """Return cached kickoff PCM16 16 kHz mono bytes, loading from disk once.
+
+    The WAV file is PCM16 mono 16 kHz so its frames can be forwarded
+    verbatim to Gemini Live via ``send_realtime_input`` with
+    ``mime_type="audio/pcm;rate=16000"`` — no resampling or format
+    conversion required. We strip the RIFF header using stdlib ``wave``
+    and keep just the raw PCM payload.
+    """
+    global _KICKOFF_AUDIO_CACHE
+    if _KICKOFF_AUDIO_CACHE is not None:
+        return _KICKOFF_AUDIO_CACHE
+
+    with wave.open(str(_KICKOFF_WAV_PATH), "rb") as wf:
+        # Hard-assert the format. If these ever diverge from what Gemini
+        # Live expects, we'd rather fail loudly on startup than silently
+        # corrupt every session's audio.
+        if wf.getnchannels() != 1:
+            raise RuntimeError(
+                f"kickoff wav must be mono, got {wf.getnchannels()} channels",
+            )
+        if wf.getsampwidth() != 2:
+            raise RuntimeError(
+                f"kickoff wav must be 16-bit PCM, got {wf.getsampwidth() * 8}-bit",
+            )
+        if wf.getframerate() != 16000:
+            raise RuntimeError(
+                f"kickoff wav must be 16 kHz, got {wf.getframerate()} Hz",
+            )
+        _KICKOFF_AUDIO_CACHE = wf.readframes(wf.getnframes())
+
+    logger.info(
+        "kickoff_audio_loaded",
+        path=str(_KICKOFF_WAV_PATH),
+        bytes=len(_KICKOFF_AUDIO_CACHE),
+    )
+    return _KICKOFF_AUDIO_CACHE
 
 
 # =============================================================================
@@ -155,6 +221,14 @@ async def _bridge_gemini_live(
     pending: dict[str, str] = {"student": "", "examiner": ""}
     turn_counter = {"n": 0}
 
+    # Suppression state for the synthetic kickoff student turn. When True,
+    # the next incoming student input_transcription (until its `finished`
+    # flag) is dropped on the floor — not forwarded to the browser and not
+    # accumulated into the stored transcript. Flipped to False once the
+    # synthetic turn is fully consumed. Mutable dict so the nested receiver
+    # task can mutate it.
+    kickoff_state = {"suppress_student": False}
+
     def _flush_role(role: str) -> None:
         buf = pending.get(role, "").strip()
         if buf:
@@ -171,6 +245,54 @@ async def _bridge_gemini_live(
     ) as live:
         logger.info("gemini_connected")
         await websocket.send_json({"type": "session_started"})
+
+        # ── Examiner-first kickoff ─────────────────────────────────────
+        # Stream a pre-synthesized "hello" PCM16 blob into Gemini Live as
+        # the first realtime audio turn. Gemini's VAD commits it as a
+        # student turn, triggering the greeting protocol immediately —
+        # the student hears the examiner open the viva before having to
+        # say anything.
+        #
+        # Previous attempt: text client_content turn. That crashes the
+        # Gemini Live WS with 1007 "invalid argument" on audio-modality
+        # sessions. Do NOT go back to that approach. Audio kickoff is the
+        # supported path because it's exactly what a real student's mic
+        # would emit.
+        try:
+            kickoff_pcm = _get_kickoff_audio()
+            # Stream in ~100ms frames (16kHz * 2 bytes * 0.1s = 3200 B).
+            # Slightly pacing the frames keeps Gemini's VAD happy —
+            # dumping the whole blob in one send_realtime_input call can
+            # confuse VAD's speech-end detection.
+            FRAME_BYTES = 3200
+            for offset in range(0, len(kickoff_pcm), FRAME_BYTES):
+                await live.send_realtime_input(
+                    audio=types.Blob(
+                        data=kickoff_pcm[offset:offset + FRAME_BYTES],
+                        mime_type="audio/pcm;rate=16000",
+                    ),
+                )
+                # Pace frames at ~real-time. Tiny sleep is enough; we
+                # don't need wall-clock accuracy, just some spacing.
+                await asyncio.sleep(0.02)
+            # Trailing silence (~400ms) to let VAD detect end-of-speech
+            # and commit the turn, so Gemini responds promptly.
+            silence = b"\x00\x00" * (16000 * 4 // 10)  # 400ms @ 16kHz s16
+            for offset in range(0, len(silence), FRAME_BYTES):
+                await live.send_realtime_input(
+                    audio=types.Blob(
+                        data=silence[offset:offset + FRAME_BYTES],
+                        mime_type="audio/pcm;rate=16000",
+                    ),
+                )
+                await asyncio.sleep(0.02)
+            kickoff_state["suppress_student"] = True
+            logger.info("kickoff_audio_sent", bytes=len(kickoff_pcm))
+        except Exception as exc:
+            # Non-fatal: if TTS or streaming fails we just fall back to
+            # the student-speaks-first flow. The examiner will still
+            # greet correctly once the student says hello.
+            logger.warning("kickoff_audio_failed", error=str(exc))
 
         end = asyncio.Event()
 
@@ -239,17 +361,32 @@ async def _bridge_gemini_live(
                         if sc.input_transcription and sc.input_transcription.text:
                             chunk = sc.input_transcription.text
                             finished = bool(sc.input_transcription.finished)
-                            # Role-switch: flush any in-flight examiner turn
-                            if pending["examiner"]:
-                                _flush_role("examiner")
-                            pending["student"] += chunk
-                            if finished:
-                                _flush_role("student")
-                            await websocket.send_json({
-                                "type": "user_transcript",
-                                "data": chunk,
-                                "finished": finished,
-                            })
+
+                            # Drop the synthetic kickoff turn's transcription
+                            # entirely — it's the backend's own TTS "hello"
+                            # pretending to be the student. Students should
+                            # never see it in the UI and it shouldn't count
+                            # as a real transcript turn for grading.
+                            # NOTE: don't `continue` here — a single Gemini
+                            # message may also carry turn_complete /
+                            # output_transcription, and we still want those
+                            # processed normally.
+                            if kickoff_state["suppress_student"]:
+                                if finished:
+                                    kickoff_state["suppress_student"] = False
+                                    logger.info("kickoff_student_turn_suppressed")
+                            else:
+                                # Role-switch: flush any in-flight examiner turn
+                                if pending["examiner"]:
+                                    _flush_role("examiner")
+                                pending["student"] += chunk
+                                if finished:
+                                    _flush_role("student")
+                                await websocket.send_json({
+                                    "type": "user_transcript",
+                                    "data": chunk,
+                                    "finished": finished,
+                                })
 
                         # Streaming transcript of AI speech
                         if sc.output_transcription and sc.output_transcription.text:
@@ -270,6 +407,16 @@ async def _bridge_gemini_live(
                         # Gemini finished this response turn — flush any
                         # un-finalised chunks from both sides.
                         if getattr(sc, "turn_complete", False):
+                            # Fail-safe: by the time we've seen a full
+                            # turn_complete we are past the kickoff, so
+                            # ensure suppression is released even if
+                            # Gemini never emitted an input_transcription
+                            # for the synthetic student turn (otherwise
+                            # the real student's first utterance would be
+                            # silently dropped forever).
+                            if kickoff_state["suppress_student"]:
+                                kickoff_state["suppress_student"] = False
+                                logger.info("kickoff_suppress_released_on_turn_complete")
                             _flush_role("student")
                             _flush_role("examiner")
                             await websocket.send_json({"type": "turn_complete"})
