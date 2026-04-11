@@ -678,7 +678,14 @@ class PostgresClient:
         async with self._pool.acquire() as conn:
             rows = await conn.fetch(
                 """
-                SELECT c.*, ca.weight, ca.id AS link_id
+                SELECT
+                    ca.id           AS link_id,
+                    c.id            AS competency_id,
+                    c.name,
+                    c.description,
+                    c.difficulty,
+                    c.max_score,
+                    ca.weight
                 FROM competency_assignments ca
                 JOIN competencies c ON c.id = ca.competency_id
                 WHERE ca.assignment_id = $1

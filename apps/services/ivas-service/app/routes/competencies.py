@@ -92,10 +92,12 @@ async def set_assignment_competencies(
     Each entry must reference a competency_id that already exists.
     """
     db = _get_db()
-    rows = await db.set_assignment_competencies(
+    await db.set_assignment_competencies(
         assignment_id,
         [{"competency_id": e.competency_id, "weight": e.weight} for e in body.competencies],
     )
+    # Re-fetch with the JOIN to include competency details (name, difficulty, etc.)
+    rows = await db.list_assignment_competencies(assignment_id)
     return [CompetencyAssignmentLinkOut(**r) for r in rows]
 
 
