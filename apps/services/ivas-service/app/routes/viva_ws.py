@@ -346,6 +346,9 @@ async def _finalize_session(
     except Exception as exc:
         logger.error("save_transcripts_failed", error=str(exc))
 
+    # Mark session as grading so the UI reflects the processing state.
+    await db.update_session_status(sid, "grading")
+
     # 2. Grade the session (AI instructor stories #2 and #4).
     if not transcript_turns:
         logger.info("grading_skipped_empty_transcript", session_id=str(sid))

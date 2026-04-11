@@ -16,6 +16,7 @@ import {
     AlertCircle,
     Sliders,
     BookOpen,
+    Loader2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,14 @@ function StatusBadge({ status }: { status: string }) {
             <Badge variant="outline" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0">
                 <CheckCircle2 className="h-3 w-3 mr-1" />
                 Completed
+            </Badge>
+        );
+    }
+    if (status === "grading") {
+        return (
+            <Badge variant="outline" className="bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400 border-0">
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                Grading
             </Badge>
         );
     }
@@ -152,13 +161,13 @@ function CompetencyBreakdownStudent({ sessionId, studentId }: { sessionId: strin
                 </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-                {scores.map(s => {
+                {scores.map((s, idx) => {
                     const pct = s.score !== null && s.max_score !== null && s.max_score > 0
                         ? (s.score / s.max_score) * 100 : 0;
                     const color = pct >= 80 ? "text-emerald-600" : pct >= 60 ? "text-amber-600" : "text-red-600";
                     const barColor = pct >= 80 ? "bg-emerald-500" : pct >= 60 ? "bg-amber-500" : "bg-red-500";
                     return (
-                        <div key={s.competency_id} className="flex items-center gap-3">
+                        <div key={`${s.competency_id}-${idx}`} className="flex items-center gap-3">
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium mb-1.5">{s.competency_name ?? "—"}</p>
                                 <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
@@ -362,15 +371,23 @@ export default function ResultsPage() {
                 </Card>
             )}
 
-            {/* In-progress / non-completed banner */}
+            {/* In-progress / grading / non-completed banner */}
             {session.status !== "completed" && (
                 <Card className="bg-muted/50 border-dashed">
                     <CardContent className="pt-6 flex items-center gap-3">
-                        <Clock className="h-5 w-5 text-muted-foreground shrink-0" />
+                        {session.status === "grading" ? (
+                            <Loader2 className="h-5 w-5 text-violet-500 shrink-0 animate-spin" />
+                        ) : (
+                            <Clock className="h-5 w-5 text-muted-foreground shrink-0" />
+                        )}
                         <div>
-                            <p className="text-sm font-medium">Session not yet complete</p>
+                            <p className="text-sm font-medium">
+                                {session.status === "grading" ? "Grading in progress" : "Session not yet complete"}
+                            </p>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                                Transcript and scoring will appear once the session ends.
+                                {session.status === "grading"
+                                    ? "Your answers are being evaluated. Results will appear here once grading is done."
+                                    : "Transcript and scoring will appear once the session ends."}
                             </p>
                         </div>
                     </CardContent>

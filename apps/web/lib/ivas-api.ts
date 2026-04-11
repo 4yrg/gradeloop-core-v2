@@ -163,6 +163,11 @@ export const ivasApi = {
         ivasRequest<SessionDetail>(
             `/sessions/${encodeURIComponent(sessionId)}/details`
         ),
+    deleteSession: (sessionId: string) =>
+        ivasRequest<void>(
+            `/sessions/${encodeURIComponent(sessionId)}`,
+            { method: "DELETE" }
+        ),
 
     // --- Voice Enrollment ---
     enrollVoiceSample: (studentId: string, sampleIndex: number, audioFile: File) => {

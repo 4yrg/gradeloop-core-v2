@@ -65,6 +65,15 @@ async def get_session(session_id: UUID) -> SessionOut:
     return SessionOut(**row)
 
 
+@router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_session(session_id: UUID) -> None:
+    """Delete a viva session and all related data."""
+    db = _get_db()
+    deleted = await db.delete_session(session_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Session not found.")
+
+
 @router.get("/{session_id}/details", response_model=SessionDetailOut)
 async def get_session_details(session_id: UUID) -> SessionDetailOut:
     """Get a viva session along with its transcript and per-question scores.

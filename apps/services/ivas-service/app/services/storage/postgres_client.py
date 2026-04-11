@@ -79,6 +79,18 @@ class PostgresClient:
                 except Exception:
                     pass
 
+            # Add 'grading' to the sessions status CHECK constraint
+            try:
+                await conn.execute(
+                    "ALTER TABLE sessions DROP CONSTRAINT IF EXISTS sessions_status_check"
+                )
+                await conn.execute(
+                    "ALTER TABLE sessions ADD CONSTRAINT sessions_status_check "
+                    "CHECK (status IN ('initializing', 'in_progress', 'paused', 'grading', 'completed', 'abandoned', 'grading_failed'))"
+                )
+            except Exception:
+                pass
+
 
     # =========================================================================
     # Voice Profiles
@@ -216,6 +228,15 @@ class PostgresClient:
                 session_id, total_score, max_possible,
             )
             return self._parse_session_row(row) if row else None
+
+    async def delete_session(self, session_id: UUID) -> bool:
+        """Delete a session and all related records (cascades)."""
+        async with self._pool.acquire() as conn:
+            result = await conn.execute(
+                "DELETE FROM sessions WHERE id = $1",
+                session_id,
+            )
+            return result == "DELETE 1"
 
     # =========================================================================
     # Transcripts
@@ -910,7 +931,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     assignment_context      JSONB DEFAULT '{}'::jsonb,
     student_id              TEXT NOT NULL,
     status                  TEXT DEFAULT 'initializing'
-                            CHECK (status IN ('initializing', 'in_progress', 'paused', 'completed', 'abandoned', 'grading_failed')),
+                            CHECK (status IN ('initializing', 'in_progress', 'paused', 'grading', 'completed', 'abandoned', 'grading_failed')),
     total_score             NUMERIC(5,2),
     max_possible            NUMERIC(5,2),
     difficulty_distribution JSONB DEFAULT '{}'::jsonb,

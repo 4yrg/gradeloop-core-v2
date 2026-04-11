@@ -109,7 +109,7 @@ export interface VivaSession {
     assignment_id: string;
     assignment_context: Record<string, unknown>;
     student_id: string;
-    status: "initializing" | "in_progress" | "paused" | "completed" | "abandoned" | "grading_failed";
+    status: "initializing" | "in_progress" | "paused" | "grading" | "completed" | "abandoned" | "grading_failed";
     total_score: number | null;
     max_possible: number | null;
     difficulty_distribution: Record<string, number> | null;

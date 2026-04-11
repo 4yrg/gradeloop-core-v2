@@ -43,6 +43,14 @@ function StatusBadge({ status }: { status: string }) {
             </Badge>
         );
     }
+    if (status === "grading") {
+        return (
+            <Badge variant="outline" className="bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400 border-0">
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                Grading
+            </Badge>
+        );
+    }
     if (status === "grading_failed") {
         return (
             <Badge variant="outline" className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0">
@@ -505,15 +513,23 @@ export default function InstructorVivaReviewPage() {
                 </Card>
             )}
 
-            {/* In-progress / non-completed banner */}
+            {/* In-progress / grading / non-completed banner */}
             {session.status !== "completed" && (
                 <Card className="bg-muted/50 border-dashed">
                     <CardContent className="pt-6 flex items-center gap-3">
-                        <Clock className="h-5 w-5 text-muted-foreground shrink-0" />
+                        {session.status === "grading" ? (
+                            <Loader2 className="h-5 w-5 text-violet-500 shrink-0 animate-spin" />
+                        ) : (
+                            <Clock className="h-5 w-5 text-muted-foreground shrink-0" />
+                        )}
                         <div>
-                            <p className="text-sm font-medium">Session not yet complete</p>
+                            <p className="text-sm font-medium">
+                                {session.status === "grading" ? "Grading in progress" : "Session not yet complete"}
+                            </p>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                                Transcript and scoring will appear once the session ends.
+                                {session.status === "grading"
+                                    ? "Answers are being evaluated. Results will appear here once grading is done."
+                                    : "Transcript and scoring will appear once the session ends."}
                             </p>
                         </div>
                     </CardContent>

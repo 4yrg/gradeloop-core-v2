@@ -12,12 +12,14 @@ import {
     XCircle,
     Eye,
     ArrowLeft,
+    Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ivasApi } from "@/lib/ivas-api";
 import type { VivaSession } from "@/types/ivas";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
     Select,
     SelectContent,
@@ -62,6 +64,22 @@ export default function InstructorVivaDashboardPage() {
     // Filters
     const [studentFilter, setStudentFilter] = React.useState("");
     const [statusFilter, setStatusFilter] = React.useState("all");
+
+    // Delete session state
+    const [sessionToDelete, setSessionToDelete] = React.useState<VivaSession | null>(null);
+    const [deleting, setDeleting] = React.useState(false);
+
+    const handleDeleteSession = async () => {
+        if (!sessionToDelete) return;
+        setDeleting(true);
+        try {
+            await ivasApi.deleteSession(sessionToDelete.id);
+            setSessions(prev => prev.filter(s => s.id !== sessionToDelete.id));
+            setSessionToDelete(null);
+        } finally {
+            setDeleting(false);
+        }
+    };
 
     React.useEffect(() => {
         let mounted = true;
@@ -202,12 +220,23 @@ export default function InstructorVivaDashboardPage() {
                                         {s.total_score !== null ? `${s.total_score}/${s.max_possible}` : "—"}
                                     </td>
                                     <td className="px-4 py-3 text-right">
-                                        <Button asChild variant="ghost" size="sm">
-                                            <Link href={`/instructor/courses/${instanceId}/assignments/${assignmentId}/viva/${s.id}`}>
-                                                <Eye className="h-3.5 w-3.5 mr-1" />
-                                                Review
-                                            </Link>
-                                        </Button>
+                                        <div className="flex items-center justify-end gap-1">
+                                            <Button asChild variant="ghost" size="sm">
+                                                <Link href={`/instructor/courses/${instanceId}/assignments/${assignmentId}/viva/${s.id}`}>
+                                                    <Eye className="h-3.5 w-3.5 mr-1" />
+                                                    Review
+                                                </Link>
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="text-destructive hover:text-destructive"
+                                                onClick={() => setSessionToDelete(s)}
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                                                Delete
+                                            </Button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -215,6 +244,24 @@ export default function InstructorVivaDashboardPage() {
                     </table>
                 </div>
             )}
+
+            <ConfirmDialog
+                open={sessionToDelete !== null}
+                onOpenChange={(open) => { if (!open) setSessionToDelete(null); }}
+                title="Delete Viva Session"
+                description={
+                    <>
+                        Are you sure you want to delete the viva session for{" "}
+                        <span className="font-mono font-semibold">{sessionToDelete?.student_id}</span>?
+                        This will permanently remove the session, its transcript, and all grading data.
+                        This action cannot be undone.
+                    </>
+                }
+                confirmText="Delete Session"
+                variant="destructive"
+                onConfirm={handleDeleteSession}
+                isLoading={deleting}
+            />
         </div>
     );
 }

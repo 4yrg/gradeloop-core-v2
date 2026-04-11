@@ -58,7 +58,7 @@ export default function VivaSessionPage() {
                 const s = await ivasApi.getSession(sessionId);
                 if (mounted) {
                     setSession(s);
-                    if (s.status === "completed" || s.status === "abandoned") {
+                    if (s.status === "completed" || s.status === "abandoned" || s.status === "grading" || s.status === "grading_failed") {
                         setSessionEnded(true);
                     }
                 }
@@ -377,25 +377,47 @@ export default function VivaSessionPage() {
     }
 
     if (sessionEnded) {
+        const isGrading = session?.status === "grading";
+        const isGradingFailed = session?.status === "grading_failed";
         return (
             <div className="flex items-center justify-center h-[60vh]">
                 <Card className="max-w-md text-center">
                     <CardHeader>
-                        <CardTitle>Viva Complete</CardTitle>
+                        <CardTitle>
+                            {isGradingFailed ? "Grading Failed" : "Viva Complete"}
+                        </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <p className="text-sm text-muted-foreground">
-                            Your oral examination has ended.
-                        </p>
-                        {session.total_score !== null && (
+                        {isGrading ? (
+                            <>
+                                <Loader2 className="h-8 w-8 animate-spin mx-auto text-violet-500" />
+                                <p className="text-sm text-muted-foreground">
+                                    Your answers are being evaluated. This may take a minute.
+                                </p>
+                            </>
+                        ) : isGradingFailed ? (
+                            <p className="text-sm text-red-600 dark:text-red-400">
+                                An error occurred while grading your viva. Please contact your instructor.
+                            </p>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">
+                                Your oral examination has ended.
+                            </p>
+                        )}
+                        {session?.total_score !== null && !isGrading && (
                             <p className="text-2xl font-black">
-                                {session.total_score} / {session.max_possible}
+                                {session?.total_score} / {session?.max_possible}
                             </p>
                         )}
                         <div className="flex gap-3 justify-center">
                             <Button variant="outline" onClick={() => router.push("/student/assessments/my-sessions")}>
                                 My Sessions
                             </Button>
+                            {session?.status === "completed" && (
+                                <Button onClick={() => router.push(`/student/assessments/results/${sessionId}`)}>
+                                    View Results
+                                </Button>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
