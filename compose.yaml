@@ -321,7 +321,7 @@ services:
   # =============================================================================
   # cipas-syntactics:
   #   build:
-  #     context: ./apps/services/cipas-services/cipas-syntactics
+  #     context: ./apps/services/cipas-syntactics
   #     dockerfile: Dockerfile
   #   container_name: cipas-syntactics
   #   restart: unless-stopped
@@ -379,7 +379,7 @@ services:
   # # =============================================================================
   # cipas-semantics:
   #   build:
-  #     context: ./apps/services/cipas-services/cipas-semantics
+  #     context: ./apps/services/cipas-semantics
   #     dockerfile: Dockerfile
   #   container_name: cipas-semantics
   #   restart: unless-stopped
@@ -402,7 +402,7 @@ services:
   #   env_file:
   #     - .env
   #   volumes:
-  #     - ./apps/services/cipas-services/cipas-semantics/models:/app/models:ro
+  #     - ./apps/services/cipas-semantics/models:/app/models:ro
   #   environment:
   #     - API_PORT=${CIPAS_SEM_SVC_PORT}
   #     - CIPAS_SEMANTICS_HOST=0.0.0.0
@@ -434,7 +434,7 @@ services:
   # # =============================================================================
   # cipas-ai:
   #   build:
-  #     context: ./apps/services/cipas-services/cipas-ai
+  #     context: ./apps/services/cipas-ai
   #     dockerfile: Dockerfile
   #   container_name: cipas-ai
   #   restart: unless-stopped
@@ -457,7 +457,7 @@ services:
   #   env_file:
   #     - .env
   #   volumes:
-  #     - ./apps/services/cipas-services/cipas-ai/model:/app/model:ro
+  #     - ./apps/services/cipas-ai/model:/app/model:ro
   #   environment:
   #     - CIPAS_AI_PORT=${CIPAS_AI_SVC_PORT}
   #     - CIPAS_AI_HOST=0.0.0.0
@@ -684,7 +684,7 @@ services:
   # =============================================================================
   # cipas-xai:
   #   build:
-  #     context: ./apps/services/cipas-services/cipas-xai
+  #     context: ./apps/services/cipas-xai
   #     dockerfile: Dockerfile
   #   container_name: cipas-xai
   #   restart: unless-stopped
