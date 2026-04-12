@@ -6,7 +6,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/gradeloop/academic-service/internal/utils"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/utils"
 )
 
 // Claims matches the JWT structure from IAM Service

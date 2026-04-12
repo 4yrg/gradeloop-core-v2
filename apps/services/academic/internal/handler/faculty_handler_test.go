@@ -8,8 +8,8 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
-	"github.com/gradeloop/academic-service/internal/domain"
-	"github.com/gradeloop/academic-service/internal/dto"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/domain"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/dto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

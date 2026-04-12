@@ -5,10 +5,10 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
-	"github.com/4yrg/gradeloop-core-v2/assessment-service/internal/domain"
-	"github.com/4yrg/gradeloop-core-v2/assessment-service/internal/dto"
-	"github.com/4yrg/gradeloop-core-v2/assessment-service/internal/service"
-	"github.com/4yrg/gradeloop-core-v2/assessment-service/internal/utils"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/domain"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/dto"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/service"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/utils"
 	"go.uber.org/zap"
 )
 

@@ -2,7 +2,7 @@ package handler
 
 import (
 	"github.com/gofiber/fiber/v3"
-	"github.com/gradeloop/academic-service/internal/service"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/service"
 )
 
 type Handler interface {

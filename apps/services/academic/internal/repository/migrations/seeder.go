@@ -1,7 +1,7 @@
 package migrations
 
 import (
-	"github.com/gradeloop/academic-service/internal/domain"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/domain"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )

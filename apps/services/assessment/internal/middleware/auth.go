@@ -3,7 +3,7 @@ package middleware
 import (
 	"strings"
 
-	"github.com/4yrg/gradeloop-core-v2/assessment-service/internal/utils"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/utils"
 	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v5"
 )

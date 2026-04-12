@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/4yrg/gradeloop-core-v2/assessment-service/internal/client"
-	"github.com/4yrg/gradeloop-core-v2/assessment-service/internal/domain"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/client"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/domain"
 	"go.uber.org/zap"
 )
 

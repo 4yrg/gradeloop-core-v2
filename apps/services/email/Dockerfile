@@ -2,7 +2,7 @@
 # Email Service - Alpine Dockerfile
 # =============================================================================
 
-FROM golang:1.25-alpine AS builder
+FROM docker.io/golang:1.25-alpine AS builder
 
 WORKDIR /app
 
@@ -21,10 +21,17 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -o email-service \
     ./cmd/api
 
-FROM builder AS dev
-RUN go install github.com/air-verse/air@latest
-ENV GOFLAGS="-mod=mod"
-CMD ["air"]
+FROM alpine:3.19 AS dev
+
+WORKDIR /app
+
+RUN apk add --no-cache ca-certificates
+
+COPY --from=builder /app/email-service .
+
+EXPOSE 8082
+
+CMD ["./email-service"]
 
 FROM alpine:3.19 AS production
 
@@ -32,7 +39,6 @@ RUN apk add --no-cache ca-certificates
 
 WORKDIR /app
 
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /app/email-service .
 
 RUN addgroup -S gradeloop && adduser -S gradeloop -G gradeloop \

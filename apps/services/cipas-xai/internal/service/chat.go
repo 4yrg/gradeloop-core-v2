@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"github.com/gradeloop/cipas-xai/internal/client"
-	"github.com/gradeloop/cipas-xai/internal/dto"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/cipas/cipas-xai/internal/client"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/cipas/cipas-xai/internal/dto"
 	"go.uber.org/zap"
 )
 

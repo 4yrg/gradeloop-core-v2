@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/gradeloop/cipas-xai/internal/client"
-	"github.com/gradeloop/cipas-xai/internal/config"
-	"github.com/gradeloop/cipas-xai/internal/handler"
-	"github.com/gradeloop/cipas-xai/internal/router"
-	"github.com/gradeloop/cipas-xai/internal/service"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/cipas/cipas-xai/internal/client"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/cipas/cipas-xai/internal/config"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/cipas/cipas-xai/internal/handler"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/cipas/cipas-xai/internal/router"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/cipas/cipas-xai/internal/service"
 	"go.uber.org/zap"
 )
 

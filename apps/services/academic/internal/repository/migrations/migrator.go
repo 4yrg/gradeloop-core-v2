@@ -3,7 +3,7 @@ package migrations
 import (
 	"fmt"
 
-	"github.com/gradeloop/academic-service/internal/domain"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/domain"
 	// enrollment management models are in the same domain package
 	"go.uber.org/zap"
 	"gorm.io/gorm"

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/gradeloop/iam-service/internal/domain"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/domain"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"

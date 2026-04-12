@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/gradeloop/iam-service/internal/domain"
-	"github.com/gradeloop/iam-service/internal/dto"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/domain"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/dto"
 	"gorm.io/gorm"
 )
 

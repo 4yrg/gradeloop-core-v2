@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gradeloop/iam-service/internal/domain"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/domain"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )

@@ -9,9 +9,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/gradeloop/iam-service/internal/domain"
-	"github.com/gradeloop/iam-service/internal/dto"
-	"github.com/gradeloop/iam-service/internal/repository"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/domain"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/dto"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/repository"
 	"github.com/xuri/excelize/v2"
 	"gorm.io/gorm"
 )

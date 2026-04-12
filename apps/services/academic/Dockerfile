@@ -2,7 +2,7 @@
 # Academic Service - Alpine Dockerfile
 # =============================================================================
 
-FROM golang:1.25-alpine AS builder
+FROM docker.io/golang:1.25-alpine AS builder
 
 WORKDIR /app
 
@@ -20,10 +20,17 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -o academic-service \
     ./cmd/main.go
 
-FROM builder AS dev
-RUN go install github.com/air-verse/air@latest
-ENV GOFLAGS="-mod=mod"
-CMD ["air"]
+FROM alpine:3.19 AS dev
+
+WORKDIR /app
+
+RUN apk add --no-cache ca-certificates
+
+COPY --from=builder /app/academic-service .
+
+EXPOSE 8083
+
+CMD ["./academic-service"]
 
 FROM alpine:3.19 AS production
 
@@ -31,8 +38,6 @@ RUN apk add --no-cache ca-certificates tzdata
 
 WORKDIR /app
 
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=builder /app/academic-service .
 
 RUN addgroup -S gradeloop && adduser -S gradeloop -G gradeloop \

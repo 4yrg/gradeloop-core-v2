@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/gradeloop/email-service/internal/domain"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/domain"
 	"gorm.io/datatypes"
 )
 

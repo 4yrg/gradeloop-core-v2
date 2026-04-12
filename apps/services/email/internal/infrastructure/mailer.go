@@ -5,7 +5,7 @@ import (
 	"net/smtp"
 	"strings"
 
-	"github.com/gradeloop/email-service/internal/config"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/config"
 )
 
 type Mailer struct {

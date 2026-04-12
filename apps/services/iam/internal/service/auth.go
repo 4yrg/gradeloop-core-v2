@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/gradeloop/iam-service/internal/domain"
-	"github.com/gradeloop/iam-service/internal/dto"
-	"github.com/gradeloop/iam-service/internal/jwt"
-	"github.com/gradeloop/iam-service/internal/repository"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/domain"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/dto"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/jwt"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/repository"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )

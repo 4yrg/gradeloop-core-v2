@@ -464,6 +464,30 @@ services:
           memory: 4G
 
   # =============================================================================
+  # CIPAS AI Service (Python - Production)
+  # =============================================================================
+  cipas-ai:
+    build:
+      context: ../../apps/services/cipas-ai
+      dockerfile: Dockerfile
+      target: production
+    container_name: gradeloop-cipas-ai
+    restart: always
+    environment:
+      - CIPAS_AI_PORT=8104
+      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${CIPAS_AI_SVC_DB_NAME:-cipas_ai_db}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - gradeloop-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+
+  # =============================================================================
   # CIPAS XAI Service (Go - Production)
   # =============================================================================
   cipas-xai:

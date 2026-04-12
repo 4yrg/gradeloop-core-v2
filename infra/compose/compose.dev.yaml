@@ -18,7 +18,7 @@ services:
   # Infrastructure (always needed)
   # =============================================================================
   postgres:
-    image: docker.io/ postgres:16-alpine
+    image: docker.io/postgres:16-alpine
     container_name: gradeloop-postgres
     restart: unless-stopped
     environment:
@@ -39,7 +39,7 @@ services:
       start_period: 20s
 
   postgres-keystroke:
-    image: docker.io/ postgres:16-alpine
+    image: docker.io/postgres:16-alpine
     container_name: gradeloop-postgres-keystroke
     restart: unless-stopped
     environment:
@@ -99,20 +99,21 @@ services:
       start_period: 10s
 
   seaweed:
-    image: docker.io/seaweedfs/seaweedfs:3.71
+    image: docker.io/chrislusf/seaweedfs:3.71
     container_name: gradeloop-seaweed
     restart: unless-stopped
     environment:
       - WEEAD_IDENTITY=seaweedfs
     ports:
-      - "9333:9333"   # S3 API
+      - "9333:9333"   # Master
       - "9320:9320"   # Console
       - "9080:8080"   # Volume server
+      - "8333:8333"   # S3 API
     volumes:
       - seaweed-data:/data
     networks:
       - gradeloop-network
-    command: server -s3 -identity=seaweedfs -s3Port=9333 -consolePort=9320
+    command: server -s3 -filer
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9320/health"]
       interval: 10s
@@ -152,7 +153,7 @@ services:
       - gradeloop-network
 
   kong-database:
-    image: docker.io/ postgres:16-alpine
+    image: docker.io/postgres:16-alpine
     container_name: gradeloop-kong-db
     restart: unless-stopped
     environment:
@@ -178,18 +179,19 @@ services:
       - ./apps/services/iam:/app
     container_name: gradeloop-iam
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
+      - HOST=0.0.0.0
       - SERVER_PORT=${IAM_SVC_PORT:-8081}
-      - DB_HOST=postgres
+      - DB_HOST=gradeloop-postgres
       - DB_PORT=5432
       - DB_USER=${GRA_DB_USER:-postgres}
       - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
       - DB_NAME=${IAM_SVC_DB_NAME:-iam_db}
       - DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
-      - EMAIL_SERVICE_URL=http://email:8082
-      - MINIO_ENDPOINT=seaweed:9333
+      - EMAIL_SERVICE_URL=http://gradeloop-email:8082
+      - MINIO_ENDPOINT=gradeloop-seaweed:8333
+      - MINIO_ACCESS_KEY=root
+      - MINIO_SECRET_KEY=root
     expose:
       - "8081"
     depends_on:
@@ -212,16 +214,15 @@ services:
       - ./apps/services/academic:/app
     container_name: gradeloop-academic
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
+      - HOST=0.0.0.0
       - SERVER_PORT=${ACADEMIC_SVC_PORT:-8083}
-      - DB_HOST=postgres
+      - DB_HOST=gradeloop-postgres
       - DB_PORT=5432
       - DB_USER=${GRA_DB_USER:-postgres}
       - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
       - DB_NAME=${ACADEMIC_SVC_DB_NAME:-academic_db}
-      - IAM_SERVICE_URL=http://iam:8081
+      - IAM_SERVICE_URL=http://gradeloop-iam:8081
     expose:
       - "8083"
     depends_on:
@@ -244,8 +245,6 @@ services:
       - ./apps/services/assessment:/app
     container_name: gradeloop-assessment
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
       - SERVER_PORT=${ASSESSMENT_SVC_PORT:-8084}
       - DB_HOST=postgres
@@ -274,8 +273,6 @@ services:
       - ./apps/services/email:/app
     container_name: gradeloop-email
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
       - SERVER_PORT=${EMAIL_SVC_PORT:-8082}
       - DB_HOST=postgres
@@ -305,8 +302,6 @@ services:
       - ./apps/services/ivas:/app
     container_name: gradeloop-ivas
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
       - SERVICE_PORT=${IVAS_SVC_PORT:-8101}
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${IVAS_SVC_DB_NAME:-ivas_db}
@@ -330,8 +325,6 @@ services:
       - ./apps/services/acafs:/app
     container_name: gradeloop-acafs
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
       - SERVICE_PORT=${ACAFS_SVC_PORT:-8102}
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${ACAFS_SVC_DB_NAME:-acafs_db}
@@ -355,8 +348,6 @@ services:
       - ./apps/services/keystroke:/app
     container_name: gradeloop-keystroke
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
       - PORT=${KEYSTROKE_SVC_PORT:-8103}
       - DATABASE_URL=postgresql://keystroke_user:keystroke_pass@postgres-keystroke:5432/keystroke-db
@@ -380,8 +371,6 @@ services:
       - ./apps/services/cipas-syntactics:/app
     container_name: gradeloop-cipas-syntactics
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
       - CIPAS_SYNTACTICS_PORT=${CIPAS_SYN_SVC_PORT:-8106}
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
@@ -405,13 +394,34 @@ services:
       - ./apps/services/cipas-semantics:/app
     container_name: gradeloop-cipas-semantics
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
       - API_PORT=${CIPAS_SEM_SVC_PORT:-8105}
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
     expose:
       - "8105"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # CIPAS AI Service (Python)
+  # =============================================================================
+  cipas-ai:
+    build:
+      context: ../../apps/services/cipas-ai
+      dockerfile: Dockerfile
+      target: development
+    volumes:
+      - ./apps/services/cipas-ai:/app
+    container_name: gradeloop-cipas-ai
+    restart: unless-stopped
+    environment:
+      - CIPAS_AI_PORT=${CIPAS_AI_SVC_PORT:-8104}
+      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${CIPAS_AI_SVC_DB_NAME:-cipas_ai_db}
+    expose:
+      - "8104"
     depends_on:
       postgres:
         condition: service_healthy
@@ -430,8 +440,6 @@ services:
       - ./apps/services/cipas-xai:/app
     container_name: gradeloop-cipas-xai
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
       - SERVER_PORT=${CIPAS_XAI_SVC_PORT:-8085}
     expose:

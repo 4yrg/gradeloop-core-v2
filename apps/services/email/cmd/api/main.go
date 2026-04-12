@@ -7,13 +7,13 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/logger"
-	"github.com/gradeloop/email-service/internal/config"
-	"github.com/gradeloop/email-service/internal/delivery/http"
-	"github.com/gradeloop/email-service/internal/infrastructure"
-	infra "github.com/gradeloop/email-service/internal/infrastructure/rabbitmq"
-	"github.com/gradeloop/email-service/internal/repository"
-	"github.com/gradeloop/email-service/internal/service"
-	"github.com/gradeloop/email-service/internal/worker"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/config"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/delivery/http"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/infrastructure"
+	infra "github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/infrastructure/rabbitmq"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/repository"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/service"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/worker"
 )
 
 func main() {

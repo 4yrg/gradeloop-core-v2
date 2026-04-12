@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gradeloop/cipas-xai/internal/dto"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/cipas/cipas-xai/internal/dto"
 	"go.uber.org/zap"
 )
 

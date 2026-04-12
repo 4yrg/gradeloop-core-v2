@@ -5,9 +5,9 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 
-	"github.com/gradeloop/iam-service/internal/dto"
-	"github.com/gradeloop/iam-service/internal/service"
-	"github.com/gradeloop/iam-service/internal/storage"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/dto"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/service"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/storage"
 )
 
 type UserHandler struct {

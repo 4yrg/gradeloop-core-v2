@@ -10,16 +10,16 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
-	"github.com/gradeloop/academic-service/internal/client"
-	"github.com/gradeloop/academic-service/internal/config"
-	_ "github.com/gradeloop/academic-service/internal/domain" // ensure all models are registered
-	"github.com/gradeloop/academic-service/internal/handler"
-	"github.com/gradeloop/academic-service/internal/middleware"
-	"github.com/gradeloop/academic-service/internal/repository"
-	"github.com/gradeloop/academic-service/internal/repository/migrations"
-	"github.com/gradeloop/academic-service/internal/router"
-	"github.com/gradeloop/academic-service/internal/service"
-	"github.com/gradeloop/academic-service/internal/utils"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/client"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/config"
+	_ "github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/domain" // ensure all models are registered
+	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/handler"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/middleware"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/repository"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/repository/migrations"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/router"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/service"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/utils"
 	"go.uber.org/zap"
 )
 

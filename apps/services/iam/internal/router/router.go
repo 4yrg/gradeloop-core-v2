@@ -2,8 +2,8 @@ package router
 
 import (
 	"github.com/gofiber/fiber/v3"
-	"github.com/gradeloop/iam-service/internal/handler"
-	"github.com/gradeloop/iam-service/internal/middleware"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/handler"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/middleware"
 )
 
 type Config struct {

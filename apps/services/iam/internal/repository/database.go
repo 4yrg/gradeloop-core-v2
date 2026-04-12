@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gradeloop/iam-service/internal/config"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/config"
 	"go.uber.org/zap"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"

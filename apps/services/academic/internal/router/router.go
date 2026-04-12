@@ -1,12 +1,10 @@
 package router
 
 import (
-	"os"
-
 	"github.com/gofiber/fiber/v3"
-	"github.com/gradeloop/academic-service/internal/handler"
-	"github.com/gradeloop/academic-service/internal/middleware"
-	"github.com/gradeloop/academic-service/internal/utils"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/handler"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/middleware"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/utils"
 )
 
 type Config struct {
@@ -221,8 +219,14 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 		})
 	})
 
-	// Swagger UI - use embedded static file serving
-	app.Static("/docs", "./docs")
+	// Swagger UI - serve static files manually
+	app.Get("/docs/*", func(c fiber.Ctx) error {
+		path := c.Params("*")
+		if path == "" || path == "index.html" {
+			return c.SendFile("docs/index.html")
+		}
+		return c.SendFile("docs/" + path)
+	})
 	app.Get("/openapi.json", func(c fiber.Ctx) error {
 		return c.SendFile("docs/swagger.json")
 	})

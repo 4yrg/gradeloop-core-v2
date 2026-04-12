@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/4yrg/gradeloop-core-v2/assessment-service/internal/client"
-	"github.com/4yrg/gradeloop-core-v2/assessment-service/internal/domain"
-	"github.com/4yrg/gradeloop-core-v2/assessment-service/internal/queue"
-	"github.com/4yrg/gradeloop-core-v2/assessment-service/internal/repository"
-	"github.com/4yrg/gradeloop-core-v2/assessment-service/internal/storage"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/client"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/domain"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/queue"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/repository"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )

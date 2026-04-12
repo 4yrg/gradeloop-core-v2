@@ -2,7 +2,7 @@ package router
 
 import (
 	"github.com/gofiber/fiber/v3"
-	"github.com/gradeloop/cipas-xai/internal/handler"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/cipas/cipas-xai/internal/handler"
 )
 
 type Config struct {

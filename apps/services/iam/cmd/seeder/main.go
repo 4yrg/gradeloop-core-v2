@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/gradeloop/iam-service/internal/config"
-	"github.com/gradeloop/iam-service/internal/repository"
-	"github.com/gradeloop/iam-service/internal/repository/migrations"
-	"github.com/gradeloop/iam-service/internal/seeder"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/config"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/repository"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/repository/migrations"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/seeder"
 	"go.uber.org/zap"
 )
 

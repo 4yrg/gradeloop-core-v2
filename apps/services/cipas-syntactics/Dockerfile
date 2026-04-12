@@ -10,6 +10,7 @@ RUN apk add --no-cache \
     build-base \
     curl \
     git \
+    cmake \
     && rm -rf /var/cache/apk/*
 
 ENV PYTHONDONTWRITEBYTECODE=1 \

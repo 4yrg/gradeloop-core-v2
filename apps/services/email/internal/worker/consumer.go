@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/gradeloop/email-service/internal/domain"
-	infra "github.com/gradeloop/email-service/internal/infrastructure"
-	"github.com/gradeloop/email-service/internal/infrastructure/rabbitmq"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/domain"
+	infra "github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/infrastructure"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/infrastructure/rabbitmq"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 

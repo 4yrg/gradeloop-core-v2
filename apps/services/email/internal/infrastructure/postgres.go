@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/gradeloop/email-service/internal/config"
-	"github.com/gradeloop/email-service/internal/domain"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/config"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/domain"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"

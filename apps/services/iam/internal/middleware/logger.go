@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/gradeloop/iam-service/internal/utils"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/utils"
 	"go.uber.org/zap"
 )
 
