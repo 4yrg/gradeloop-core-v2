@@ -7,7 +7,6 @@ using cosine similarity.
 """
 
 import io
-import pickle
 from pathlib import Path
 
 import numpy as np

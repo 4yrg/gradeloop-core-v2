@@ -4,9 +4,8 @@ import pytest
 from app.services.viva.question_selector import (
     select_questions_ai,
     select_questions_random,
-    DIFFICULTY_LABELS,
-    _extract_json,
 )
+from app.services.viva.utils import DIFFICULTY_LABELS, extract_json_from_response
 
 
 class TestDifficultyLabels:
@@ -28,7 +27,7 @@ class TestExtractJson:
     def test_plain_json(self):
         """Test extracting plain JSON object."""
         text = '{"questions": [{"question_text": "What is X?", "difficulty": 2}]}'
-        result = _extract_json(text)
+        result = extract_json_from_response(text)
         assert result is not None
         assert "questions" in result
 
@@ -37,7 +36,7 @@ class TestExtractJson:
         text = '''```json
 {"questions": [{"question_text": "What is X?", "difficulty": 2}]}
 ```'''
-        result = _extract_json(text)
+        result = extract_json_from_response(text)
         assert result is not None
         assert len(result["questions"]) == 1
 
@@ -46,7 +45,7 @@ class TestExtractJson:
         text = '''```
 {"questions": [{"question_text": "What is X?", "difficulty": 2}]}
 ```'''
-        result = _extract_json(text)
+        result = extract_json_from_response(text)
         assert result is not None
 
     def test_json_with_surrounding_text(self):
@@ -54,25 +53,25 @@ class TestExtractJson:
         text = '''Here is the result:
 {"questions": [{"question_text": "What is X?", "difficulty": 2}]}
 I hope this helps!'''
-        result = _extract_json(text)
+        result = extract_json_from_response(text)
         assert result is not None
 
     def test_empty_text(self):
         """Test handling empty input."""
-        assert _extract_json("") is None
-        assert _extract_json(None) is None
+        assert extract_json_from_response("") is None
+        assert extract_json_from_response(None) is None
 
     def test_invalid_json(self):
         """Test handling malformed JSON."""
         text = '{"questions": [{"question_text": "broken}'
-        result = _extract_json(text)
+        result = extract_json_from_response(text)
         assert result is None
 
     def test_multiple_json_objects(self):
         """Test extracting the main JSON when multiple exist."""
         text = '''Some text {"questions": [...]} more text {"other": "data"}'''
         # Should find the widest balanced {} slice
-        result = _extract_json(text)
+        result = extract_json_from_response(text)
         # Result may vary, but shouldn't crash
         pass
 

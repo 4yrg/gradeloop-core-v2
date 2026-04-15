@@ -241,8 +241,10 @@ export const ivasApi = {
         }),
 
     // --- Competency Scores ---
-    listStudentCompetencyScores: (studentId: string) =>
-        ivasRequest<CompetencyScoreOut[]>(`/competencies/scores/student/${encodeURIComponent(studentId)}`),
+    listStudentCompetencyScores: (studentId: string, assignmentId?: string) => {
+        const params = assignmentId ? `?assignment_id=${encodeURIComponent(assignmentId)}` : "";
+        return ivasRequest<CompetencyScoreOut[]>(`/competencies/scores/student/${encodeURIComponent(studentId)}${params}`);
+    },
 
     listCompetencyScoresForAssignment: (assignmentId: string) =>
         ivasRequest<CompetencyScoreSummary[]>(

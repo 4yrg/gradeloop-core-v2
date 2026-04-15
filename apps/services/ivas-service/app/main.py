@@ -5,7 +5,7 @@ import sys
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import APIRouter, FastAPI, status
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse
 
 from app.config import get_settings
@@ -22,6 +22,16 @@ logger = get_logger(__name__)
 
 # Global state
 postgres_client: PostgresClient | None = None
+
+
+async def get_db() -> PostgresClient:
+    """FastAPI dependency that yields the postgres client."""
+    if postgres_client is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service not ready.",
+        )
+    return postgres_client
 
 
 @asynccontextmanager
@@ -48,6 +58,30 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     except Exception as e:
         postgres_client = None
         logger.warning("ivas_postgres_unavailable", error=str(e))
+
+    # Initialize voice enrollment staging backend
+    try:
+        import redis.asyncio as aioredis
+        from app.routes.voice import enrollment_staging as _voice_staging_module
+        from app.services.voice.enrollment_staging import RedisEnrollmentStaging
+
+        redis_client = aioredis.from_url(settings.redis_url, decode_responses=False)
+        await redis_client.ping()
+        _voice_staging_module.enrollment_staging = RedisEnrollmentStaging(redis_client)
+        logger.info("ivas_enrollment_staging_redis_ready")
+    except Exception as e:
+        from app.routes.voice import enrollment_staging as _voice_staging_module
+        from app.services.voice.enrollment_staging import InMemoryEnrollmentStaging
+
+        _voice_staging_module.enrollment_staging = InMemoryEnrollmentStaging()
+        logger.warning("ivas_enrollment_staging_fallback_inmemory", error=str(e))
+
+    # Warn if Gemini API key is not configured
+    if not settings.gemini_api_key or settings.gemini_api_key == "SET_YOUR_API_KEY_HERE":
+        logger.warning(
+            "ivas_gemini_key_missing",
+            detail="Gemini API key not configured. Viva and grading endpoints will fail.",
+        )
 
     logger.info("ivas_service_ready")
 
@@ -98,6 +132,13 @@ async def readiness_check() -> JSONResponse:
     else:
         healthy = False
         checks["postgres"] = "not_initialized"
+
+    # Check Gemini API key
+    settings = get_settings()
+    if not settings.gemini_api_key or settings.gemini_api_key == "SET_YOUR_API_KEY_HERE":
+        checks["gemini"] = "misconfigured"
+    else:
+        checks["gemini"] = "ok"
 
     status_code = status.HTTP_200_OK if healthy else status.HTTP_503_SERVICE_UNAVAILABLE
 

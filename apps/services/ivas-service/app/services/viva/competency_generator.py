@@ -7,22 +7,11 @@ difficulty levels — giving instructors a strong starting point.
 
 from __future__ import annotations
 
-import json
-import re
-
 from app.logging_config import get_logger
 from app.schemas.competency import GeneratedCompetency
+from app.services.viva.utils import extract_json_from_response
 
 logger = get_logger(__name__)
-
-# Difficulty labels used in the prompt
-DIFFICULTY_LABELS = {
-    1: "Beginner",
-    2: "Intermediate",
-    3: "Advanced",
-    4: "Expert",
-    5: "Master",
-}
 
 
 def _build_generation_prompt(
@@ -60,30 +49,6 @@ Assignment code (first 3000 chars): {code_context[:3000] if code_context else '(
 """
 
 
-def _extract_json(text: str) -> dict | None:
-    """Extract JSON from model response, handling fences and surrounding text."""
-    if not text:
-        return None
-    text = text.strip()
-
-    # Try fenced block first
-    fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
-    if fence:
-        text = fence.group(1)
-
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        pass
-
-    start = text.find("{")
-    end = text.rfind("}")
-    if start != -1 and end != -1 and end > start:
-        try:
-            return json.loads(text[start : end + 1])
-        except json.JSONDecodeError:
-            return None
-    return None
 
 
 async def generate_competencies_ai(
@@ -116,7 +81,7 @@ async def generate_competencies_ai(
         raise
 
     raw_text = getattr(response, "text", None) or ""
-    parsed = _extract_json(raw_text)
+    parsed = extract_json_from_response(raw_text)
 
     if not parsed or not isinstance(parsed, dict):
         logger.warning("competency_gen_parse_failed", raw=raw_text[:500])

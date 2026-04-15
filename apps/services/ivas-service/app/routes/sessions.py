@@ -2,9 +2,10 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.logging_config import get_logger
+from app.main import get_db
 from app.schemas.session import (
     GradedQAOut,
     SessionCreate,
@@ -12,27 +13,16 @@ from app.schemas.session import (
     SessionOut,
     TranscriptOut,
 )
+from app.services.storage.postgres_client import PostgresClient
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 
-def _get_db():
-    from app.main import postgres_client
-
-    if postgres_client is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Service not ready.",
-        )
-    return postgres_client
-
-
 @router.post("", response_model=SessionOut, status_code=status.HTTP_201_CREATED)
-async def create_session(body: SessionCreate) -> SessionOut:
+async def create_session(body: SessionCreate, db: PostgresClient = Depends(get_db)) -> SessionOut:
     """Create a new viva session for a student."""
-    db = _get_db()
     row = await db.create_session(
         assignment_id=body.assignment_id,
         student_id=body.student_id,
@@ -47,9 +37,9 @@ async def list_sessions(
     student_id: str | None = Query(default=None),
     assignment_id: UUID | None = Query(default=None),
     status: str | None = Query(default=None),
+    db: PostgresClient = Depends(get_db),
 ) -> list[SessionOut]:
     """List viva sessions with optional filters."""
-    db = _get_db()
     rows = await db.list_sessions(
         student_id=student_id,
         assignment_id=assignment_id,
@@ -59,9 +49,8 @@ async def list_sessions(
 
 
 @router.get("/{session_id}", response_model=SessionOut)
-async def get_session(session_id: UUID) -> SessionOut:
+async def get_session(session_id: UUID, db: PostgresClient = Depends(get_db)) -> SessionOut:
     """Get a viva session by ID."""
-    db = _get_db()
     row = await db.get_session(session_id)
     if not row:
         raise HTTPException(status_code=404, detail="Session not found.")
@@ -69,16 +58,15 @@ async def get_session(session_id: UUID) -> SessionOut:
 
 
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_session(session_id: UUID) -> None:
+async def delete_session(session_id: UUID, db: PostgresClient = Depends(get_db)) -> None:
     """Delete a viva session and all related data."""
-    db = _get_db()
     deleted = await db.delete_session(session_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Session not found.")
 
 
 @router.post("/{session_id}/regrade", response_model=SessionOut)
-async def regrade_session(session_id: UUID) -> SessionOut:
+async def regrade_session(session_id: UUID, db: PostgresClient = Depends(get_db)) -> SessionOut:
     """Re-run grading on an existing session's transcript.
 
     Used by instructors when grading failed, when the AI produced a poor
@@ -91,7 +79,6 @@ async def regrade_session(session_id: UUID) -> SessionOut:
       2. existing question_instances rows    (legacy sessions)
       3. assignment competencies + AI question selection (last resort)
     """
-    db = _get_db()
     from app.config import get_settings
     from app.routes.viva_ws import _grade_and_persist, _serialize_planned_questions
 
@@ -156,6 +143,7 @@ async def regrade_session(session_id: UUID) -> SessionOut:
         db=db,
         settings=settings,
         sid=session_id,
+        student_id=session.get("student_id", ""),
         transcript_turns=transcript_turns,
         assignment_context=assignment_context,
         selected_questions=planned_questions or None,
@@ -244,14 +232,13 @@ async def _select_fresh_plan(
 
 
 @router.get("/{session_id}/details", response_model=SessionDetailOut)
-async def get_session_details(session_id: UUID) -> SessionDetailOut:
+async def get_session_details(session_id: UUID, db: PostgresClient = Depends(get_db)) -> SessionDetailOut:
     """Get a viva session along with its transcript and per-question scores.
 
     Used by the instructor review page to show the full picture:
     every conceptual question asked, the student's answer, the score,
     and the justification.
     """
-    db = _get_db()
     row = await db.get_session(session_id)
     if not row:
         raise HTTPException(status_code=404, detail="Session not found.")

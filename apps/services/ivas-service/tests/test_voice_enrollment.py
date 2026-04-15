@@ -1,90 +1,84 @@
 """Tests for voice enrollment and verification."""
 
 import pytest
-from app.routes.voice import _enrollment_staging
 
 
 class TestVoiceEnrollmentStaging:
-    """Test voice enrollment staging logic."""
+    """Test voice enrollment staging logic using InMemoryEnrollmentStaging."""
 
     def setup_method(self):
-        """Clear staging before each test."""
-        _enrollment_staging.clear()
+        """Create a fresh staging instance before each test."""
+        from app.services.voice.enrollment_staging import InMemoryEnrollmentStaging
 
-    def teardown_method(self):
-        """Clear staging after each test."""
-        _enrollment_staging.clear()
+        self.staging = InMemoryEnrollmentStaging()
 
-    def test_enroll_samples_in_order(self):
+    @pytest.mark.asyncio
+    async def test_enroll_samples_in_order(self):
         """Test enrolling samples 1, 2, 3 in order."""
-        from app.routes.voice import _enrollment_staging
+        import numpy as np
 
-        # Simulate sample submission
         student_id = "test_student"
-        _enrollment_staging[student_id] = {
-            1: b"embedding_1",
-            2: b"embedding_2",
-            3: b"embedding_3",
-        }
+        await self.staging.store_sample(student_id, 1, np.array([1.0]))
+        await self.staging.store_sample(student_id, 2, np.array([2.0]))
+        await self.staging.store_sample(student_id, 3, np.array([3.0]))
 
-        valid_samples = [_enrollment_staging[student_id][i] for i in range(1, 4) if i in _enrollment_staging[student_id]]
-        assert len(valid_samples) == 3
-        assert valid_samples[0] == b"embedding_1"
-        assert valid_samples[1] == b"embedding_2"
-        assert valid_samples[2] == b"embedding_3"
+        count = await self.staging.get_valid_count(student_id, 3)
+        assert count == 3
 
-    def test_enroll_samples_out_of_order(self):
+        embeddings = await self.staging.get_ordered_embeddings(student_id, 3)
+        assert len(embeddings) == 3
+
+    @pytest.mark.asyncio
+    async def test_enroll_samples_out_of_order(self):
         """Test enrolling samples out of order (3, 1, 2)."""
+        import numpy as np
+
         student_id = "test_student"
-        _enrollment_staging[student_id] = {}
+        await self.staging.store_sample(student_id, 3, np.array([3.0]))
+        await self.staging.store_sample(student_id, 1, np.array([1.0]))
+        await self.staging.store_sample(student_id, 2, np.array([2.0]))
 
-        # Submit in wrong order
-        _enrollment_staging[student_id][3] = b"embedding_3"
-        _enrollment_staging[student_id][1] = b"embedding_1"
-        _enrollment_staging[student_id][2] = b"embedding_2"
+        embeddings = await self.staging.get_ordered_embeddings(student_id, 3)
+        assert len(embeddings) == 3
 
-        valid_samples = [_enrollment_staging[student_id][i] for i in range(1, 4) if i in _enrollment_staging[student_id]]
-        assert len(valid_samples) == 3
-        # Order should be preserved when retrieving
-        assert valid_samples[0] == b"embedding_1"
-        assert valid_samples[1] == b"embedding_2"
-        assert valid_samples[2] == b"embedding_3"
-
-    def test_resubmit_same_index(self):
+    @pytest.mark.asyncio
+    async def test_resubmit_same_index(self):
         """Test resubmitting the same sample index replaces previous."""
+        import numpy as np
+
         student_id = "test_student"
-        _enrollment_staging[student_id] = {1: b"old_embedding"}
+        await self.staging.store_sample(student_id, 1, np.array([1.0]))
+        await self.staging.store_sample(student_id, 1, np.array([99.0]))
 
-        # Resubmit sample 1
-        _enrollment_staging[student_id][1] = b"new_embedding"
+        samples = await self.staging.get_samples(student_id)
+        assert len(samples) == 1
+        assert samples[1][0] == 99.0
 
-        assert len(_enrollment_staging[student_id]) == 1
-        assert _enrollment_staging[student_id][1] == b"new_embedding"
-
-    def test_partial_enrollment_status(self):
+    @pytest.mark.asyncio
+    async def test_partial_enrollment_status(self):
         """Test enrollment status with partial samples."""
+        import numpy as np
+
         student_id = "test_student"
-        required = 3
+        await self.staging.store_sample(student_id, 1, np.array([1.0]))
+        await self.staging.store_sample(student_id, 2, np.array([2.0]))
 
-        # Submit 2 of 3 samples
-        _enrollment_staging[student_id] = {1: b"emb_1", 2: b"emb_2"}
-        valid_count = len(_enrollment_staging[student_id])
-        is_complete = valid_count >= required
+        count = await self.staging.get_valid_count(student_id, 3)
+        assert count == 2
+        assert count < 3
 
-        assert valid_count == 2
-        assert is_complete is False
-
-    def test_complete_enrollment_status(self):
+    @pytest.mark.asyncio
+    async def test_complete_enrollment_status(self):
         """Test enrollment completion detection."""
+        import numpy as np
+
         student_id = "test_student"
-        required = 3
+        await self.staging.store_sample(student_id, 1, np.array([1.0]))
+        await self.staging.store_sample(student_id, 2, np.array([2.0]))
+        await self.staging.store_sample(student_id, 3, np.array([3.0]))
 
-        _enrollment_staging[student_id] = {1: b"emb_1", 2: b"emb_2", 3: b"emb_3"}
-        valid_count = len(_enrollment_staging[student_id])
-        is_complete = valid_count >= required
-
-        assert valid_count == 3
-        assert is_complete is True
+        count = await self.staging.get_valid_count(student_id, 3)
+        assert count == 3
 
 
 class TestVoiceVerification:
@@ -96,17 +90,19 @@ class TestVoiceVerification:
 
         threshold = 0.75
 
-        # High confidence match
+        # High confidence: well above threshold (>= threshold + 0.10)
         assert classify_confidence(0.90, threshold) == "high"
-        # Medium confidence match
-        assert classify_confidence(0.80, threshold) == "high"
-        # Just above threshold
-        assert classify_confidence(0.76, threshold) == "high"
-        # At threshold
-        assert classify_confidence(0.75, threshold) == "high"
-        # Just below threshold
-        assert classify_confidence(0.70, threshold) == "medium"
-        # Well below threshold
+        # High confidence: exactly at threshold + 0.10
+        assert classify_confidence(0.85, threshold) == "high"
+        # Medium confidence: above threshold but below high
+        assert classify_confidence(0.80, threshold) == "medium"
+        # Medium confidence: just above threshold
+        assert classify_confidence(0.76, threshold) == "medium"
+        # Medium confidence: exactly at threshold
+        assert classify_confidence(0.75, threshold) == "medium"
+        # Low confidence: below threshold
+        assert classify_confidence(0.70, threshold) == "low"
+        # Low confidence: well below threshold
         assert classify_confidence(0.50, threshold) == "low"
 
     def test_cosine_similarity_identical(self):

@@ -13,11 +13,10 @@ invocation in a try/except.
 
 from __future__ import annotations
 
-import json
-import re
 from typing import Any
 
 from app.logging_config import get_logger
+from app.services.viva.utils import extract_json_from_response
 
 logger = get_logger(__name__)
 
@@ -151,36 +150,6 @@ Transcript:
 """
 
 
-def _extract_json(text: str) -> dict | None:
-    """Best-effort JSON extraction from a model response.
-
-    Handles plain JSON, fenced ```json blocks, and leading/trailing chatter.
-    Returns None on failure.
-    """
-    if not text:
-        return None
-    text = text.strip()
-
-    # Strip markdown code fences if present.
-    fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
-    if fence:
-        text = fence.group(1)
-
-    # First try: parse as-is.
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        pass
-
-    # Fallback: find the widest balanced {...} slice.
-    start = text.find("{")
-    end = text.rfind("}")
-    if start != -1 and end != -1 and end > start:
-        try:
-            return json.loads(text[start : end + 1])
-        except json.JSONDecodeError:
-            return None
-    return None
 
 
 async def grade_viva_transcript(
@@ -243,7 +212,7 @@ async def grade_viva_transcript(
         raise
 
     raw_text = getattr(response, "text", None) or ""
-    parsed = _extract_json(raw_text)
+    parsed = extract_json_from_response(raw_text)
     if not parsed or not isinstance(parsed, dict):
         logger.warning("grader_parse_failed", raw=raw_text[:500])
         return {"items": [], "total_score": 0.0, "max_possible": 0.0}

@@ -47,7 +47,7 @@ class Settings(BaseSettings):
 
     # Gemini Live API (IVAS-specific key)
     gemini_api_key: str = Field(
-        default="SET_YOUR_API_KEY_HERE",
+        default="",
         alias="IVAS_GEMINI_API_KEY",
     )
     gemini_live_model: str = Field(

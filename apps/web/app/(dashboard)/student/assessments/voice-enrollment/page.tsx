@@ -45,7 +45,8 @@ export default function VoiceEnrollmentPage() {
             try {
                 const status = await ivasApi.getVoiceProfile(studentId);
                 if (mounted) setProfile(status);
-            } catch {
+            } catch (err) {
+                console.error("Failed to load voice profile:", err);
                 // No profile yet, that's fine
                 if (mounted) setProfile({ student_id: studentId, enrolled: false, samples_count: 0, required_samples: 3, is_complete: false });
             } finally {
@@ -116,9 +117,9 @@ export default function VoiceEnrollmentPage() {
             timerRef.current = setInterval(() => {
                 setRecordingTime(prev => prev + 1);
             }, 1000);
-        } catch {
+        } catch (err) {
+            console.error("Microphone access error:", err);
             addToast({
-                title: "Microphone access denied",
                 variant: "error",
                 description: "Please allow microphone access for voice enrollment.",
             });

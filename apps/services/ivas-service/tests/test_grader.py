@@ -6,8 +6,8 @@ from app.services.viva.grader import (
     MAX_SCORE_PER_QUESTION,
     _format_transcript_for_prompt,
     _format_assignment_block,
-    _extract_json,
 )
+from app.services.viva.utils import extract_json_from_response
 
 
 class TestConstants:
@@ -116,14 +116,14 @@ class TestExtractJson:
     def test_valid_json(self):
         """Test extracting valid JSON."""
         text = '{"items": [{"sequence_num": 1, "score": 8}]}'
-        result = _extract_json(text)
+        result = extract_json_from_response(text)
         assert result is not None
         assert "items" in result
 
     def test_fenced_json(self):
         """Test extracting JSON from markdown fence."""
         text = '```json\n{"items": []}\n```'
-        result = _extract_json(text)
+        result = extract_json_from_response(text)
         assert result is not None
         assert result["items"] == []
 

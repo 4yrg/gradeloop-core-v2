@@ -19,6 +19,14 @@ const WS_URL =
 type SessionState = "idle" | "connecting" | "live" | "error";
 
 export default function GeminiPage() {
+    // Dev-only page — not available in production
+    if (process.env.NODE_ENV === "production") {
+        return (
+            <div className="flex items-center justify-center h-[60vh]">
+                <p className="text-muted-foreground">This page is not available.</p>
+            </div>
+        );
+    }
     const [state, setState] = React.useState<SessionState>("idle");
     const [aiSpeaking, setAiSpeaking] = React.useState(false);
 

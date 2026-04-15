@@ -33,6 +33,7 @@ export default function StartAssessmentPage() {
         async function loadAssignments() {
             try {
                 setLoading(true);
+                // TODO: Filter assignments by student's enrolled courses when course context is available
                 const data = await ivasApi.listAssignments();
                 if (mounted) {
                     setAssignments(data);

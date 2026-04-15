@@ -157,7 +157,7 @@ function CodeBlock({ code }: { code: string }) {
                 </div>
             </CardHeader>
             <CardContent>
-                <div className={!expanded && isLong ? `overflow-hidden max-h-[${COLLAPSE_HEIGHT}px]` : ""}>
+                <div className={!expanded && isLong ? "overflow-hidden" : ""} style={!expanded && isLong ? { maxHeight: COLLAPSE_HEIGHT } : undefined}>
                     <pre className="text-xs bg-muted p-3 rounded-lg overflow-x-auto leading-relaxed">
                         {code}
                     </pre>
@@ -236,13 +236,13 @@ function CompetencyScoresSection({ studentId, assignmentId }: { studentId: strin
 
     React.useEffect(() => {
         let mounted = true;
-        ivasApi.listStudentCompetencyScores(studentId).then(data => {
+        ivasApi.listStudentCompetencyScores(studentId, assignmentId).then(data => {
             if (mounted) setScores(data);
         }).catch(() => {}).finally(() => {
             if (mounted) setLoading(false);
         });
         return () => { mounted = false; };
-    }, [studentId]);
+    }, [studentId, assignmentId]);
 
     async function handleOverride(competencyId: string) {
         if (editValue === null) return;
@@ -259,7 +259,9 @@ function CompetencyScoresSection({ studentId, assignmentId }: { studentId: strin
             ));
             setEditingId(null);
             setEditValue(null);
-        } catch {}
+        } catch (err) {
+            console.error("Failed to override competency score:", err);
+        }
         finally { setSaving(false); }
     }
 
@@ -407,15 +409,25 @@ export default function InstructorVivaReviewPage() {
         if (!details || regrading) return;
         setRegrading(true);
         try {
-            const updated = await ivasApi.regradeSession(sessionId);
-            setDetails(prev => prev ? { ...prev, session: { ...prev.session, status: updated.status } } : prev);
-            // Re-fetch full details after a short delay to let grading finish or show progress
-            const refreshed = await ivasApi.getSessionDetails(sessionId);
-            setDetails(refreshed);
+            await ivasApi.regradeSession(sessionId);
+            // Set status to grading immediately while polling
+            setDetails(prev => prev ? { ...prev, session: { ...prev.session, status: "grading" } } : prev);
+            // Poll until grading completes (status is no longer "grading")
+            const terminalStates = ["completed", "abandoned", "grading_failed"];
+            for (let attempt = 0; attempt < 40; attempt++) { // max ~2 minutes
+                await new Promise(r => setTimeout(r, 3000));
+                const refreshed = await ivasApi.getSessionDetails(sessionId);
+                setDetails(refreshed);
+                if (terminalStates.includes(refreshed?.session?.status)) break;
+            }
         } catch (err) {
-            // If regrade fails, just refresh to show current state
-            const refreshed = await ivasApi.getSessionDetails(sessionId);
-            setDetails(refreshed);
+            // If regrade fails, try to refresh to show current state
+            try {
+                const refreshed = await ivasApi.getSessionDetails(sessionId);
+                setDetails(refreshed);
+            } catch {
+                // Ignore refresh error
+            }
         } finally {
             setRegrading(false);
         }

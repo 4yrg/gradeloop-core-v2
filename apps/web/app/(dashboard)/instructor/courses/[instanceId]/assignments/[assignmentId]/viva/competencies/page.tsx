@@ -78,6 +78,7 @@ export default function CompetenciesPage() {
     const [allCompetencies, setAllCompetencies] = React.useState<CompetencyOut[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
+    const weightTimerRef = React.useRef<number>(0);
 
     // AI generation
     const [generating, setGenerating] = React.useState(false);
@@ -414,7 +415,7 @@ export default function CompetenciesPage() {
                                             max={10}
                                             step={0.1}
                                             value={c.weight}
-                                            onChange={async (e) => {
+                                            onChange={(e) => {
                                                 const newWeight = parseFloat(e.target.value);
                                                 const updated = linkedCompetencies.map(lc =>
                                                     lc.competency_id === c.competency_id
@@ -422,9 +423,13 @@ export default function CompetenciesPage() {
                                                         : lc
                                                 );
                                                 setLinkedCompetencies(updated);
-                                                await ivasApi.setAssignmentCompetencies(assignmentId, {
-                                                    competencies: updated.map(lc => ({ competency_id: lc.competency_id, weight: lc.weight })),
-                                                });
+                                                // Debounced save
+                                                clearTimeout(weightTimerRef.current);
+                                                weightTimerRef.current = window.setTimeout(async () => {
+                                                    await ivasApi.setAssignmentCompetencies(assignmentId, {
+                                                        competencies: updated.map(lc => ({ competency_id: lc.competency_id, weight: lc.weight })),
+                                                    });
+                                                }, 500);
                                             }}
                                             className="w-20 h-8 text-xs text-center"
                                         />

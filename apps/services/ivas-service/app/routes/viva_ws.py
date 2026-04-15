@@ -23,6 +23,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.config import get_settings
 from app.logging_config import get_logger
+from app.services.viva.utils import DIFFICULTY_LABELS
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -157,7 +158,6 @@ def _build_viva_system_instruction(
     if selected_questions:
         lines.append("")
         lines.append("Structured question plan — ask questions in this order:")
-        DIFFICULTY_LABELS = {1: "Beginner", 2: "Intermediate", 3: "Advanced", 4: "Expert", 5: "Master"}
         for q in selected_questions:
             level = q.get("difficulty", 2)
             label = DIFFICULTY_LABELS.get(level, str(level))
@@ -509,6 +509,7 @@ async def _finalize_session(
         db=db,
         settings=settings,
         sid=sid,
+        student_id=session.get("student_id", ""),
         transcript_turns=transcript_turns,
         assignment_context=assignment_context,
         selected_questions=selected_questions,
@@ -520,6 +521,7 @@ async def _grade_and_persist(
     db,
     settings,
     sid: UUID,
+    student_id: str,
     transcript_turns: list[dict],
     assignment_context: dict,
     selected_questions: list[dict] | None,
@@ -601,7 +603,7 @@ async def _grade_and_persist(
     # Derive and persist per-competency scores for this session.
     if selected_questions:
         try:
-            await _derive_competency_scores(db, sid, items, competency_metadata)
+            await _derive_competency_scores(db, sid, student_id, items, competency_metadata)
         except Exception as exc:
             logger.error("derive_competency_scores_failed", error=str(exc))
 
@@ -642,11 +644,13 @@ def _serialize_planned_questions(planned: list[dict]) -> list[dict]:
 async def _derive_competency_scores(
     db,
     sid: UUID,
+    student_id: str,
     items: list[dict],
     competency_metadata: dict[int, dict],
 ) -> None:
     """Average per-question scores per competency and persist to competency_scores."""
     from collections import defaultdict
+    from uuid import UUID as _UUID
 
     # Group scores by competency
     by_comp: dict[str, list[float]] = defaultdict(list)
@@ -662,12 +666,10 @@ async def _derive_competency_scores(
 
     # Persist avg score per competency for this session.
     for comp_id, scores in by_comp.items():
-        from uuid import UUID as _UUID
-
         avg = sum(scores) / len(scores)
         try:
             await db.upsert_competency_score(
-                student_id=(await db.get_session(sid)).get("student_id", ""),
+                student_id=student_id,
                 competency_id=_UUID(comp_id),
                 session_id=sid,
                 score=round(avg, 1),

@@ -10,6 +10,11 @@ from app.logging_config import get_logger
 
 logger = get_logger(__name__)
 
+# Allowed columns for dynamic UPDATE methods (SQL injection prevention)
+_ASSIGNMENT_FIELDS = {"title", "description", "code_context", "programming_language", "course_id", "instructor_id"}
+_CRITERIA_FIELDS = {"competency", "description", "max_score", "weight", "difficulty"}
+_QUESTION_FIELDS = {"question_text", "competency", "difficulty", "expected_topics", "status", "criteria_id"}
+
 
 class PostgresClient:
     """Async PostgreSQL client with connection pooling."""
@@ -48,6 +53,16 @@ class PostgresClient:
 
     async def ensure_tables(self) -> None:
         """Create tables if they don't exist. Runs legacy schema fixes first."""
+        async with self._pool.acquire() as conn:
+            # Create migrations tracking table
+            await conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS ivas_schema_migrations (
+                    version INT PRIMARY KEY,
+                    applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                )
+                """
+            )
         await self._migrate_legacy_schema()
         async with self._pool.acquire() as conn:
             await conn.execute(SCHEMA_SQL)
@@ -59,7 +74,17 @@ class PostgresClient:
         The old IVAS schema had duplicate assignment/question/grading_criteria tables
         with FK constraints. IVAS now only stores assignment_id as a plain UUID
         reference with assignment context in JSONB.
+
+        Only runs once (tracked via ivas_schema_migrations table).
         """
+        # Check if migration has already been applied
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT version FROM ivas_schema_migrations WHERE version = 1"
+            )
+            if row:
+                logger.info("legacy_migration_already_applied")
+                return
         async with self._pool.acquire() as conn:
             # Drop FK constraints that reference now-removed tables
             for table_name, constraint_name in [
@@ -90,6 +115,12 @@ class PostgresClient:
                 )
             except Exception:
                 pass
+
+            # Mark migration as applied
+            await conn.execute(
+                "INSERT INTO ivas_schema_migrations (version) VALUES (1) ON CONFLICT DO NOTHING"
+            )
+            logger.info("legacy_migration_applied", version=1)
 
 
     # =========================================================================
@@ -281,16 +312,16 @@ class PostgresClient:
                         "DELETE FROM transcripts WHERE session_id = $1",
                         session_id,
                     )
-                    # Use execute instead of executemany for better error handling
-                    # executemany can fail silently on partial errors
-                    for t in turns:
-                        await conn.execute(
-                            """
-                            INSERT INTO transcripts (session_id, turn_number, role, content)
-                            VALUES ($1, $2, $3, $4)
-                            """,
-                            session_id, t["turn_number"], t["role"], t["content"],
-                        )
+                    await conn.executemany(
+                        """
+                        INSERT INTO transcripts (session_id, turn_number, role, content)
+                        VALUES ($1, $2, $3, $4)
+                        """,
+                        [
+                            (session_id, t["turn_number"], t["role"], t["content"])
+                            for t in turns
+                        ],
+                    )
                     logger.info("save_transcripts_success", session_id=str(session_id), count=len(turns))
                 except Exception as e:
                     logger.error("save_transcripts_failed", session_id=str(session_id), error=str(e))
@@ -479,6 +510,9 @@ class PostgresClient:
     async def update_assignment(
         self, assignment_id: UUID, **fields: str | None,
     ) -> dict | None:
+        invalid = set(fields.keys()) - _ASSIGNMENT_FIELDS
+        if invalid:
+            raise ValueError(f"Invalid fields for update_assignment: {invalid}")
         if not fields:
             return await self.get_assignment(assignment_id)
         set_clauses = []
@@ -538,6 +572,9 @@ class PostgresClient:
     async def update_criteria(
         self, criteria_id: UUID, **fields: str | float | int | None,
     ) -> dict | None:
+        invalid = set(fields.keys()) - _CRITERIA_FIELDS
+        if invalid:
+            raise ValueError(f"Invalid fields for update_criteria: {invalid}")
         if not fields:
             async with self._pool.acquire() as conn:
                 row = await conn.fetchrow(
@@ -610,6 +647,9 @@ class PostgresClient:
     async def update_question(
         self, question_id: UUID, **fields: str | float | int | list | None,
     ) -> dict | None:
+        invalid = set(fields.keys()) - _QUESTION_FIELDS
+        if invalid:
+            raise ValueError(f"Invalid fields for update_question: {invalid}")
         if not fields:
             async with self._pool.acquire() as conn:
                 row = await conn.fetchrow(
@@ -747,20 +787,31 @@ class PostgresClient:
                     "DELETE FROM competency_assignments WHERE assignment_id = $1",
                     assignment_id,
                 )
-                rows = []
-                for entry in competency_entries:
-                    row = await conn.fetchrow(
-                        """
-                        INSERT INTO competency_assignments (assignment_id, competency_id, weight)
-                        VALUES ($1, $2, $3)
-                        RETURNING *
-                        """,
-                        assignment_id,
-                        entry["competency_id"],
-                        entry.get("weight", 1.0),
-                    )
-                    rows.append(dict(row))
-                return rows
+                if not competency_entries:
+                    return []
+                await conn.executemany(
+                    """
+                    INSERT INTO competency_assignments (assignment_id, competency_id, weight)
+                    VALUES ($1, $2, $3)
+                    """,
+                    [
+                        (assignment_id, entry["competency_id"], entry.get("weight", 1.0))
+                        for entry in competency_entries
+                    ],
+                )
+                # Re-fetch all rows to return complete data
+                rows = await conn.fetch(
+                    """
+                    SELECT ca.id AS link_id, c.id AS competency_id, c.name, c.description,
+                           c.difficulty, c.max_score, ca.weight
+                    FROM competency_assignments ca
+                    JOIN competencies c ON c.id = ca.competency_id
+                    WHERE ca.assignment_id = $1
+                    ORDER BY c.name ASC
+                    """,
+                    assignment_id,
+                )
+                return [dict(r) for r in rows]
 
     async def list_assignment_competencies(self, assignment_id: UUID) -> list[dict]:
         async with self._pool.acquire() as conn:
@@ -816,7 +867,22 @@ class PostgresClient:
     async def list_student_competency_scores(
         self,
         student_id: str,
+        assignment_id: UUID | None = None,
     ) -> list[dict]:
+        if assignment_id:
+            async with self._pool.acquire() as conn:
+                rows = await conn.fetch(
+                    """
+                    SELECT cs.*, c.name AS competency_name, c.difficulty, c.max_score
+                    FROM competency_scores cs
+                    JOIN competencies c ON c.id = cs.competency_id
+                    JOIN sessions s ON s.id = cs.session_id
+                    WHERE cs.student_id = $1 AND s.assignment_id = $2
+                    ORDER BY c.name ASC
+                    """,
+                    student_id, assignment_id,
+                )
+                return [dict(r) for r in rows]
         async with self._pool.acquire() as conn:
             rows = await conn.fetch(
                 """

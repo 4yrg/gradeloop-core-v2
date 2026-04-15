@@ -11,23 +11,13 @@ contextually relevant to the specific assignment and competency.
 
 from __future__ import annotations
 
-import json
 import random
-import re
 from uuid import UUID
 
 from app.logging_config import get_logger
+from app.services.viva.utils import DIFFICULTY_LABELS, extract_json_from_response
 
 logger = get_logger(__name__)
-
-# Difficulty labels matching the DB schema
-DIFFICULTY_LABELS = {
-    1: "Beginner",
-    2: "Intermediate",
-    3: "Advanced",
-    4: "Expert",
-    5: "Master",
-}
 
 
 def _reverse_labels() -> dict[str, int]:
@@ -164,7 +154,7 @@ Question requirements (exactly follow this distribution):
         return []
 
     raw_text = getattr(response, "text", None) or ""
-    parsed = _extract_json(raw_text)
+    parsed = extract_json_from_response(raw_text)
 
     if not parsed or not isinstance(parsed, dict):
         logger.warning("question_selector_parse_failed", raw=raw_text[:500])
@@ -249,8 +239,13 @@ def select_questions_random(
         # Shuffle and pick count (allow repeats if pool is smaller than count)
         shuffled = random.sample(pool, k=min(count, len(pool)))
         for comp in shuffled:
+            question_text = (
+                f"Explain the concept of {comp['name']}"
+                if not comp.get("description")
+                else f"Explain the concept of {comp['name']}: {comp['description']}"
+            )
             questions.append({
-                "question_text": "",  # Caller must fill in
+                "question_text": question_text,
                 "competency_id": comp["id"],
                 "competency_name": comp["name"],
                 "difficulty": level,
@@ -261,31 +256,3 @@ def select_questions_random(
 
     return questions
 
-
-# ---------------------------------------------------------------------------
-# Helper
-# ---------------------------------------------------------------------------
-
-def _extract_json(text: str) -> dict | None:
-    """Extract JSON from model response."""
-    if not text:
-        return None
-    text = text.strip()
-
-    fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
-    if fence:
-        text = fence.group(1)
-
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        pass
-
-    start = text.find("{")
-    end = text.rfind("}")
-    if start != -1 and end != -1 and end > start:
-        try:
-            return json.loads(text[start : end + 1])
-        except json.JSONDecodeError:
-            return None
-    return None
