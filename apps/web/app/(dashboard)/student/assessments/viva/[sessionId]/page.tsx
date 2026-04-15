@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toaster";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ivasApi } from "@/lib/ivas-api";
-import type { VivaSession, WsMessageIncoming, ChatMessage } from "@/types/ivas";
+import type { VivaSession, WsMessageIncoming, ChatMessage, VoiceWarningData } from "@/types/ivas";
 
 type ConnectionState = "connecting" | "connected" | "disconnected" | "error";
 type AiState = "idle" | "speaking" | "listening";
@@ -42,6 +42,11 @@ export default function VivaSessionPage() {
     const reconnectAttemptsRef = React.useRef(0);
     const MAX_RECONNECT_ATTEMPTS = 3;
     const [showEndConfirm, setShowEndConfirm] = React.useState(false);
+
+    // Voice verification state
+    const [voiceWarning, setVoiceWarning] = React.useState<VoiceWarningData | null>(null);
+    const [voiceProfileReady, setVoiceProfileReady] = React.useState(true); // assume true until checked
+    const voiceWarningTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
     // Refs
     const wsRef = React.useRef<WebSocket | null>(null);
@@ -79,6 +84,26 @@ export default function VivaSessionPage() {
         load();
         return () => { mounted = false; };
     }, [sessionId]);
+
+    // Check voice profile on mount
+    React.useEffect(() => {
+        let mounted = true;
+        async function checkVoiceProfile() {
+            try {
+                const userId = localStorage.getItem("userId") || "";
+                if (!userId) return;
+                const profile = await ivasApi.getVoiceProfile(userId);
+                if (mounted && !profile.is_complete) {
+                    setVoiceProfileReady(false);
+                }
+            } catch {
+                // Profile not found — student hasn't enrolled
+                if (mounted) setVoiceProfileReady(false);
+            }
+        }
+        checkVoiceProfile();
+        return () => { mounted = false; };
+    }, []);
 
     // Poll session status while grading is in progress
     React.useEffect(() => {
@@ -335,6 +360,20 @@ export default function VivaSessionPage() {
                         break;
 
                     case "pong":
+                        break;
+
+                    case "voice_warning":
+                        setVoiceWarning({
+                            type: "voice_warning",
+                            similarity_score: msg.similarity_score ?? 0,
+                            is_match: msg.is_match ?? false,
+                            confidence: msg.confidence ?? "low",
+                            mismatch_count: msg.mismatch_count ?? 0,
+                            total_checks: msg.total_checks ?? 0,
+                        });
+                        // Auto-dismiss after 8 seconds
+                        if (voiceWarningTimerRef.current) clearTimeout(voiceWarningTimerRef.current);
+                        voiceWarningTimerRef.current = setTimeout(() => setVoiceWarning(null), 8000);
                         break;
                 }
             } catch (err) {
@@ -605,6 +644,25 @@ export default function VivaSessionPage() {
                 </Button>
             </div>
 
+            {/* Voice verification warning */}
+            {voiceWarning && !voiceWarning.is_match && (
+                <div className={`mx-1 px-4 py-2.5 rounded-lg border flex items-center gap-2 text-sm ${
+                    voiceWarning.mismatch_count >= 2
+                        ? "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-400"
+                        : "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                }`}>
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>
+                        Voice not recognized (similarity: {voiceWarning.similarity_score.toFixed(2)})
+                        {voiceWarning.mismatch_count > 1 && (
+                            <span className="ml-1 font-medium">
+                                — {voiceWarning.mismatch_count} mismatches detected
+                            </span>
+                        )}
+                    </span>
+                </div>
+            )}
+
             {/* Transcript area */}
             <div className="flex-1 overflow-y-auto px-1 pt-2 pb-6 space-y-5">
                 {messages.length === 0 ? (
@@ -627,12 +685,24 @@ export default function VivaSessionPage() {
 
             {/* Footer controls */}
             <div className="border-t border-border/40 pt-5 pb-3 flex flex-col items-center gap-3">
-                {connectionState === "disconnected" || connectionState === "error" ? (
-                    <Button onClick={connectWebSocket} size="lg" className="gap-2 rounded-full px-6">
-                        <Wifi className="h-4 w-4" />
-                        Connect to examiner
-                    </Button>
-                ) : connectionState === "connecting" ? (
+                {!voiceProfileReady && (connectionState === "disconnected" || connectionState === "error") ? (
+                    <div className="text-center space-y-3">
+                        <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-sm">
+                            <AlertCircle className="h-4 w-4" />
+                            Voice profile required
+                        </div>
+                        <p className="text-xs text-muted-foreground max-w-xs">
+                            You must enroll your voice before starting a viva session.
+                        </p>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.push("/student/assessments/voice-enrollment")}
+                        >
+                            Enroll Voice
+                        </Button>
+                    </div>
+                ) : connectionState === "disconnected" || connectionState === "error" ? (
                     <Button disabled size="lg" className="gap-2 rounded-full px-6">
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Connecting…

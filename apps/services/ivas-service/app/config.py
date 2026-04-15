@@ -69,6 +69,20 @@ class Settings(BaseSettings):
         alias="VOICE_ENROLLMENT_SAMPLES",
     )
 
+    # Voice Verification During Viva
+    voice_verification_enabled: bool = Field(
+        default=True,
+        alias="VOICE_VERIFICATION_ENABLED",
+    )
+    voice_verification_max_mismatches: int = Field(
+        default=3,
+        alias="VOICE_VERIFICATION_MAX_MISMATCHES",
+    )
+    voice_verification_min_audio_seconds: float = Field(
+        default=2.0,
+        alias="VOICE_VERIFICATION_MIN_AUDIO_SECONDS",
+    )
+
     @property
     def database_dsn(self) -> str:
         """Return database DSN as string."""

@@ -22,6 +22,7 @@ logger = get_logger(__name__)
 
 # Global state
 postgres_client: PostgresClient | None = None
+minio_client = None
 
 
 async def get_db() -> PostgresClient:
@@ -75,6 +76,23 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
 
         _voice_staging_module.enrollment_staging = InMemoryEnrollmentStaging()
         logger.warning("ivas_enrollment_staging_fallback_inmemory", error=str(e))
+
+    # Initialize MinIO client for voice audio storage (non-fatal)
+    try:
+        from app.services.storage.minio_client import MinioClient
+
+        minio_client = MinioClient(
+            endpoint=settings.minio_endpoint,
+            access_key=settings.minio_access_key,
+            secret_key=settings.minio_secret_key,
+            bucket=settings.minio_bucket,
+            use_ssl=settings.minio_use_ssl,
+        )
+        minio_client.connect()
+        logger.info("ivas_minio_ready")
+    except Exception as e:
+        minio_client = None
+        logger.warning("ivas_minio_unavailable", error=str(e))
 
     # Warn if Gemini API key is not configured
     if not settings.gemini_api_key or settings.gemini_api_key == "SET_YOUR_API_KEY_HERE":

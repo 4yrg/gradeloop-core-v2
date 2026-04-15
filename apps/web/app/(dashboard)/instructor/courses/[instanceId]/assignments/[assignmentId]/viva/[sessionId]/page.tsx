@@ -24,6 +24,7 @@ import {
     X,
     Loader2,
     RefreshCw,
+    Shield,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,7 +32,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { ivasApi } from "@/lib/ivas-api";
-import type { SessionDetail, GradedQA, Transcript, CompetencyScoreOut } from "@/types/ivas";
+import type { SessionDetail, GradedQA, Transcript, CompetencyScoreOut, VoiceAuthEvent } from "@/types/ivas";
 
 const TRANSCRIPT_COLLAPSE_THRESHOLD = 8;
 
@@ -377,6 +378,88 @@ function StudentIdCell({ studentId }: { studentId: string }) {
     );
 }
 
+function VoiceVerificationSection({ events }: { events: VoiceAuthEvent[] }) {
+    if (events.length === 0) return null;
+
+    const mismatches = events.filter(e => !e.is_match);
+    const matchRate = ((events.length - mismatches.length) / events.length * 100).toFixed(1);
+    const hasIssues = mismatches.length > 0;
+
+    return (
+        <Card>
+            <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                    <Shield className="h-4 w-4" />
+                    Voice Verification
+                    <span className="text-xs font-normal text-muted-foreground">
+                        ({events.length} checks, {matchRate}% match rate)
+                    </span>
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+                {/* Overall status banner */}
+                <div className={`p-3 rounded-lg border flex items-center gap-2 ${
+                    hasIssues
+                        ? mismatches.length >= 3
+                            ? "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-400"
+                            : "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                        : "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                }`}>
+                    <Shield className="h-4 w-4 shrink-0" />
+                    <span className="text-sm font-medium">
+                        {hasIssues
+                            ? mismatches.length >= 3
+                                ? `Voice verification issues detected — ${mismatches.length} of ${events.length} checks failed`
+                                : `${mismatches.length} voice mismatch${mismatches.length > 1 ? "es" : ""} detected`
+                            : "All voice checks passed — identity verified throughout session"
+                        }
+                    </span>
+                </div>
+
+                {/* Per-event table */}
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead>
+                            <tr className="border-b border-border/60 text-left">
+                                <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">#</th>
+                                <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Time</th>
+                                <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Similarity</th>
+                                <th className="py-2 pr-3 font-medium text-muted-foreground text-xs">Result</th>
+                                <th className="py-2 font-medium text-muted-foreground text-xs">Confidence</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {events.map((event, i) => (
+                                <tr key={event.id} className="border-b border-border/30 last:border-0">
+                                    <td className="py-1.5 pr-3 text-xs text-muted-foreground">{i + 1}</td>
+                                    <td className="py-1.5 pr-3 text-xs">
+                                        {format(new Date(event.checked_at), "HH:mm:ss")}
+                                    </td>
+                                    <td className="py-1.5 pr-3 text-xs font-mono">
+                                        {event.similarity_score?.toFixed(4) ?? "—"}
+                                    </td>
+                                    <td className="py-1.5 pr-3">
+                                        {event.is_match ? (
+                                            <Badge variant="outline" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-xs">
+                                                Match
+                                            </Badge>
+                                        ) : (
+                                            <Badge variant="outline" className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0 text-xs">
+                                                Mismatch
+                                            </Badge>
+                                        )}
+                                    </td>
+                                    <td className="py-1.5 text-xs capitalize">{event.confidence ?? "—"}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 export default function InstructorVivaReviewPage() {
     const params = useParams<{ sessionId: string; assignmentId: string; instanceId: string }>();
     const router = useRouter();
@@ -462,7 +545,7 @@ export default function InstructorVivaReviewPage() {
         );
     }
 
-    const { session, transcripts, graded_qa } = details;
+    const { session, transcripts, graded_qa, voice_auth_events } = details;
     const duration = session.completed_at
         ? differenceInMinutes(new Date(session.completed_at), new Date(session.started_at))
         : null;
@@ -498,6 +581,12 @@ export default function InstructorVivaReviewPage() {
                 </div>
                 <div className="flex items-center gap-2">
                     <StatusBadge status={session.status} />
+                    {session.metadata?.voice_verification_flagged && (
+                        <Badge variant="outline" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0 text-xs gap-1">
+                            <Shield className="h-3 w-3" />
+                            Voice Flagged
+                        </Badge>
+                    )}
                     {(session.status === "completed" || session.status === "grading_failed" || session.status === "abandoned") && (
                         <Button
                             variant="outline"
@@ -631,6 +720,11 @@ export default function InstructorVivaReviewPage() {
             {/* Code context */}
             {(session.assignment_context?.code_context as string | undefined) && (
                 <CodeBlock code={session.assignment_context.code_context as string} />
+            )}
+
+            {/* Voice Verification */}
+            {details.voice_auth_events && details.voice_auth_events.length > 0 && (
+                <VoiceVerificationSection events={details.voice_auth_events} />
             )}
 
             {/* Transcript */}

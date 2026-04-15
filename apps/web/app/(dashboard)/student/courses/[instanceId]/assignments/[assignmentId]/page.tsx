@@ -37,6 +37,7 @@ import { studentAssessmentsApi, acafsApi } from "@/lib/api/assessments";
 import { ivasApi } from "@/lib/ivas-api";
 import { useAuthStore } from "@/lib/stores/authStore";
 import type { AssignmentResponse, SubmissionResponse, SubmissionGrade } from "@/types/assessments.types";
+import type { VoiceProfileStatus } from "@/types/ivas";
 import { handleApiError } from "@/lib/api/axios";
 import { useUIStore } from "@/lib/stores/uiStore";
 import { GradeResultPanel } from "@/components/assessments/grade-result-panel";
@@ -85,6 +86,7 @@ export default function StudentAssignmentDetailPage() {
     const [selectedGradeLoading, setSelectedGradeLoading] = React.useState(false);
     const [startingViva, setStartingViva] = React.useState(false);
     const [vivaError, setVivaError] = React.useState<string | null>(null);
+    const [voiceProfileStatus, setVoiceProfileStatus] = React.useState<VoiceProfileStatus | null>(null);
 
     React.useEffect(() => {
         let mounted = true;
@@ -126,6 +128,22 @@ export default function StudentAssignmentDetailPage() {
 
     // Clear topbar title when leaving this page
     React.useEffect(() => () => { setPageTitle(null); }, []);
+
+    // Check voice profile for viva eligibility
+    React.useEffect(() => {
+        if (!user?.id) return;
+        let mounted = true;
+        async function checkVoiceProfile() {
+            try {
+                const status = await ivasApi.getVoiceProfile(user!.id);
+                if (mounted) setVoiceProfileStatus(status);
+            } catch {
+                if (mounted) setVoiceProfileStatus(null);
+            }
+        }
+        checkVoiceProfile();
+        return () => { mounted = false; };
+    }, [user?.id]);
 
     if (isLoading) {
         return (
@@ -541,13 +559,30 @@ export default function StudentAssignmentDetailPage() {
                             <p className="text-xs text-muted-foreground">
                                 Answer questions about your code verbally. The AI will ask follow-up questions based on your responses.
                             </p>
+                            {(!voiceProfileStatus || !voiceProfileStatus.is_complete) && (
+                                <div className="flex items-start gap-2 p-2.5 rounded-md border border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400">
+                                    <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                                    <div className="text-xs">
+                                        <p className="font-medium">Voice profile required</p>
+                                        <p className="mt-0.5">Enroll your voice before starting a viva.</p>
+                                        <Button
+                                            variant="link"
+                                            size="sm"
+                                            className="h-auto p-0 text-xs text-amber-700 dark:text-amber-400 underline"
+                                            onClick={() => router.push("/student/assessments/voice-enrollment")}
+                                        >
+                                            Enroll now
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
                             {vivaError && (
                                 <p className="text-xs text-destructive">{vivaError}</p>
                             )}
                             <Button
                                 className="w-full"
                                 onClick={handleStartViva}
-                                disabled={startingViva}
+                                disabled={startingViva || !voiceProfileStatus?.is_complete}
                             >
                                 {startingViva ? (
                                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />

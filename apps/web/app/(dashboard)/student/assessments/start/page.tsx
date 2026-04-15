@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toaster";
 import { ivasApi } from "@/lib/ivas-api";
 import { useAuthStore } from "@/lib/stores/authStore";
-import type { IvasAssignment } from "@/types/ivas";
+import type { IvasAssignment, VoiceProfileStatus } from "@/types/ivas";
 import {
     Select,
     SelectContent,
@@ -27,6 +27,7 @@ export default function StartAssessmentPage() {
     const [selectedAssignment, setSelectedAssignment] = React.useState<string>("");
     const [loading, setLoading] = React.useState(true);
     const [starting, setStarting] = React.useState(false);
+    const [voiceProfileStatus, setVoiceProfileStatus] = React.useState<VoiceProfileStatus | null>(null);
 
     React.useEffect(() => {
         let mounted = true;
@@ -56,6 +57,23 @@ export default function StartAssessmentPage() {
         loadAssignments();
         return () => { mounted = false; };
     }, [addToast]);
+
+    // Check voice profile on mount
+    React.useEffect(() => {
+        if (!user?.id) return;
+        let mounted = true;
+        async function checkVoiceProfile() {
+            try {
+                const status = await ivasApi.getVoiceProfile(user!.id);
+                if (mounted) setVoiceProfileStatus(status);
+            } catch {
+                // No profile found
+                if (mounted) setVoiceProfileStatus(null);
+            }
+        }
+        checkVoiceProfile();
+        return () => { mounted = false; };
+    }, [user?.id]);
 
     const selectedData = assignments.find(a => a.id === selectedAssignment);
 
@@ -213,6 +231,30 @@ export default function StartAssessmentPage() {
                     </CardContent>
                 </Card>
 
+                {/* Voice Profile Warning */}
+                {(!voiceProfileStatus || !voiceProfileStatus.is_complete) && !loading && (
+                    <div className="flex items-start gap-3 p-4 rounded-lg border border-amber-500/40 bg-amber-500/10">
+                        <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                        <div>
+                            <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                                Voice profile required
+                            </p>
+                            <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">
+                                You must enroll your voice before starting a viva session. This ensures identity verification during the exam.
+                            </p>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="mt-2 gap-1.5"
+                                onClick={() => router.push("/student/assessments/voice-enrollment")}
+                            >
+                                <Mic2 className="h-3.5 w-3.5" />
+                                Enroll Voice
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
                 {/* Start Button */}
                 <div className="flex justify-end gap-3">
                     <Button
@@ -224,7 +266,7 @@ export default function StartAssessmentPage() {
                     </Button>
                     <Button
                         onClick={handleStartAssessment}
-                        disabled={starting || !selectedAssignment || assignments.length === 0}
+                        disabled={starting || !selectedAssignment || assignments.length === 0 || !voiceProfileStatus?.is_complete}
                         className="gap-2"
                     >
                         {starting ? (

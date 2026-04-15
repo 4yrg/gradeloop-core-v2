@@ -181,6 +181,7 @@ async def _bridge_gemini_live(
     settings,
     assignment_context: dict | None = None,
     selected_questions: list[dict] | None = None,
+    turn_verifier=None,
 ) -> list[dict]:
     """Bridge a browser WebSocket to a Gemini Live session.
 
@@ -321,6 +322,9 @@ async def _bridge_gemini_live(
                                 data=audio, mime_type="audio/pcm;rate=16000",
                             ),
                         )
+                        # Buffer audio for voice verification
+                        if turn_verifier and settings.voice_verification_enabled:
+                            turn_verifier.accumulate_audio(audio)
                     elif msg.get("type") == "end_session":
                         break
 
@@ -382,6 +386,19 @@ async def _bridge_gemini_live(
                                 pending["student"] += chunk
                                 if finished:
                                     _flush_role("student")
+                                    # Voice verification: check buffered audio
+                                    # against stored voiceprint on turn completion
+                                    if turn_verifier and settings.voice_verification_enabled:
+                                        result = await turn_verifier.on_student_turn_finished()
+                                        if result:
+                                            await websocket.send_json({
+                                                "type": "voice_warning",
+                                                "similarity_score": result.similarity_score,
+                                                "is_match": result.is_match,
+                                                "confidence": result.confidence,
+                                                "mismatch_count": result.mismatch_count,
+                                                "total_checks": result.total_checks,
+                                            })
                                 await websocket.send_json({
                                     "type": "user_transcript",
                                     "data": chunk,
@@ -713,6 +730,16 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
         await websocket.close()
         return
 
+    # Require voice profile before starting viva
+    profile = await db.get_voice_profile(session["student_id"])
+    if not profile:
+        await websocket.send_json({
+            "type": "error",
+            "data": "Voice profile required. Please enroll your voice before starting a viva session.",
+        })
+        await websocket.close()
+        return
+
     await db.update_session_status(sid, "in_progress")
 
     assignment_context = session.get("assignment_context") or {}
@@ -725,6 +752,25 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
     settings = get_settings()
     transcript_turns: list[dict] = []
     selected_questions: list[dict] = []
+
+    # Create TurnVerifier for real-time voice verification
+    turn_verifier = None
+    if settings.voice_verification_enabled and profile:
+        from app.services.voice.turn_verifier import TurnVerifier
+        from app.services.voice.speaker import deserialize_embedding
+
+        stored_embedding_bytes = profile["embedding"]
+        from app.main import minio_client as _minio_client
+
+        turn_verifier = TurnVerifier(
+            student_id=session["student_id"],
+            stored_embedding_bytes=stored_embedding_bytes,
+            db=db,
+            settings=settings,
+            session_id=sid,
+            minio_client=_minio_client,
+        )
+        logger.info("voice_verification_enabled", session_id=session_id)
 
     # Load competencies for this assignment and pre-select questions.
     assignment_id = session.get("assignment_id")
@@ -801,6 +847,7 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
             settings,
             assignment_context=assignment_context,
             selected_questions=selected_questions or None,
+            turn_verifier=turn_verifier,
         ) or []
     except Exception as exc:
         logger.error("session_ws_error", error=str(exc))
@@ -821,4 +868,21 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
                 db, settings, sid, transcript_turns, assignment_context,
                 selected_questions=selected_questions or None,
             )
+
+        # Flag session for instructor review if voice verification detected
+        # too many mismatches. The session is NOT terminated — it continues
+        # through normal grading. This flag lets instructors filter sessions
+        # with voice issues.
+        if turn_verifier and turn_verifier.should_flag():
+            with suppress(Exception):
+                existing_meta = session.get("metadata") or {}
+                existing_meta["voice_verification_flagged"] = True
+                await db.update_session_metadata(sid, existing_meta)
+                logger.info(
+                    "voice_verification_flagged",
+                    session_id=session_id,
+                    mismatch_count=turn_verifier._mismatch_count,
+                    total_checks=turn_verifier._total_checks,
+                )
+
         logger.info("session_ws_closed", session_id=session_id)

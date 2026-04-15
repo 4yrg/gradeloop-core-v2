@@ -81,7 +81,19 @@ class GradedQAOut(BaseModel):
     score_justification: str | None = None
 
 
+class VoiceAuthEventOut(BaseModel):
+    id: UUID
+    session_id: UUID
+    question_instance_id: UUID | None = None
+    similarity_score: float | None = None
+    is_match: bool | None = None
+    confidence: str | None = None  # "high" | "medium" | "low"
+    audio_ref: str | None = None
+    checked_at: datetime
+
+
 class SessionDetailOut(BaseModel):
     session: SessionOut
     transcripts: list[TranscriptOut] = []
     graded_qa: list[GradedQAOut] = []
+    voice_auth_events: list[VoiceAuthEventOut] = []

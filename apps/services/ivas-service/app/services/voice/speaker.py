@@ -120,3 +120,39 @@ def classify_confidence(similarity: float, threshold: float) -> str:
         return "medium"
     else:
         return "low"
+
+
+def pcm16_to_wav(pcm16_bytes: bytes, sample_rate: int = 16000, num_channels: int = 1) -> bytes:
+    """Wrap raw PCM16 bytes in a WAV file header.
+
+    The live viva WebSocket streams raw PCM16 16kHz mono audio.
+    extract_embedding expects WAV file bytes (uses soundfile.read),
+    so we need this conversion for real-time verification.
+    """
+    import struct
+
+    bits_per_sample = 16
+    byte_rate = sample_rate * num_channels * bits_per_sample // 8
+    block_align = num_channels * bits_per_sample // 8
+    data_size = len(pcm16_bytes)
+
+    header = struct.pack(
+        "<4sI4s",
+        b"RIFF",
+        36 + data_size,
+        b"WAVE",
+    )
+    fmt_chunk = struct.pack(
+        "<4sIHHIIHH",
+        b"fmt ",
+        16,  # chunk size
+        1,  # PCM format
+        num_channels,
+        sample_rate,
+        byte_rate,
+        block_align,
+        bits_per_sample,
+    )
+    data_chunk = struct.pack("<4sI", b"data", data_size)
+
+    return header + fmt_chunk + data_chunk + pcm16_bytes

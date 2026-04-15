@@ -12,6 +12,7 @@ from app.schemas.session import (
     SessionDetailOut,
     SessionOut,
     TranscriptOut,
+    VoiceAuthEventOut,
 )
 from app.services.storage.postgres_client import PostgresClient
 
@@ -23,6 +24,14 @@ router = APIRouter(prefix="/sessions", tags=["sessions"])
 @router.post("", response_model=SessionOut, status_code=status.HTTP_201_CREATED)
 async def create_session(body: SessionCreate, db: PostgresClient = Depends(get_db)) -> SessionOut:
     """Create a new viva session for a student."""
+    # Require voice profile before starting a viva session
+    profile = await db.get_voice_profile(body.student_id)
+    if not profile:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Voice profile required. Please enroll your voice before starting a viva session.",
+        )
+
     row = await db.create_session(
         assignment_id=body.assignment_id,
         student_id=body.student_id,
@@ -270,8 +279,12 @@ async def get_session_details(session_id: UUID, db: PostgresClient = Depends(get
         for g in graded_rows
     ]
 
+    voice_auth_rows = await db.list_voice_auth_events(session_id)
+    voice_auth_events = [VoiceAuthEventOut(**r) for r in voice_auth_rows]
+
     return SessionDetailOut(
         session=SessionOut(**row),
         transcripts=[TranscriptOut(**t) for t in transcripts],
         graded_qa=graded_out,
+        voice_auth_events=voice_auth_events,
     )

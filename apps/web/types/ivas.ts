@@ -172,12 +172,18 @@ export interface WsMessageIncoming {
         | "session_started"
         | "session_ended"
         | "error"
-        | "pong";
+        | "pong"
+        | "voice_warning";
     data?: string;
     finished?: boolean;
     session_id?: string;
     status?: string;
     mime_type?: string;
+    similarity_score?: number;
+    is_match?: boolean;
+    confidence?: "high" | "medium" | "low";
+    mismatch_count?: number;
+    total_checks?: number;
 }
 
 // ============================================================
@@ -222,6 +228,30 @@ export interface Transcript {
 }
 
 // ============================================================
+// Voice Auth Events (real-time verification during viva)
+// ============================================================
+
+export interface VoiceAuthEvent {
+    id: string;
+    session_id: string;
+    question_instance_id: string | null;
+    similarity_score: number;
+    is_match: boolean;
+    confidence: "high" | "medium" | "low";
+    audio_ref: string | null;
+    checked_at: string;
+}
+
+export interface VoiceWarningData {
+    type: "voice_warning";
+    similarity_score: number;
+    is_match: boolean;
+    confidence: "high" | "medium" | "low";
+    mismatch_count: number;
+    total_checks: number;
+}
+
+// ============================================================
 // Session detail (full picture for instructor review)
 // ============================================================
 
@@ -229,6 +259,7 @@ export interface SessionDetail {
     session: VivaSession;
     transcripts: Transcript[];
     graded_qa: GradedQA[];
+    voice_auth_events: VoiceAuthEvent[];
 }
 
 // ============================================================
