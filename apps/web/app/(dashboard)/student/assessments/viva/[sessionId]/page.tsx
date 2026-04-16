@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toaster";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ivasApi } from "@/lib/ivas-api";
+import { useAuthStore } from "@/lib/stores/authStore";
 import type { VivaSession, WsMessageIncoming, ChatMessage, VoiceWarningData } from "@/types/ivas";
 
 type ConnectionState = "connecting" | "connected" | "disconnected" | "error";
@@ -24,6 +25,7 @@ export default function VivaSessionPage() {
     const params = useParams<{ sessionId: string }>();
     const router = useRouter();
     const { addToast } = useToast();
+    const user = useAuthStore((s) => s.user);
     const sessionId = params.sessionId;
 
     // Session state
@@ -87,12 +89,11 @@ export default function VivaSessionPage() {
 
     // Check voice profile on mount
     React.useEffect(() => {
+        if (!user?.id) return;
         let mounted = true;
         async function checkVoiceProfile() {
             try {
-                const userId = localStorage.getItem("userId") || "";
-                if (!userId) return;
-                const profile = await ivasApi.getVoiceProfile(userId);
+                const profile = await ivasApi.getVoiceProfile(user!.id);
                 if (mounted && !profile.is_complete) {
                     setVoiceProfileReady(false);
                 }
@@ -103,7 +104,7 @@ export default function VivaSessionPage() {
         }
         checkVoiceProfile();
         return () => { mounted = false; };
-    }, []);
+    }, [user?.id]);
 
     // Poll session status while grading is in progress
     React.useEffect(() => {

@@ -7,7 +7,7 @@ so the audio bridge is never blocked.
 """
 
 import asyncio
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from uuid import UUID
 
 from app.logging_config import get_logger
@@ -128,16 +128,18 @@ class TurnVerifier:
             self._mismatch_count += 1
 
         # Upload audio to MinIO (non-blocking degradation)
+        # Run in a thread to avoid blocking the event loop during I/O.
         audio_ref = None
         if self.minio_client is not None:
             try:
                 from uuid import uuid4 as _uuid4
 
                 event_id = str(_uuid4())
-                audio_ref = self.minio_client.upload_audio(
-                    session_id=str(self.session_id),
-                    event_id=event_id,
-                    pcm16_bytes=audio_bytes,
+                audio_ref = await asyncio.to_thread(
+                    self.minio_client.upload_audio,
+                    str(self.session_id),
+                    event_id,
+                    audio_bytes,
                 )
             except Exception as exc:
                 logger.warning(
