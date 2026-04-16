@@ -5,7 +5,7 @@ pydantic==2.10.4
 
 # ML/Transformers (CPU-only build)
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.5.1+cpu
+torch==2.6.0+cpu
 transformers==4.47.1
 sentencepiece==0.2.0
 
