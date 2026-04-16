@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, XCircle, Clock, Loader2, Pause, AlertCircle, Play } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, Loader2, Pause, AlertCircle, Play, ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const STATUS_CONFIG: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
@@ -38,6 +38,11 @@ const STATUS_CONFIG: Record<string, { label: string; icon: React.ReactNode; clas
         label: "Abandoned",
         icon: <XCircle className="h-3 w-3" />,
         className: "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500",
+    },
+    voice_verification_failed: {
+        label: "Verification Failed",
+        icon: <ShieldAlert className="h-3 w-3" />,
+        className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
     },
 };
 

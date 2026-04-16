@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     service_host: str = Field(default="0.0.0.0", alias="SERVICE_HOST")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     environment: str = Field(default="development", alias="ENVIRONMENT")
+    cors_origins: list[str] = Field(
+        default=["http://localhost:3000", "http://localhost:80"],
+        alias="CORS_ORIGINS",
+    )
 
     # PostgreSQL (dedicated ivas-postgres instance)
     database_url: PostgresDsn = Field(

@@ -208,6 +208,18 @@ export interface RiskTimelineEntry {
     is_struggling: boolean;
 }
 
+export interface RiskTimelinePoint {
+    offset_seconds: number;
+    risk_score: number;
+    similarity_score: number;
+    is_anomaly: boolean;
+}
+
+export interface CognitiveLoadPoint {
+    timestamp: number;
+    load: number;
+}
+
 export interface FrictionPoint {
     offset_seconds: number;
     duration: number;
@@ -273,7 +285,7 @@ export interface BehavioralAnalysis {
         incremental_construction: boolean;
         pivotal_moments: Array<Record<string, unknown>>;
         troubleshooting_style: string;
-        cognitive_load_timeline: Array<Record<string, number>>;
+        cognitive_load_timeline: CognitiveLoadPoint[];
         high_friction_concepts: string[];
         struggle_areas: Array<Record<string, unknown>>;
         mastery_indicators: string[];

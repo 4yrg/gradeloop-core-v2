@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
 from app.config import get_settings
-from app.main import get_db
+from app.dependencies import get_db
 from app.schemas.voice import (
     VoiceEnrollmentOut,
     VoiceProfileOut,

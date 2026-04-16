@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.config import get_settings
-from app.main import get_db
+from app.dependencies import get_db
 from app.schemas.competency import (
     CompetencyAssignmentLinkOut,
     CompetencyOut,

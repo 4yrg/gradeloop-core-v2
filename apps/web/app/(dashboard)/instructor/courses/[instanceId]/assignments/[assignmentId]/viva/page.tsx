@@ -15,6 +15,7 @@ import {
     Trash2,
     Loader2,
     RefreshCw,
+    ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,6 +91,7 @@ export default function InstructorVivaDashboardPage() {
     // Filters
     const [studentFilter, setStudentFilter] = React.useState("");
     const [statusFilter, setStatusFilter] = React.useState("all");
+    const [voiceIssuesOnly, setVoiceIssuesOnly] = React.useState(false);
 
     // Delete session state
     const [sessionToDelete, setSessionToDelete] = React.useState<VivaSession | null>(null);
@@ -140,14 +142,16 @@ export default function InstructorVivaDashboardPage() {
         return sessions.filter(s => {
             if (studentFilter && !s.student_id.toLowerCase().includes(studentFilter.toLowerCase())) return false;
             if (statusFilter !== "all" && s.status !== statusFilter) return false;
+            if (voiceIssuesOnly && !(s.metadata as Record<string, unknown> | undefined)?.voice_verification_flagged) return false;
             return true;
         });
-    }, [sessions, studentFilter, statusFilter]);
+    }, [sessions, studentFilter, statusFilter, voiceIssuesOnly]);
 
     // Stats
     const totalSessions = sessions.length;
     const completedCount = sessions.filter(s => s.status === "completed").length;
     const activeCount = sessions.filter(s => s.status === "in_progress" || s.status === "initializing").length;
+    const voiceFlaggedCount = sessions.filter(s => (s.metadata as Record<string, unknown> | undefined)?.voice_verification_flagged).length;
     const avgScore = (() => {
         const completed = sessions.filter(s => s.status === "completed" && s.total_score !== null && s.max_possible !== null && s.max_possible > 0);
         if (completed.length === 0) return null;
@@ -179,7 +183,7 @@ export default function InstructorVivaDashboardPage() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div className="border border-border/60 rounded-lg p-4 text-center">
                     <p className="text-xs text-muted-foreground mb-1">Total Sessions</p>
                     <p className="text-2xl font-bold">{loading ? "—" : totalSessions}</p>
@@ -195,6 +199,10 @@ export default function InstructorVivaDashboardPage() {
                 <div className="border border-border/60 rounded-lg p-4 text-center">
                     <p className="text-xs text-muted-foreground mb-1">Avg Score</p>
                     <p className="text-2xl font-bold">{loading ? "—" : avgScore !== null ? `${avgScore}%` : "—"}</p>
+                </div>
+                <div className="border border-border/60 rounded-lg p-4 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Voice Flagged</p>
+                    <p className="text-2xl font-bold text-red-600">{loading ? "—" : voiceFlaggedCount}</p>
                 </div>
             </div>
 
@@ -223,6 +231,15 @@ export default function InstructorVivaDashboardPage() {
                         <SelectItem value="abandoned">Abandoned</SelectItem>
                     </SelectContent>
                 </Select>
+                <Button
+                    variant={voiceIssuesOnly ? "default" : "outline"}
+                    size="sm"
+                    className="gap-1"
+                    onClick={() => setVoiceIssuesOnly(v => !v)}
+                >
+                    <ShieldAlert className="h-3.5 w-3.5" />
+                    Voice Issues
+                </Button>
             </div>
 
             {/* Sessions table */}
@@ -257,7 +274,12 @@ export default function InstructorVivaDashboardPage() {
                                     </td>
                                     <td className="px-4 py-3 font-mono text-xs">{s.student_id}</td>
                                     <td className="px-4 py-3">
-                                        <StatusBadge status={s.status} />
+                                        <div className="flex items-center gap-1.5">
+                                            <StatusBadge status={s.status} />
+                                            {Boolean((s.metadata as Record<string, unknown> | undefined)?.voice_verification_flagged) && (
+                                                <ShieldAlert className="h-3.5 w-3.5 text-red-500" />
+                                            )}
+                                        </div>
                                     </td>
                                     <td className="px-4 py-3 text-muted-foreground">
                                         {s.total_score !== null ? `${s.total_score}/${s.max_possible}` : "—"}

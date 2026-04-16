@@ -5,10 +5,12 @@ import sys
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, status
+from fastapi import APIRouter, FastAPI, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import get_settings
+from app.dependencies import get_db
 from app.logging_config import configure_logging, get_logger
 from app.routes.assignments import router as assignments_router
 from app.routes.chat_ui import router as chat_ui_router
@@ -20,25 +22,16 @@ from app.services.storage.postgres_client import PostgresClient
 
 logger = get_logger(__name__)
 
-# Global state
+# Global state (kept for viva_ws lazy imports and readiness checks)
 postgres_client: PostgresClient | None = None
 minio_client = None
-
-
-async def get_db() -> PostgresClient:
-    """FastAPI dependency that yields the postgres client."""
-    if postgres_client is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Service not ready.",
-        )
-    return postgres_client
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator:
     """Application lifespan manager."""
-    global postgres_client
+    global postgres_client, minio_client
+    import app.dependencies as _deps
 
     settings = get_settings()
     configure_logging(settings.log_level, settings.environment)
@@ -55,26 +48,28 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         postgres_client = PostgresClient(settings.database_dsn)
         await postgres_client.connect()
         await postgres_client.ensure_tables()
+        _deps.postgres_client = postgres_client
         logger.info("ivas_postgres_ready")
     except Exception as e:
         postgres_client = None
+        _deps.postgres_client = None
         logger.warning("ivas_postgres_unavailable", error=str(e))
 
     # Initialize voice enrollment staging backend
     try:
         import redis.asyncio as aioredis
-        from app.routes.voice import enrollment_staging as _voice_staging_module
+        import app.routes.voice as _voice_module
         from app.services.voice.enrollment_staging import RedisEnrollmentStaging
 
         redis_client = aioredis.from_url(settings.redis_url, decode_responses=False)
         await redis_client.ping()
-        _voice_staging_module.enrollment_staging = RedisEnrollmentStaging(redis_client)
+        _voice_module.enrollment_staging = RedisEnrollmentStaging(redis_client)
         logger.info("ivas_enrollment_staging_redis_ready")
     except Exception as e:
-        from app.routes.voice import enrollment_staging as _voice_staging_module
+        import app.routes.voice as _voice_module
         from app.services.voice.enrollment_staging import InMemoryEnrollmentStaging
 
-        _voice_staging_module.enrollment_staging = InMemoryEnrollmentStaging()
+        _voice_module.enrollment_staging = InMemoryEnrollmentStaging()
         logger.warning("ivas_enrollment_staging_fallback_inmemory", error=str(e))
 
     # Initialize MinIO client for voice audio storage (non-fatal)
@@ -88,7 +83,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
             bucket=settings.minio_bucket,
             use_ssl=settings.minio_use_ssl,
         )
-        minio_client.connect()
+        await minio_client.connect()
         logger.info("ivas_minio_ready")
     except Exception as e:
         minio_client = None
@@ -175,6 +170,15 @@ app = FastAPI(
     description="Intelligent Viva Assessment System — AI-powered voice-based oral examination",
     version="0.1.0",
     lifespan=lifespan,
+)
+
+# CORS — allow the Next.js dev server and any deployed origin
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Include routers — sub-routers first, then mount to app

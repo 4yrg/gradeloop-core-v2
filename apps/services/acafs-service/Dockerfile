@@ -37,7 +37,7 @@ COPY app/ ./app/
 # -----------------------------------------------------------------------------
 # Stage 2: Production Runtime
 # -----------------------------------------------------------------------------
-FROM python:3.12-slim AS production
+FROM python:3.11-slim AS production
 
 WORKDIR /app
 
@@ -53,7 +53,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean
 
 # Copy installed packages from builder
-COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code

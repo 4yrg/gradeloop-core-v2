@@ -4,7 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.main import get_db
+from app.dependencies import get_db
 from app.schemas import (
     AssignmentCreate,
     AssignmentDetailOut,

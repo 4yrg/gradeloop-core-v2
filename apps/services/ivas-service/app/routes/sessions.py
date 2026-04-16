@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.logging_config import get_logger
-from app.main import get_db
+from app.dependencies import get_db
 from app.schemas.session import (
     GradedQAOut,
     SessionCreate,
