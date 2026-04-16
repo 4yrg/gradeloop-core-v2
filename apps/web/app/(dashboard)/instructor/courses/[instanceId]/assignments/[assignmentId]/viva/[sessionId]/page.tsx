@@ -581,7 +581,7 @@ export default function InstructorVivaReviewPage() {
                 </div>
                 <div className="flex items-center gap-2">
                     <StatusBadge status={session.status} />
-                    {session.metadata?.voice_verification_flagged && (
+                    {session.metadata?.voice_verification_flagged === true && (
                         <Badge variant="outline" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0 text-xs gap-1">
                             <Shield className="h-3 w-3" />
                             Voice Flagged

@@ -120,6 +120,7 @@ export default function VoiceEnrollmentPage() {
         } catch (err) {
             console.error("Microphone access error:", err);
             addToast({
+                title: "Microphone Error",
                 variant: "error",
                 description: "Please allow microphone access for voice enrollment.",
             });
