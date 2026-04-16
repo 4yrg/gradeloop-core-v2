@@ -711,6 +711,18 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
         await websocket.close()
         return
 
+    # Enforce that the assignment has grading criteria (competencies) before
+    # allowing the viva to proceed.
+    assignment_id = session.get("assignment_id")
+    competency_rows = await db.list_assignment_competencies(assignment_id)
+    if not competency_rows:
+        await websocket.send_json({
+            "type": "error",
+            "data": "Cannot start viva: no grading criteria (competencies) configured for this assignment.",
+        })
+        await websocket.close()
+        return
+
     await db.update_session_status(sid, "in_progress")
 
     assignment_context = session.get("assignment_context") or {}
@@ -724,15 +736,12 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
     transcript_turns: list[dict] = []
     selected_questions: list[dict] = []
 
-    # Load competencies for this assignment and pre-select questions.
-    assignment_id = session.get("assignment_id")
     logger.info(
         "loading_competencies",
         session_id=session_id,
         assignment_id=str(assignment_id),
         difficulty_distribution=difficulty_distribution,
     )
-    competency_rows = await db.list_assignment_competencies(assignment_id)
     logger.info(
         "competencies_loaded",
         session_id=session_id,
@@ -785,13 +794,6 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
         except Exception as exc:
             logger.warning("question_selection_failed_fallback", error=str(exc))
             selected_questions = []
-    else:
-        logger.warning(
-            "skipping_question_selection",
-            session_id=session_id,
-            has_competencies=bool(competency_rows),
-            has_distribution=bool(difficulty_distribution),
-        )
 
     try:
         transcript_turns = await _bridge_gemini_live(

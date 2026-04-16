@@ -148,7 +148,7 @@ axiosInstance.interceptors.response.use(
 // Helper function to handle API errors
 export const handleApiError = (error: unknown): string => {
   if (axios.isAxiosError(error)) {
-    const message = error.response?.data?.message || error.message;
+    const message = error.response?.data?.message || error.response?.data?.detail || error.message;
     return message;
   }
 

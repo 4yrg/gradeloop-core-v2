@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import {
     Mic2,
     Search,
+    AlertCircle,
     CheckCircle2,
     Clock,
     XCircle,
@@ -86,6 +87,7 @@ export default function InstructorVivaDashboardPage() {
 
     const [sessions, setSessions] = React.useState<VivaSession[]>([]);
     const [loading, setLoading] = React.useState(true);
+    const [hasCompetencies, setHasCompetencies] = React.useState<boolean | null>(null);
 
     // Filters
     const [studentFilter, setStudentFilter] = React.useState("");
@@ -126,8 +128,14 @@ export default function InstructorVivaDashboardPage() {
         let mounted = true;
         async function load() {
             try {
-                const sess = await ivasApi.listSessions({ assignment_id: assignmentId });
-                if (mounted) setSessions(sess);
+                const [sess, comps] = await Promise.all([
+                    ivasApi.listSessions({ assignment_id: assignmentId }),
+                    ivasApi.listAssignmentCompetencies(assignmentId).catch(() => null),
+                ]);
+                if (mounted) {
+                    setSessions(sess);
+                    if (comps !== null) setHasCompetencies(comps.length > 0);
+                }
             } finally {
                 if (mounted) setLoading(false);
             }
@@ -177,6 +185,21 @@ export default function InstructorVivaDashboardPage() {
                     Monitor and review all student viva sessions for this assignment.
                 </p>
             </div>
+
+            {/* No grading criteria warning */}
+            {hasCompetencies === false && (
+                <div className="flex items-center gap-3 p-4 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400">
+                    <AlertCircle className="h-5 w-5 shrink-0" />
+                    <div>
+                        <p className="font-semibold text-sm">No grading criteria configured</p>
+                        <p className="text-xs mt-0.5">Students cannot start viva sessions until you add competencies.{" "}
+                            <Link href={`/instructor/courses/${instanceId}/assignments/${assignmentId}/viva/competencies`} className="underline font-medium">
+                                Configure competencies
+                            </Link>
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

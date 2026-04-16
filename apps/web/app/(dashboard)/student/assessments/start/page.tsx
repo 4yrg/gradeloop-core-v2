@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toaster";
 import { ivasApi } from "@/lib/ivas-api";
+import { handleApiError } from "@/lib/api/axios";
 import { useAuthStore } from "@/lib/stores/authStore";
 import type { IvasAssignment } from "@/types/ivas";
 import {
@@ -27,6 +28,8 @@ export default function StartAssessmentPage() {
     const [selectedAssignment, setSelectedAssignment] = React.useState<string>("");
     const [loading, setLoading] = React.useState(true);
     const [starting, setStarting] = React.useState(false);
+    const [competencyCount, setCompetencyCount] = React.useState<number | null>(null);
+    const [competenciesLoading, setCompetenciesLoading] = React.useState(false);
 
     React.useEffect(() => {
         let mounted = true;
@@ -55,6 +58,28 @@ export default function StartAssessmentPage() {
         loadAssignments();
         return () => { mounted = false; };
     }, [addToast]);
+
+    // Fetch competency count when the selected assignment changes
+    React.useEffect(() => {
+        if (!selectedAssignment) {
+            setCompetencyCount(null);
+            return;
+        }
+        let mounted = true;
+        async function loadCompetencies() {
+            try {
+                setCompetenciesLoading(true);
+                const comps = await ivasApi.listAssignmentCompetencies(selectedAssignment);
+                if (mounted) setCompetencyCount(comps.length);
+            } catch {
+                if (mounted) setCompetencyCount(null);
+            } finally {
+                if (mounted) setCompetenciesLoading(false);
+            }
+        }
+        loadCompetencies();
+        return () => { mounted = false; };
+    }, [selectedAssignment]);
 
     const selectedData = assignments.find(a => a.id === selectedAssignment);
 
@@ -107,7 +132,7 @@ export default function StartAssessmentPage() {
             addToast({
                 title: "Failed to start assessment",
                 variant: "error",
-                description: error instanceof Error ? error.message : "Please try again."
+                description: handleApiError(error)
             });
         } finally {
             setStarting(false);
@@ -212,6 +237,14 @@ export default function StartAssessmentPage() {
                     </CardContent>
                 </Card>
 
+                {/* No grading criteria warning */}
+                {competencyCount === 0 && (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-sm">
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                        <span>This assignment has no grading criteria configured. Contact your instructor to add competencies before starting the viva.</span>
+                    </div>
+                )}
+
                 {/* Start Button */}
                 <div className="flex justify-end gap-3">
                     <Button
@@ -223,7 +256,7 @@ export default function StartAssessmentPage() {
                     </Button>
                     <Button
                         onClick={handleStartAssessment}
-                        disabled={starting || !selectedAssignment || assignments.length === 0}
+                        disabled={starting || !selectedAssignment || assignments.length === 0 || (competencyCount !== null && competencyCount === 0)}
                         className="gap-2"
                     >
                         {starting ? (

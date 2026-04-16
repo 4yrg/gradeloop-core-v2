@@ -33,6 +33,16 @@ def _get_db():
 async def create_session(body: SessionCreate) -> SessionOut:
     """Create a new viva session for a student."""
     db = _get_db()
+
+    # Enforce that the assignment has grading criteria (competencies) before
+    # allowing a viva session to be created.
+    competency_rows = await db.list_assignment_competencies(body.assignment_id)
+    if not competency_rows:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Cannot start viva: no grading criteria (competencies) configured for this assignment. The instructor must add competencies first.",
+        )
+
     row = await db.create_session(
         assignment_id=body.assignment_id,
         student_id=body.student_id,
