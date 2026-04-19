@@ -7,6 +7,7 @@ import json
 from contextlib import asynccontextmanager
 from typing import Any
 from uuid import UUID
+from urllib.parse import urlparse, urlunparse
 
 import asyncpg
 
@@ -48,6 +49,10 @@ class PostgresClient:
         if use_ssl:
             ssl_ctx = _ssl.create_default_context()
 
+        # Ensure database exists before creating the main connection pool
+        db_name = parsed.path.lstrip("/")
+        await self._ensure_database_exists(parsed, db_name)
+
         # Retry loop for transient connection issues (e.g., DB not ready)
         attempts = 0
         max_attempts = 6
@@ -78,6 +83,24 @@ class PostgresClient:
                     raise
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, 10.0)
+
+    async def _ensure_database_exists(self, parsed, db_name: str) -> None:
+        """Check if database exists and create if missing."""
+        admin_dsn = urlunparse(parsed._replace(path="/postgres"))
+        try:
+            conn = await asyncpg.connect(admin_dsn)
+            try:
+                exists = await conn.fetchval(
+                    "SELECT 1 FROM pg_database WHERE datname = $1", db_name
+                )
+                if not exists:
+                    logger.info(f"Database {db_name} does not exist, creating...")
+                    await conn.execute(f'CREATE DATABASE "{db_name}"')
+                    logger.info(f"Database {db_name} created successfully.")
+            finally:
+                await conn.close()
+        except Exception as e:
+            logger.warning(f"Failed to check/create database: {e}")
 
     async def close(self) -> None:
         """Close connection pool."""

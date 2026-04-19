@@ -14,6 +14,7 @@ import numpy as np
 import psycopg2
 import psycopg2.pool
 from psycopg2 import extras
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 
 class DatabaseClient:
@@ -40,6 +41,8 @@ class DatabaseClient:
             return
 
         try:
+            self._ensure_database_exists()
+            
             # Create connection pool
             self.pool = psycopg2.pool.ThreadedConnectionPool(
                 min_conn, max_conn, self.database_url
@@ -72,6 +75,28 @@ class DatabaseClient:
             raise e
         finally:
             self.pool.putconn(conn)
+
+    def _ensure_database_exists(self):
+        """Check if database exists and create if missing."""
+        from urllib.parse import urlparse, urlunparse
+        
+        parsed = urlparse(self.database_url)
+        db_name = parsed.path.lstrip("/")
+        admin_dsn = urlunparse(parsed._replace(path="/postgres"))
+        
+        try:
+            conn = psycopg2.connect(admin_dsn)
+            conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT 1 FROM pg_database WHERE datname = %s", (db_name,))
+                exists = cursor.fetchone()
+                if not exists:
+                    print(f"ℹ️ Database {db_name} does not exist, creating...")
+                    cursor.execute(f'CREATE DATABASE "{db_name}"')
+                    print(f"✅ Database {db_name} created successfully.")
+            conn.close()
+        except Exception as e:
+            print(f"⚠️ Failed to check/create database: {e}")
 
     def _initialize_schema(self):
         """Initialize database schema and run idempotent migrations"""

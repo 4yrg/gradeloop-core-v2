@@ -1,8 +1,7 @@
 """PostgreSQL client for IVAS Service."""
 
-from json import dumps as json_dumps
 from json import dumps as json_dumps, loads as json_loads
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 from uuid import UUID
 
 import asyncpg
@@ -22,18 +21,41 @@ class PostgresClient:
     async def connect(self) -> None:
         """Create connection pool."""
         parsed = urlparse(self._dsn)
+        db_name = parsed.path.lstrip("/")
+        
         logger.info(
             "postgres_connecting",
             host=parsed.hostname,
             port=parsed.port,
-            database=parsed.path.lstrip("/"),
+            database=db_name,
         )
+        
+        await self._ensure_database_exists(parsed, db_name)
+        
         self._pool = await asyncpg.create_pool(
             dsn=self._dsn,
             min_size=2,
             max_size=10,
         )
         logger.info("postgres_connected")
+
+    async def _ensure_database_exists(self, parsed, db_name: str) -> None:
+        """Check if database exists and create if missing."""
+        admin_dsn = urlunparse(parsed._replace(path="/postgres"))
+        try:
+            conn = await asyncpg.connect(admin_dsn)
+            try:
+                exists = await conn.fetchval(
+                    "SELECT 1 FROM pg_database WHERE datname = $1", db_name
+                )
+                if not exists:
+                    logger.info(f"Database {db_name} does not exist, creating...")
+                    await conn.execute(f'CREATE DATABASE "{db_name}"')
+                    logger.info(f"Database {db_name} created successfully.")
+            finally:
+                await conn.close()
+        except Exception as e:
+            logger.warning(f"Failed to check/create database: {e}")
 
     async def close(self) -> None:
         """Close connection pool."""

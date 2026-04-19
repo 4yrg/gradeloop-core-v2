@@ -16,8 +16,11 @@ type Database struct {
 	DB *gorm.DB
 }
 
-// NewPostgresDatabase opens a PostgreSQL connection using the provided config.
 func NewPostgresDatabase(cfg *config.Config, log *zap.Logger) (*Database, error) {
+	if err := ensureDatabaseExists(cfg, log); err != nil {
+		return nil, fmt.Errorf("ensuring database exists: %w", err)
+	}
+
 	dsn := cfg.DSN()
 
 	gormLogger := logger.New(
@@ -89,4 +92,43 @@ type gormLoggerWrapper struct {
 
 func (g *gormLoggerWrapper) Printf(message string, args ...interface{}) {
 	g.log.Sugar().Infof(message, args...)
+}
+
+func ensureDatabaseExists(cfg *config.Config, log *zap.Logger) error {
+	adminDSN := fmt.Sprintf(
+		"host=%s port=%s user=%s password=%s dbname=postgres sslmode=%s",
+		cfg.Database.Host,
+		cfg.Database.Port,
+		cfg.Database.User,
+		cfg.Database.Password,
+		cfg.Database.SSLMode,
+	)
+
+	db, err := gorm.Open(postgres.Open(adminDSN), &gorm.Config{})
+	if err != nil {
+		return fmt.Errorf("connecting to admin db: %w", err)
+	}
+
+	sqlDB, err := db.DB()
+	if err != nil {
+		return fmt.Errorf("getting admin sql db: %w", err)
+	}
+	defer sqlDB.Close()
+
+	var count int64
+	err = db.Raw("SELECT count(*) FROM pg_database WHERE datname = ?", cfg.Database.Name).Scan(&count).Error
+	if err != nil {
+		return fmt.Errorf("checking if database exists: %w", err)
+	}
+
+	if count == 0 {
+		log.Info("database does not exist, creating it", zap.String("dbName", cfg.Database.Name))
+		err = db.Exec(fmt.Sprintf(`CREATE DATABASE "%s"`, cfg.Database.Name)).Error
+		if err != nil {
+			return fmt.Errorf("creating database: %w", err)
+		}
+		log.Info("database created successfully")
+	}
+
+	return nil
 }

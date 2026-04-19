@@ -229,7 +229,7 @@ services:
       postgres:
         condition: service_healthy
       seaweed:
-        condition: service_started
+        condition: service_healthy
     networks:
       - gradeloop-network
 
@@ -274,16 +274,24 @@ services:
     restart: unless-stopped
     environment:
       - SERVER_PORT=${ASSESSMENT_SVC_PORT:-8084}
-      - DB_HOST=postgres
+      - DB_HOST=gradeloop-postgres
       - DB_PORT=5432
       - DB_USER=${GRA_DB_USER:-postgres}
       - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
       - DB_NAME=${ASSESSMENT_SVC_DB_NAME:-assessment_db}
-      - ACADEMIC_SERVICE_URL=http://academic:8083
+      - ACADEMIC_SERVICE_URL=http://gradeloop-academic:8083
+      - MINIO_ENDPOINT=gradeloop-seaweed:8333
+      - MINIO_ACCESS_KEY=root
+      - MINIO_SECRET_KEY=root
+      - RABBITMQ_URL=amqp://guest:guest@gradeloop-rabbitmq:5672/
     expose:
       - "8084"
     depends_on:
       postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      seaweed:
         condition: service_healthy
     networks:
       - gradeloop-network
@@ -300,18 +308,19 @@ services:
     restart: unless-stopped
     environment:
       - SERVER_PORT=${EMAIL_SVC_PORT:-8082}
-      - DB_HOST=postgres
+      - DB_HOST=gradeloop-postgres
       - DB_PORT=5432
       - DB_USER=${GRA_DB_USER:-postgres}
       - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
       - DB_NAME=${EMAIL_SVC_DB_NAME:-email_db}
+      - RABBITMQ_URL=amqp://guest:guest@gradeloop-rabbitmq:5672/
     expose:
       - "8082"
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
     networks:
       - gradeloop-network
 
@@ -329,7 +338,7 @@ services:
     restart: unless-stopped
     environment:
       - SERVICE_PORT=${IVAS_SVC_PORT:-8101}
-      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${IVAS_SVC_DB_NAME:-ivas_db}
+      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@gradeloop-postgres:5432/${IVAS_SVC_DB_NAME:-ivas_db}
     expose:
       - "8101"
     depends_on:
@@ -352,11 +361,16 @@ services:
     restart: unless-stopped
     environment:
       - SERVICE_PORT=${ACAFS_SVC_PORT:-8102}
-      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${ACAFS_SVC_DB_NAME:-acafs_db}
+      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@gradeloop-postgres:5432/${ACAFS_SVC_DB_NAME:-acafs_db}
+      - MINIO_ENDPOINT=gradeloop-seaweed:8333
+      - MINIO_ACCESS_KEY=root
+      - MINIO_SECRET_KEY=root
     expose:
       - "8102"
     depends_on:
       postgres:
+        condition: service_healthy
+      seaweed:
         condition: service_healthy
     networks:
       - gradeloop-network
@@ -375,11 +389,14 @@ services:
     restart: unless-stopped
     environment:
       - PORT=${KEYSTROKE_SVC_PORT:-8103}
-      - DATABASE_URL=postgresql://keystroke_user:keystroke_pass@postgres-keystroke:5432/keystroke-db
+      - DATABASE_URL=postgresql://keystroke_user:keystroke_pass@gradeloop-postgres-keystroke:5432/keystroke-db
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis_pass}@gradeloop-redis:6379
     expose:
       - "8103"
     depends_on:
       postgres-keystroke:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - gradeloop-network
@@ -398,7 +415,7 @@ services:
     restart: unless-stopped
     environment:
       - CIPAS_SYNTACTICS_PORT=${CIPAS_SYN_SVC_PORT:-8106}
-      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
+      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@gradeloop-postgres:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
     expose:
       - "8106"
     depends_on:
@@ -421,7 +438,7 @@ services:
     restart: unless-stopped
     environment:
       - API_PORT=${CIPAS_SEM_SVC_PORT:-8105}
-      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
+      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@gradeloop-postgres:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
     expose:
       - "8105"
     depends_on:
@@ -444,7 +461,7 @@ services:
     restart: unless-stopped
     environment:
       - CIPAS_AI_PORT=${CIPAS_AI_SVC_PORT:-8104}
-      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${CIPAS_AI_SVC_DB_NAME:-cipas_ai_db}
+      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@gradeloop-postgres:5432/${CIPAS_AI_SVC_DB_NAME:-cipas_ai_db}
     expose:
       - "8104"
     depends_on:
@@ -465,6 +482,7 @@ services:
     restart: unless-stopped
     environment:
       - SERVER_PORT=${CIPAS_XAI_SVC_PORT:-8085}
+      - LLM_API_KEY=${LLM_API_KEY:-placeholder_key_change_me}
     expose:
       - "8085"
     networks:

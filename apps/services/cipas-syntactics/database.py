@@ -11,6 +11,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
+from urllib.parse import urlparse, urlunparse
 
 from sqlalchemy.ext.asyncio import create_async_engine
 
@@ -44,11 +45,33 @@ async def _init_connection(conn: asyncpg.Connection) -> None:
     )
 
 
+async def _ensure_database_exists(db_url: str) -> None:
+    """Check if database exists and create if missing."""
+    parsed = urlparse(db_url)
+    db_name = parsed.path.lstrip("/")
+    admin_dsn = urlunparse(parsed._replace(path="/postgres"))
+    
+    try:
+        conn = await asyncpg.connect(admin_dsn)
+        try:
+            exists = await conn.fetchval(
+                "SELECT 1 FROM pg_database WHERE datname = $1", db_name
+            )
+            if not exists:
+                logger.info(f"Database {db_name} does not exist, creating...")
+                await conn.execute(f'CREATE DATABASE "{db_name}"')
+                logger.info(f"Database {db_name} created successfully.")
+        finally:
+            await conn.close()
+    except Exception as e:
+        logger.warning(f"Failed to check/create database: {e}")
+
 async def init_db_pool() -> None:
     """Initialize the database connection pool."""
     global _pool
     if _pool is None:
         logger.info("Initializing database connection pool...")
+        await _ensure_database_exists(DATABASE_URL)
         _pool = await asyncpg.create_pool(
             DATABASE_URL, min_size=2, max_size=10, command_timeout=60,
             init=_init_connection,
