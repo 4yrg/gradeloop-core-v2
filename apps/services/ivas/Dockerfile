@@ -1,18 +1,23 @@
 # =============================================================================
-# IVAS Service - Alpine Dockerfile
+# IVAS Service - Slim Dockerfile
 # =============================================================================
 
-FROM python:3.11-alpine AS builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-RUN apk add --no-cache \
-    gcc \
-    libc-dev \
+RUN if [ -f /etc/apt/sources.list ]; then \
+      sed -i 's|http://deb.debian.org|https://deb.debian.org|g; s|http://security.debian.org|https://security.debian.org|g' /etc/apt/sources.list; \
+    fi \
+    && if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+      sed -i 's|http://deb.debian.org|https://deb.debian.org|g; s|http://security.debian.org|https://security.debian.org|g' /etc/apt/sources.list.d/debian.sources; \
+    fi \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+    build-essential \
     libpq-dev \
-    libsndfile \
-    postgresql-dev \
-    && rm -rf /var/cache/apk/*
+    libsndfile1 \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -43,15 +48,22 @@ EXPOSE 8101
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8101", "--reload"]
 
-FROM python:3.11-alpine AS production
+FROM python:3.11-slim AS production
 
 WORKDIR /app
 
-RUN apk add --no-cache \
-    libpq \
-    libsndfile \
+RUN if [ -f /etc/apt/sources.list ]; then \
+      sed -i 's|http://deb.debian.org|https://deb.debian.org|g; s|http://security.debian.org|https://security.debian.org|g' /etc/apt/sources.list; \
+    fi \
+    && if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+      sed -i 's|http://deb.debian.org|https://deb.debian.org|g; s|http://security.debian.org|https://security.debian.org|g' /etc/apt/sources.list.d/debian.sources; \
+    fi \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+    libpq5 \
+    libsndfile1 \
     curl \
-    && rm -rf /var/cache/apk/*
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin

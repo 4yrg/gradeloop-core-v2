@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .core.config import settings
-from .endpoints.detection import router as detection_router
+from .endpoints import detection as detection_module
 from .models.inference import SemanticCloneDetector
 
 # Configure logging
@@ -84,7 +84,7 @@ def create_app() -> FastAPI:
     )
 
     # Include routers
-    app.include_router(detection_router, prefix="/api/v1/semantics")
+    app.include_router(detection_module.router, prefix="/api/v1/semantics")
 
     # Root endpoint
     @app.get("/", tags=["Root"])

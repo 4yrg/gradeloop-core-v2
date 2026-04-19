@@ -19,6 +19,7 @@ services:
   # =============================================================================
   postgres:
     image: docker.io/postgres:16-alpine
+    pull_policy: missing
     container_name: gradeloop-postgres
     restart: unless-stopped
     environment:
@@ -32,7 +33,7 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${GRA_DB_USER:-postgres}"]
+      test: "pg_isready -U ${GRA_DB_USER:-postgres}"
       interval: 10s
       timeout: 5s
       retries: 5
@@ -40,6 +41,7 @@ services:
 
   postgres-keystroke:
     image: docker.io/postgres:16-alpine
+    pull_policy: missing
     container_name: gradeloop-postgres-keystroke
     restart: unless-stopped
     environment:
@@ -53,14 +55,15 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U keystroke_user -d keystroke-db"]
+      test: "pg_isready -U keystroke_user -d keystroke-db"
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 20s
 
   rabbitmq:
-    image: docker.io/ rabbitmq:3.13-management-alpine
+    image: docker.io/rabbitmq:3.13-management-alpine
+    pull_policy: missing
     container_name: gradeloop-rabbitmq
     restart: unless-stopped
     environment:
@@ -81,7 +84,8 @@ services:
       start_period: 30s
 
   redis:
-    image: docker.io/ redis:7-alpine
+    image: docker.io/redis:7-alpine
+    pull_policy: missing
     container_name: gradeloop-redis
     restart: unless-stopped
     ports:
@@ -100,6 +104,7 @@ services:
 
   seaweed:
     image: docker.io/chrislusf/seaweedfs:3.71
+    pull_policy: missing
     container_name: gradeloop-seaweed
     restart: unless-stopped
     environment:
@@ -122,12 +127,55 @@ services:
       start_period: 30s
 
   # =============================================================================
-  # Kong Gateway (Optional - can run separately)
+  # Kong Gateway
   # =============================================================================
+  kong-database:
+    image: docker.io/postgres:16-alpine
+    pull_policy: missing
+    container_name: gradeloop-kong-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=kong
+      - POSTGRES_PASSWORD=${KONG_DB_PASSWORD:-kong_pass}
+      - POSTGRES_DB=kong
+    ports:
+      - "5434:5432"
+    volumes:
+      - kong-database-data:/var/lib/postgresql/data
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: "pg_isready -U kong -d kong"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  kong-migrations:
+    image: docker.io/kong:3.4
+    pull_policy: missing
+    container_name: gradeloop-kong-migrations
+    restart: "no"
+    command: kong migrations bootstrap
+    environment:
+      - KONG_DATABASE=postgres
+      - KONG_PG_HOST=kong-database
+      - KONG_PG_PORT=5432
+      - KONG_PG_USER=kong
+      - KONG_PG_PASSWORD=${KONG_DB_PASSWORD:-kong_pass}
+      - KONG_PG_DB=kong
+    depends_on:
+      kong-database:
+        condition: service_healthy
+    networks:
+      - gradeloop-network
+
   kong-gateway:
-    image: docker.io/ kong:3.4-alpine
+    image: docker.io/kong:3.4
+    pull_policy: missing
     container_name: gradeloop-kong-gateway
     restart: unless-stopped
+    command: kong start
     environment:
       - KONG_DATABASE=postgres
       - KONG_PG_HOST=kong-database
@@ -145,25 +193,10 @@ services:
       - "8001:8001"
       - "8444:8444"
     volumes:
-      - ./apps/api-gateway/config:/usr/local/kong/declarative:ro
+      - ../../apps/api-gateway/config:/usr/local/kong/declarative:ro
     depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - gradeloop-network
-
-  kong-database:
-    image: docker.io/postgres:16-alpine
-    container_name: gradeloop-kong-db
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER=kong
-      - POSTGRES_PASSWORD=${KONG_DB_PASSWORD:-kong_pass}
-      - POSTGRES_DB=kong
-    ports:
-      - "5433:5432"
-    volumes:
-      - kong-database-data:/var/lib/postgresql/data
+      kong-migrations:
+        condition: service_completed_successfully
     networks:
       - gradeloop-network
 
@@ -175,8 +208,6 @@ services:
       context: ../../apps/services/iam
       dockerfile: Dockerfile
       target: dev
-    volumes:
-      - ./apps/services/iam:/app
     container_name: gradeloop-iam
     restart: unless-stopped
     environment:
@@ -210,8 +241,6 @@ services:
       context: ../../apps/services/academic
       dockerfile: Dockerfile
       target: dev
-    volumes:
-      - ./apps/services/academic:/app
     container_name: gradeloop-academic
     restart: unless-stopped
     environment:
@@ -241,8 +270,6 @@ services:
       context: ../../apps/services/assessment
       dockerfile: Dockerfile
       target: dev
-    volumes:
-      - ./apps/services/assessment:/app
     container_name: gradeloop-assessment
     restart: unless-stopped
     environment:
@@ -269,8 +296,6 @@ services:
       context: ../../apps/services/email
       dockerfile: Dockerfile
       target: dev
-    volumes:
-      - ./apps/services/email:/app
     container_name: gradeloop-email
     restart: unless-stopped
     environment:
@@ -299,7 +324,7 @@ services:
       dockerfile: Dockerfile
       target: development
     volumes:
-      - ./apps/services/ivas:/app
+      - ../../apps/services/ivas:/app
     container_name: gradeloop-ivas
     restart: unless-stopped
     environment:
@@ -322,7 +347,7 @@ services:
       dockerfile: Dockerfile
       target: development
     volumes:
-      - ./apps/services/acafs:/app
+      - ../../apps/services/acafs:/app
     container_name: gradeloop-acafs
     restart: unless-stopped
     environment:
@@ -345,7 +370,7 @@ services:
       dockerfile: Dockerfile
       target: development
     volumes:
-      - ./apps/services/keystroke:/app
+      - ../../apps/services/keystroke:/app
     container_name: gradeloop-keystroke
     restart: unless-stopped
     environment:
@@ -368,7 +393,7 @@ services:
       dockerfile: Dockerfile
       target: development
     volumes:
-      - ./apps/services/cipas-syntactics:/app
+      - ../../apps/services/cipas-syntactics:/app
     container_name: gradeloop-cipas-syntactics
     restart: unless-stopped
     environment:
@@ -391,7 +416,7 @@ services:
       dockerfile: Dockerfile
       target: development
     volumes:
-      - ./apps/services/cipas-semantics:/app
+      - ../../apps/services/cipas-semantics:/app
     container_name: gradeloop-cipas-semantics
     restart: unless-stopped
     environment:
@@ -414,7 +439,7 @@ services:
       dockerfile: Dockerfile
       target: development
     volumes:
-      - ./apps/services/cipas-ai:/app
+      - ../../apps/services/cipas-ai:/app
     container_name: gradeloop-cipas-ai
     restart: unless-stopped
     environment:
@@ -436,8 +461,6 @@ services:
       context: ../../apps/services/cipas-xai
       dockerfile: Dockerfile
       target: dev
-    volumes:
-      - ./apps/services/cipas-xai:/app
     container_name: gradeloop-cipas-xai
     restart: unless-stopped
     environment:
@@ -453,8 +476,14 @@ networks:
 
 volumes:
   postgres-data:
+    name: gradeloop-postgres-data
   postgres-keystroke-data:
+    name: gradeloop-postgres-keystroke-data
   rabbitmq-data:
+    name: gradeloop-rabbitmq-data
   redis-data:
+    name: gradeloop-redis-data
   seaweed-data:
+    name: gradeloop-seaweed-data
   kong-database-data:
+    name: gradeloop-kong-db-data
