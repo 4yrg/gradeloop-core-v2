@@ -145,11 +145,10 @@ export default function SimilarityOverviewPage() {
 
         // Fetch instructor template if available
         let instructorTemplate: string | null = null;
-        if (assignment.instructor_template_id) {
+        const templateId = assignment?.instructor_template_id;
+        if (templateId) {
           try {
-            const templateCode = await assessmentsApi.getSubmissionCode(
-              assignment.instructor_template_id
-            );
+            const templateCode = await assessmentsApi.getSubmissionCode(templateId);
             instructorTemplate = templateCode.code;
           } catch (err) {
             console.warn("Could not fetch instructor template:", err);
