@@ -103,6 +103,7 @@ export interface AssignmentResponse {
     ai_grading_config?: {
         plagiarism_check_enabled: boolean;
     };
+    instructor_template_id?: string;
 }
 
 export interface ListAssignmentsResponse {
