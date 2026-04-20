@@ -29,11 +29,24 @@ jobs:
           command_timeout: 30m
           envs: CONTAINER_RUNTIME
           script: |
+            echo "--- Deployment Debug Info ---"
+            echo "User: $(whoami)"
+            echo "Target: ~/gradeloop-core-v2"
+            
+            # Navigate to project directory
+            if [ -d "~/gradeloop-core-v2" ]; then
+              cd ~/gradeloop-core-v2
+            elif [ -d "$HOME/gradeloop-core-v2" ]; then
+              cd "$HOME/gradeloop-core-v2"
+            else
+              echo "ERROR: Directory ~/gradeloop-core-v2 not found."
+              echo "Available in $HOME:"
+              ls -F $HOME
+              exit 1
+            fi
+            
             # Set runtime from input or default to docker
             export CONTAINER_RUNTIME=${{ github.event.inputs.runtime || 'docker' }}
             
-            # Navigate to project directory (assuming standard path, can be customized)
-            cd ~/gradeloop-core-v2 || cd ~/Projects/gradeloop-core-v2
-            
-            # Execute the deployment script
+            echo "Running deployment script..."
             bash scripts/deploy.sh
