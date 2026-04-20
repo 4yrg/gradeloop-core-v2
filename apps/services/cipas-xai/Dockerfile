@@ -11,7 +11,6 @@ RUN apk add --no-cache git ca-certificates
 COPY go.mod go.sum ./
 RUN go mod download
 
-COPY .env.example ./
 COPY cmd/ ./cmd/
 COPY internal/ ./internal/
 
@@ -39,7 +38,6 @@ RUN apk add --no-cache ca-certificates
 WORKDIR /app
 
 COPY --from=builder /app/cipas-xai .
-COPY --from=builder /app/.env.example .env
 
 RUN addgroup -S cipas-xai && adduser -S cipas-xai -G cipas-xai \
     && chown -R cipas-xai:cipas-xai /app
