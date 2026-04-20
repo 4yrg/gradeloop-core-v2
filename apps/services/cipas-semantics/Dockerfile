@@ -64,7 +64,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /app/api ./api
 COPY --from=builder /app/model ./model
 
-RUN addgroup -S cipas-semantics && adduser -S cipas-semantics -G cipas-semantics \
+RUN groupadd -r cipas-semantics && useradd -r -g cipas-semantics cipas-semantics \
     && chown -R cipas-semantics:cipas-semantics /app
 
 USER cipas-semantics

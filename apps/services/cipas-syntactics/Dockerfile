@@ -73,7 +73,7 @@ COPY --from=builder /app/clone_detection ./clone_detection
 COPY --from=builder /app/repositories ./repositories
 
 RUN mkdir -p /app/models \
-    && addgroup -S cipas-syntactics && adduser -S cipas-syntactics -G cipas-syntactics \
+    && groupadd -r cipas-syntactics && useradd -r -g cipas-syntactics cipas-syntactics \
     && chown -R cipas-syntactics:cipas-syntactics /app
 
 USER cipas-syntactics

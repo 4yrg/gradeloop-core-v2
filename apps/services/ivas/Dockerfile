@@ -70,7 +70,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /app/app ./app
 COPY models/ ./models/
 
-RUN addgroup -S ivas && adduser -S ivas -G ivas \
+RUN groupadd -r ivas && useradd -r -g ivas ivas \
     && chown -R ivas:ivas /app
 
 USER ivas
