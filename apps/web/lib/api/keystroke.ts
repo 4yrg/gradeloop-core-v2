@@ -216,6 +216,11 @@ export interface FrictionPoint {
     severity: "low" | "medium" | "high";
 }
 
+export interface CognitiveLoadPoint {
+    timestamp: number;
+    load: number;
+}
+
 /** Shape of the llm_insights field returned by the keystroke behavioral analysis service */
 export interface LlmAnalysis {
     developmental_logic?: string;
@@ -273,7 +278,7 @@ export interface BehavioralAnalysis {
         incremental_construction: boolean;
         pivotal_moments: Array<Record<string, unknown>>;
         troubleshooting_style: string;
-        cognitive_load_timeline: Array<Record<string, number>>;
+        cognitive_load_timeline: CognitiveLoadPoint[];
         high_friction_concepts: string[];
         struggle_areas: Array<Record<string, unknown>>;
         mastery_indicators: string[];
