@@ -1,0 +1,40 @@
+name: CD - Deploy to Hetzner
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      runtime:
+        description: 'Container Runtime'
+        required: true
+        default: 'docker'
+        type: choice
+        options:
+          - docker
+          - podman
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          command_timeout: 30m
+          envs: CONTAINER_RUNTIME
+          script: |
+            # Set runtime from input or default to docker
+            export CONTAINER_RUNTIME=${{ github.event.inputs.runtime || 'docker' }}
+            
+            # Navigate to project directory (assuming standard path, can be customized)
+            cd ~/gradeloop-core-v2 || cd ~/Projects/gradeloop-core-v2
+            
+            # Execute the deployment script
+            bash scripts/deploy.sh

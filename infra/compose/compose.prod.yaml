@@ -3,17 +3,6 @@
 # =============================================================================
 # This file runs everything in Docker for production deployment
 # Uses optimized production images without source mounting
-#
-# Usage:
-#   docker compose -f compose.prod.yaml up -d           # Start all in background
-#   docker compose -f compose.prod.yaml up              # Start all with logs
-#   docker compose -f compose.prod.yaml down             # Stop all
-#   docker compose -f compose.prod.yaml logs -f <svc> # View service logs
-#
-# Important:
-#   - Set all required environment variables before deploying
-#   - Use secrets management in production (e.g., Docker secrets, Vault)
-#   - All services run in internal network (no exposed ports for app services)
 
 x-shared-environment: &shared_env
   GRA_DB_USER: ${GRA_DB_USER:-postgres}
@@ -30,7 +19,7 @@ services:
     image: postgres:16-alpine
     pull_policy: missing
     container_name: gradeloop-postgres
-    restart: always
+    restart: unless-stopped
     environment:
       - POSTGRES_USER=${GRA_DB_USER:-postgres}
       - POSTGRES_PASSWORD=${GRA_DB_PASSWORD:-postgres}
@@ -59,7 +48,7 @@ services:
     image: postgres:16-alpine
     pull_policy: missing
     container_name: gradeloop-postgres-keystroke
-    restart: always
+    restart: unless-stopped
     environment:
       - POSTGRES_USER=keystroke_user
       - POSTGRES_PASSWORD=${KEYSTROKE_DB_PASSWORD:-keystroke_pass}
@@ -87,7 +76,7 @@ services:
     image: rabbitmq:3.13-management-alpine
     pull_policy: missing
     container_name: gradeloop-rabbitmq
-    restart: always
+    restart: unless-stopped
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-guest}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-guest}
@@ -114,7 +103,7 @@ services:
     image: redis:7-alpine
     pull_policy: missing
     container_name: gradeloop-redis
-    restart: always
+    restart: unless-stopped
     volumes:
       - redis-data:/data
     networks:
@@ -139,7 +128,7 @@ services:
     image: docker.io/seaweedfs/seaweedfs:3.71
     pull_policy: missing
     container_name: gradeloop-seaweed
-    restart: always
+    restart: unless-stopped
     environment:
       - WEEAD_IDENTITY=seaweedfs
     ports:
@@ -192,7 +181,7 @@ services:
     image: kong:3.4-alpine
     pull_policy: missing
     container_name: gradeloop-kong-gateway
-    restart: always
+    restart: unless-stopped
     command: kong start
     environment:
       - KONG_DATABASE=postgres
@@ -227,7 +216,7 @@ services:
     image: postgres:16-alpine
     pull_policy: missing
     container_name: gradeloop-kong-db
-    restart: always
+    restart: unless-stopped
     environment:
       - POSTGRES_USER=kong
       - POSTGRES_PASSWORD=${KONG_DB_PASSWORD:-kong_pass}
@@ -252,7 +241,7 @@ services:
       dockerfile: Dockerfile
       target: production
     container_name: gradeloop-iam
-    restart: always
+    restart: unless-stopped
     environment:
       - SERVER_PORT=8081
       - DB_HOST=postgres
@@ -290,7 +279,7 @@ services:
       dockerfile: Dockerfile
       target: production
     container_name: gradeloop-academic
-    restart: always
+    restart: unless-stopped
     environment:
       - SERVER_PORT=8083
       - DB_HOST=postgres
@@ -321,7 +310,7 @@ services:
       dockerfile: Dockerfile
       target: production
     container_name: gradeloop-assessment
-    restart: always
+    restart: unless-stopped
     environment:
       - SERVER_PORT=8084
       - DB_HOST=postgres
@@ -350,7 +339,7 @@ services:
       dockerfile: Dockerfile
       target: production
     container_name: gradeloop-email
-    restart: always
+    restart: unless-stopped
     environment:
       - SERVER_PORT=8082
       - DB_HOST=postgres
@@ -380,7 +369,7 @@ services:
       dockerfile: Dockerfile
       target: production
     container_name: gradeloop-ivas
-    restart: always
+    restart: unless-stopped
     environment:
       - API_PORT=8088
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${IVAS_SVC_DB_NAME:-ivas_db}
@@ -404,7 +393,7 @@ services:
       dockerfile: Dockerfile
       target: production
     container_name: gradeloop-acafs
-    restart: always
+    restart: unless-stopped
     environment:
       - SERVER_PORT=8086
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${ACAFS_SVC_DB_NAME:-acafs_db}
@@ -428,7 +417,7 @@ services:
       dockerfile: Dockerfile
       target: production
     container_name: gradeloop-keystroke
-    restart: always
+    restart: unless-stopped
     environment:
       - SERVER_PORT=8003
       - DATABASE_URL=postgresql://keystroke_user:${KEYSTROKE_DB_PASSWORD:-keystroke_pass}@postgres-keystroke:5432/keystroke-db
@@ -452,7 +441,7 @@ services:
       dockerfile: Dockerfile
       target: production
     container_name: gradeloop-cipas-syntactics
-    restart: always
+    restart: unless-stopped
     environment:
       - CIPAS_SYNTACTICS_PORT=8086
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
@@ -476,7 +465,7 @@ services:
       dockerfile: Dockerfile
       target: production
     container_name: gradeloop-cipas-semantics
-    restart: always
+    restart: unless-stopped
     environment:
       - API_PORT=8087
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
@@ -500,7 +489,7 @@ services:
       dockerfile: Dockerfile
       target: production
     container_name: gradeloop-cipas-ai
-    restart: always
+    restart: unless-stopped
     environment:
       - CIPAS_AI_PORT=8104
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${CIPAS_AI_SVC_DB_NAME:-cipas_ai_db}
@@ -524,7 +513,7 @@ services:
       dockerfile: Dockerfile
       target: production
     container_name: gradeloop-cipas-xai
-    restart: always
+    restart: unless-stopped
     environment:
       - SERVER_PORT=8085
     networks:
@@ -534,6 +523,27 @@ services:
         limits:
           cpus: '0.5'
           memory: 512M
+
+  # =============================================================================
+  # Frontend (Next.js - Production)
+  # =============================================================================
+  frontend:
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    container_name: gradeloop-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    networks:
+      - gradeloop-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
 
 networks:
   gradeloop-network:
