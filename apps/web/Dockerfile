@@ -17,11 +17,11 @@ COPY package.json bun.lock* ./
 COPY apps/web/package.json ./apps/web/package.json
 
 # Install dependencies (this will install for workspace too)
-RUN bun install --frozen-lockfile
+RUN bun install
 
 # Also install in the web directory to ensure binaries are available
 WORKDIR /app/apps/web
-RUN bun install --frozen-lockfile
+RUN bun install
 
 
 # -----------------------------------------------------------------------------
