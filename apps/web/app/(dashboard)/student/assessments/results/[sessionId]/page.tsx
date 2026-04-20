@@ -17,13 +17,7 @@ import {
     ChevronDown,
     ChevronUp,
     AlertCircle,
-    Eye,
-    Sliders,
-    Edit2,
-    Check,
-    X,
     Loader2,
-    RefreshCw,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,7 +25,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { ivasApi } from "@/lib/ivas-api";
-import type { SessionDetail, GradedQA, Transcript, CompetencyScoreOut } from "@/types/ivas";
+import type { SessionDetail, GradedQA, Transcript } from "@/types/ivas";
 
 const TRANSCRIPT_COLLAPSE_THRESHOLD = 30;
 
@@ -138,7 +132,7 @@ function CodeBlock({ code }: { code: string }) {
                 <div className="flex items-center justify-between">
                     <CardTitle className="text-base flex items-center gap-2">
                         <BookOpen className="h-4 w-4" />
-                        Student&apos;s Code
+                        Your Code
                     </CardTitle>
                     {isLong && (
                         <Button
@@ -196,7 +190,7 @@ function QuestionCard({ item }: { item: GradedQA }) {
             {/* Answer */}
             {item.response_text && (
                 <div>
-                    <p className="text-xs text-muted-foreground mb-1.5 font-medium">Student&apos;s answer</p>
+                    <p className="text-xs text-muted-foreground mb-1.5 font-medium">Your answer</p>
                     <p className="text-sm bg-muted/70 rounded-lg px-4 py-3 leading-relaxed">
                         {item.response_text}
                     </p>
@@ -216,176 +210,14 @@ function QuestionCard({ item }: { item: GradedQA }) {
     );
 }
 
-function DifficultyBadge({ difficulty }: { difficulty: number }) {
-    if (difficulty >= 3) {
-        return <Badge variant="outline" className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0 text-xs">Advanced</Badge>;
-    }
-    if (difficulty >= 2) {
-        return <Badge variant="outline" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0 text-xs">Intermediate</Badge>;
-    }
-    return <Badge variant="outline" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-xs">Beginner</Badge>;
-}
-
-function CompetencyScoresSection({ studentId, assignmentId }: { studentId: string; assignmentId: string }) {
-    const [scores, setScores] = React.useState<CompetencyScoreOut[]>([]);
-    const [loading, setLoading] = React.useState(true);
-    const [editingId, setEditingId] = React.useState<string | null>(null);
-    const [editValue, setEditValue] = React.useState<number | null>(null);
-    const [saving, setSaving] = React.useState(false);
-    const [showAll, setShowAll] = React.useState(false);
-
-    React.useEffect(() => {
-        let mounted = true;
-        ivasApi.listStudentCompetencyScores(studentId).then(data => {
-            if (mounted) setScores(data);
-        }).catch(() => {}).finally(() => {
-            if (mounted) setLoading(false);
-        });
-        return () => { mounted = false; };
-    }, [studentId]);
-
-    async function handleOverride(competencyId: string) {
-        if (editValue === null) return;
-        try {
-            setSaving(true);
-            const updated = await ivasApi.overrideCompetencyScore({
-                student_id: studentId,
-                competency_id: competencyId,
-                new_score: editValue,
-                override_by: "instructor",
-            });
-            setScores(prev => prev.map(s =>
-                s.competency_id === competencyId ? { ...s, score: updated.score, is_override: true } : s
-            ));
-            setEditingId(null);
-            setEditValue(null);
-        } catch {}
-        finally { setSaving(false); }
-    }
-
-    const displayed = showAll ? scores : scores.slice(0, 5);
-
-    return (
-        <Card>
-            <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                    <Sliders className="h-4 w-4" />
-                    Competency Scores
-                </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-                {loading ? (
-                    <div className="space-y-2">{[1,2,3].map(i => <Skeleton key={i} className="h-12 rounded-lg" />)}</div>
-                ) : scores.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">No competency scores yet.</p>
-                ) : (
-                    <>
-                        {displayed.map(s => {
-                            const pct = s.score !== null && s.max_score !== null && s.max_score > 0
-                                ? (s.score / s.max_score) * 100 : 0;
-                            const color = pct >= 80 ? "text-emerald-600" : pct >= 60 ? "text-amber-600" : "text-red-600";
-                            const isEditing = editingId === s.competency_id;
-                            return (
-                                <div key={s.id} className="flex items-center gap-3 py-2 border-b border-border/20 last:border-0">
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <p className="text-sm font-medium">{s.competency_name ?? "—"}</p>
-                                            {s.is_override && (
-                                                <Badge variant="outline" className="text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0">Override</Badge>
-                                            )}
-                                        </div>
-                                        <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
-                                            <div
-                                                className={`h-full rounded-full transition-all ${pct >= 80 ? "bg-emerald-500" : pct >= 60 ? "bg-amber-500" : "bg-red-500"}`}
-                                                style={{ width: `${pct}%` }}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2 shrink-0">
-                                        {isEditing ? (
-                                            <>
-                                                <input
-                                                    type="number"
-                                                    min={0}
-                                                    max={s.max_score ?? 10}
-                                                    value={editValue ?? s.score ?? 0}
-                                                    onChange={e => {
-                                                        const val = parseFloat(e.target.value);
-                                                        if (!isNaN(val) && val >= 0 && val <= (s.max_score ?? 10)) {
-                                                            setEditValue(val);
-                                                        }
-                                                    }}
-                                                    className="w-16 h-8 rounded-md border border-input bg-background px-2 text-sm text-center"
-                                                    autoFocus
-                                                />
-                                                <span className="text-xs text-muted-foreground">/ {s.max_score ?? 10}</span>
-                                                <Button size="sm" variant="ghost" onClick={() => handleOverride(s.competency_id)} disabled={saving || editValue === null} className="gap-1">
-                                                    <Check className="h-3.5 w-3.5 text-emerald-600" />
-                                                </Button>
-                                                <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="gap-1">
-                                                    <X className="h-3.5 w-3.5" />
-                                                </Button>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <span className={`font-bold text-sm ${color}`}>
-                                                    {s.score !== null ? Math.round(s.score) : "—"}
-                                                    <span className="text-xs font-normal text-muted-foreground">/{s.max_score ?? 10}</span>
-                                                </span>
-                                                <Button size="sm" variant="ghost" onClick={() => {
-                                                    setEditingId(s.competency_id);
-                                                    setEditValue(s.score ?? 0);
-                                                }} className="gap-1">
-                                                    <Edit2 className="h-3.5 w-3.5" />
-                                                </Button>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                        {scores.length > 5 && (
-                            <Button variant="ghost" size="sm" onClick={() => setShowAll(v => !v)} className="gap-1 w-full mt-2">
-                                {showAll ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                                {showAll ? "Show less" : `Show all ${scores.length} competencies`}
-                            </Button>
-                        )}
-                    </>
-                )}
-            </CardContent>
-        </Card>
-    );
-}
-
-function StudentIdCell({ studentId }: { studentId: string }) {
-    if (studentId.length <= 12) {
-        return <span className="text-sm font-medium font-mono">{studentId}</span>;
-    }
-    return (
-        <Tooltip>
-            <TooltipTrigger asChild>
-                <span className="text-sm font-medium font-mono cursor-help">
-                    {studentId.slice(0, 8)}…{studentId.slice(-4)}
-                </span>
-            </TooltipTrigger>
-            <TooltipContent>
-                <p className="font-mono text-xs">{studentId}</p>
-            </TooltipContent>
-        </Tooltip>
-    );
-}
-
-export default function InstructorVivaReviewPage() {
-    const params = useParams<{ sessionId: string; assignmentId: string; instanceId: string }>();
+export default function StudentResultsPage() {
+    const params = useParams<{ sessionId: string }>();
     const router = useRouter();
     const sessionId = params.sessionId;
-    const assignmentId = params.assignmentId;
-    const instanceId = params.instanceId;
 
     const [details, setDetails] = React.useState<SessionDetail | null>(null);
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
-    const [regrading, setRegrading] = React.useState(false);
 
     React.useEffect(() => {
         let mounted = true;
@@ -402,24 +234,6 @@ export default function InstructorVivaReviewPage() {
         load();
         return () => { mounted = false; };
     }, [sessionId]);
-
-    async function handleRegrade() {
-        if (!details || regrading) return;
-        setRegrading(true);
-        try {
-            const updated = await ivasApi.regradeSession(sessionId);
-            setDetails(prev => prev ? { ...prev, session: { ...prev.session, status: updated.status } } : prev);
-            // Re-fetch full details after a short delay to let grading finish or show progress
-            const refreshed = await ivasApi.getSessionDetails(sessionId);
-            setDetails(refreshed);
-        } catch (err) {
-            // If regrade fails, just refresh to show current state
-            const refreshed = await ivasApi.getSessionDetails(sessionId);
-            setDetails(refreshed);
-        } finally {
-            setRegrading(false);
-        }
-    }
 
     if (loading) {
         return (
@@ -464,9 +278,9 @@ export default function InstructorVivaReviewPage() {
         <div className="max-w-4xl mx-auto space-y-6 pb-12">
             {/* Back */}
             <Button variant="ghost" size="sm" asChild className="gap-1.5 px-0 text-muted-foreground hover:text-foreground self-start">
-                <Link href={`/instructor/courses/${instanceId}/assignments/${assignmentId}/viva`}>
+                <Link href="/student/assessments/my-sessions">
                     <ArrowLeft className="h-4 w-4" />
-                    Back to Viva Sessions
+                    Back to My Sessions
                 </Link>
             </Button>
 
@@ -475,7 +289,7 @@ export default function InstructorVivaReviewPage() {
                 <div>
                     <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
                         <Mic2 className="h-6 w-6" />
-                        Session Review
+                        My Results
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">
                         {(session.assignment_context?.title as string | undefined) ?? session.assignment_id}
@@ -484,21 +298,7 @@ export default function InstructorVivaReviewPage() {
                         {format(new Date(session.started_at), "EEEE, MMMM d, yyyy 'at' HH:mm")}
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
-                    <StatusBadge status={session.status} />
-                    {(session.status === "completed" || session.status === "grading_failed" || session.status === "abandoned") && (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleRegrade}
-                            disabled={regrading}
-                            className="gap-1.5"
-                        >
-                            <RefreshCw className={`h-3.5 w-3.5 ${regrading ? "animate-spin" : ""}`} />
-                            {regrading ? "Regrading…" : "Regrade"}
-                        </Button>
-                    )}
-                </div>
+                <StatusBadge status={session.status} />
             </div>
 
             {/* Score Hero */}
@@ -572,11 +372,11 @@ export default function InstructorVivaReviewPage() {
                             </p>
                             <p className="text-xs text-muted-foreground mt-0.5">
                                 {session.status === "grading"
-                                    ? "Answers are being evaluated. Results will appear here once grading is done."
+                                    ? "Your answers are being evaluated. Results will appear here once grading is done."
                                     : session.status === "grading_failed"
-                                        ? "An error occurred during grading. Click \"Regrade\" above to try again."
+                                        ? "An error occurred during grading. Please contact your instructor."
                                         : session.status === "abandoned"
-                                            ? "This viva session ended without completing the assessment. You can click \"Regrade\" to attempt scoring anyway."
+                                            ? "This viva session ended without completing the assessment."
                                             : "Transcript and scoring will appear once the session ends."}
                             </p>
                         </div>
@@ -586,10 +386,6 @@ export default function InstructorVivaReviewPage() {
 
             {/* Meta row */}
             <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    <StudentIdCell studentId={session.student_id} />
-                </div>
                 {duration !== null && (
                     <div className="flex items-center gap-1.5">
                         <Clock className="h-4 w-4" />
@@ -607,14 +403,6 @@ export default function InstructorVivaReviewPage() {
                     </div>
                 )}
             </div>
-
-            {/* Competency Scores & Override (User Story 7) */}
-            {session.status === "completed" && (
-                <CompetencyScoresSection
-                    studentId={session.student_id}
-                    assignmentId={assignmentId}
-                />
-            )}
 
             {/* Code context */}
             {(session.assignment_context?.code_context as string | undefined) && (

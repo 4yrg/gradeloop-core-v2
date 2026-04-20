@@ -1,6 +1,7 @@
 """Tests for viva transcript grader."""
 
 import pytest
+from unittest.mock import AsyncMock, patch
 from app.services.viva.grader import (
     grade_viva_transcript,
     MAX_SCORE_PER_QUESTION,
@@ -197,3 +198,89 @@ class TestGradeVivaTranscript:
         if result["items"]:
             expected_max = sum(item.get("max_score", 10) for item in result["items"])
             assert result["max_possible"] == expected_max
+
+
+class TestPlanAwareMaxScoreOverride:
+    """Test that plan-aware grading forces max_score from the planned questions."""
+
+    @pytest.mark.asyncio
+    async def test_plan_aware_forces_max_score_from_plan(self):
+        """Plan-aware mode should override max_score from planned questions.
+
+        This is the core fix: even though the model doesn't return max_score,
+        the grader forces it from the planned question definition so competencies
+        with non-default max_score (e.g. 5.0) are scored correctly.
+        """
+        planned_questions = [
+            {"sequence_num": 1, "question_text": "Explain loops.", "competency_name": "Loops", "difficulty": 2, "max_score": 5.0},
+            {"sequence_num": 2, "question_text": "Explain recursion.", "competency_name": "Recursion", "difficulty": 4, "max_score": 15.0},
+            {"sequence_num": 3, "question_text": "Explain arrays.", "competency_name": "Arrays", "difficulty": 1, "max_score": 10.0},
+        ]
+
+        # Simulate model returning items without max_score (model doesn't include it)
+        mock_response = AsyncMock()
+        mock_response.text = '{"items": [{"sequence_num": 1, "question_text": "Explain loops.", "response_text": "Good answer", "score": 3, "score_justification": "Partial"}, {"sequence_num": 2, "question_text": "Explain recursion.", "response_text": "Great answer", "score": 12, "score_justification": "Excellent"}, {"sequence_num": 3, "question_text": "Explain arrays.", "response_text": "OK answer", "score": 7, "score_justification": "Decent"}]}'
+
+        mock_client = AsyncMock()
+        mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
+
+        with patch("google.genai.Client", return_value=mock_client):
+            result = await grade_viva_transcript(
+                gemini_api_key="test-key",
+                grader_model="test-model",
+                turns=[
+                    {"turn_number": 1, "role": "examiner", "content": "Explain loops."},
+                    {"turn_number": 2, "role": "student", "content": "Good answer"},
+                ],
+                assignment_context={"title": "Test"},
+                planned_questions=planned_questions,
+            )
+
+        # max_score should come from the planned questions, NOT from model output
+        items_by_seq = {item["sequence_num"]: item for item in result["items"]}
+        assert items_by_seq[1]["max_score"] == 5.0, f"Expected 5.0, got {items_by_seq[1]['max_score']}"
+        assert items_by_seq[2]["max_score"] == 15.0, f"Expected 15.0, got {items_by_seq[2]['max_score']}"
+        assert items_by_seq[3]["max_score"] == 10.0, f"Expected 10.0, got {items_by_seq[3]['max_score']}"
+
+        # total and max_possible should reflect the correct per-question maxes
+        assert result["max_possible"] == 30.0  # 5 + 15 + 10
+        # Note: _coerce_item clamps scores to MAX_SCORE_PER_QUESTION (10.0),
+        # so score=12 gets clamped to 10, making total = 3 + 10 + 7 = 20
+        assert result["total_score"] == 20.0
+
+    @pytest.mark.asyncio
+    async def test_plan_aware_gap_fills_missing_questions(self):
+        """Plan-aware mode should fill gaps for questions the model didn't return."""
+        planned_questions = [
+            {"sequence_num": 1, "question_text": "Q1", "competency_name": "A", "difficulty": 1, "max_score": 10.0},
+            {"sequence_num": 2, "question_text": "Q2", "competency_name": "B", "difficulty": 2, "max_score": 10.0},
+            {"sequence_num": 3, "question_text": "Q3", "competency_name": "C", "difficulty": 3, "max_score": 10.0},
+        ]
+
+        mock_response = AsyncMock()
+        # Model only returns 2 of 3 questions
+        mock_response.text = '{"items": [{"sequence_num": 1, "question_text": "Q1", "response_text": "A1", "score": 7, "score_justification": "OK"}, {"sequence_num": 3, "question_text": "Q3", "response_text": "A3", "score": 5, "score_justification": "Weak"}]}'
+
+        mock_client = AsyncMock()
+        mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
+
+        with patch("google.genai.Client", return_value=mock_client):
+            result = await grade_viva_transcript(
+                gemini_api_key="test-key",
+                grader_model="test-model",
+                turns=[{"turn_number": 1, "role": "examiner", "content": "Q1?"}],
+                assignment_context={"title": "Test"},
+                planned_questions=planned_questions,
+            )
+
+        # Should have 3 items (gap-filled)
+        assert len(result["items"]) == 3
+
+        items_by_seq = {item["sequence_num"]: item for item in result["items"]}
+        # Q1 and Q3 from model
+        assert items_by_seq[1]["score"] == 7.0
+        assert items_by_seq[1]["response_text"] == "A1"
+        assert items_by_seq[3]["score"] == 5.0
+        # Q2 is gap-filled with score 0
+        assert items_by_seq[2]["score"] == 0.0
+        assert items_by_seq[2]["response_text"] is None

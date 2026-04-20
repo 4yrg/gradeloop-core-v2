@@ -168,7 +168,8 @@ async def regrade_session(session_id: UUID) -> SessionOut:
         sid=session_id,
         transcript_turns=transcript_turns,
         assignment_context=assignment_context,
-        selected_questions=planned_questions or None,
+        # Explicit: empty list [] is treated as None (no plan = free-form grading)
+        selected_questions=planned_questions if planned_questions else None,
     )
 
     refreshed = await db.get_session(session_id)
@@ -269,25 +270,13 @@ async def get_session_details(session_id: UUID) -> SessionDetailOut:
     transcripts = await db.list_transcripts(session_id)
     graded_rows = await db.list_graded_qa(session_id)
 
-    # Default per-question max: 10 (matches grader). If the session has a
-    # stored max_possible that divides evenly across items, prefer that.
-    session_max = row.get("max_possible")
-    per_q_max = 10.0
-    if session_max and graded_rows:
-        try:
-            candidate = float(session_max) / float(len(graded_rows))
-            if candidate > 0:
-                per_q_max = candidate
-        except Exception:
-            pass
-
     graded_out = [
         GradedQAOut(
             sequence_num=g["sequence_num"],
             question_text=g["question_text"],
             response_text=g.get("response_text"),
             score=float(g["score"]) if g.get("score") is not None else None,
-            max_score=per_q_max,
+            max_score=float(g["max_score"]) if g.get("max_score") is not None else 10.0,
             score_justification=g.get("score_justification"),
         )
         for g in graded_rows

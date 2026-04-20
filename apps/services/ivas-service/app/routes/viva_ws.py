@@ -240,209 +240,242 @@ async def _bridge_gemini_live(
             })
         pending[role] = ""
 
-    async with client.aio.live.connect(
-        model=settings.gemini_live_model, config=config,
-    ) as live:
-        logger.info("gemini_connected")
-        await websocket.send_json({"type": "session_started"})
+    try:
+        async with client.aio.live.connect(
+            model=settings.gemini_live_model, config=config,
+        ) as live:
+            logger.info("gemini_connected")
+            await websocket.send_json({"type": "session_started"})
 
-        # ── Examiner-first kickoff ─────────────────────────────────────
-        # Stream a pre-synthesized "hello" PCM16 blob into Gemini Live as
-        # the first realtime audio turn. Gemini's VAD commits it as a
-        # student turn, triggering the greeting protocol immediately —
-        # the student hears the examiner open the viva before having to
-        # say anything.
-        #
-        # Previous attempt: text client_content turn. That crashes the
-        # Gemini Live WS with 1007 "invalid argument" on audio-modality
-        # sessions. Do NOT go back to that approach. Audio kickoff is the
-        # supported path because it's exactly what a real student's mic
-        # would emit.
-        try:
-            kickoff_pcm = _get_kickoff_audio()
-            # Stream in ~100ms frames (16kHz * 2 bytes * 0.1s = 3200 B).
-            # Slightly pacing the frames keeps Gemini's VAD happy —
-            # dumping the whole blob in one send_realtime_input call can
-            # confuse VAD's speech-end detection.
-            FRAME_BYTES = 3200
-            for offset in range(0, len(kickoff_pcm), FRAME_BYTES):
-                await live.send_realtime_input(
-                    audio=types.Blob(
-                        data=kickoff_pcm[offset:offset + FRAME_BYTES],
-                        mime_type="audio/pcm;rate=16000",
-                    ),
-                )
-                # Pace frames at ~real-time. Tiny sleep is enough; we
-                # don't need wall-clock accuracy, just some spacing.
-                await asyncio.sleep(0.02)
-            # Trailing silence (~400ms) to let VAD detect end-of-speech
-            # and commit the turn, so Gemini responds promptly.
-            silence = b"\x00\x00" * (16000 * 4 // 10)  # 400ms @ 16kHz s16
-            for offset in range(0, len(silence), FRAME_BYTES):
-                await live.send_realtime_input(
-                    audio=types.Blob(
-                        data=silence[offset:offset + FRAME_BYTES],
-                        mime_type="audio/pcm;rate=16000",
-                    ),
-                )
-                await asyncio.sleep(0.02)
-            kickoff_state["suppress_student"] = True
-            logger.info("kickoff_audio_sent", bytes=len(kickoff_pcm))
-        except Exception as exc:
-            # Non-fatal: if TTS or streaming fails we just fall back to
-            # the student-speaks-first flow. The examiner will still
-            # greet correctly once the student says hello.
-            logger.warning("kickoff_audio_failed", error=str(exc))
-
-        end = asyncio.Event()
-
-        # ── Task 1: Browser mic → Gemini ────────────────────────────────
-        async def forward_audio_to_gemini() -> None:
+            # ── Examiner-first kickoff ─────────────────────────────────────
+            # Stream a pre-synthesized "hello" PCM16 blob into Gemini Live as
+            # the first realtime audio turn. Gemini's VAD commits it as a
+            # student turn, triggering the greeting protocol immediately —
+            # the student hears the examiner open the viva before having to
+            # say anything.
+            #
+            # Previous attempt: text client_content turn. That crashes the
+            # Gemini Live WS with 1007 "invalid argument" on audio-modality
+            # sessions. Do NOT go back to that approach. Audio kickoff is the
+            # supported path because it's exactly what a real student's mic
+            # would emit.
             try:
-                while not end.is_set():
-                    try:
-                        raw = await asyncio.wait_for(
-                            websocket.receive_text(), timeout=300,
-                        )
-                    except asyncio.TimeoutError:
-                        continue
-                    except WebSocketDisconnect:
-                        break
-
-                    try:
-                        msg = json.loads(raw)
-                    except json.JSONDecodeError:
-                        continue
-
-                    if msg.get("type") == "audio" and msg.get("data"):
-                        audio = base64.b64decode(msg["data"])
-                        await live.send_realtime_input(
-                            audio=types.Blob(
-                                data=audio, mime_type="audio/pcm;rate=16000",
-                            ),
-                        )
-                    elif msg.get("type") == "end_session":
-                        break
-
-            except WebSocketDisconnect:
-                pass
+                kickoff_pcm = _get_kickoff_audio()
+                # Stream in ~100ms frames (16kHz * 2 bytes * 0.1s = 3200 B).
+                # Slightly pacing the frames keeps Gemini's VAD happy —
+                # dumping the whole blob in one send_realtime_input call can
+                # confuse VAD's speech-end detection.
+                FRAME_BYTES = 3200
+                for offset in range(0, len(kickoff_pcm), FRAME_BYTES):
+                    await live.send_realtime_input(
+                        audio=types.Blob(
+                            data=kickoff_pcm[offset:offset + FRAME_BYTES],
+                            mime_type="audio/pcm;rate=16000",
+                        ),
+                    )
+                    # Pace frames at ~real-time. Tiny sleep is enough; we
+                    # don't need wall-clock accuracy, just some spacing.
+                    await asyncio.sleep(0.02)
+                # Trailing silence (~400ms) to let VAD detect end-of-speech
+                # and commit the turn, so Gemini responds promptly.
+                silence = b"\x00\x00" * (16000 * 4 // 10)  # 400ms @ 16kHz s16
+                for offset in range(0, len(silence), FRAME_BYTES):
+                    await live.send_realtime_input(
+                        audio=types.Blob(
+                            data=silence[offset:offset + FRAME_BYTES],
+                            mime_type="audio/pcm;rate=16000",
+                        ),
+                    )
+                    await asyncio.sleep(0.02)
+                kickoff_state["suppress_student"] = True
+                logger.info("kickoff_audio_sent", bytes=len(kickoff_pcm))
             except Exception as exc:
-                logger.error("fwd_to_gemini_err", error=str(exc))
-            finally:
-                end.set()
+                # Non-fatal: if TTS or streaming fails we just fall back to
+                # the student-speaks-first flow. The examiner will still
+                # greet correctly once the student says hello.
+                logger.warning("kickoff_audio_failed", error=str(exc))
 
-        # ── Task 2: Gemini → Browser speaker ────────────────────────────
-        async def forward_audio_to_browser() -> None:
-            try:
-                # live.receive() yields messages until the underlying WS
-                # closes. After each turn_complete the iterator may exhaust,
-                # so we re-enter it in a while-loop.
-                while not end.is_set():
-                    async for msg in live.receive():
-                        if end.is_set():
-                            return
+            end = asyncio.Event()
 
-                        sc = msg.server_content
-                        if not sc:
+            # ── Task 1: Browser mic → Gemini ────────────────────────────────
+            async def forward_audio_to_gemini() -> None:
+                try:
+                    while not end.is_set():
+                        try:
+                            raw = await asyncio.wait_for(
+                                websocket.receive_text(), timeout=300,
+                            )
+                        except asyncio.TimeoutError:
+                            continue
+                        except WebSocketDisconnect:
+                            break
+
+                        try:
+                            msg = json.loads(raw)
+                        except json.JSONDecodeError:
                             continue
 
-                        # Audio / text chunks from Gemini
-                        if sc.model_turn and sc.model_turn.parts:
-                            for part in sc.model_turn.parts:
-                                if part.inline_data and part.inline_data.data:
-                                    b64 = base64.b64encode(
-                                        part.inline_data.data,
-                                    ).decode()
+                        if msg.get("type") == "audio" and msg.get("data"):
+                            audio = base64.b64decode(msg["data"])
+                            await live.send_realtime_input(
+                                audio=types.Blob(
+                                    data=audio, mime_type="audio/pcm;rate=16000",
+                                ),
+                            )
+                        elif msg.get("type") == "end_session":
+                            break
+
+                except WebSocketDisconnect:
+                    pass
+                except Exception as exc:
+                    logger.error("fwd_to_gemini_err", error=str(exc))
+                finally:
+                    end.set()
+
+            # ── Task 2: Gemini → Browser speaker ────────────────────────────
+            async def forward_audio_to_browser() -> None:
+                try:
+                    # live.receive() yields messages until the underlying WS
+                    # closes. After each turn_complete the iterator may exhaust,
+                    # so we re-enter it in a while-loop.
+                    while not end.is_set():
+                        async for msg in live.receive():
+                            if end.is_set():
+                                return
+
+                            sc = msg.server_content
+                            if not sc:
+                                continue
+
+                            # Audio / text chunks from Gemini
+                            if sc.model_turn and sc.model_turn.parts:
+                                for part in sc.model_turn.parts:
+                                    if part.inline_data and part.inline_data.data:
+                                        b64 = base64.b64encode(
+                                            part.inline_data.data,
+                                        ).decode()
+                                        await websocket.send_json({
+                                            "type": "audio", "data": b64,
+                                        })
+
+                            # Streaming transcript of user speech
+                            # NOTE: We must check input_transcription even when
+                            # text is empty, because the finished=True flag can
+                            # arrive with an empty text chunk. Previously, the
+                            # `and sc.input_transcription.text` guard caused the
+                            # entire block (including the suppress_student reset)
+                            # to be skipped, permanently dropping all student
+                            # input for the rest of the session.
+                            if sc.input_transcription:
+                                chunk = (sc.input_transcription.text or "")
+                                finished = bool(sc.input_transcription.finished)
+
+                                # Drop the synthetic kickoff turn's transcription
+                                # entirely — it's the backend's own TTS "hello"
+                                # pretending to be the student. Students should
+                                # never see it in the UI and it shouldn't count
+                                # as a real transcript turn for grading.
+                                # NOTE: don't `continue` here — a single Gemini
+                                # message may also carry turn_complete /
+                                # output_transcription, and we still want those
+                                # processed normally.
+                                if kickoff_state["suppress_student"]:
+                                    if finished:
+                                        kickoff_state["suppress_student"] = False
+                                        logger.info("kickoff_student_turn_suppressed")
+                                    # Discard the kickoff chunk (and any real
+                                    # student chunks that arrived during the
+                                    # suppression window). The turn_complete
+                                    # fallback below will also release the flag.
+                                elif chunk:
+                                    # Role-switch: flush any in-flight examiner turn
+                                    if pending["examiner"]:
+                                        _flush_role("examiner")
+                                    pending["student"] += chunk
+                                    if finished:
+                                        _flush_role("student")
                                     await websocket.send_json({
-                                        "type": "audio", "data": b64,
+                                        "type": "user_transcript",
+                                        "data": chunk,
+                                        "finished": finished,
+                                    })
+                                elif finished:
+                                    # Empty-text finished chunk: flush any
+                                    # buffered student text and notify browser.
+                                    if pending["student"]:
+                                        _flush_role("student")
+                                    await websocket.send_json({
+                                        "type": "user_transcript",
+                                        "data": "",
+                                        "finished": True,
                                     })
 
-                        # Streaming transcript of user speech
-                        if sc.input_transcription and sc.input_transcription.text:
-                            chunk = sc.input_transcription.text
-                            finished = bool(sc.input_transcription.finished)
-
-                            # Drop the synthetic kickoff turn's transcription
-                            # entirely — it's the backend's own TTS "hello"
-                            # pretending to be the student. Students should
-                            # never see it in the UI and it shouldn't count
-                            # as a real transcript turn for grading.
-                            # NOTE: don't `continue` here — a single Gemini
-                            # message may also carry turn_complete /
-                            # output_transcription, and we still want those
-                            # processed normally.
-                            if kickoff_state["suppress_student"]:
-                                if finished:
-                                    kickoff_state["suppress_student"] = False
-                                    logger.info("kickoff_student_turn_suppressed")
-                            else:
-                                # Role-switch: flush any in-flight examiner turn
-                                if pending["examiner"]:
-                                    _flush_role("examiner")
-                                pending["student"] += chunk
-                                if finished:
+                            # Streaming transcript of AI speech
+                            if sc.output_transcription and sc.output_transcription.text:
+                                chunk = sc.output_transcription.text
+                                finished = bool(sc.output_transcription.finished)
+                                # Role-switch: flush any in-flight student turn
+                                if pending["student"]:
                                     _flush_role("student")
+                                pending["examiner"] += chunk
+                                if finished:
+                                    _flush_role("examiner")
                                 await websocket.send_json({
-                                    "type": "user_transcript",
+                                    "type": "ai_transcript",
                                     "data": chunk,
                                     "finished": finished,
                                 })
 
-                        # Streaming transcript of AI speech
-                        if sc.output_transcription and sc.output_transcription.text:
-                            chunk = sc.output_transcription.text
-                            finished = bool(sc.output_transcription.finished)
-                            # Role-switch: flush any in-flight student turn
-                            if pending["student"]:
+                            # Gemini finished this response turn — flush any
+                            # un-finalised chunks from both sides.
+                            if getattr(sc, "turn_complete", False):
+                                # Fail-safe: by the time we've seen a full
+                                # turn_complete we are past the kickoff, so
+                                # ensure suppression is released even if
+                                # Gemini never emitted an input_transcription
+                                # for the synthetic student turn (otherwise
+                                # the real student's first utterance would be
+                                # silently dropped forever).
+                                if kickoff_state["suppress_student"]:
+                                    kickoff_state["suppress_student"] = False
+                                    logger.info("kickoff_suppress_released_on_turn_complete")
                                 _flush_role("student")
-                            pending["examiner"] += chunk
-                            if finished:
                                 _flush_role("examiner")
-                            await websocket.send_json({
-                                "type": "ai_transcript",
-                                "data": chunk,
-                                "finished": finished,
-                            })
+                                await websocket.send_json({"type": "turn_complete"})
 
-                        # Gemini finished this response turn — flush any
-                        # un-finalised chunks from both sides.
-                        if getattr(sc, "turn_complete", False):
-                            # Fail-safe: by the time we've seen a full
-                            # turn_complete we are past the kickoff, so
-                            # ensure suppression is released even if
-                            # Gemini never emitted an input_transcription
-                            # for the synthetic student turn (otherwise
-                            # the real student's first utterance would be
-                            # silently dropped forever).
-                            if kickoff_state["suppress_student"]:
-                                kickoff_state["suppress_student"] = False
-                                logger.info("kickoff_suppress_released_on_turn_complete")
-                            _flush_role("student")
-                            _flush_role("examiner")
-                            await websocket.send_json({"type": "turn_complete"})
+                            # Gemini was interrupted by user speech — flush any
+                            # partial examiner text so it isn't concatenated with
+                            # the next response, then ack the turn end.
+                            if getattr(sc, "interrupted", False):
+                                _flush_role("student")
+                                _flush_role("examiner")
+                                await websocket.send_json({"type": "turn_complete"})
 
-                        # Gemini was interrupted by user speech — just ack
-                        if getattr(sc, "interrupted", False):
-                            await websocket.send_json({"type": "turn_complete"})
+                except Exception as exc:
+                    logger.error("fwd_to_browser_err", error=str(exc))
+                finally:
+                    end.set()
 
-            except Exception as exc:
-                logger.error("fwd_to_browser_err", error=str(exc))
-            finally:
-                end.set()
+            # Run both tasks; when either finishes, cancel the other.
+            t1 = asyncio.create_task(forward_audio_to_gemini())
+            t2 = asyncio.create_task(forward_audio_to_browser())
 
-        # Run both tasks; when either finishes, cancel the other.
-        t1 = asyncio.create_task(forward_audio_to_gemini())
-        t2 = asyncio.create_task(forward_audio_to_browser())
+            await asyncio.wait([t1, t2], return_when=asyncio.FIRST_COMPLETED)
 
-        await asyncio.wait([t1, t2], return_when=asyncio.FIRST_COMPLETED)
+            for t in (t1, t2):
+                if not t.done():
+                    t.cancel()
+                    with suppress(asyncio.CancelledError):
+                        await t
 
-        for t in (t1, t2):
-            if not t.done():
-                t.cancel()
-                with suppress(asyncio.CancelledError):
-                    await t
-
-        # Final drain of any buffered utterances.
+            # Final drain of any buffered utterances.
+            _flush_role("student")
+            _flush_role("examiner")
+    except Exception as exc:
+        # Preserve whatever transcript was accumulated before the error.
+        # Without this catch, any exception from the bridge discards all
+        # turns, causing sessions to be finalized with empty transcripts.
+        logger.error("bridge_error_preserving_partial_transcript", error=str(exc), turns=len(transcript_turns))
         _flush_role("student")
         _flush_role("examiner")
 
@@ -542,7 +575,8 @@ async def _grade_and_persist(
                     grader_model=settings.gemini_grader_model,
                     turns=transcript_turns,
                     assignment_context=assignment_context,
-                    planned_questions=selected_questions or None,
+                    # Explicit: empty list [] is treated as None (no plan = free-form grading)
+                    planned_questions=selected_questions if selected_questions else None,
                 ),
                 timeout=90,
             )
@@ -578,6 +612,42 @@ async def _grade_and_persist(
         logger.info("grading_produced_no_items", session_id=str(sid))
         await db.update_session_status(sid, "grading_failed")
         return False
+
+    # Validate: if we had a question plan, the grader should have produced
+    # one item per planned question. Fill gaps if the model missed any, and
+    # force max_score from the plan (the model doesn't return max_score).
+    if selected_questions:
+        expected_count = len(selected_questions)
+        plan_by_seq = {int(q.get("sequence_num", 0)): q for q in selected_questions}
+
+        # Force max_score from the plan for every existing item.
+        for item in items:
+            seq = item.get("sequence_num")
+            plan_q = plan_by_seq.get(int(seq) if seq is not None else -1)
+            if plan_q:
+                item["max_score"] = float(plan_q.get("max_score") or 10.0)
+
+        if len(items) < expected_count:
+            logger.warning(
+                "grading_item_count_mismatch",
+                session_id=str(sid),
+                expected=expected_count,
+                got=len(items),
+                action="filling_gaps",
+            )
+            existing_seqs = {item.get("sequence_num") for item in items}
+            for q in selected_questions:
+                seq = int(q.get("sequence_num", 0))
+                if seq not in existing_seqs:
+                    items.append({
+                        "sequence_num": seq,
+                        "question_text": q.get("question_text", ""),
+                        "response_text": None,
+                        "score": 0.0,
+                        "max_score": float(q.get("max_score") or 10.0),
+                        "score_justification": "Grader did not produce an entry for this planned question.",
+                    })
+            items.sort(key=lambda x: x.get("sequence_num", 0))
 
     # Build competency metadata for Q&A persistence.
     competency_metadata: dict[int, dict] = {}
@@ -733,7 +803,6 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
         int(k): int(v) for k, v in raw_distribution.items()
     }
     settings = get_settings()
-    transcript_turns: list[dict] = []
     selected_questions: list[dict] = []
 
     logger.info(
@@ -764,46 +833,81 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
         )
 
     if competency_rows and difficulty_distribution:
-        from app.services.viva.question_selector import select_questions_ai
+        from app.services.viva.question_selector import select_questions_ai, select_questions_random
 
-        try:
-            selected_questions = await select_questions_ai(
-                gemini_api_key=settings.gemini_api_key,
-                model=settings.gemini_grader_model,
-                assignment_context=assignment_context,
+        selected_questions = []
+        max_ai_attempts = 2
+        for attempt in range(max_ai_attempts):
+            try:
+                selected_questions = await select_questions_ai(
+                    gemini_api_key=settings.gemini_api_key,
+                    model=settings.gemini_grader_model,
+                    assignment_context=assignment_context,
+                    competencies=competency_rows,
+                    difficulty_distribution=difficulty_distribution,
+                )
+                if selected_questions:
+                    logger.info(
+                        "questions_selected",
+                        session_id=session_id,
+                        count=len(selected_questions),
+                        attempt=attempt + 1,
+                        questions=[q.get("question_text", "")[:60] for q in selected_questions],
+                    )
+                    break
+                logger.warning("question_selector_returned_empty", session_id=session_id, attempt=attempt + 1)
+            except Exception as exc:
+                logger.warning(
+                    "question_selection_ai_failed",
+                    session_id=session_id,
+                    attempt=attempt + 1,
+                    error=str(exc),
+                )
+            if attempt < max_ai_attempts - 1:
+                await asyncio.sleep(2 * (attempt + 1))
+
+        # Fallback to deterministic random selection if AI failed.
+        # Random selection produces question dicts with empty question_text
+        # but valid sequence_num / competency mapping — sufficient for
+        # plan-aware grading which matches by sequence number.
+        if not selected_questions:
+            logger.warning("question_selection_falling_back_to_random", session_id=session_id)
+            selected_questions = select_questions_random(
                 competencies=competency_rows,
                 difficulty_distribution=difficulty_distribution,
             )
-            logger.info(
-                "questions_selected",
+            if selected_questions:
+                for q in selected_questions:
+                    if not q.get("question_text"):
+                        q["question_text"] = f"Explain your understanding of {q.get('competency_name', 'this topic')}."
+
+        # Persist the selected plan onto the session so the instructor's
+        # regrade endpoint can re-run grading later with the same plan
+        # (and therefore the same competency mapping).
+        if selected_questions:
+            try:
+                existing_meta = session.get("metadata") or {}
+                existing_meta["planned_questions"] = _serialize_planned_questions(selected_questions)
+                await db.update_session_metadata(sid, existing_meta)
+            except Exception as exc:
+                logger.warning("persist_planned_questions_failed", error=str(exc))
+        else:
+            logger.error(
+                "question_selection_completely_failed",
                 session_id=session_id,
-                count=len(selected_questions),
-                questions=[q.get("question_text", "")[:60] for q in selected_questions],
+                note="Viva will proceed without a question plan; grading will use free-form mode which may produce fewer items than expected",
             )
 
-            # Persist the selected plan onto the session so the instructor's
-            # regrade endpoint can re-run grading later with the same plan
-            # (and therefore the same competency mapping).
-            if selected_questions:
-                try:
-                    existing_meta = session.get("metadata") or {}
-                    existing_meta["planned_questions"] = _serialize_planned_questions(selected_questions)
-                    await db.update_session_metadata(sid, existing_meta)
-                except Exception as exc:
-                    logger.warning("persist_planned_questions_failed", error=str(exc))
-        except Exception as exc:
-            logger.warning("question_selection_failed_fallback", error=str(exc))
-            selected_questions = []
-
+    transcript_turns: list[dict] = []
     try:
         transcript_turns = await _bridge_gemini_live(
             websocket,
             settings,
             assignment_context=assignment_context,
-            selected_questions=selected_questions or None,
+            selected_questions=selected_questions if selected_questions else None,
         ) or []
     except Exception as exc:
-        logger.error("session_ws_error", error=str(exc))
+        logger.error("session_ws_error", error=str(exc), partial_turns=len(transcript_turns))
         with suppress(Exception):
             await websocket.send_json({"type": "error", "data": str(exc)})
     finally:
@@ -819,6 +923,6 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
         with suppress(Exception):
             await _finalize_session(
                 db, settings, sid, transcript_turns, assignment_context,
-                selected_questions=selected_questions or None,
+                selected_questions=selected_questions if selected_questions else None,
             )
         logger.info("session_ws_closed", session_id=session_id)

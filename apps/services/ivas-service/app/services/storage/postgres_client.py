@@ -79,6 +79,14 @@ class PostgresClient:
                 except Exception:
                     pass
 
+            # Add max_score column to question_instances if missing (migration)
+            try:
+                await conn.execute(
+                    "ALTER TABLE question_instances ADD COLUMN IF NOT EXISTS max_score NUMERIC(4,1) DEFAULT 10.0"
+                )
+            except Exception:
+                pass
+
             # Add 'grading' to the sessions status CHECK constraint
             try:
                 await conn.execute(
@@ -357,8 +365,8 @@ class PostgresClient:
                     qi = await conn.fetchrow(
                         """
                         INSERT INTO question_instances
-                            (session_id, question_text, sequence_num, competency, difficulty)
-                        VALUES ($1, $2, $3, $4, $5)
+                            (session_id, question_text, sequence_num, competency, difficulty, max_score)
+                        VALUES ($1, $2, $3, $4, $5, $6)
                         RETURNING id
                         """,
                         session_id,
@@ -366,6 +374,7 @@ class PostgresClient:
                         seq,
                         cmeta.get("competency_name"),
                         cmeta.get("difficulty"),
+                        item.get("max_score", 10.0),
                     )
                     await conn.execute(
                         """
@@ -402,8 +411,7 @@ class PostgresClient:
     async def list_graded_qa(self, session_id: UUID) -> list[dict]:
         """Return a list of graded Q&A rows (question joined with response).
 
-        Rows are ordered by sequence_num. `max_score` is derived from the
-        existing session's max_possible / question count if absent.
+        Rows are ordered by sequence_num and include per-question max_score.
         """
         async with self._pool.acquire() as conn:
             rows = await conn.fetch(
@@ -411,6 +419,7 @@ class PostgresClient:
                 SELECT
                     qi.sequence_num,
                     qi.question_text,
+                    qi.max_score,
                     sr.response_text,
                     sr.score,
                     sr.score_justification
@@ -983,6 +992,7 @@ CREATE TABLE IF NOT EXISTS question_instances (
     competency      TEXT,
     difficulty      INTEGER DEFAULT 3,
     sequence_num    INTEGER NOT NULL,
+    max_score       NUMERIC(4,1) DEFAULT 10.0,
     asked_at        TIMESTAMPTZ DEFAULT now()
 );
 

@@ -55,38 +55,45 @@ def _build_grading_prompt(
     transcript: str,
     assignment_block: str,
 ) -> str:
-    return f"""You are a strict but fair grader reviewing a completed oral examination (viva voce).
-
-Your task: read the transcript below, identify every distinct CONCEPTUAL question the examiner asked, pair each with the student's answer, and score each answer out of {MAX_SCORE_PER_QUESTION:.0f}.
-
-Assignment that was being examined:
-{assignment_block}
-
-Rules:
-- Only include substantive conceptual questions (ignore greetings, chit-chat, acknowledgements, and pure pleasantries).
-- If the student did not answer a question (or answer is missing/off-topic), still include the item but set response_text to null and give an appropriate low score (0-3).
-- Justifications must be 1-2 sentences, specific, and reference what the student actually said.
-- Use whole or half numbers between 0 and {MAX_SCORE_PER_QUESTION:.0f} for scores.
-- Return ONLY a valid JSON object matching the schema below. Do NOT wrap it in markdown or prose.
-
-JSON schema:
-{{
-  "items": [
-    {{
-      "sequence_num": <1-based integer>,
-      "question_text": "<the exact question the examiner asked, paraphrased if long>",
-      "response_text": "<the student's answer, or null if none>",
-      "score": <number between 0 and {MAX_SCORE_PER_QUESTION:.0f}>,
-      "score_justification": "<1-2 sentence reason>"
-    }}
-  ]
-}}
-
-Transcript:
----
-{transcript}
----
-"""
+    # Use string concatenation for template sections that embed
+    # transcript/assignment text. This avoids any risk of curly braces
+    # in user content being misinterpreted by f-string parsing, and
+    # makes it clear where user content enters the prompt.
+    max_score = int(MAX_SCORE_PER_QUESTION)
+    return (
+        "You are a strict but fair grader reviewing a completed oral examination (viva voce).\n"
+        "\n"
+        f"Your task: read the transcript below, identify every distinct CONCEPTUAL question the examiner asked, "
+        f"pair each with the student's answer, and score each answer out of {max_score}.\n"
+        "\n"
+        "Assignment that was being examined:\n"
+        + assignment_block
+        + "\n\n"
+        "Rules:\n"
+        "- Only include substantive conceptual questions (ignore greetings, chit-chat, acknowledgements, and pure pleasantries).\n"
+        "- If the student did not answer a question (or answer is missing/off-topic), still include the item but set response_text to null and give an appropriate low score (0-3).\n"
+        "- Justifications must be 1-2 sentences, specific, and reference what the student actually said.\n"
+        f"- Use whole or half numbers between 0 and {max_score} for scores.\n"
+        "- Return ONLY a valid JSON object matching the schema below. Do NOT wrap it in markdown or prose.\n"
+        "\n"
+        "JSON schema:\n"
+        "{\n"
+        '  "items": [\n'
+        "    {\n"
+        '      "sequence_num": <1-based integer>,\n'
+        '      "question_text": "<the exact question the examiner asked, paraphrased if long>",\n'
+        '      "response_text": "<the student\'s answer, or null if none>",\n'
+        f'      "score": <number between 0 and {max_score}>,\n'
+        '      "score_justification": "<1-2 sentence reason>"\n'
+        "    }\n"
+        "  ]\n"
+        "}\n"
+        "\n"
+        "Transcript:\n"
+        "---\n"
+        + transcript
+        + "\n---\n"
+    )
 
 
 def _build_plan_aware_grading_prompt(
@@ -102,53 +109,64 @@ def _build_plan_aware_grading_prompt(
     """
     plan_lines = []
     for q in planned_questions:
+        q_text = q.get("question_text") or f"(topic: {q.get('competency_name', 'unknown')})"
         plan_lines.append(
             f"  [seq={q['sequence_num']}] (competency: {q.get('competency_name', '?')}, "
             f"difficulty: {q.get('difficulty', '?')})\n"
-            f"      Q: {q['question_text']}"
+            f"      Q: {q_text}"
         )
     plan_block = "\n".join(plan_lines)
 
-    return f"""You are a strict but fair grader reviewing a completed oral examination (viva voce).
-
-You are given (a) an assignment, (b) a list of PLANNED questions the examiner was supposed to cover, and (c) the full transcript of the live viva.
-
-Your task: for each planned question, find the student's most relevant answer in the transcript and score it out of {MAX_SCORE_PER_QUESTION:.0f}. The examiner may have asked the question verbatim, paraphrased it, asked follow-ups, or skipped it entirely — match by topic, not by literal text.
-
-Assignment that was being examined:
-{assignment_block}
-
-Planned questions (you MUST grade exactly these, in this order):
-{plan_block}
-
-CRITICAL output rules:
-- Output EXACTLY one item per planned question — no more, no less.
-- Each item's `sequence_num` MUST equal the seq= value of the corresponding planned question.
-- Each item's `question_text` MUST be the planned question text, copied verbatim.
-- If the student never answered a planned question (or said something completely off-topic), set response_text=null and score 0-3 with a justification explaining what was missing.
-- Otherwise, summarise the student's answer in `response_text` based on what they actually said in the transcript.
-- Score each answer between 0 and {MAX_SCORE_PER_QUESTION:.0f} (whole or half numbers).
-- Justifications must be 1-2 sentences and reference what the student actually said (or didn't say).
-- Return ONLY a valid JSON object matching the schema below. No markdown, no prose.
-
-JSON schema:
-{{
-  "items": [
-    {{
-      "sequence_num": <integer matching a planned seq= value>,
-      "question_text": "<the planned question text, verbatim>",
-      "response_text": "<paraphrased student answer, or null if none>",
-      "score": <number between 0 and {MAX_SCORE_PER_QUESTION:.0f}>,
-      "score_justification": "<1-2 sentence reason>"
-    }}
-  ]
-}}
-
-Transcript:
----
-{transcript}
----
-"""
+    # Use string concatenation for template sections that embed
+    # transcript/assignment text. This avoids any risk of curly braces
+    # in user content being misinterpreted by f-string parsing, and
+    # makes it clear where user content enters the prompt.
+    max_score = int(MAX_SCORE_PER_QUESTION)
+    return (
+        "You are a strict but fair grader reviewing a completed oral examination (viva voce).\n"
+        "\n"
+        "You are given (a) an assignment, (b) a list of PLANNED questions the examiner was supposed to cover, "
+        "and (c) the full transcript of the live viva.\n"
+        "\n"
+        f"Your task: for each planned question, find the student's most relevant answer in the transcript and "
+        f"score it out of {max_score}. The examiner may have asked the question verbatim, paraphrased it, "
+        "asked follow-ups, or skipped it entirely — match by topic, not by literal text.\n"
+        "\n"
+        "Assignment that was being examined:\n"
+        + assignment_block
+        + "\n\n"
+        "Planned questions (you MUST grade exactly these, in this order):\n"
+        + plan_block
+        + "\n\n"
+        "CRITICAL output rules:\n"
+        "- Output EXACTLY one item per planned question — no more, no less.\n"
+        "- Each item's `sequence_num` MUST equal the seq= value of the corresponding planned question.\n"
+        "- Each item's `question_text` MUST be the planned question text, copied verbatim.\n"
+        "- If the student never answered a planned question (or said something completely off-topic), "
+        "set response_text=null and score 0-3 with a justification explaining what was missing.\n"
+        "- Otherwise, summarise the student's answer in `response_text` based on what they actually said in the transcript.\n"
+        f"- Score each answer between 0 and {max_score} (whole or half numbers).\n"
+        "- Justifications must be 1-2 sentences and reference what the student actually said (or didn't say).\n"
+        "- Return ONLY a valid JSON object matching the schema below. No markdown, no prose.\n"
+        "\n"
+        "JSON schema:\n"
+        "{\n"
+        '  "items": [\n'
+        "    {\n"
+        '      "sequence_num": <integer matching a planned seq= value>,\n'
+        '      "question_text": "<the planned question text, verbatim>",\n'
+        '      "response_text": "<paraphrased student answer, or null if none>",\n'
+        f'      "score": <number between 0 and {max_score}>,\n'
+        '      "score_justification": "<1-2 sentence reason>"\n'
+        "    }\n"
+        "  ]\n"
+        "}\n"
+        "\n"
+        "Transcript:\n"
+        "---\n"
+        + transcript
+        + "\n---\n"
+    )
 
 
 def _extract_json(text: str) -> dict | None:
@@ -313,9 +331,13 @@ async def grade_viva_transcript(
                     "score_justification": "Grader could not locate an answer for this question in the transcript.",
                 })
             else:
-                # Always force the planned question text + sequence_num through.
+                # Always force the planned question text + sequence_num + max_score through.
+                # The model doesn't return max_score in its JSON, so _coerce_item
+                # defaults it to MAX_SCORE_PER_QUESTION. Override with the planned
+                # value so per-question maxes match the competency definition.
                 entry["question_text"] = q.get("question_text") or entry["question_text"]
                 entry["sequence_num"] = seq
+                entry["max_score"] = float(q.get("max_score") or MAX_SCORE_PER_QUESTION)
                 cleaned.append(entry)
     else:
         # Free-form mode: enumerate items in order.
