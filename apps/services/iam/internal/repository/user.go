@@ -18,6 +18,7 @@ type UserRepository interface {
 	GetUsers(ctx context.Context, offset, limit int, userType string, search string) ([]*domain.User, error)
 	CountUsers(ctx context.Context, userType string, search string) (int64, error)
 	GetUsersByIDs(ctx context.Context, ids []uuid.UUID) ([]*domain.User, error)
+	GetProfilesByUserIDs(ctx context.Context, userIDs []uuid.UUID) (map[uuid.UUID]*domain.ProfileData, error)
 	CreateStudentProfile(ctx context.Context, profile *domain.UserProfileStudent) error
 	CreateInstructorProfile(ctx context.Context, profile *domain.UserProfileInstructor) error
 }
@@ -45,12 +46,9 @@ func (r *userRepository) CreateInstructorProfile(ctx context.Context, profile *d
 func (r *userRepository) GetUserByID(ctx context.Context, userID uuid.UUID) (*domain.User, error) {
 	var user domain.User
 
-	query := r.db.WithContext(ctx)
-
-	// Dynamic profile preloading would be nice, but for now let's just use it in GetUsers
-	// or we can add it here if needed.
-
-	if err := query.First(&user, userID).Error; err != nil {
+	if err := r.db.WithContext(ctx).
+		Where("id = ? AND deleted_at IS NULL", userID).
+		First(&user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
@@ -166,4 +164,42 @@ func (r *userRepository) GetUsersByIDs(ctx context.Context, ids []uuid.UUID) ([]
 		return nil, err
 	}
 	return users, nil
+}
+
+func (r *userRepository) GetProfilesByUserIDs(ctx context.Context, userIDs []uuid.UUID) (map[uuid.UUID]*domain.ProfileData, error) {
+	profiles := make(map[uuid.UUID]*domain.ProfileData, len(userIDs))
+	if len(userIDs) == 0 {
+		return profiles, nil
+	}
+
+	var studentProfiles []domain.UserProfileStudent
+	if err := r.db.WithContext(ctx).
+		Where("user_id IN ?", userIDs).
+		Find(&studentProfiles).Error; err != nil {
+		return nil, err
+	}
+
+	for i := range studentProfiles {
+		profiles[studentProfiles[i].UserID] = &domain.ProfileData{
+			StudentID: studentProfiles[i].StudentID,
+		}
+	}
+
+	var instructorProfiles []domain.UserProfileInstructor
+	if err := r.db.WithContext(ctx).
+		Where("user_id IN ?", userIDs).
+		Find(&instructorProfiles).Error; err != nil {
+		return nil, err
+	}
+
+	for i := range instructorProfiles {
+		profile, ok := profiles[instructorProfiles[i].UserID]
+		if !ok {
+			profile = &domain.ProfileData{}
+			profiles[instructorProfiles[i].UserID] = profile
+		}
+		profile.Designation = instructorProfiles[i].Designation
+	}
+
+	return profiles, nil
 }

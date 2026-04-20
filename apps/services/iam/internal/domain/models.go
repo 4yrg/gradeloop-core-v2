@@ -53,6 +53,11 @@ type UserProfileInstructor struct {
 	User        User      `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE" json:"user,omitempty"`
 }
 
+type ProfileData struct {
+	StudentID   string
+	Designation string
+}
+
 type RefreshToken struct {
 	ID        uuid.UUID  `gorm:"type:uuid;primarykey" json:"id"`
 	UserID    uuid.UUID  `gorm:"type:uuid;not null;index" json:"user_id"`

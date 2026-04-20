@@ -1,7 +1,7 @@
 _format_version: '3.0'
 services:
 - name: academic-service
-  url: http://academic-service:8083
+  url: http://academic:8083
   routes:
   - name: academic-departments
     paths:
@@ -102,8 +102,7 @@ services:
       - X-Requested-With
       credentials: true
       max_age: 3600
-  - name: jwt-validation
-    run_on_first_request: false
+
   - name: rate-limiting
     config:
       minute: 500
@@ -111,7 +110,7 @@ services:
       fault_tolerant: true
       hide_client_headers: false
 - name: acafs-service
-  url: http://acafs-service:8102
+  url: http://acafs:8102
   routes:
   - name: acafs-api
     paths:
@@ -146,8 +145,6 @@ services:
       - X-Request-ID
       credentials: true
       max_age: 3600
-  - name: jwt-validation
-    run_on_first_request: false
   - name: rate-limiting
     config:
       minute: 500
@@ -155,7 +152,7 @@ services:
       fault_tolerant: true
       hide_client_headers: false
 - name: assessment-service
-  url: http://assessment-service:8084
+  url: http://assessment:8084
   routes:
   - name: assessment-assignments
     paths:
@@ -221,8 +218,6 @@ services:
       - X-Requested-With
       credentials: true
       max_age: 3600
-  - name: jwt-validation
-    run_on_first_request: false
   - name: rate-limiting
     config:
       minute: 500
@@ -230,7 +225,7 @@ services:
       fault_tolerant: true
       hide_client_headers: false
 - name: cipas-ai-service
-  url: http://cipas-ai-service:8104
+  url: http://cipas-ai:8104
   routes:
   - name: cipas-ai-api
     paths:
@@ -265,8 +260,6 @@ services:
       - X-Request-ID
       credentials: true
       max_age: 3600
-  - name: jwt-validation
-    run_on_first_request: false
   - name: rate-limiting
     config:
       minute: 500
@@ -274,7 +267,7 @@ services:
       fault_tolerant: true
       hide_client_headers: false
 - name: cipas-semantics-service
-  url: http://cipas-semantics-service:8105
+  url: http://cipas-semantics:8105
   routes:
   - name: cipas-semantics-api
     paths:
@@ -309,8 +302,6 @@ services:
       - X-Request-ID
       credentials: true
       max_age: 3600
-  - name: jwt-validation
-    run_on_first_request: false
   - name: rate-limiting
     config:
       minute: 500
@@ -318,7 +309,7 @@ services:
       fault_tolerant: true
       hide_client_headers: false
 - name: cipas-syntactics-service
-  url: http://cipas-syntactics-service:8106
+  url: http://cipas-syntactics:8106
   routes:
   - name: cipas-syntactics-api
     paths:
@@ -353,8 +344,6 @@ services:
       - X-Request-ID
       credentials: true
       max_age: 3600
-  - name: jwt-validation
-    run_on_first_request: false
   - name: rate-limiting
     config:
       minute: 500
@@ -362,7 +351,7 @@ services:
       fault_tolerant: true
       hide_client_headers: false
 - name: cipas-xai-service
-  url: http://cipas-xai-service:8085
+  url: http://cipas-xai:8085
   routes:
   - name: cipas-xai-api
     paths:
@@ -397,8 +386,6 @@ services:
       - X-Request-ID
       credentials: true
       max_age: 3600
-  - name: jwt-validation
-    run_on_first_request: false
   - name: rate-limiting
     config:
       minute: 500
@@ -406,7 +393,7 @@ services:
       fault_tolerant: true
       hide_client_headers: false
 - name: email-service
-  url: http://email-service:8082
+  url: http://email:8082
   routes:
   - name: email-routes
     paths:
@@ -448,8 +435,6 @@ services:
       - X-Requested-With
       credentials: true
       max_age: 3600
-  - name: jwt-validation
-    run_on_first_request: false
   - name: rate-limiting
     config:
       minute: 1000
@@ -457,7 +442,7 @@ services:
       fault_tolerant: true
       hide_client_headers: false
 - name: iam-service
-  url: http://kong-service:8081
+  url: http://iam:8081
   routes:
   - name: iam-auth
     paths:
@@ -509,8 +494,6 @@ services:
       - X-HTTP-Method-Override
       credentials: true
       max_age: 3600
-  - name: jwt-validation
-    run_on_first_request: false
   - name: rate-limiting
     config:
       minute: 1000
@@ -518,7 +501,7 @@ services:
       fault_tolerant: true
       hide_client_headers: false
 - name: iam-login
-  url: http://iam-service:8081
+  url: http://iam:8081
   routes:
   - name: iam-login-route
     paths:
@@ -550,7 +533,7 @@ services:
       fault_tolerant: true
       hide_client_headers: false
 - name: ivas-service
-  url: http://ivas-service:8101
+  url: http://ivas:8101
   routes:
   - name: ivas-api
     paths:
@@ -591,8 +574,6 @@ services:
       - X-Request-ID
       credentials: true
       max_age: 3600
-  - name: jwt-validation
-    run_on_first_request: false
   - name: rate-limiting
     config:
       minute: 100
@@ -600,7 +581,7 @@ services:
       fault_tolerant: true
       hide_client_headers: false
 - name: keystroke-service
-  url: http://keystroke-service:8103
+  url: http://keystroke:8103
   routes:
   - name: keystroke-api
     paths:

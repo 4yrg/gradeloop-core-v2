@@ -205,38 +205,12 @@ func (s *userService) GetUsers(ctx context.Context, page, limit int, userType st
 		return nil, fmt.Errorf("counting users: %w", err)
 	}
 
-	var userResponses []dto.UserResponse
-	for _, user := range users {
-		studentID := ""
-		designation := ""
-
-		// Check for profiles based on user type
-		if user.UserType == "student" {
-			var student domain.UserProfileStudent
-			if err := s.db.WithContext(ctx).Where("user_id = ?", user.ID).First(&student).Error; err == nil {
-				studentID = student.StudentID
-			}
-		} else if user.UserType == "instructor" {
-			var instructor domain.UserProfileInstructor
-			if err := s.db.WithContext(ctx).Where("user_id = ?", user.ID).First(&instructor).Error; err == nil {
-				designation = instructor.Designation
-			}
-		}
-
-		userResponses = append(userResponses, dto.UserResponse{
-			ID:          user.ID,
-			Email:       user.Email,
-			FullName:    user.FullName,
-			AvatarURL:   user.AvatarURL,
-			UserType:    user.UserType,
-			Faculty:     user.Faculty,
-			Department:  user.Department,
-			StudentID:   studentID,
-			Designation: designation,
-			IsActive:    user.IsActive,
-			CreatedAt:   user.CreatedAt.Format(time.RFC3339),
-		})
+	userIDs := collectUserIDs(users)
+	profilesByUserID, err := s.userRepo.GetProfilesByUserIDs(ctx, userIDs)
+	if err != nil {
+		return nil, fmt.Errorf("fetching profiles by user IDs: %w", err)
 	}
+	userResponses := buildUserResponses(users, profilesByUserID)
 
 	return &dto.GetUsersResponse{
 		Users:      userResponses,
@@ -337,35 +311,13 @@ func (s *userService) GetProfile(ctx context.Context, id string) (*dto.UserRespo
 		return nil, ErrUserNotFound
 	}
 
-	studentID := ""
-	designation := ""
-
-	// Check for profiles based on user type
-	if user.UserType == "student" {
-		var student domain.UserProfileStudent
-		if err := s.db.WithContext(ctx).Where("user_id = ?", user.ID).First(&student).Error; err == nil {
-			studentID = student.StudentID
-		}
-	} else if user.UserType == "instructor" {
-		var instructor domain.UserProfileInstructor
-		if err := s.db.WithContext(ctx).Where("user_id = ?", user.ID).First(&instructor).Error; err == nil {
-			designation = instructor.Designation
-		}
+	profilesByUserID, err := s.userRepo.GetProfilesByUserIDs(ctx, []uuid.UUID{user.ID})
+	if err != nil {
+		return nil, fmt.Errorf("fetching profiles by user IDs: %w", err)
 	}
 
-	return &dto.UserResponse{
-		ID:          user.ID,
-		Email:       user.Email,
-		FullName:    user.FullName,
-		AvatarURL:   user.AvatarURL,
-		UserType:    user.UserType,
-		Faculty:     user.Faculty,
-		Department:  user.Department,
-		StudentID:   studentID,
-		Designation: designation,
-		IsActive:    user.IsActive,
-		CreatedAt:   user.CreatedAt.Format(time.RFC3339),
-	}, nil
+	response := buildUserResponse(user, profilesByUserID[user.ID])
+	return &response, nil
 }
 
 func (s *userService) GetUserByID(ctx context.Context, userID string) (*dto.UserResponse, error) {
@@ -382,39 +334,17 @@ func (s *userService) GetUserByID(ctx context.Context, userID string) (*dto.User
 		return nil, ErrUserNotFound
 	}
 
-	studentID := ""
-	designation := ""
-
-	// Check for profiles based on user type
-	if user.UserType == "student" {
-		var student domain.UserProfileStudent
-		if err := s.db.WithContext(ctx).Where("user_id = ?", user.ID).First(&student).Error; err == nil {
-			studentID = student.StudentID
-		}
-	} else if user.UserType == "instructor" {
-		var instructor domain.UserProfileInstructor
-		if err := s.db.WithContext(ctx).Where("user_id = ?", user.ID).First(&instructor).Error; err == nil {
-			designation = instructor.Designation
-		}
+	profilesByUserID, err := s.userRepo.GetProfilesByUserIDs(ctx, []uuid.UUID{user.ID})
+	if err != nil {
+		return nil, fmt.Errorf("fetching profiles by user IDs: %w", err)
 	}
 
-	return &dto.UserResponse{
-		ID:          user.ID,
-		Email:       user.Email,
-		FullName:    user.FullName,
-		AvatarURL:   user.AvatarURL,
-		UserType:    user.UserType,
-		Faculty:     user.Faculty,
-		Department:  user.Department,
-		StudentID:   studentID,
-		Designation: designation,
-		IsActive:    user.IsActive,
-		CreatedAt:   user.CreatedAt.Format(time.RFC3339),
-	}, nil
+	response := buildUserResponse(user, profilesByUserID[user.ID])
+	return &response, nil
 }
 
 func (s *userService) GetUsersByIDs(ctx context.Context, ids []string) (*dto.GetUsersResponse, error) {
-	var uuids []uuid.UUID
+	uuids := make([]uuid.UUID, 0, len(ids))
 	for _, id := range ids {
 		u, err := uuid.Parse(id)
 		if err == nil {
@@ -431,38 +361,12 @@ func (s *userService) GetUsersByIDs(ctx context.Context, ids []string) (*dto.Get
 		return nil, fmt.Errorf("fetching users by ids: %w", err)
 	}
 
-	var userResponses []dto.UserResponse
-	for _, user := range users {
-		studentID := ""
-		designation := ""
-
-		// Check for profiles based on user type
-		if user.UserType == "student" {
-			var student domain.UserProfileStudent
-			if err := s.db.WithContext(ctx).Where("user_id = ?", user.ID).First(&student).Error; err == nil {
-				studentID = student.StudentID
-			}
-		} else if user.UserType == "instructor" {
-			var instructor domain.UserProfileInstructor
-			if err := s.db.WithContext(ctx).Where("user_id = ?", user.ID).First(&instructor).Error; err == nil {
-				designation = instructor.Designation
-			}
-		}
-
-		userResponses = append(userResponses, dto.UserResponse{
-			ID:          user.ID,
-			Email:       user.Email,
-			FullName:    user.FullName,
-			AvatarURL:   user.AvatarURL,
-			UserType:    user.UserType,
-			Faculty:     user.Faculty,
-			Department:  user.Department,
-			StudentID:   studentID,
-			Designation: designation,
-			IsActive:    user.IsActive,
-			CreatedAt:   user.CreatedAt.Format(time.RFC3339),
-		})
+	userIDs := collectUserIDs(users)
+	profilesByUserID, err := s.userRepo.GetProfilesByUserIDs(ctx, userIDs)
+	if err != nil {
+		return nil, fmt.Errorf("fetching profiles by user IDs: %w", err)
 	}
+	userResponses := buildUserResponses(users, profilesByUserID)
 
 	return &dto.GetUsersResponse{
 		Users:      userResponses,
@@ -470,6 +374,43 @@ func (s *userService) GetUsersByIDs(ctx context.Context, ids []string) (*dto.Get
 		Page:       1,
 		Limit:      len(userResponses),
 	}, nil
+}
+
+func collectUserIDs(users []*domain.User) []uuid.UUID {
+	userIDs := make([]uuid.UUID, 0, len(users))
+	for i := range users {
+		userIDs = append(userIDs, users[i].ID)
+	}
+	return userIDs
+}
+
+func buildUserResponses(users []*domain.User, profilesByUserID map[uuid.UUID]*domain.ProfileData) []dto.UserResponse {
+	responses := make([]dto.UserResponse, 0, len(users))
+	for i := range users {
+		responses = append(responses, buildUserResponse(users[i], profilesByUserID[users[i].ID]))
+	}
+	return responses
+}
+
+func buildUserResponse(user *domain.User, profile *domain.ProfileData) dto.UserResponse {
+	response := dto.UserResponse{
+		ID:         user.ID,
+		Email:      user.Email,
+		FullName:   user.FullName,
+		AvatarURL:  user.AvatarURL,
+		UserType:   user.UserType,
+		Faculty:    user.Faculty,
+		Department: user.Department,
+		IsActive:   user.IsActive,
+		CreatedAt:  user.CreatedAt.Format(time.RFC3339),
+	}
+
+	if profile != nil {
+		response.StudentID = profile.StudentID
+		response.Designation = profile.Designation
+	}
+
+	return response
 }
 
 func (s *userService) UpdateAvatar(ctx context.Context, id string, avatarURL string) (*dto.UpdateAvatarResponse, error) {

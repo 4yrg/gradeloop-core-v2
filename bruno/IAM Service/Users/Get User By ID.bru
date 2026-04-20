@@ -1,0 +1,28 @@
+meta {
+  name: Get User By ID
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{USERS_URL_V1}}/:id
+  body: none
+  auth: bearer
+}
+
+params:path {
+  id: {{CURRENT_USER_ID}}
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+docs {
+  # Get User By ID
+  
+  Returns the details of a specific user by their ID.
+  
+  ## Prerequisites
+  - Valid access token
+}
