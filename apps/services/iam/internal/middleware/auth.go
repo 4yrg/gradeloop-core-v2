@@ -3,9 +3,9 @@ package middleware
 import (
 	"strings"
 
-	"github.com/gofiber/fiber/v3"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/domain"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/jwt"
+	"github.com/gofiber/fiber/v3"
 )
 
 // AuthMiddleware creates a middleware that validates JWT access tokens
