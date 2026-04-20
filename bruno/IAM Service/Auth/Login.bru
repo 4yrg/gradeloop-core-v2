@@ -32,9 +32,6 @@ script:post-response {
         console.log("Could not decode token:", e.message);
       }
     }
-    if (res.body.refresh_token) {
-      bru.setEnvVar("REFRESH_TOKEN", res.body.refresh_token);
-      console.log("✅ Refresh token saved to environment");
     }
   }
 }

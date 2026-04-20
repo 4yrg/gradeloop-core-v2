@@ -10,11 +10,12 @@ import (
 )
 
 type AuthHandler struct {
-	authService     service.AuthService
-	userService     service.UserService
-	passwordService service.PasswordService
-	cookieSecure    bool
-	cookieSameSite  string
+	authService        service.AuthService
+	userService        service.UserService
+	passwordService    service.PasswordService
+	cookieSecure       bool
+	cookieSameSite     string
+	refreshTokenExpiry time.Duration
 }
 
 func NewAuthHandler(
@@ -23,13 +24,15 @@ func NewAuthHandler(
 	passwordService service.PasswordService,
 	cookieSecure bool,
 	cookieSameSite string,
+	refreshTokenExpiryDays int64,
 ) *AuthHandler {
 	return &AuthHandler{
-		authService:     authService,
-		userService:     userService,
-		passwordService: passwordService,
-		cookieSecure:    cookieSecure,
-		cookieSameSite:  cookieSameSite,
+		authService:        authService,
+		userService:        userService,
+		passwordService:    passwordService,
+		cookieSecure:       cookieSecure,
+		cookieSameSite:     cookieSameSite,
+		refreshTokenExpiry: time.Duration(refreshTokenExpiryDays) * 24 * time.Hour,
 	}
 }
 
@@ -70,14 +73,14 @@ func (h *AuthHandler) Login(c fiber.Ctx) error {
 	cookie.Name = "refresh_token"
 	cookie.Value = response.RefreshToken
 	cookie.Path = "/"
-	cookie.Expires = time.Now().Add(7 * 24 * time.Hour) // 7 days (should match service config)
+	cookie.Expires = time.Now().Add(h.refreshTokenExpiry)
 	cookie.HTTPOnly = true
 	cookie.Secure = h.cookieSecure
 	cookie.SameSite = h.cookieSameSite
 
 	c.Cookie(cookie)
 
-	// Remove refresh token from response body
+	// Clear refresh token from body (omitempty will hide it in JSON)
 	response.RefreshToken = ""
 
 	return c.JSON(response)
@@ -100,14 +103,14 @@ func (h *AuthHandler) RefreshToken(c fiber.Ctx) error {
 	cookie.Name = "refresh_token"
 	cookie.Value = response.RefreshToken
 	cookie.Path = "/"
-	cookie.Expires = time.Now().Add(7 * 24 * time.Hour)
+	cookie.Expires = time.Now().Add(h.refreshTokenExpiry)
 	cookie.HTTPOnly = true
 	cookie.Secure = h.cookieSecure
 	cookie.SameSite = h.cookieSameSite
 
 	c.Cookie(cookie)
 
-	// Remove refresh token from response body
+	// Clear refresh token from body (omitempty will hide it in JSON)
 	response.RefreshToken = ""
 
 	return c.JSON(response)
