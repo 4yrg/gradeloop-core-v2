@@ -554,5 +554,6 @@ volumes:
   postgres-keystroke-data:
   rabbitmq-data:
   redis-data:
+  seaweed-data:
   minio-data:
   kong-database-data:
