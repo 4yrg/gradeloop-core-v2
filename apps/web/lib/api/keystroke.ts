@@ -208,6 +208,8 @@ export interface RiskTimelineEntry {
     is_struggling: boolean;
 }
 
+export type RiskTimelinePoint = RiskTimelineEntry;
+
 export interface FrictionPoint {
     offset_seconds: number;
     duration: number;
