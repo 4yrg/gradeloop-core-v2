@@ -1,5 +1,5 @@
 meta {
-  name: Login
+  name: Admin Login
   type: http
   seq: 1
 }
@@ -12,13 +12,13 @@ post {
 
 body:json {
   {
-    "email": "user@example.com",
-    "password": "Password123!"
+    "email": "{{admin_email}}",
+    "password": "{{admin_password}}"
   }
 }
 
 script:post-response {
   if (res.status === 200 && res.body.access_token) {
-    bru.setEnvVar("ACCESS_TOKEN", res.body.access_token);
+    bru.setEnvVar("ADMIN_TOKEN", res.body.access_token);
   }
 }

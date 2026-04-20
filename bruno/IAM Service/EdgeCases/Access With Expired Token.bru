@@ -1,0 +1,15 @@
+meta {
+  name: Access With Expired Token
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{AUTH_URL_V1}}/profile
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MTEyMjQwMDB9.invalid_signature
+}

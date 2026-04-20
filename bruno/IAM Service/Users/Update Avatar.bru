@@ -1,0 +1,19 @@
+meta {
+  name: Update Avatar
+  type: http
+  seq: 2
+}
+
+patch {
+  url: {{AUTH_URL_V1}}/profile/avatar
+  body: multipartForm
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+body:multipart-form {
+  avatar: @file(path/to/avatar.png)
+}

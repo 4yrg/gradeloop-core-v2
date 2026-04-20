@@ -1,0 +1,15 @@
+meta {
+  name: Student Accessing Admin Endpoint
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{USERS_URL_V1}}/
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{STUDENT_TOKEN}}
+}

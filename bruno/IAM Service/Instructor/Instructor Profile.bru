@@ -1,0 +1,15 @@
+meta {
+  name: Instructor Profile
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{AUTH_URL_V1}}/profile
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{INSTRUCTOR_TOKEN}}
+}

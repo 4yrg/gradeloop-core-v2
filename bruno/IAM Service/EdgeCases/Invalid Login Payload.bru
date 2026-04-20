@@ -1,0 +1,17 @@
+meta {
+  name: Invalid Login Payload
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{AUTH_URL_V1}}/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "missing_password@example.com"
+  }
+}
