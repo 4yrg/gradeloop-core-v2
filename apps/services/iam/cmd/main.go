@@ -133,6 +133,7 @@ func run() error {
 		passwordService,
 		cfg.JWT.CookieSecure,
 		cfg.JWT.CookieSameSite,
+		cfg.JWT.RefreshTokenExpiry,
 	)
 	userHandler := handler.NewUserHandler(userService, minioStorage)
 	bulkImportHandler := handler.NewBulkImportHandler(bulkImportService)
