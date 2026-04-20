@@ -1,82 +1,81 @@
 # =============================================================================
-# Web Frontend - Optimized Dockerfile (Next.js & Bun)
-# Target: Small image size, fast build
+# Next.js + Bun Production Dockerfile
+# Optimized for monorepos
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# Stage 1: Base image
+# Stage 1 — Dependencies
 # -----------------------------------------------------------------------------
-FROM oven/bun:1 AS base
+FROM oven/bun:1 AS deps
+
 WORKDIR /app
 
-# -----------------------------------------------------------------------------
-# Stage 2: Install dependencies
-# -----------------------------------------------------------------------------
-FROM base AS deps
+# Copy root workspace files
 COPY package.json bun.lock* ./
-# We also copy any package.json inside apps or packages if using a monorepo
-COPY apps/web/package.json ./apps/web/
-# Install dependencies for the web app (install inside apps/web so `next` is available)
+
+# Copy workspace package files
+COPY apps/web/package.json ./apps/web/package.json
+
+# Install dependencies (this will install for workspace too)
+RUN bun install --frozen-lockfile
+
+# Also install in the web directory to ensure binaries are available
 WORKDIR /app/apps/web
 RUN bun install --frozen-lockfile
-WORKDIR /app
+
 
 # -----------------------------------------------------------------------------
-# Stage 3: Builder
+# Stage 2 — Builder
 # -----------------------------------------------------------------------------
-FROM base AS builder
+FROM oven/bun:1 AS builder
+
 WORKDIR /app
+
+# Copy installed dependencies from both locations
+COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
+
+# Copy project files
 COPY . .
 
-# Set environment variables for production build
-ENV NEXT_TELEMETRY_DISABLED=1
+# Accept build arguments for public env vars
+ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+ARG NEXT_PUBLIC_IAM_SERVICE_URL=http://localhost:8000/api/v1
+
 ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_IAM_SERVICE_URL=$NEXT_PUBLIC_IAM_SERVICE_URL
 
 WORKDIR /app/apps/web
-# Ensure devDependencies (including `next`) are present for the build
-# Try installing dev deps in the builder stage; ignore failure if bun flags differ
-RUN bun install --frozen-lockfile --dev || true
 
-# Build the Next.js application using the local binary when available
-RUN if [ -x ./node_modules/.bin/next ]; then \
-            ./node_modules/.bin/next build; \
-        else \
-            bun run build; \
-        fi
+# Build Next.js app
+RUN bun run build
+
 
 # -----------------------------------------------------------------------------
-# Stage 4: Production Runtime
+# Stage 3 — Production Runtime
 # -----------------------------------------------------------------------------
 FROM oven/bun:1-alpine AS runner
+
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=80
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 
-# Create a non-root user
-RUN addgroup --system --gid 1001 bunjs && \
-    adduser --system --uid 1001 nextjs
+# Create non-root user (Alpine compatible)
+RUN addgroup -S bunjs && adduser -S nextjs -G bunjs
 
-# Set the correct permission for prerender cache
-RUN mkdir .next && chown nextjs:bunjs .next
-
-# Copy built assets
-COPY --from=builder /app/apps/web/public ./apps/web/public
-COPY --from=builder --chown=nextjs:bunjs /app/apps/web/.next ./apps/web/.next
-
-# Copy runtime package files and node_modules so `bun run start` works
-COPY --from=builder /app/apps/web/package.json ./apps/web/package.json
-COPY --from=builder /app/apps/web/node_modules ./apps/web/node_modules
+# Copy standalone build output
+COPY --from=builder --chown=nextjs:bunjs /app/apps/web/.next/standalone ./
+COPY --from=builder --chown=nextjs:bunjs /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder --chown=nextjs:bunjs /app/apps/web/public ./apps/web/public
 
 USER nextjs
 
-EXPOSE 80
+EXPOSE 3000
 
-ENV HOSTNAME="0.0.0.0"
-
-# Start the Next.js server using the package `start` script
-# This avoids relying on a standalone `server.js` file being present.
-WORKDIR /app/apps/web
-CMD ["bun", "run", "start"]
+# Start Next.js server using standalone build
+CMD ["node", "apps/web/server.js"]

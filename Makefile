@@ -22,24 +22,27 @@ OUT_DIR ?= bin
 # Discover service directories under apps/services (takes the immediate children)
 SERVICES := $(notdir $(wildcard apps/services/*))
 
-.PHONY: all help build-all build clean $(SERVICES)
+.PHONY: all help build-all build clean dev-logs dev-down dev prod-up prod-down prod-logs prod-restart $(SERVICES)
 
 all: build-all
 
 help:
 	@echo "Makefile targets:"
-	@echo "  make            -> build-all (builds every service under apps/services)"
-	@echo "  make build-all  -> build all services"
-	@echo "  make build SERVICE=<name> -> build single service (directory name in apps/services)"
-	@echo "  make clean      -> remove built binaries in each service's $(OUT_DIR)/"
+	@echo "  make            -> dev (runs all services in Docker)"
+	@echo "  make dev        -> start all services in Docker (development)"
+	@echo "  make dev-logs   -> view logs for all services"
+	@echo "  make dev-down   -> stop all development services"
+	@echo "  make prod-up    -> start production environment in Docker"
+	@echo "  make prod-down  -> stop production environment"
 	@echo ""
-	@echo "Build behavior:"
-	@echo " - If the host has the 'go' command available it will be used."
-	@echo " - Otherwise a Dockerized Go environment ($(GO_IMAGE)) will be used as a fallback."
+	@echo "Build commands:"
+	@echo "  make build SERVICE=<name> -> build a single service"
+	@echo "  make build-all            -> build all services"
+	@echo "  make clean                -> remove built binaries"
 	@echo ""
 	@echo "Examples:"
+	@echo "  make dev                  # Start all services in Docker"
 	@echo "  make build SERVICE=academic-service"
-	@echo "  make build-all"
 
 # Default entry to build every discovered service
 # Builds every discovered service (regardless of language)
@@ -148,3 +151,86 @@ print-go-guidance:
 	@echo "  Debian/Ubuntu: sudo apt install golang-go"
 	@echo "  or download from https://go.dev/dl"
 	@echo "Alternatively this Makefile will automatically fallback to Docker if 'go' is not present."
+
+# Container runtime (docker or podman)
+COMPOSE := $(shell if command -v podman >/dev/null 2>&1; then echo "podman compose"; elif command -v docker >/dev/null 2>&1; then echo "docker compose"; else echo "docker compose"; fi)
+COMPOSE_DIR := $(ROOT)/infra/compose
+
+# =============================================================================
+# Development Targets (Local Service Execution)
+# =============================================================================
+
+GO_SERVICES := iam email academic assessment cipas-xai
+PY_SERVICES := ivas acafs keystroke cipas-ai cipas-semantics cipas-syntactics
+
+dev-logs:
+	$(COMPOSE) -f $(COMPOSE_DIR)/compose.dev.yaml logs -f
+
+dev-down:
+	@echo "Stopping development environment..."
+	$(COMPOSE) -f $(COMPOSE_DIR)/compose.dev.yaml down
+	@echo "Development environment stopped."
+
+dev:
+	@echo "Starting development environment (all in Docker)..."
+	$(COMPOSE) -f $(COMPOSE_DIR)/compose.dev.yaml up -d
+	@echo ""
+	@echo "Development environment started!"
+	@echo ""
+	@echo "Services:"
+	@echo "  - Gateway:    http://localhost:8000"
+	@echo "  - RabbitMQ:   http://localhost:15672"
+	@echo "  - SeaweedFS:  http://localhost:9320"
+	@echo ""
+	@echo "Go Services (80xx):"
+	@echo "  - IAM:        http://localhost:8081"
+	@echo "  - Email:      http://localhost:8082"
+	@echo "  - Academic:   http://localhost:8083"
+	@echo "  - Assessment: http://localhost:8084"
+	@echo "  - CIPAS-XAI:  http://localhost:8085"
+	@echo ""
+	@echo "Python Services (81xx):"
+	@echo "  - IVAS:            http://localhost:8101"
+	@echo "  - ACAFS:           http://localhost:8102"
+	@echo "  - Keystroke:       http://localhost:8103"
+	@echo "  - CIPAS-AI:        http://localhost:8104"
+	@echo "  - CIPAS-Semantics: http://localhost:8105"
+	@echo "  - CIPAS-Syntactics: http://localhost:8106"
+	@echo ""
+	@echo "View logs: make dev-logs"
+	@echo "Stop services: make dev-down"
+
+# =============================================================================
+# Production Targets (Docker-based)
+# =============================================================================
+
+# Start everything in Docker (production mode)
+prod-up:
+	@echo "Starting production environment..."
+	$(COMPOSE) -f $(COMPOSE_DIR)/compose.prod.yaml up -d
+	@echo ""
+	@echo "Production environment started!"
+	@echo "  Kong Gateway: http://localhost:8000"
+	@echo "  RabbitMQ:   http://localhost:15672"
+	@echo "  MinIO:     http://localhost:9001"
+
+# Stop production
+prod-down:
+	@echo "Stopping production environment..."
+	$(COMPOSE) -f $(COMPOSE_DIR)/compose.prod.yaml down
+	@echo "Production environment stopped."
+
+# View production logs
+prod-logs:
+	$(COMPOSE) -f $(COMPOSE_DIR)/compose.prod.yaml logs -f
+
+# Restart a specific service
+prod-restart:
+	@if [ -z "$(SERVICE)" ]; then \
+		echo "ERROR: SERVICE variable not set. Example: make prod-restart SERVICE=iam"; \
+		exit 1; \
+	fi
+	@echo "Restarting service $(SERVICE)..."
+	$(COMPOSE) -f $(COMPOSE_DIR)/compose.prod.yaml restart $(SERVICE)
+
+

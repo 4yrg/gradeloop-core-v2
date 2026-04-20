@@ -1,0 +1,167 @@
+{
+  "enrollment_phases": {
+    "baseline": {
+      "name": "Baseline Authentication",
+      "description": "Standard username/password typing to establish calm-state baseline",
+      "duration_minutes": 2,
+      "tasks": [
+        {
+          "type": "password_typing",
+          "prompt": "Type your username and password 15 times at your normal pace",
+          "repetitions": 15,
+          "instructions": [
+            "Sit in a relaxed position",
+            "Type at your normal, comfortable speed",
+            "No time pressure - take your time",
+            "This establishes your baseline typing pattern"
+          ],
+          "credentials": {
+            "username": "{user_username}",
+            "password_placeholder": "Type your actual password each time"
+          }
+        }
+      ]
+    },
+    
+    "transcription": {
+      "name": "Code Transcription",
+      "description": "Type pre-written Java code to capture pure motor rhythm without cognitive load",
+      "duration_minutes": 5,
+      "tasks": [
+        {
+          "type": "code_transcription",
+          "prompt": "Transcribe the following Java code exactly as shown",
+          "instructions": [
+            "Copy the code character-by-character including all brackets, semicolons and capitalisation",
+            "Focus on accuracy, not speed",
+            "This measures your typing mechanics without problem-solving"
+          ],
+          "code_samples": [
+            {
+              "language": "java",
+              "code": "import java.util.ArrayList;\n\npublic class NumberUtils {\n\n    public static boolean isPrime(int n) {\n        if (n < 2) return false;\n        for (int i = 2; i * i <= n; i++) {\n            if (n % i == 0) return false;\n        }\n        return true;\n    }\n\n    public static int sumDigits(int number) {\n        int total = 0;\n        while (number > 0) {\n            total += number % 10;\n            number /= 10;\n        }\n        return total;\n    }\n\n    public static void main(String[] args) {\n        ArrayList<Integer> primes = new ArrayList<>();\n        for (int i = 2; i <= 50; i++) {\n            if (isPrime(i)) primes.add(i);\n        }\n        System.out.println(\"Primes up to 50: \" + primes);\n        System.out.println(\"Sum of 1234 digits: \" + sumDigits(1234));\n    }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    
+    "stress": {
+      "name": "Timed Coding Challenge",
+      "description": "Time-pressured task to capture stress-induced typing pattern changes",
+      "duration_minutes": 3,
+      "tasks": [
+        {
+          "type": "timed_challenge",
+          "prompt": "Complete this coding challenge in 2 minutes",
+          "time_limit_seconds": 120,
+          "show_countdown": true,
+          "instructions": [
+            "⏱️ You have 2 minutes to complete this task",
+            "Work quickly but accurately",
+            "Don't worry if you don't finish - this measures your typing under pressure",
+            "The timer will be visible throughout"
+          ],
+          "challenges": [
+            {
+              "name": "FizzBuzz",
+              "description": "Write a function that prints numbers 1-100, but for multiples of 3 print 'Fizz', for multiples of 5 print 'Buzz', and for multiples of both print 'FizzBuzz'",
+              "language": "python",
+              "starter_code": "def fizzbuzz():\n    # Your code here\n    pass"
+            },
+            {
+              "name": "String Reversal",
+              "description": "Write a function that reverses a string without using built-in reverse methods",
+              "language": "python",
+              "starter_code": "def reverse_string(s):\n    # Your code here\n    return ''"
+            },
+            {
+              "name": "Sum of Multiples",
+              "description": "Write a function that returns the sum of all numbers between 1-1000 that are divisible by 3 or 5",
+              "language": "python",
+              "starter_code": "def sum_multiples():\n    # Your code here\n    return 0"
+            }
+          ]
+        }
+      ]
+    },
+    
+    "cognitive": {
+      "name": "Complex Logic Implementation",
+      "description": "High cognitive load task to capture typing under mental effort",
+      "duration_minutes": 10,
+      "tasks": [
+        {
+          "type": "logic_implementation",
+          "prompt": "Implement the following algorithm with specific constraints",
+          "instructions": [
+            "Read the requirements carefully",
+            "Plan your approach before typing",
+            "This task requires logical reasoning - take your time",
+            "There's no time limit, but work at a reasonable pace"
+          ],
+          "challenges": [
+            {
+              "name": "Recursive Fibonacci with Memoization",
+              "description": "Implement a recursive Fibonacci function with memoization to optimize performance. The function should cache previously computed values.",
+              "language": "python",
+              "requirements": [
+                "Must use recursion (not iteration)",
+                "Must implement memoization using a dictionary",
+                "Should handle inputs from 0 to 100",
+                "Include a helper function if needed"
+              ],
+              "starter_code": "def fibonacci_memo(n, memo=None):\n    # Your implementation here\n    pass\n\n# Test your function\nprint(fibonacci_memo(20))"
+            },
+            {
+              "name": "Binary Search Tree Implementation",
+              "description": "Implement a basic Binary Search Tree class with insert and search methods",
+              "language": "python",
+              "requirements": [
+                "Create a Node class",
+                "Create a BinarySearchTree class",
+                "Implement insert(value) method",
+                "Implement search(value) method that returns True/False"
+              ],
+              "starter_code": "class Node:\n    # Define node structure\n    pass\n\nclass BinarySearchTree:\n    # Implement BST methods\n    pass"
+            },
+            {
+              "name": "Valid Parentheses Checker",
+              "description": "Write a function that validates if a string of brackets/parentheses is balanced",
+              "language": "python",
+              "requirements": [
+                "Handle (), [], and {} brackets",
+                "Return True if balanced, False otherwise",
+                "Use a stack data structure (list)",
+                "Example: '({[]})' is valid, '([)]' is not"
+              ],
+              "starter_code": "def is_valid_parentheses(s):\n    # Your implementation here\n    return False\n\n# Test cases\nprint(is_valid_parentheses('({[]})'))\nprint(is_valid_parentheses('([)]'))"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  
+  "enrollment_instructions": {
+    "overview": "Complete all 4 phases to enable keystroke authentication",
+    "total_duration_minutes": 20,
+    "phases_required": ["baseline", "transcription"],
+    "minimum_sessions": 8,
+    "recommendations": [
+      "Complete phases across multiple days for best results",
+      "Use the same device and keyboard for all phases",
+      "Work in a quiet environment when possible",
+      "Take breaks between phases if needed"
+    ],
+    "privacy_notice": "Only keystroke timing data is collected (not the actual keys typed). Your password is never stored - only the typing rhythm is analyzed."
+  },
+  
+  "feature_weights": {
+    "dwell_time_weight": 1.5,
+    "flight_time_weight": 1.0,
+    "press_latency_weight": 1.0,
+    "release_latency_weight": 0.8,
+    "explanation": "Dwell time (HT) is weighted 1.5x as it's most stress-invariant according to research"
+  }
+}

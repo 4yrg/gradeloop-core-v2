@@ -1,0 +1,51 @@
+# =============================================================================
+# CIPAS-AI Service - Kong Configuration
+# AI Detection Service
+# =============================================================================
+_format_version: "3.0"
+
+services:
+  - name: cipas-ai-service
+    url: http://cipas-ai-service:8104
+    routes:
+      - name: cipas-ai-api
+        paths:
+          - /api/v1/ai
+        strip_path: false
+        preserve_host: false
+      - name: cipas-ai-docs
+        paths:
+          - /docs/cipas-ai
+        strip_path: true
+        preserve_host: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - http://localhost:3000
+            - http://localhost:80
+            - http://localhost:8080
+            - http://localhost:443
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - PATCH
+            - OPTIONS
+          headers:
+            - Origin
+            - Content-Type
+            - Accept
+            - Authorization
+            - X-Request-ID
+          credentials: true
+          max_age: 3600
+      - name: jwt-validation
+        run_on_first_request: false
+      - name: rate-limiting
+        config:
+          minute: 500
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false

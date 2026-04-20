@@ -1,143 +1,54 @@
 "use client";
 
 import * as React from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { format, differenceInMinutes } from "date-fns";
 import {
     Mic2,
     CheckCircle2,
     Clock,
     XCircle,
-    CornerDownRight,
-    AlertTriangle,
-    MessageSquare,
-    User,
+    ArrowLeft,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
 import { ivasApi } from "@/lib/ivas-api";
-import type {
-    SessionDetailsOut,
-    AssessmentTranscriptOut,
-    CompetencySummary,
-    ExchangeOut,
-} from "@/types/ivas";
+import type { VivaSession, IvasAssignment } from "@/types/ivas";
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function scoreBarColor(pct: number) {
-    if (pct >= 70) return "bg-emerald-500";
-    if (pct >= 40) return "bg-amber-500";
-    return "bg-red-500";
-}
-
-function scoreBadgeClass(score: number) {
-    if (score >= 7) return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
-    if (score >= 4) return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
-    return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
-}
-
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-function CompetencyBar({ item }: { item: CompetencySummary }) {
-    const pct = item.max_score > 0 ? (item.score / item.max_score) * 100 : 0;
+function StatusBadge({ status }: { status: string }) {
+    if (status === "completed") {
+        return (
+            <Badge variant="outline" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0">
+                <CheckCircle2 className="h-3 w-3 mr-1" />
+                Completed
+            </Badge>
+        );
+    }
+    if (status === "abandoned") {
+        return (
+            <Badge variant="outline" className="bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 border-0">
+                <XCircle className="h-3 w-3 mr-1" />
+                Abandoned
+            </Badge>
+        );
+    }
     return (
-        <div className="space-y-1">
-            <div className="flex items-center justify-between text-sm">
-                <span className="font-medium">{item.competency}</span>
-                <span className="text-muted-foreground">
-                    {item.score}/{item.max_score} ({Math.round(pct)}%) · {item.questions_asked}Q
-                </span>
-            </div>
-            <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                <div
-                    className={cn("h-full rounded-full transition-all", scoreBarColor(pct))}
-                    style={{ width: `${pct}%` }}
-                />
-            </div>
-        </div>
+        <Badge variant="outline" className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-0">
+            <Clock className="h-3 w-3 mr-1" />
+            {status}
+        </Badge>
     );
 }
 
-function ExchangeItem({ exchange }: { exchange: ExchangeOut }) {
-    return (
-        <div className={cn("space-y-3", exchange.is_follow_up && "pl-6 border-l-2 border-primary/20")}>
-            {exchange.is_follow_up && (
-                <div className="flex items-center gap-1 text-xs text-primary/70">
-                    <CornerDownRight className="h-3 w-3" />
-                    Follow-up question
-                </div>
-            )}
-
-            {/* Question */}
-            <div className="flex gap-3">
-                <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                    <MessageSquare className="h-3.5 w-3.5 text-primary" />
-                </div>
-                <div className="flex-1 rounded-2xl rounded-tl-sm bg-muted/50 px-4 py-3 space-y-1.5">
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <Badge variant="secondary" className="text-xs">{exchange.competency}</Badge>
-                        <span className="text-xs text-muted-foreground">Difficulty {exchange.difficulty}</span>
-                    </div>
-                    <p className="text-sm">{exchange.question_text}</p>
-                </div>
-            </div>
-
-            {/* Answer */}
-            {exchange.student_answer && (
-                <div className="flex gap-3 flex-row-reverse">
-                    <div className="h-7 w-7 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center shrink-0 mt-0.5">
-                        <User className="h-3.5 w-3.5" />
-                    </div>
-                    <div className="flex-1 max-w-[80%] rounded-2xl rounded-tr-sm bg-primary/5 border border-primary/10 px-4 py-3 space-y-1">
-                        <p className="text-sm">{exchange.student_answer}</p>
-                        {exchange.response_time_seconds > 0 && (
-                            <p className="text-xs text-muted-foreground">{exchange.response_time_seconds}s</p>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* Evaluation */}
-            {(exchange.evaluation_score !== null || exchange.feedback_text) && (
-                <div className="ml-10 rounded-xl border border-border/60 bg-card p-3 space-y-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                        {exchange.evaluation_score !== null && (
-                            <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold", scoreBadgeClass(exchange.evaluation_score))}>
-                                {exchange.evaluation_score}/10
-                            </span>
-                        )}
-                        {exchange.score_justification && (
-                            <span className="text-xs text-muted-foreground">{exchange.score_justification}</span>
-                        )}
-                    </div>
-                    {exchange.feedback_text && (
-                        <p className="text-sm text-zinc-700 dark:text-zinc-300">{exchange.feedback_text}</p>
-                    )}
-                    {exchange.detected_misconceptions && exchange.detected_misconceptions.length > 0 && (
-                        <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/40 px-3 py-2">
-                            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                            <p className="text-xs text-amber-700 dark:text-amber-400">
-                                <span className="font-medium">Misconceptions: </span>
-                                {exchange.detected_misconceptions.join(", ")}
-                            </p>
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
-    );
-}
-
-// ── Main Page ──────────────────────────────────────────────────────────────────
-
-export default function VivaResultsPage() {
+export default function ResultsPage() {
     const params = useParams<{ sessionId: string }>();
+    const router = useRouter();
     const sessionId = params.sessionId;
 
-    const [sessionDetails, setSessionDetails] = React.useState<SessionDetailsOut | null>(null);
-    const [transcript, setTranscript] = React.useState<AssessmentTranscriptOut | null>(null);
+    const [session, setSession] = React.useState<VivaSession | null>(null);
+    const [assignment, setAssignment] = React.useState<IvasAssignment | null>(null);
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
 
@@ -145,16 +56,19 @@ export default function VivaResultsPage() {
         let mounted = true;
         async function load() {
             try {
-                setLoading(true);
-                const [sess, trans] = await Promise.all([
-                    ivasApi.getSession(sessionId),
-                    ivasApi.getTranscript(sessionId),
-                ]);
+                const sess = await ivasApi.getSession(sessionId);
                 if (!mounted) return;
-                setSessionDetails(sess);
-                setTranscript(trans);
+                setSession(sess);
+
+                // Load assignment details
+                try {
+                    const detail = await ivasApi.getAssignment(sess.assignment_id);
+                    if (mounted) setAssignment(detail);
+                } catch {
+                    // Assignment may have been deleted
+                }
             } catch (err) {
-                if (mounted) setError(err instanceof Error ? err.message : "Failed to load results.");
+                if (mounted) setError(err instanceof Error ? err.message : "Failed to load results");
             } finally {
                 if (mounted) setLoading(false);
             }
@@ -165,115 +79,132 @@ export default function VivaResultsPage() {
 
     if (loading) {
         return (
-            <div className="flex flex-col gap-8 pb-8">
+            <div className="max-w-4xl mx-auto space-y-6 pb-8">
                 <Skeleton className="h-10 w-64" />
-                <Skeleton className="h-36 rounded-2xl" />
-                <div className="space-y-3">
-                    {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
-                </div>
+                <Skeleton className="h-40 w-full" />
+                <Skeleton className="h-60 w-full" />
             </div>
         );
     }
 
-    if (error) {
+    if (error || !session) {
         return (
-            <div className="rounded-lg border border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-400">
-                {error}
+            <div className="flex items-center justify-center h-[60vh]">
+                <Card className="max-w-md">
+                    <CardHeader>
+                        <CardTitle className="text-red-600">Error</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-sm text-muted-foreground">{error || "Session not found."}</p>
+                        <Button className="mt-4" onClick={() => router.push("/student/assessments/my-sessions")}>
+                            Back to Sessions
+                        </Button>
+                    </CardContent>
+                </Card>
             </div>
         );
     }
 
-    if (!sessionDetails || !transcript) return null;
-
-    const session = sessionDetails.session;
-    const hasScore = session.final_score !== null && session.max_score !== null;
-    const scorePct = hasScore
-        ? Math.round((session.final_score! / session.max_score!) * 100)
+    const duration = session.completed_at
+        ? differenceInMinutes(new Date(session.completed_at), new Date(session.started_at))
         : null;
 
-    const statusIcon =
-        session.status === "completed"
-            ? { Icon: CheckCircle2, label: "Completed", color: "text-emerald-600" }
-            : session.status === "in_progress"
-                ? { Icon: Clock, label: "Active", color: "text-blue-600" }
-                : { Icon: XCircle, label: "Abandoned", color: "text-zinc-500" };
-    const StatusIcon = statusIcon.Icon;
-
-    const durationMinutes =
-        session.started_at && session.completed_at
-            ? differenceInMinutes(new Date(session.completed_at), new Date(session.started_at))
-            : null;
-
     return (
-        <div className="flex flex-col gap-8 pb-8">
+        <div className="max-w-4xl mx-auto space-y-6 pb-8">
+            {/* Back button */}
+            <Button variant="ghost" size="sm" onClick={() => router.push("/student/assessments/my-sessions")} className="gap-1">
+                <ArrowLeft className="h-4 w-4" />
+                Back to Sessions
+            </Button>
+
             {/* Header */}
-            <div className="flex items-center gap-3 border-b border-border/40 pb-6">
+            <div className="flex items-center justify-between border-b border-border/40 pb-6">
                 <div>
-                    <h1 className="text-2xl font-black tracking-tight">Viva Results</h1>
-                    <p className="text-sm text-muted-foreground font-mono">{sessionId.slice(0, 16)}…</p>
+                    <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
+                        <Mic2 className="h-6 w-6" />
+                        Viva Results
+                    </h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                        {assignment?.title ?? session.assignment_id}
+                    </p>
                 </div>
+                <StatusBadge status={session.status} />
             </div>
 
-            {/* Score hero */}
-            <div className="rounded-2xl border border-border/60 bg-card p-6 space-y-4">
-                <div className="flex items-start justify-between gap-4">
-                    <div>
-                        {hasScore ? (
-                            <>
-                                <p className="text-6xl font-black tabular-nums">
-                                    {session.final_score}
-                                    <span className="text-3xl text-muted-foreground">/{session.max_score}</span>
-                                </p>
-                                <p className="text-lg text-muted-foreground mt-1">{scorePct}% overall</p>
-                            </>
-                        ) : (
-                            <p className="text-2xl font-semibold text-muted-foreground">Score not available</p>
-                        )}
-                    </div>
-                    <div className="flex flex-col items-end gap-1 text-sm text-muted-foreground">
-                        <span className={cn("flex items-center gap-1.5 font-medium", statusIcon.color)}>
-                            <StatusIcon className="h-4 w-4" />
-                            {statusIcon.label}
-                        </span>
-                        {session.started_at && (
-                            <span>{format(new Date(session.started_at), "MMM d, yyyy · h:mm a")}</span>
-                        )}
-                        {durationMinutes !== null && (
-                            <span>{durationMinutes} min</span>
-                        )}
-                    </div>
-                </div>
-
-                {session.competency_summary && session.competency_summary.length > 0 && (
-                    <div className="space-y-3 pt-2 border-t border-border/40">
-                        <p className="text-sm font-semibold">Competency Breakdown</p>
-                        {session.competency_summary.map((item) => (
-                            <CompetencyBar key={item.competency} item={item} />
-                        ))}
-                    </div>
-                )}
+            {/* Score Card */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card>
+                    <CardContent className="pt-6 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Status</p>
+                        <p className="text-lg font-bold capitalize">{session.status}</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardContent className="pt-6 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Score</p>
+                        <p className="text-lg font-bold">
+                            {session.total_score !== null
+                                ? `${session.total_score}/${session.max_possible}`
+                                : "—"
+                            }
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardContent className="pt-6 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Duration</p>
+                        <p className="text-lg font-bold">
+                            {duration !== null ? `${duration} min` : "—"}
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardContent className="pt-6 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Date</p>
+                        <p className="text-lg font-bold">
+                            {format(new Date(session.started_at), "MMM d")}
+                        </p>
+                    </CardContent>
+                </Card>
             </div>
 
-            {/* Exchange history */}
-            <section className="space-y-4">
-                <h2 className="text-base font-semibold">
-                    Full Exchange History
-                    <span className="ml-2 text-sm font-normal text-muted-foreground">
-                        ({transcript.exchanges.length} exchange{transcript.exchanges.length !== 1 ? "s" : ""})
-                    </span>
-                </h2>
-                {transcript.exchanges.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-border/60 p-8 text-center text-muted-foreground text-sm">
-                        No exchanges recorded.
-                    </div>
-                ) : (
-                    <div className="space-y-6">
-                        {transcript.exchanges.map((exchange, i) => (
-                            <ExchangeItem key={i} exchange={exchange} />
-                        ))}
-                    </div>
-                )}
-            </section>
+            {/* Assignment Info */}
+            {assignment && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-base">Assignment Details</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant="outline">{assignment.programming_language}</Badge>
+                            {assignment.course_id && (
+                                <Badge variant="secondary">{assignment.course_id}</Badge>
+                            )}
+                        </div>
+                        {assignment.description && (
+                            <p className="text-sm text-muted-foreground">{assignment.description}</p>
+                        )}
+                        {assignment.code_context && (
+                            <div className="mt-3">
+                                <p className="text-xs text-muted-foreground mb-1 font-medium">Code Context:</p>
+                                <pre className="text-xs bg-muted p-3 rounded-lg overflow-x-auto max-h-40">
+                                    {assignment.code_context}
+                                </pre>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Note about grading */}
+            <Card className="bg-muted/50 border-dashed">
+                <CardContent className="pt-6">
+                    <p className="text-sm text-muted-foreground">
+                        Detailed per-question scoring, competency breakdown, and transcript review will be available
+                        once white-box grading is implemented. Your session audio and responses have been recorded.
+                    </p>
+                </CardContent>
+            </Card>
         </div>
     );
 }

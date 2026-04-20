@@ -14,7 +14,7 @@ interface NetworkGraphProps {
 export function NetworkGraph({ clusters, onClusterClick, className }: NetworkGraphProps) {
   // Simple visualization using positioned nodes
   // For a real implementation, you'd use D3.js or Recharts
-  
+
   const getClusterColor = (confidence: number) => {
     if (confidence >= 0.85) return "border-red-500 bg-red-500/10";
     if (confidence >= 0.75) return "border-orange-500 bg-orange-500/10";
@@ -31,7 +31,7 @@ export function NetworkGraph({ clusters, onClusterClick, className }: NetworkGra
   return (
     <Card className={cn("relative bg-slate-50 dark:bg-slate-950/50 overflow-hidden", className)}>
       {/* Grid background */}
-      <div 
+      <div
         className="absolute inset-0 opacity-10 pointer-events-none"
         style={{
           backgroundImage: "radial-gradient(circle, currentColor 1px, transparent 1px)",
@@ -80,8 +80,8 @@ export function NetworkGraph({ clusters, onClusterClick, className }: NetworkGra
                         cluster.max_confidence >= 0.85
                           ? "bg-red-500"
                           : cluster.max_confidence >= 0.75
-                          ? "bg-orange-500"
-                          : "bg-yellow-500"
+                            ? "bg-orange-500"
+                            : "bg-yellow-500"
                       )}
                     />
                   ))}

@@ -1,0 +1,17 @@
+# =============================================================================
+# JWT Plugin - Configuration
+# Validates JWT tokens and forwards consumer information to backend services
+# =============================================================================
+_format_version: "3.0"
+
+plugins:
+  - name: jwt
+    config:
+      key_claim_name: kid
+      claims_to_verify:
+        - exp
+      run_on_first_request: true
+      header: Authorization
+      uri_query_param: token
+      cookie_name: kong-token
+      maximum_expiration: 3600

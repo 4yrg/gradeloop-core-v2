@@ -34,13 +34,14 @@ import {
     SheetTitle,
 } from "@/components/ui/sheet";
 import { studentAssessmentsApi, acafsApi } from "@/lib/api/assessments";
+import { ivasApi } from "@/lib/ivas-api";
 import { useAuthStore } from "@/lib/stores/authStore";
 import type { AssignmentResponse, SubmissionResponse, SubmissionGrade } from "@/types/assessments.types";
 import { handleApiError } from "@/lib/api/axios";
 import { useUIStore } from "@/lib/stores/uiStore";
 import { GradeResultPanel } from "@/components/assessments/grade-result-panel";
-import { AILikelihoodBadge } from "@/components/clone-detector/AILikelihoodBadge";
-import { SemanticSimilarityScore } from "@/components/ui/semantic-similarity-score";
+import { AILikelihoodBadge, AILikelihoodCompact } from "@/components/clone-detector/AILikelihoodBadge";
+import { SemanticSimilarityBadge } from "@/components/ui/semantic-similarity-badge";
 import { format, formatDistanceToNow, isPast } from "date-fns";
 
 function submissionStatusBadge(status: string, executionStatus?: string) {
@@ -169,8 +170,19 @@ export default function StudentAssignmentDetailPage() {
         try {
             setStartingViva(true);
             setVivaError(null);
-            // Navigate to the viva page with "new" session — the viva page handles triggering
-            router.push(`/student/assessments/viva/new?assignmentId=${assignmentId}`);
+            // Build assignment context from the assignment data
+            const assignmentContext = {
+                title: assignment.title,
+                description: assignment.description || "",
+                code: assignment.code,
+                programming_language: assignment.code.toLowerCase(),
+            };
+            const session = await ivasApi.createSession({
+                assignment_id: assignmentId,
+                student_id: user.id,
+                assignment_context: assignmentContext,
+            });
+            router.push(`/student/assessments/viva/${session.id}`);
         } catch (err) {
             setVivaError(err instanceof Error ? err.message : "Failed to start viva.");
             setStartingViva(false);
@@ -340,6 +352,21 @@ export default function StudentAssignmentDetailPage() {
                                                     {" · "}
                                                     {formatDistanceToNow(new Date(sub.submitted_at), { addSuffix: true })}
                                                 </p>
+                                                {/* CIPAS Analysis inline badges */}
+                                                {sub.ai_likelihood !== undefined && (
+                                                    <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                                                        <AILikelihoodCompact
+                                                            aiLikelihood={sub.ai_likelihood}
+                                                            humanLikelihood={sub.human_likelihood ?? (1 - sub.ai_likelihood)}
+                                                        />
+                                                        {sub.semantic_similarity_score !== undefined && sub.semantic_similarity_score !== null && (
+                                                            <SemanticSimilarityBadge
+                                                                score={sub.semantic_similarity_score}
+                                                                size="sm"
+                                                            />
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                             <Button
                                                 variant="ghost"
@@ -491,7 +518,7 @@ export default function StudentAssignmentDetailPage() {
                                         <Separator />
                                         <div>
                                             <p className="text-xs text-muted-foreground mb-2">Similarity to sample answer</p>
-                                            <SemanticSimilarityScore score={latestSubmission.semantic_similarity_score} />
+                                            <SemanticSimilarityBadge score={latestSubmission.semantic_similarity_score} />
                                         </div>
                                     </>
                                 )}
@@ -597,5 +624,3 @@ function DetailRow({
         </div>
     );
 }
-
-

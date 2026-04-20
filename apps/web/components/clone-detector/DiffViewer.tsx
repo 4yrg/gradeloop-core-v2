@@ -18,7 +18,8 @@ import {
   ChevronsDown,
   ChevronsUp,
 } from "lucide-react";
-import type { SubmissionItem, AIDetectionResponse } from "@/types/cipas";
+import { Badge } from "@/components/ui/badge";
+import type { SubmissionItem, AIDetectionResponse, CollusionEdge } from "@/types/cipas";
 import { AILikelihoodBadge } from "./AILikelihoodBadge";
 
 type LineTag = "equal" | "insert" | "delete";
@@ -212,6 +213,8 @@ export interface DiffViewerProps {
   initialRightId: string;
   /** Optional AI detection results map keyed by submission_id */
   aiDetectionMap?: Record<string, AIDetectionResponse>;
+  /** Optional edge containing clone type classification from backend */
+  edge?: CollusionEdge;
 }
 
 export function DiffViewer({
@@ -219,6 +222,7 @@ export function DiffViewer({
   initialLeftId,
   initialRightId,
   aiDetectionMap,
+  edge,
 }: DiffViewerProps) {
   // initialLeftId / initialRightId are student_id values (from edge.student_a/b)
   const [leftIdx, setLeftIdx] = useState(() =>
@@ -297,6 +301,34 @@ export function DiffViewer({
           />
         </div>
       </div>
+
+      {/* Backend Clone Type Classification */}
+      {edge && (
+        <div className="flex items-center gap-3 px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
+          <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+            Backend Classification:
+          </span>
+          <Badge
+            variant={
+              edge.clone_type === "Type-1"
+                ? "destructive"
+                : edge.clone_type === "Type-2"
+                ? "default"
+                : "secondary"
+            }
+            className="text-xs"
+          >
+            {edge.clone_type}
+          </Badge>
+          <span className="text-xs text-slate-500">
+            {edge.match_count} fragment match{edge.match_count !== 1 ? "es" : ""}
+          </span>
+          <span className="text-xs text-slate-500">•</span>
+          <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+            {Math.round(edge.confidence * 100)}% confidence
+          </span>
+        </div>
+      )}
 
       {/* Clone block jump controls */}
       {cloneStarts.length > 0 && (

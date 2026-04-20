@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SimilarityBadge, SimilarityScore } from "./similarity-badge";
+import { ForceDirectedGraph } from "./force-directed-graph";
 import { GitCompare, Users, Link2 } from "lucide-react";
 import type { CollusionGroup, CollusionEdge } from "@/types/cipas";
 import { cn } from "@/lib/utils";
@@ -22,32 +23,6 @@ interface ClusterGraphSheetProps {
   onCompare: (cluster: CollusionGroup, edge: CollusionEdge) => void;
 }
 
-/** Evenly distribute n nodes around a circle. Returns {x, y} as 0-100 percentages. */
-function circlePositions(count: number) {
-  const radius = 34;
-  const cx = 50;
-  const cy = 50;
-  return Array.from({ length: count }, (_, i) => {
-    const angle = (2 * Math.PI * i) / count - Math.PI / 2;
-    return {
-      x: cx + radius * Math.cos(angle),
-      y: cy + radius * Math.sin(angle),
-    };
-  });
-}
-
-function edgeColor(confidence: number) {
-  if (confidence >= 0.85) return "#ef4444";
-  if (confidence >= 0.75) return "#f97316";
-  return "#eab308";
-}
-
-function nodeRingClass(confidence: number) {
-  if (confidence >= 0.85) return "ring-red-500";
-  if (confidence >= 0.75) return "ring-orange-500";
-  return "ring-yellow-500";
-}
-
 export function ClusterGraphSheet({
   cluster,
   open,
@@ -57,7 +32,6 @@ export function ClusterGraphSheet({
   if (!cluster) return null;
 
   const label = String.fromCharCode(64 + cluster.group_id);
-  const positions = circlePositions(cluster.member_ids.length);
 
   const maxEdge = cluster.edges.length > 0
     ? cluster.edges.reduce((m, e) => (e.confidence > m.confidence ? e : m), cluster.edges[0])
@@ -103,66 +77,14 @@ export function ClusterGraphSheet({
           </SheetDescription>
         </SheetHeader>
 
-        {/* Graph */}
-        <div className="relative w-full aspect-square bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 overflow-hidden">
-          {/* SVG edges */}
-          <svg
-            className="absolute inset-0 w-full h-full pointer-events-none"
-            viewBox="0 0 100 100"
-            preserveAspectRatio="none"
-          >
-            {cluster.edges.map((edge, i) => {
-              const aIdx = cluster.member_ids.indexOf(edge.student_a);
-              const bIdx = cluster.member_ids.indexOf(edge.student_b);
-              if (aIdx === -1 || bIdx === -1) return null;
-              const a = positions[aIdx];
-              const b = positions[bIdx];
-              return (
-                <line
-                  key={i}
-                  x1={a.x}
-                  y1={a.y}
-                  x2={b.x}
-                  y2={b.y}
-                  stroke={edgeColor(edge.confidence)}
-                  strokeWidth="0.6"
-                  strokeOpacity="0.65"
-                />
-              );
-            })}
-          </svg>
-
-          {/* Nodes */}
-          {cluster.member_ids.map((memberId, idx) => {
-            const pos = positions[idx];
-            const memberEdges = cluster.edges.filter(
-              (e) => e.student_a === memberId || e.student_b === memberId
-            );
-            const avgConf =
-              memberEdges.length > 0
-                ? memberEdges.reduce((s, e) => s + e.confidence, 0) / memberEdges.length
-                : 0;
-
-            return (
-              <div
-                key={memberId}
-                className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-0.5"
-                style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
-              >
-                <div
-                  className={cn(
-                    "size-10 rounded-full bg-primary ring-2 flex items-center justify-center text-primary-foreground font-bold text-xs shadow-md",
-                    nodeRingClass(avgConf)
-                  )}
-                >
-                  {memberId.substring(0, 2).toUpperCase()}
-                </div>
-                <span className="text-[9px] font-medium bg-white/90 dark:bg-slate-900/90 rounded px-1 max-w-[72px] truncate text-center leading-tight">
-                  {memberId}
-                </span>
-              </div>
-            );
-          })}
+        {/* Interactive Force-Directed Graph */}
+        <div className="relative w-full aspect-square rounded-xl overflow-hidden">
+          <ForceDirectedGraph
+            cluster={cluster}
+            onEdgeClick={(edge) => onCompare(cluster, edge)}
+            width={600}
+            height={600}
+          />
         </div>
 
         {/* Edge list */}

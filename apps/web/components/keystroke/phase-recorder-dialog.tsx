@@ -17,6 +17,7 @@
  */
 
 import * as React from "react";
+import type { editor as MonacoEditor } from "monaco-editor";
 import {
     Dialog,
     DialogContent,
@@ -26,7 +27,6 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
     Fingerprint,
@@ -36,17 +36,26 @@ import {
     AlertCircle,
     Copy,
 } from "lucide-react";
+import { useTheme } from "next-themes";
+import { EditorPanel } from "@/components/ide";
 import { keystrokeApi, type RawKeystrokeEvent } from "@/lib/api/keystroke";
 import { useAuthStore } from "@/lib/stores/authStore";
 // ─── Phase content ────────────────────────────────────────────────────────────
 
+// Judge0 language IDs: 43 = Plain Text, 62 = Java, 71 = Python 3.8
+const PYTHON_LANG_ID = 71;
+const JAVA_LANG_ID = 62;
+const PLAINTEXT_LANG_ID = 43;
+
 interface PhaseContent {
     title: string;
     instruction: string;
-    /** Text to display as a reference the student should copy / read */
+    /** Reference code shown alongside the editor (transcription phase) */
     referenceText?: string;
-    /** Fixed placeholder for the typing area */
-    typingPlaceholder: string;
+    /** Judge0 language ID for Monaco syntax highlighting */
+    languageId: number;
+    /** Starter code pre-filled in the editor */
+    starterCode: string;
     /** Time limit in seconds (stress phase only) */
     timeLimitSeconds?: number;
 }
@@ -55,43 +64,65 @@ const PHASE_CONTENT: Record<string, PhaseContent> = {
     baseline: {
         title: "Baseline — Free Typing",
         instruction:
-            "Type naturally in the box below without rushing. Write anything you like — sentences, thoughts, or a description of what you're doing. " +
+            "Type naturally in the editor below without rushing. Write anything you like — sentences, thoughts, or a description of what you're doing. " +
             "We need at least 150 keystrokes to build your typing profile.",
-        typingPlaceholder:
-            "Start typing here… (e.g. 'I am enrolling in GradeLoop's keystroke security system. My name is…')",
+        languageId: PLAINTEXT_LANG_ID,
+        starterCode: "",
     },
     transcription: {
         title: "Transcription — Copy the Code",
         instruction:
-            "Transcribe the Python code shown below into the typing area. Focus on accuracy — copy it character by character. " +
-            "This captures your typing mechanics separate from problem-solving.",
+            "Transcribe the Java code shown below into the editor exactly as written. " +
+            "Focus on accuracy over speed — copy it character by character including brackets, semicolons and capitalisation. " +
+            "This captures your pure typing mechanics without problem-solving.",
         referenceText:
-            `def bubble_sort(arr):
-    n = len(arr)
-    for i in range(n):
-        for j in range(0, n-i-1):
-            if arr[j] > arr[j+1]:
-                arr[j], arr[j+1] = arr[j+1], arr[j]
-    return arr
+`import java.util.ArrayList;
 
-result = bubble_sort([64, 34, 25, 12, 22, 11, 90])
-print(result)`,
-        typingPlaceholder: "Type the code shown above here…",
+public class NumberUtils {
+
+    public static boolean isPrime(int n) {
+        if (n < 2) return false;
+        for (int i = 2; i * i <= n; i++) {
+            if (n % i == 0) return false;
+        }
+        return true;
+    }
+
+    public static int sumDigits(int number) {
+        int total = 0;
+        while (number > 0) {
+            total += number % 10;
+            number /= 10;
+        }
+        return total;
+    }
+
+    public static void main(String[] args) {
+        ArrayList<Integer> primes = new ArrayList<>();
+        for (int i = 2; i <= 50; i++) {
+            if (isPrime(i)) primes.add(i);
+        }
+        System.out.println("Primes up to 50: " + primes);
+        System.out.println("Sum of 1234 digits: " + sumDigits(1234));
+    }
+}`,
+        languageId: JAVA_LANG_ID,
+        starterCode: "",
     },
     stress: {
         title: "Stress — Timed Challenge",
         instruction:
-            "You have 2 minutes to implement the FizzBuzz function below. Work quickly — the timer is visible. " +
+            "You have 2 minutes to implement FizzBuzz. Work quickly — the timer is visible. " +
             "Don't worry if you don't finish; this captures your typing under time pressure.",
-        referenceText:
-            `def fizzbuzz():
-    # Print numbers 1–100.
-    # Multiples of 3  → "Fizz"
-    # Multiples of 5  → "Buzz"
-    # Multiples of both → "FizzBuzz"
-    # Your code here
-    pass`,
-        typingPlaceholder: "Implement fizzbuzz() here…",
+        languageId: PYTHON_LANG_ID,
+        starterCode:
+`def fizzbuzz():
+    # Print numbers 1-100.
+    # Multiples of 3  -> "Fizz"
+    # Multiples of 5  -> "Buzz"
+    # Multiples of both -> "FizzBuzz"
+    pass
+`,
         timeLimitSeconds: 120,
     },
     cognitive: {
@@ -99,16 +130,17 @@ print(result)`,
         instruction:
             "Implement a recursive Fibonacci function with memoisation in Python. " +
             "Read the requirements carefully and plan before you type. There is no time limit.",
-        referenceText:
-            `# Requirements:
-# 1. Must use recursion (not a loop)
-# 2. Must cache computed values in a dict (memoisation)
+        languageId: PYTHON_LANG_ID,
+        starterCode:
+`# Requirements:
+# 1. Use recursion (not a loop)
+# 2. Cache computed values (memoisation)
 # 3. Handle n from 0 to 100
 
 def fib(n, memo={}):
     # Your implementation here
-    pass`,
-        typingPlaceholder: "Write your implementation here…",
+    pass
+`,
     },
 };
 
@@ -172,13 +204,20 @@ export function PhaseRecorderDialog({
     onSuccess,
 }: PhaseRecorderDialogProps) {
     const user = useAuthStore((s) => s.user);
+    const { theme: systemTheme } = useTheme();
+    const monacoTheme = systemTheme === "dark" ? "dark" : "light";
     const content = PHASE_CONTENT[phase] ?? PHASE_CONTENT.baseline;
 
-    // ── Typing state ──────────────────────────────────────────────────────────
-    const [typedText, setTypedText] = React.useState("");
+    // ── Editor + typing state ─────────────────────────────────────────────────
+    const [code, setCode] = React.useState(content.starterCode);
     const [events, setEvents] = React.useState<RawKeystrokeEvent[]>([]);
     const keyDownTimes = React.useRef<Map<string, number>>(new Map());
     const lastKeyUpTime = React.useRef<number>(0);
+    const monacoRef = React.useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
+    // Stable refs so Monaco listeners don't go stale
+    const timerStartedRef = React.useRef(false);
+    const userRef = React.useRef(user);
+    React.useEffect(() => { userRef.current = user; }, [user]);
 
     // ── Submission state ──────────────────────────────────────────────────────
     const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -195,10 +234,17 @@ export function PhaseRecorderDialog({
     // Reset everything when the dialog opens for a new phase
     React.useEffect(() => {
         if (open) {
-            setTypedText("");
+            const starter = (PHASE_CONTENT[phase] ?? PHASE_CONTENT.baseline).starterCode;
+            setCode(starter);
+            // Also reset Monaco editor content if already mounted
+            if (monacoRef.current) {
+                monacoRef.current.setValue(starter);
+                monacoRef.current.setPosition({ lineNumber: 1, column: 1 });
+            }
             setEvents([]);
             keyDownTimes.current.clear();
             lastKeyUpTime.current = 0;
+            timerStartedRef.current = false;
             setIsSubmitting(false);
             setSubmitError(null);
             setSubmitted(false);
@@ -206,47 +252,53 @@ export function PhaseRecorderDialog({
         }
     }, [open, phase]);
 
-    // ── Keystroke capture ─────────────────────────────────────────────────────
-    const handleKeyDown = React.useCallback(
-        (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-            if (IGNORED_KEYS.has(e.key)) return;
-            // Start stress timer on first keydown
-            if (content.timeLimitSeconds && !timerStarted) setTimerStarted(true);
-            keyDownTimes.current.set(e.key, performance.now());
-        },
-        [content.timeLimitSeconds, timerStarted]
-    );
+    // ── Monaco mount — wire keystroke capture ─────────────────────────────────
+    const handleMonacoMount = React.useCallback(
+        (editorInstance: MonacoEditor.IStandaloneCodeEditor) => {
+            monacoRef.current = editorInstance;
 
-    const handleKeyUp = React.useCallback(
-        (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-            if (IGNORED_KEYS.has(e.key) || !user) return;
+            editorInstance.onKeyDown((e) => {
+                const key = e.browserEvent.key;
+                if (IGNORED_KEYS.has(key)) return;
+                // Start stress timer on first keystroke
+                if (!timerStartedRef.current) {
+                    timerStartedRef.current = true;
+                    setTimerStarted(true);
+                }
+                keyDownTimes.current.set(key, performance.now());
+            });
 
-            const now = performance.now();
-            const pressTime = keyDownTimes.current.get(e.key);
-            if (pressTime === undefined) return;
+            editorInstance.onKeyUp((e) => {
+                const key = e.browserEvent.key;
+                if (IGNORED_KEYS.has(key) || !userRef.current) return;
 
-            const dwellTime = Math.round(now - pressTime);
-            const flightTime =
-                lastKeyUpTime.current === 0
+                const now = performance.now();
+                const pressTime = keyDownTimes.current.get(key);
+                if (pressTime === undefined) return;
+
+                const dwellTime = Math.max(0, Math.round(now - pressTime));
+                const flightTime = lastKeyUpTime.current === 0
                     ? 0
-                    : Math.round(pressTime - lastKeyUpTime.current);
+                    : Math.max(0, Math.round(pressTime - lastKeyUpTime.current));
 
-            lastKeyUpTime.current = now;
-            keyDownTimes.current.delete(e.key);
+                lastKeyUpTime.current = now;
+                keyDownTimes.current.delete(key);
 
-            const evt: RawKeystrokeEvent = {
-                userId: user.id,
-                sessionId: `enroll_${phase}_${user.id}`,
-                timestamp: Date.now(),
-                key: e.key,
-                keyCode: e.keyCode,
-                dwellTime: Math.max(0, dwellTime),
-                flightTime: Math.max(0, flightTime),
-            };
-
-            setEvents((prev) => [...prev, evt]);
+                const evt: RawKeystrokeEvent = {
+                    userId: userRef.current.id,
+                    sessionId: `enroll_${phase}_${userRef.current.id}`,
+                    timestamp: Date.now(),
+                    key,
+                    keyCode: e.browserEvent.keyCode,
+                    dwellTime,
+                    flightTime,
+                };
+                setEvents((prev) => [...prev, evt]);
+            });
         },
-        [user, phase]
+        // phase is captured at mount time; timerStartedRef/keyDownTimes/lastKeyUpTime are refs
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [phase]
     );
 
     // ── Copy reference text ───────────────────────────────────────────────────
@@ -258,10 +310,14 @@ export function PhaseRecorderDialog({
 
     // ── Retry (stress phase) ─────────────────────────────────────────────────────
     const handleRetry = () => {
-        setTypedText("");
+        const starter = content.starterCode ?? "";
+        setCode(starter);
+        monacoRef.current?.setValue(starter);
+        monacoRef.current?.setPosition({ lineNumber: 1, column: 1 });
         setEvents([]);
         keyDownTimes.current.clear();
         lastKeyUpTime.current = 0;
+        timerStartedRef.current = false;
         setSubmitError(null);
         setTimerStarted(false); // countdown resets via useCountdown effect
     };
@@ -276,7 +332,7 @@ export function PhaseRecorderDialog({
                 userId: user.id,
                 phase,
                 keystrokeEvents: events,
-                metadata: { typed_chars: typedText.length, phase },
+                metadata: { typed_chars: code.length, phase },
             });
             setSubmitted(true);
             setTimeout(() => {
@@ -366,23 +422,28 @@ export function PhaseRecorderDialog({
                     </div>
                 )}
 
-                {/* Typing area */}
+                {/* Typing area — Monaco IDE */}
                 <div className="space-y-2">
                     <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                         Type here
                     </label>
-                    <Textarea
-                        className="min-h-[140px] font-mono text-sm resize-none leading-relaxed"
-                        placeholder={content.typingPlaceholder}
-                        value={typedText}
-                        onChange={(e) => setTypedText(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        onKeyUp={handleKeyUp}
-                        disabled={isSubmitting || submitted || (isStress && expired && eventCount < MIN_EVENTS)}
-                        autoFocus
-                        spellCheck={false}
-                        autoComplete="off"
-                    />
+                    <div
+                        className="rounded-md overflow-hidden border border-border/60"
+                        style={{ height: "260px" }}
+                    >
+                        <EditorPanel
+                            value={code}
+                            onChange={setCode}
+                            language={content.languageId}
+                            theme={monacoTheme as "dark" | "light"}
+                            readOnly={
+                                isSubmitting ||
+                                submitted ||
+                                (isStress && expired)
+                            }
+                            onEditorMount={handleMonacoMount}
+                        />
+                    </div>
                     {isStress && expired && eventCount < MIN_STRESS_EXPIRED && (
                         <div className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50/60 px-3 py-2.5 dark:border-red-900/40 dark:bg-red-950/30">
                             <p className="text-xs text-red-700 dark:text-red-400">

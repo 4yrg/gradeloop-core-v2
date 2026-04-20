@@ -11,13 +11,13 @@ import {
     Play,
     BarChart3,
     PlusCircle,
+    Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
 import { ivasApi } from "@/lib/ivas-api";
 import { useAuthStore } from "@/lib/stores/authStore";
-import type { StudentSessionSummary, IvasAssignment } from "@/types/ivas";
+import type { VivaSession, IvasAssignment } from "@/types/ivas";
 
 function StatusBadge({ status }: { status: string }) {
     if (status === "completed") {
@@ -28,11 +28,19 @@ function StatusBadge({ status }: { status: string }) {
             </span>
         );
     }
-    if (status === "in_progress") {
+    if (status === "in_progress" || status === "initializing") {
         return (
             <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
                 <Clock className="h-3 w-3" />
-                Active
+                {status === "initializing" ? "Ready" : "Active"}
+            </span>
+        );
+    }
+    if (status === "paused") {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                <Clock className="h-3 w-3" />
+                Paused
             </span>
         );
     }
@@ -46,7 +54,7 @@ function StatusBadge({ status }: { status: string }) {
 
 export default function MyVivaSessionsPage() {
     const user = useAuthStore((s) => s.user);
-    const [sessions, setSessions] = React.useState<StudentSessionSummary[]>([]);
+    const [sessions, setSessions] = React.useState<VivaSession[]>([]);
     const [assignments, setAssignments] = React.useState<IvasAssignment[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
@@ -58,8 +66,8 @@ export default function MyVivaSessionsPage() {
             try {
                 setLoading(true);
                 const [sess, asgns] = await Promise.allSettled([
-                    ivasApi.getStudentSessions(user!.id),
-                    ivasApi.getAssignments(),
+                    ivasApi.listSessions({ student_id: user!.id }),
+                    ivasApi.listAssignments(),
                 ]);
                 if (!mounted) return;
                 if (sess.status === "fulfilled") setSessions(sess.value);
@@ -75,7 +83,7 @@ export default function MyVivaSessionsPage() {
     }, [user?.id]);
 
     const assignmentMap = React.useMemo(
-        () => new Map(assignments.map((a) => [a.assignment_id, a.title])),
+        () => new Map(assignments.map((a) => [a.id, a.title])),
         [assignments]
     );
 
@@ -113,13 +121,13 @@ export default function MyVivaSessionsPage() {
                 <div className="rounded-xl border border-dashed border-border/60 p-12 text-center text-muted-foreground">
                     <Mic2 className="h-8 w-8 mx-auto mb-3 opacity-40" />
                     <p className="text-sm">No viva sessions yet.</p>
-                    <p className="text-xs mt-1">Your sessions will appear here once an instructor assigns a viva assessment.</p>
+                    <p className="text-xs mt-1">Start a new assessment to begin your oral examination.</p>
                 </div>
             ) : (
                 <div className="space-y-3">
                     {sessions.map((s) => (
                         <div
-                            key={s.session_id}
+                            key={s.id}
                             className="flex items-center justify-between gap-4 rounded-xl border border-border/60 bg-card px-5 py-4"
                         >
                             <div className="flex-1 min-w-0 space-y-1">
@@ -129,20 +137,22 @@ export default function MyVivaSessionsPage() {
                                 <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                                     <StatusBadge status={s.status} />
                                     <span>{format(new Date(s.started_at), "MMM d, yyyy")}</span>
-                                    <span>{s.responses_given}/{s.questions_asked} questions answered</span>
+                                    {s.total_score !== null && s.max_possible !== null && (
+                                        <span>Score: {s.total_score}/{s.max_possible}</span>
+                                    )}
                                 </div>
                             </div>
                             <div className="flex gap-2 shrink-0">
-                                {s.status === "in_progress" ? (
+                                {(s.status === "in_progress" || s.status === "initializing") ? (
                                     <Button asChild size="sm">
-                                        <Link href={`/student/assessments/viva/${s.session_id}`}>
+                                        <Link href={`/student/assessments/viva/${s.id}`}>
                                             <Play className="h-3.5 w-3.5 mr-1" />
-                                            Continue
+                                            {s.status === "initializing" ? "Start" : "Continue"}
                                         </Link>
                                     </Button>
                                 ) : s.status === "completed" ? (
                                     <Button asChild size="sm" variant="outline">
-                                        <Link href={`/student/assessments/results/${s.session_id}`}>
+                                        <Link href={`/student/assessments/results/${s.id}`}>
                                             <BarChart3 className="h-3.5 w-3.5 mr-1" />
                                             View Results
                                         </Link>

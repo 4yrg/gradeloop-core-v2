@@ -1,0 +1,49 @@
+{
+  "$schema": "https://turbo.build/schema/v2",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": [".env", "src/**", "app/**", "internal/**", "pkg/**", "*.ts", "*.tsx", "*.go", "pyproject.toml"],
+      "outputs": ["dist/**", ".next/**", "bin/**", "*.wasm"],
+      "cache": true
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "runOn": []
+    },
+    "lint": {
+      "dependsOn": ["^build"],
+      "cache": true,
+      "inputs": [".eslintrc*", ".eslintrc.*", "src/**", "app/**", "*.ts", "*.tsx", "*.py", "*.go"]
+    },
+    "test": {
+      "dependsOn": ["build"],
+      "cache": true,
+      "outputs": ["coverage/**", "*.xml"],
+      "inputs": ["src/**", "app/**", "tests/**", "*.test.ts", "*.test.py", "*_test.go"]
+    },
+    "typecheck": {
+      "cache": true,
+      "inputs": ["tsconfig.json", "src/**", "app/**", "*.ts", "*.tsx"]
+    },
+    "clean": {
+      "cache": false,
+      "runOn": []
+    },
+    "db:generate": {
+      "cache": false,
+      "runOn": []
+    },
+    "db:push": {
+      "cache": false,
+      "runOn": []
+    },
+    "migrate": {
+      "cache": false,
+      "runOn": []
+    }
+  },
+  "globalDependencies": [".env", ".env.*"],
+  "globalEnv": ["NODE_ENV", "TURBO_HASH"]
+}

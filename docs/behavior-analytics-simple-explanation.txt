@@ -1,0 +1,162 @@
+Behavior Analytics - Simple Explanation
+======================================
+
+This file explains how these values are calculated:
+- Active problem solving: 50
+- Learning depth: 65
+- Authenticity: 56
+- Engagement: 50
+- Overall: 55
+- Cognitive Load Over Time
+
+
+1) Active problem solving (50)
+------------------------------
+Backend formula starts from 50.
+
+Rule:
+- Start at 50
+- + up to 25 from number of pivotal moments (major rewrite moments)
+- + up to 25 from number of friction points (struggle moments)
+- - up to 20 from paste count
+- Clamp final value to 0..100
+
+In your case, it ended at 50.
+That usually means the extras (+) and penalties (-) roughly balanced, or there were few strong signals.
+
+
+2) Learning depth (65)
+----------------------
+Backend formula starts from 50.
+
+Rule:
+- Start at 50
+- +20 if troubleshooting style is "systematic"
+- +15 if incremental construction is true
+- +15 if there is at least one mastery indicator
+- Clamp final value to 0..100
+
+Your 65 means:
+- One +15 condition was true (most likely),
+- and the others were false,
+so 50 + 15 = 65.
+
+
+3) Authenticity (56)
+--------------------
+This value comes directly from human_signature_score.
+
+Human signature score rule:
+- Start at 50
+- + up to 30 from deletion_rate (humans usually make corrections)
+- + up to 20 from friction points (humans pause/struggle)
+- - up to 20 for too many burst typing events (very fast/too consistent typing)
+- Clamp to 0..100
+
+Your result was 56.
+
+
+4) Engagement (50)
+------------------
+Backend formula starts from 50.
+
+Rule:
+- Start at 50
+- +20 if total_duration > 300 seconds
+- +20 if total_keystrokes > 200
+- +10 if pause_count > 5
+- Clamp final value to 0..100
+
+Your value stayed 50, which means those bonus conditions were not triggered.
+
+
+5) Overall (55)
+---------------
+Overall is the average of 4 scores:
+- Active problem solving
+- Learning depth
+- Authenticity
+- Engagement
+
+So with your values:
+(50 + 65 + 56 + 50) / 4 = 55.25
+
+UI shows rounded number, so it appears as 55.
+
+
+6) Cognitive Load Over Time
+---------------------------
+This is a timeline (chart), not one fixed score.
+
+How each point is computed:
+- Events are split into windows (about 50 keystrokes each; dynamic for long sessions)
+- For each window:
+  load = min(1.0, long_pauses * 0.2 + deletions * 0.05)
+- Frontend shows load as percentage: load * 100
+
+Example:
+- If a window has 2 long pauses and 3 deletions:
+  load = min(1.0, 2*0.2 + 3*0.05)
+       = min(1.0, 0.55)
+       = 0.55
+  Displayed as 55%
+
+So "Cognitive Load Over Time" is the trend of these window values over the session.
+
+
+Why numbers can look conservative
+---------------------------------
+The formulas are rule-based and start from a neutral baseline (50).
+You only move up when specific conditions are met.
+If there are fewer events, fewer pauses/deletions, or little clear struggle evidence,
+values often stay around 50-65.
+
+
+Where this logic lives in code
+------------------------------
+- Backend calculations:
+  apps/services/keystroke-service/behavioral_analysis.py
+- Analytics UI display:
+  apps/web/components/instructor/behavior-analytics/BehaviorAnalyticsPanel.tsx
+- Cognitive load chart:
+  apps/web/components/instructor/behavior-analytics/CognitiveLoadChart.tsx
+
+
+7) Enrollment tests (how the profile is collected)
+--------------------------------------------------
+Before session analytics can be trusted, the system first builds your typing profile
+using enrollment phases.
+
+Current setup in this project:
+- Required phases: baseline + transcription
+- Optional phases available in config: stress + cognitive
+
+Baseline test (required)
+- Goal: Capture your normal, calm typing rhythm.
+- Task: Type your username/password multiple times at your natural pace.
+- What it captures well: stable key hold/transition timing under low pressure.
+
+Transcription test (required)
+- Goal: Capture pure typing mechanics with low thinking load.
+- Task: Copy a provided Java code block exactly (case, symbols, punctuation).
+- What it captures well: motor rhythm for real coding characters
+  (brackets, semicolons, capitals, operators).
+
+Stress test (optional)
+- Goal: Capture how timing changes under time pressure.
+- Task: Short timed coding challenge (countdown visible).
+- What it captures well: stress-related shifts (faster bursts, pauses, corrections).
+
+Cognitive test (optional)
+- Goal: Capture typing during heavy reasoning.
+- Task: More complex logic implementation with constraints.
+- What it captures well: think-pause cycles, rewrites, and problem-solving rhythm.
+
+Why this matters for later scores
+- These enrollment tests build the reference typing signature.
+- During real submissions, new keystrokes are compared to that signature.
+- Better enrollment coverage (calm + transcription + optional stress/cognitive)
+  usually improves authenticity and risk interpretation quality.
+
+Where enrollment config is defined
+- apps/services/keystroke-service/enrollment_tasks.json

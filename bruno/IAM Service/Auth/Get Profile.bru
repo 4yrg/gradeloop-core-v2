@@ -1,0 +1,24 @@
+meta {
+  name: Get Profile
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{AUTH_URL_V1}}/profile
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+docs {
+  # Get User Profile
+  
+  Returns the profile details of the currently authenticated user.
+  
+  ## Prerequisites
+  - Valid access token (run Login request first)
+}

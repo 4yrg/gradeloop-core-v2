@@ -1,0 +1,61 @@
+[tool.poetry]
+name = "cipas-syntactics"
+version = "0.1.0"
+description = "Syntactic Code Clone Detection Service (Type-1/2/3) with Tree-sitter and XGBoost"
+authors = ["GradeLoop Team"]
+packages = [{include = "app"}]
+
+[tool.poetry.dependencies]
+python = "3.11"
+fastapi = "^0.115.0"
+uvicorn = "^0.32.0"
+pydantic = "^2.9.0"
+tree-sitter = "^0.24.0"
+tree-sitter-java = "^0.23.5"
+tree-sitter-c = "^0.24.0"
+tree-sitter-python = "^0.23.0"
+scikit-learn = "^1.6.0"
+xgboost = "^2.0.0"
+pandas = "^2.2.0"
+numpy = "^2.2.0"
+rapidfuzz = "^3.14.0"
+datasketch = "^1.6.0"
+tree-sitter-c-sharp = "^0.23.0"
+networkx = "^3.0"
+tqdm = "^4.67.0"
+textual = "^1.0.0"
+rich = "^13.0.0"
+matplotlib = "^3.8.0"
+asyncpg = "^0.29.0"
+sqlalchemy = {extras = ["asyncio"], version = "^2.0.0"}
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.10.0"
+ruff = "^0.8.0"
+mypy = "^1.13.0"
+isort = "^5.13.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]

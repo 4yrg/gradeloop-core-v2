@@ -1,0 +1,25 @@
+meta {
+  name: Download Template
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{USERS_URL_V1}}/import/template
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+docs {
+  # Download Import Template
+  
+  Returns a CSV template for bulk user import.
+  
+  ## Prerequisites
+  - Valid access token
+  - Admin privileges
+}

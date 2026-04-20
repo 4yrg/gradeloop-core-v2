@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { AILikelihoodBadge } from "@/components/clone-detector/AILikelihoodBadge";
-import { SemanticSimilarityScore } from "@/components/ui/semantic-similarity-score";
+import { SemanticSimilarityBadge } from "@/components/ui/semantic-similarity-badge";
 
 // Reverse map: Judge0 language ID → canonical language name string.
 // IDs 91/92/93/94/95/105 removed — they do NOT exist on this Judge0 instance.
@@ -279,7 +279,7 @@ export default function StudentIDEPage() {
                     <p className="text-xs text-muted-foreground mb-2">
                       Similarity to sample answer
                     </p>
-                    <SemanticSimilarityScore score={semanticScore} />
+                    <SemanticSimilarityBadge score={semanticScore} />
                   </div>
                 </>
               )}

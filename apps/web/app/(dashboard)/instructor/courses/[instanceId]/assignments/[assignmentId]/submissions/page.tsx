@@ -3,9 +3,14 @@
 import * as React from "react";
 import { instructorAssessmentsApi, assessmentsApi, acafsApi } from "@/lib/api/assessments";
 import { usersApi } from "@/lib/api/users";
+import {
+    detectAICode,
+    getSemanticSimilarity,
+    saveSubmissionAnalysis,
+} from "@/lib/api/cipas-client";
 import type { SubmissionResponse, SubmissionGrade } from "@/types/assessments.types";
 import type { UserListItem } from "@/types/auth.types";
-import { Users, FileDown, SearchX, Filter, Loader2, AlertCircle, BrainCircuit } from "lucide-react";
+import { Users, FileDown, SearchX, Filter, Loader2, AlertCircle, BrainCircuit, RefreshCw, Sparkles, Video, BarChart3 } from "lucide-react";
 import { SectionHeader } from "@/components/instructor/section-header";
 import { DataTable, type ColumnDef } from "@/components/instructor/data-table";
 import { StatusBadge } from "@/components/instructor/status-badge";
@@ -15,10 +20,15 @@ import { EmptyStateCard } from "@/components/instructor/empty-state";
 import { SideSheetForm } from "@/components/instructor/side-sheet-form";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import { GradeResultPanel } from "@/components/assessments/grade-result-panel";
-import { AILikelihoodBadge } from "@/components/clone-detector/AILikelihoodBadge";
-import { SemanticSimilarityScore } from "@/components/ui/semantic-similarity-score";
+import { AILikelihoodBadge, AILikelihoodCompact } from "@/components/clone-detector/AILikelihoodBadge";
+import { SemanticSimilarityBadge } from "@/components/ui/semantic-similarity-badge";
+import { toast } from "sonner";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+import { keystrokeApi, type ArchiveLookupResult } from "@/lib/api/keystroke";
 
 interface SubmissionWithMeta extends SubmissionResponse {
     studentName: string;
@@ -41,6 +51,8 @@ export default function AssignmentSubmissionsPage({
     const [submissionGrade, setSubmissionGrade] = React.useState<SubmissionGrade | null>(null);
     const [isGradeLoading, setIsGradeLoading] = React.useState(false);
     const [filter, setFilter] = React.useState<"all" | "pending" | "graded" | "late" | "missing">("all");
+    const [isAnalyzingSheet, setIsAnalyzingSheet] = React.useState(false);
+    const [sheetArchive, setSheetArchive] = React.useState<ArchiveLookupResult | null>(null);
 
     React.useEffect(() => {
         let mounted = true;
@@ -107,6 +119,18 @@ export default function AssignmentSubmissionsPage({
         return () => { mounted = false; };
     }, [selectedSubmission]);
 
+    // Load keystroke archive when the sheet opens for a submitted assignment
+    React.useEffect(() => {
+        if (!selectedSubmission || selectedSubmission.status === "Missing" || !selectedSubmission.user_id) {
+            setSheetArchive(null);
+            return;
+        }
+        keystrokeApi
+            .lookupArchive(assignmentId, selectedSubmission.user_id)
+            .then(setSheetArchive)
+            .catch(() => setSheetArchive(null));
+    }, [selectedSubmission, assignmentId]);
+
     // Load ACAFS grade when the sheet opens for a submitted assignment
     React.useEffect(() => {
         if (!selectedSubmission || selectedSubmission.status === "Missing") {
@@ -133,6 +157,62 @@ export default function AssignmentSubmissionsPage({
         if (filter === "all") return submissions;
         return submissions.filter((s) => s.status.toLowerCase() === filter);
     }, [submissions, filter]);
+
+    // On-demand CIPAS analysis for a submission in the side sheet
+    const handleAnalyzeSubmission = React.useCallback(async (sub: SubmissionWithMeta) => {
+        if (!sub || sub.status === "Missing") return;
+        setIsAnalyzingSheet(true);
+        try {
+            // Fetch the submission code
+            const codeRes = await assessmentsApi.getSubmissionCode(sub.id);
+            if (!codeRes?.code) throw new Error("No code available");
+
+            // Run AI detection + semantic similarity in parallel
+            const sampleAnswerPromise = instructorAssessmentsApi
+                .getAssignmentSampleAnswer(assignmentId)
+                .then(sa => (sa?.code ? getSemanticSimilarity(codeRes.code, sa.code) : null))
+                .catch(() => null);
+
+            const [aiRes, semRes] = await Promise.allSettled([
+                detectAICode(codeRes.code),
+                sampleAnswerPromise,
+            ]);
+
+            const aiResult = aiRes.status === "fulfilled" ? aiRes.value : null;
+            const semScore = semRes.status === "fulfilled" ? semRes.value : null;
+
+            if (aiResult) {
+                await saveSubmissionAnalysis(sub.id, {
+                    ai_likelihood: aiResult.ai_likelihood,
+                    human_likelihood: aiResult.human_likelihood,
+                    is_ai_generated: aiResult.is_ai_generated,
+                    ai_confidence: aiResult.confidence,
+                    semantic_similarity_score: semScore,
+                });
+
+                // Refresh submission data in the list
+                const updated: SubmissionWithMeta = {
+                    ...sub,
+                    ai_likelihood: aiResult.ai_likelihood,
+                    human_likelihood: aiResult.human_likelihood,
+                    is_ai_generated: aiResult.is_ai_generated,
+                    ai_confidence: aiResult.confidence,
+                    semantic_similarity_score: semScore ?? undefined,
+                    analyzed_at: new Date().toISOString(),
+                };
+                setSelectedSubmission(updated);
+                setSubmissions(prev => prev.map(s => s.id === sub.id ? updated : s));
+                toast.success("Analysis complete");
+            } else {
+                toast.error("AI detection failed — please try again.");
+            }
+        } catch (err) {
+            console.error("Analysis failed:", err);
+            toast.error("Failed to analyze submission. Check that CIPAS services are running.");
+        } finally {
+            setIsAnalyzingSheet(false);
+        }
+    }, [assignmentId]);
 
     const columns: ColumnDef<SubmissionWithMeta, any>[] = [
         {
@@ -165,6 +245,49 @@ export default function AssignmentSubmissionsPage({
             accessorKey: "language",
             header: "Language",
             cell: ({ row }) => <span className="font-mono text-sm">{row.getValue("language") || "—"}</span>,
+        },
+        {
+            id: "ai_likelihood",
+            header: "AI Likelihood",
+            cell: ({ row }) => {
+                const sub = row.original;
+                if (sub.status === "Missing" || sub.ai_likelihood === undefined) {
+                    return <span className="text-xs text-muted-foreground">—</span>;
+                }
+                return (
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div>
+                                    <AILikelihoodCompact
+                                        aiLikelihood={sub.ai_likelihood}
+                                        humanLikelihood={sub.human_likelihood ?? (1 - sub.ai_likelihood)}
+                                    />
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>AI: {(sub.ai_likelihood * 100).toFixed(0)}% · Human: {((sub.human_likelihood ?? (1 - sub.ai_likelihood)) * 100).toFixed(0)}%</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                );
+            },
+        },
+        {
+            id: "semantic_similarity",
+            header: "Similarity",
+            cell: ({ row }) => {
+                const sub = row.original;
+                if (sub.status === "Missing" || sub.semantic_similarity_score === undefined || sub.semantic_similarity_score === null) {
+                    return <span className="text-xs text-muted-foreground">—</span>;
+                }
+                return (
+                    <SemanticSimilarityBadge
+                        score={sub.semantic_similarity_score}
+                        size="sm"
+                    />
+                );
+            },
         },
         {
             id: "actions",
@@ -293,6 +416,52 @@ export default function AssignmentSubmissionsPage({
                 description="Review the submission content, evaluate against the rubric, and assign a final score."
             >
                 <div className="flex-1 overflow-y-auto space-y-6">
+
+                    {/* ── Keystroke session summary ───────────────────────── */}
+                    {sheetArchive && (
+                        <div className="rounded-xl border border-border bg-card px-4 py-3 flex flex-col gap-3">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <Badge
+                                    variant={sheetArchive.average_risk_score >= 0.5 ? "destructive" : sheetArchive.average_risk_score >= 0.3 ? "secondary" : "outline"}
+                                    className={cn(
+                                        "text-xs font-semibold",
+                                        sheetArchive.average_risk_score < 0.3 &&
+                                            "bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-400"
+                                    )}
+                                >
+                                    {sheetArchive.average_risk_score >= 0.5
+                                        ? "High risk"
+                                        : sheetArchive.average_risk_score >= 0.3
+                                        ? "Moderate risk"
+                                        : "Low risk"}{" "}
+                                    ({(sheetArchive.average_risk_score * 100).toFixed(0)}%)
+                                </Badge>
+                                {sheetArchive.anomaly_count > 0 && (
+                                    <span className="text-xs text-muted-foreground">
+                                        {sheetArchive.anomaly_count} anomal{sheetArchive.anomaly_count === 1 ? "y" : "ies"} detected
+                                    </span>
+                                )}
+                                <span className="text-xs text-muted-foreground">
+                                    {sheetArchive.event_count.toLocaleString()} keystrokes
+                                </span>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button variant="outline" size="sm" className="flex-1" asChild>
+                                    <Link href={`/instructor/assessments/${assignmentId}/submissions/${selectedSubmission!.id}/playback`}>
+                                        <Video className="h-3.5 w-3.5 mr-1.5" />
+                                        Session Playback
+                                    </Link>
+                                </Button>
+                                <Button variant="outline" size="sm" className="flex-1" asChild>
+                                    <Link href={`/instructor/assessments/${assignmentId}/submissions/${selectedSubmission!.id}/analytics`}>
+                                        <BarChart3 className="h-3.5 w-3.5 mr-1.5" />
+                                        Behaviour Analytics
+                                    </Link>
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="p-4 bg-muted/30 rounded-lg border border-border/40 space-y-3">
                         <div className="flex justify-between items-center text-sm">
                             <span className="text-muted-foreground">Status</span>
@@ -338,9 +507,32 @@ export default function AssignmentSubmissionsPage({
                             </div>
 
                             {/* ── Code Analysis ──────────────────────────────── */}
-                            {selectedSubmission?.ai_likelihood !== undefined && (
-                                <div className="space-y-3">
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
                                     <h4 className="font-bold font-heading">Code Analysis</h4>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 text-xs gap-1.5"
+                                        disabled={isAnalyzingSheet}
+                                        onClick={() => selectedSubmission && handleAnalyzeSubmission(selectedSubmission)}
+                                    >
+                                        {isAnalyzingSheet ? (
+                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                        ) : selectedSubmission?.ai_likelihood !== undefined ? (
+                                            <RefreshCw className="h-3 w-3" />
+                                        ) : (
+                                            <Sparkles className="h-3 w-3" />
+                                        )}
+                                        {isAnalyzingSheet ? "Analyzing…" : selectedSubmission?.ai_likelihood !== undefined ? "Re-analyze" : "Analyze"}
+                                    </Button>
+                                </div>
+                                {isAnalyzingSheet && selectedSubmission?.ai_likelihood === undefined ? (
+                                    <div className="p-4 rounded-xl border border-border/60 bg-card flex flex-col items-center gap-3 py-8">
+                                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                                        <p className="text-sm text-muted-foreground">Running AI detection &amp; similarity analysis…</p>
+                                    </div>
+                                ) : selectedSubmission?.ai_likelihood !== undefined ? (
                                     <div className="p-4 rounded-xl border border-border/60 bg-card space-y-4">
                                         <div className="flex items-center gap-2 mb-1">
                                             <BrainCircuit className="h-4 w-4 text-muted-foreground" />
@@ -354,14 +546,14 @@ export default function AssignmentSubmissionsPage({
                                             showLabel
                                             size="md"
                                         />
-                                        {selectedSubmission.semantic_similarity_score !== undefined && (
+                                        {selectedSubmission.semantic_similarity_score !== undefined && selectedSubmission.semantic_similarity_score !== null && (
                                             <>
                                                 <Separator />
                                                 <div>
                                                     <p className="text-xs text-muted-foreground mb-2">
                                                         Similarity to sample answer
                                                     </p>
-                                                    <SemanticSimilarityScore
+                                                    <SemanticSimilarityBadge
                                                         score={selectedSubmission.semantic_similarity_score}
                                                     />
                                                 </div>
@@ -377,8 +569,16 @@ export default function AssignmentSubmissionsPage({
                                             </p>
                                         )}
                                     </div>
-                                </div>
-                            )}
+                                ) : (
+                                    <div className="p-4 rounded-xl border border-dashed border-border/60 bg-muted/10 flex flex-col items-center gap-2 py-6 text-center">
+                                        <BrainCircuit className="h-6 w-6 text-muted-foreground/40" />
+                                        <p className="text-sm text-muted-foreground">No analysis data yet</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            Click &ldquo;Analyze&rdquo; to run AI detection and semantic similarity checks on this submission.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
 
                             <div>
                                 <h4 className="font-bold font-heading mb-3">Autograder Results</h4>

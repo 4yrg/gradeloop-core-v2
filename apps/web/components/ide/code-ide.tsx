@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { EditorPanel } from "./editor-panel";
 import { ExecutionPanel } from "./execution-panel";
 import { StatusBar } from "./status-bar";
@@ -8,9 +8,10 @@ import { Toolbar } from "./toolbar";
 import { AIAssistantPanel } from "./ai-assistant-panel";
 import { GradeResultPanel } from "@/components/assessments/grade-result-panel";
 import { AILikelihoodBadge } from "@/components/clone-detector/AILikelihoodBadge";
-import { SemanticSimilarityScore } from "@/components/ui/semantic-similarity-score";
+import { SemanticSimilarityBadge } from "@/components/ui/semantic-similarity-badge";
 import { Separator } from "@/components/ui/separator";
 import { useCodeExecution } from "@/lib/hooks/use-code-execution";
+import { useKeystrokeCapture } from "@/lib/hooks/use-keystroke-capture";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Terminal, Sparkles, BarChart2, Loader2, AlertCircle, BrainCircuit } from "lucide-react";
 import type { CodeIDEProps, ExecutionStatus } from "./types";
@@ -55,6 +56,11 @@ export function CodeIDE({
     if (isGrading || grade) setActiveTab("results");
   }, [isGrading, grade]);
 
+  // Auto-switch to the Analysis tab when analysis starts or completes.
+  useEffect(() => {
+    if (isAnalyzing || submissionAnalysis) setActiveTab("analysis");
+  }, [isAnalyzing, submissionAnalysis]);
+
   // Editor state
   const [code, setCode] = useState<string>(
     initialCode || STARTER_CODE[initialLanguage] || "// Start coding here...\n"
@@ -71,6 +77,16 @@ export function CodeIDE({
     onSuccess: (result) => {
       onExecute?.(result);
     },
+  });
+
+  // Keystroke biometric capture — only active for real (non-read-only) assignment sessions
+  const sessionId = useRef(
+    `asgn_${assignmentId ?? "unknown"}_${userId ?? "anon"}_${Date.now()}`
+  ).current;
+  const { handleEditorMount, finalizeSession } = useKeystrokeCapture({
+    userId: userId ?? "",
+    sessionId,
+    assignmentId,
   });
 
   // Load saved preferences from localStorage
@@ -106,7 +122,7 @@ export function CodeIDE({
   const handleLanguageChange = useCallback(
     (newLanguage: number) => {
       setLanguage(newLanguage);
-      
+
       // If code is empty or default, load starter code for new language
       if (!code.trim() || code === "// Start coding here...\n") {
         const starterCode = STARTER_CODE[newLanguage];
@@ -126,18 +142,22 @@ export function CodeIDE({
     });
   }, [code, language, stdin, execute]);
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
+    // Archive keystroke session before submission (best-effort, non-blocking to submission)
+    if (userId && assignmentId && !readOnly) {
+      await finalizeSession(code);
+    }
     if (onSubmit) {
       onSubmit(code, language);
     }
-  }, [code, language, onSubmit]);
+  }, [code, language, onSubmit, userId, assignmentId, readOnly, finalizeSession]);
 
   const handleSave = useCallback(() => {
     // Save draft to localStorage
     if (typeof window !== "undefined" && assignmentId) {
       const draftKey = `${STORAGE_KEYS.LAST_LANGUAGE}-draft-${assignmentId}`;
       localStorage.setItem(draftKey, JSON.stringify({ code, language, stdin }));
-      
+
       // Show toast notification
       import("sonner").then(({ toast }) => {
         toast.success("Draft saved locally");
@@ -185,9 +205,10 @@ export function CodeIDE({
             theme={theme}
             onRun={handleRun}
             onSave={handleSave}
+            onEditorMount={!readOnly && userId && assignmentId ? handleEditorMount : undefined}
           />
         </div>
-        
+
         {/* Right: Tabbed Panel (40%) */}
         <div className="w-[400px]">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex h-full flex-col">
@@ -227,7 +248,7 @@ export function CodeIDE({
                 </TabsTrigger>
               )}
             </TabsList>
-            
+
             <TabsContent value="input-output" className="flex-1 m-0 overflow-hidden">
               <ExecutionPanel
                 stdin={stdin}
@@ -236,7 +257,7 @@ export function CodeIDE({
                 isExecuting={isExecuting}
               />
             </TabsContent>
-            
+
             {showAIAssistant && (
               <TabsContent value="ai-assistant" className="flex-1 m-0 overflow-hidden">
                 <AIAssistantPanel
@@ -310,11 +331,11 @@ export function CodeIDE({
                     </div>
                     <Separator />
                     {submissionAnalysis.semanticSimilarityScore != null ? (
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-2">Similarity to sample answer</p>
-                        <SemanticSimilarityScore
+                      <div className="flex flex-col gap-2">
+                        <p className="text-xs text-muted-foreground">Similarity to sample answer</p>
+                        <SemanticSimilarityBadge
                           score={submissionAnalysis.semanticSimilarityScore}
-                          compact
+                          size="sm"
                         />
                       </div>
                     ) : (

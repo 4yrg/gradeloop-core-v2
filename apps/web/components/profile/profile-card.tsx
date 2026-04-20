@@ -12,6 +12,7 @@ import {
   Fingerprint,
   CheckCircle2,
   AlertTriangle,
+  FlaskConical,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { AvatarUpload } from "./avatar-upload";
@@ -28,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { useKeystrokeEnrollmentStore } from "@/lib/stores/keystrokeEnrollmentStore";
 import { useAuthStore } from "@/lib/stores/authStore";
 import { keystrokeApi } from "@/lib/api/keystroke";
+import { KeystrokeAuthTestDialog } from "@/components/keystroke/keystroke-auth-test-dialog";
 import type { UserProfile } from "@/types/profile";
 
 interface ProfileCardProps {
@@ -44,8 +46,10 @@ export function ProfileCard({ initialData }: ProfileCardProps) {
 
   // Live enrollment state fetched from API — not relying on cached store
   const [phasesComplete, setPhasesComplete] = React.useState<string[]>([]);
+  const [phasesRemaining, setPhasesRemaining] = React.useState<string[]>([]);
   const [enrollmentComplete, setEnrollmentComplete] = React.useState(false);
   const [loadingEnrollment, setLoadingEnrollment] = React.useState(true);
+  const [authTestOpen, setAuthTestOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (!isHydrated || !user || !isStudent) {
@@ -55,11 +59,12 @@ export function ProfileCard({ initialData }: ProfileCardProps) {
     keystrokeApi
       .getEnrollmentProgress(user.id)
       .then((data) => {
-        const phases = data.phases_complete ?? [];
-        const allDone = data.enrollment_complete && phases.length >= 4;
-        setPhasesComplete(phases);
+        const complete = data.phases_complete ?? [];
+        const remaining = data.phases_remaining ?? [];
+        const allDone = data.enrollment_complete;
+        setPhasesComplete(complete);
+        setPhasesRemaining(remaining);
         setEnrollmentComplete(allDone);
-        // Only mark enrolled in store when truly all 4 phases are done
         if (allDone) setEnrolled(user.id, true);
       })
       .catch(() => {
@@ -68,7 +73,8 @@ export function ProfileCard({ initialData }: ProfileCardProps) {
       .finally(() => setLoadingEnrollment(false));
   }, [isHydrated, user, isStudent, setEnrolled]);
 
-  const TOTAL_PHASES = 4;
+  const TOTAL_PHASES = phasesComplete.length + phasesRemaining.length || 1;
+  const ALL_PHASES = [...phasesComplete, ...phasesRemaining];
   const PHASE_LABELS: Record<string, string> = {
     baseline: "Baseline",
     transcription: "Transcription",
@@ -186,7 +192,7 @@ export function ProfileCard({ initialData }: ProfileCardProps) {
             </div>
           </CardHeader>
           <CardContent className="p-6 space-y-4">
-            {/* Progress bar — all 4 phases */}
+            {/* Progress bar */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground font-medium">Enrollment phases</span>
@@ -213,7 +219,7 @@ export function ProfileCard({ initialData }: ProfileCardProps) {
               {/* Phase chips */}
               {!loadingEnrollment && (
                 <div className="flex flex-wrap gap-1.5 pt-1">
-                  {(["baseline", "transcription", "stress", "cognitive"] as const).map((p) => {
+                  {ALL_PHASES.map((p) => {
                     const done = phasesComplete.includes(p);
                     return (
                       <span
@@ -242,12 +248,21 @@ export function ProfileCard({ initialData }: ProfileCardProps) {
               enrollmentComplete ? (
                 <div className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50/50 px-4 py-3 dark:border-emerald-800/40 dark:bg-emerald-900/10">
                   <CheckCircle2 className="h-5 w-5 text-emerald-600 flex-shrink-0" />
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-400">Fully Enrolled</p>
                     <p className="text-xs text-emerald-700 dark:text-emerald-500">
-                      All 4 phases complete — your keystroke profile is active.
+                      All {TOTAL_PHASES} phases complete — your keystroke profile is active.
                     </p>
                   </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-shrink-0 border-emerald-300 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-900/30"
+                    onClick={() => setAuthTestOpen(true)}
+                  >
+                    <FlaskConical className="mr-1.5 h-3.5 w-3.5" />
+                    Test Auth
+                  </Button>
                 </div>
               ) : (
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-lg border border-amber-200 bg-amber-50/50 px-4 py-3 dark:border-amber-800/40 dark:bg-amber-900/10">
@@ -259,7 +274,7 @@ export function ProfileCard({ initialData }: ProfileCardProps) {
                       </p>
                       <p className="text-xs text-amber-700 dark:text-amber-500">
                         {phasesComplete.length === 0
-                          ? "Complete all 4 phases to activate keystroke identity verification."
+                          ? `Complete all ${TOTAL_PHASES} phases to activate keystroke identity verification.`
                           : `${TOTAL_PHASES - phasesComplete.length} phase${TOTAL_PHASES - phasesComplete.length > 1 ? "s" : ""} remaining — continue to finish enrollment.`}
                       </p>
                     </div>
@@ -286,6 +301,11 @@ export function ProfileCard({ initialData }: ProfileCardProps) {
           please contact the Registrar's Office or Human Resources department.
         </p>
       </div>
+
+      <KeystrokeAuthTestDialog
+        open={authTestOpen}
+        onClose={() => setAuthTestOpen(false)}
+      />
     </div>
   );
 }
