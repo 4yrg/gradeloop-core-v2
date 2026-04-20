@@ -1,0 +1,216 @@
+# =============================================================================
+# GradeLoop Core v2 - Infrastructure Compose
+# =============================================================================
+# This file contains INFRASTRUCTURE SERVICES ONLY
+#
+# Usage:
+#   podman compose up -d                    # Start all infrastructure
+#   podman compose up -d postgres          # Start only postgres
+#
+# For local development:
+#   1. podman compose up -d                # Start infrastructure
+#   2. make dev SERVICE=<name>           # Run services locally
+#
+# For full stack in Docker:
+#   podman compose -f compose.dev.yaml up -d
+#
+# For production:
+#   podman compose -f compose.prod.yaml up -d
+
+services:
+  # =============================================================================
+  # PostgreSQL (Main Database)
+  # =============================================================================
+  postgres:
+    image: docker.io/postgres:16-alpine
+    container_name: gradeloop-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${GRA_DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${GRA_DB_PASSWORD:-postgres}
+      - POSTGRES_DB=${IAM_SVC_DB_NAME:-iam_db}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: "pg_isready -U ${GRA_DB_USER:-postgres}"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+
+  # =============================================================================
+  # PostgreSQL — Keystroke Service (Dedicated Instance)
+  # =============================================================================
+  postgres-keystroke:
+    image: docker.io/postgres:16-alpine
+    container_name: gradeloop-postgres-keystroke
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=keystroke_user
+      - POSTGRES_PASSWORD=keystroke_pass
+      - POSTGRES_DB=keystroke-db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-keystroke-data:/var/lib/postgresql/data
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: "pg_isready -U keystroke_user -d keystroke-db"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+
+  # =============================================================================
+  # RabbitMQ (Message Queue)
+  # =============================================================================
+  rabbitmq:
+    image: docker.io/rabbitmq:3.13-management-alpine
+    container_name: gradeloop-rabbitmq
+    restart: unless-stopped
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+
+  # =============================================================================
+  # Redis (Cache/Sessions)
+  # =============================================================================
+  redis:
+    image: docker.io/redis:7-alpine
+    container_name: gradeloop-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - gradeloop-network
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_pass}
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+
+  # =============================================================================
+  # SeaweedFS (Object Storage - S3 Compatible)
+  # =============================================================================
+  seaweed:
+    image: docker.io/chrislusf/seaweedfs:3.71
+    container_name: gradeloop-seaweed
+    restart: unless-stopped
+    environment:
+      - WEEAD_IDENTITY=seaweedfs
+    ports:
+      - "9333:9333"   # S3 API
+      - "9320:9320"   # Console
+      - "9080:8080"   # Volume server
+    volumes:
+      - seaweed-data:/data
+    networks:
+      - gradeloop-network
+    command: server -s3 -identity=seaweedfs -s3Port=9333 -consolePort=9320
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9320/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+
+  # =============================================================================
+  # SeaweedFS (Object Storage - S3 Compatible)
+  # =============================================================================
+  kong-database:
+    image: docker.io/postgres:16-alpine
+    container_name: gradeloop-kong-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=kong
+      - POSTGRES_PASSWORD=${KONG_DB_PASSWORD:-kong_pass}
+      - POSTGRES_DB=kong
+    ports:
+      - "5434:5432"
+    volumes:
+      - kong-database-data:/var/lib/postgresql/data
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: "pg_isready -U kong -d kong"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+
+networks:
+  gradeloop-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+    name: gradeloop-postgres-data
+  postgres-keystroke-data:
+    name: gradeloop-postgres-keystroke-data
+  rabbitmq-data:
+    name: gradeloop-rabbitmq-data
+  redis-data:
+    name: gradeloop-redis-data
+  seaweed-data:
+    name: gradeloop-seaweed-data
+  kong-database-data:
+    name: gradeloop-kong-db-data

@@ -1,0 +1,10 @@
+// Root tsconfig for TypeScript packages
+// Extended by individual packages
+{
+  "extends": "./config/tsconfig.json",
+  "files": [],
+  "references": [
+    { "path": "./utils" },
+    { "path": "./dto" }
+  ]
+}

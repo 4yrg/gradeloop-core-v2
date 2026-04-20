@@ -1,0 +1,30 @@
+meta {
+  name: Execute Import
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{USERS_URL_V1}}/import/execute
+  body: multipartForm
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ACCESS_TOKEN}}
+}
+
+body:multipart-form {
+  file: @file(REPLACE_WITH_CSV_PATH)
+}
+
+docs {
+  # Execute Import
+  
+  Uploads a CSV file to execute the bulk user import.
+  
+  ## Prerequisites
+  - Valid access token
+  - Admin privileges
+  - CSV file following the template
+}

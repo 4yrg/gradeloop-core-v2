@@ -1,0 +1,34 @@
+# =============================================================================
+# CORS Plugin - Global Configuration
+# Handles Cross-Origin Resource Sharing for all services
+# =============================================================================
+_format_version: "3.0"
+
+plugins:
+  - name: cors
+    config:
+      origins:
+        - http://localhost:3000
+        - http://localhost:80
+        - http://localhost:443
+      methods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - PATCH
+        - OPTIONS
+      headers:
+        - Origin
+        - Content-Type
+        - Accept
+        - Authorization
+        - X-Request-ID
+        - X-Requested-With
+        - X-HTTP-Method-Override
+      exposed_headers:
+        - X-Total-Count
+        - X-Page-Count
+      credentials: true
+      max_age: 3600
+      preflight_buffer: 0

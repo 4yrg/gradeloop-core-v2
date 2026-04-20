@@ -1,0 +1,20 @@
+# =============================================================================
+# Rate Limiting Plugin - Global Configuration
+# Default rate limiting for all services
+# =============================================================================
+_format_version: "3.0"
+
+plugins:
+  - name: rate-limiting
+    config:
+      minute: 1000
+      hour: 10000
+      day: 100000
+      month: 1000000
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+      keep_unconsumed: false
+      redis_host: localhost
+      redis_port: 6379
+      redis_timeout: 2000

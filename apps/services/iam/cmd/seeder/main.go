@@ -1,0 +1,67 @@
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/config"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/repository"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/repository/migrations"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/seeder"
+	"go.uber.org/zap"
+)
+
+func main() {
+	fmt.Println("Seeder starting...")
+
+	// Load configuration
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Printf("Error loading config: %v\n", err)
+		log.Fatalf("Failed to load config: %v", err)
+	}
+	fmt.Println("Config loaded")
+
+	// Initialize logger
+	logger, _ := zap.NewProduction()
+	defer logger.Sync()
+
+	// Connect to database
+	fmt.Println("Connecting to database...")
+	db, err := repository.NewPostgresDatabase(cfg, logger)
+	if err != nil {
+		fmt.Printf("Error connecting to database: %v\n", err)
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer func() {
+		if err := db.Close(); err != nil {
+			logger.Error("Failed to close database connection", zap.Error(err))
+		}
+	}()
+	fmt.Println("Database connected")
+
+	// Cleanup orphaned refresh tokens before adding FK constraint
+	fmt.Println("Running pre-migration fixes...")
+	if err := db.DB.Exec(`DELETE FROM refresh_tokens WHERE user_id NOT IN (SELECT id FROM users)`).Error; err != nil {
+		fmt.Printf("Warning: Failed to cleanup orphaned refresh tokens: %v\n", err)
+	}
+	fmt.Println("Pre-migration fixes completed")
+
+	// Run migrations
+	fmt.Println("Running migrations...")
+	migrator := migrations.NewMigrator(db.DB, logger)
+	if err := migrator.Run(); err != nil {
+		fmt.Printf("Migration failed: %v\n", err)
+		log.Fatalf("Migration failed: %v", err)
+	}
+	fmt.Println("Migrations completed")
+
+	// Run seeder
+	fmt.Println("Running seeding logic...")
+	if err := seeder.Seed(db.DB); err != nil {
+		fmt.Printf("Seeding failed: %v\n", err)
+		log.Fatalf("Seeding failed: %v", err)
+	}
+
+	fmt.Println("Seeding completed successfully")
+}

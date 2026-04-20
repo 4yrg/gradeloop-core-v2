@@ -1,0 +1,13 @@
+{
+  "name": "@gradeloop/ts-config",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./tsconfig.json",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": "./tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}
