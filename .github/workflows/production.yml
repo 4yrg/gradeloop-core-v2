@@ -193,7 +193,7 @@ jobs:
         id: meta
         run: |
           ghcr_prefix="${{ needs.login-ghcr.outputs.ghcr_prefix }}"
-          short_sha="${{ github.sha }}"
+          short_sha=$(echo "${{ github.sha }}" | cut -c1-7)
           full_tag="ghcr.io/${ghcr_prefix}/gradeloop-${{ matrix.service }}"
           echo "full_tag=$full_tag"
           echo "full_tag=$full_tag" >> $GITHUB_OUTPUT
@@ -252,7 +252,7 @@ jobs:
         id: meta
         run: |
           ghcr_prefix="${{ needs.login-ghcr.outputs.ghcr_prefix }}"
-          short_sha="${{ github.sha }}"
+          short_sha=$(echo "${{ github.sha }}" | cut -c1-7)
           full_tag="ghcr.io/${ghcr_prefix}/gradeloop-${{ matrix.service }}"
           echo "full_tag=$full_tag"
           echo "full_tag=$full_tag" >> $GITHUB_OUTPUT
@@ -295,7 +295,7 @@ jobs:
         id: meta
         run: |
           ghcr_prefix="${{ needs.login-ghcr.outputs.ghcr_prefix }}"
-          short_sha="${{ github.sha }}"
+          short_sha=$(echo "${{ github.sha }}" | cut -c1-7)
           full_tag="ghcr.io/${ghcr_prefix}/gradeloop-web"
           echo "full_tag=$full_tag"
           echo "full_tag=$full_tag" >> $GITHUB_OUTPUT
@@ -337,7 +337,7 @@ jobs:
         id: meta
         run: |
           ghcr_prefix="${{ needs.login-ghcr.outputs.ghcr_prefix }}"
-          short_sha="${{ github.sha }}"
+          short_sha=$(echo "${{ github.sha }}" | cut -c1-7)
           full_tag="ghcr.io/${ghcr_prefix}/gradeloop-kong"
           echo "full_tag=$full_tag"
           echo "full_tag=$full_tag" >> $GITHUB_OUTPUT
@@ -351,13 +351,15 @@ jobs:
 
       - name: Tag gateway image
         run: |
+          short_sha=$(echo "${{ github.sha }}" | cut -c1-7)
           docker tag kong:3.9.1 ${{ steps.meta.outputs.full_tag }}:latest
-          docker tag kong:3.9.1 ${{ steps.meta.outputs.full_tag }}:sha-${{ github.sha }}
+          docker tag kong:3.9.1 ${{ steps.meta.outputs.full_tag }}:sha-${short_sha}
 
       - name: Push gateway image
         run: |
+          short_sha=$(echo "${{ github.sha }}" | cut -c1-7)
           docker push ${{ steps.meta.outputs.full_tag }}:latest
-          docker push ${{ steps.meta.outputs.full_tag }}:sha-${{ github.sha }}
+          docker push ${{ steps.meta.outputs.full_tag }}:sha-${short_sha}
 
   # --------------------------------------------------------------------------
   # Build summary
@@ -402,6 +404,13 @@ jobs:
     environment:
       name: production
       url: https://api.gradeloop.example.com
+    env:
+      GHCR_USER: ${{ github.actor }}
+      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+      SHORT_SHA: ${{ github.sha }}
+      RUNTIME: docker
+      COMPOSE_FILE: "infra/compose/compose.prod.images.yaml"
+      GHCR_PACKAGE_PREFIX: ${{ vars.GHCR_PACKAGE_PREFIX || '4yrg' }}
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -411,14 +420,14 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           command_timeout: 30m
           timeout: 120s
-          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA
+          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN
           script: |
             set -e
 
             RUNTIME="${RUNTIME:-docker}"
             COMPOSE_FILE="infra/compose/compose.prod.images.yaml"
             GHCR_PACKAGE_PREFIX="$GHCR_PACKAGE_PREFIX"
-            SHORT_SHA="$SHORT_SHA"
+            SHORT_SHA=$(echo "$SHORT_SHA" | cut -c1-7)
 
             echo "--- Deployment Info ---"
             echo "Runtime: $RUNTIME"
@@ -443,19 +452,30 @@ jobs:
             fi
             echo "Using: $COMPOSE_CMD"
 
-            # Navigate to project directory
+            # Navigate to project directory (clone if missing)
             if [ -d "$HOME/gradeloop-core-v2" ]; then
               cd "$HOME/gradeloop-core-v2"
             elif [ -d "/opt/gradeloop-core-v2" ]; then
               cd "/opt/gradeloop-core-v2"
             else
-              echo "ERROR: Project directory not found."
-              echo "Available:"
-              ls -la ~/
-              ls -la /opt/ 2>/dev/null || true
-              exit 1
+              echo "Project directory not found. Attempting to clone..."
+              git clone --depth 1 https://github.com/4yrg/gradeloop-core-v2.git "$HOME/gradeloop-core-v2" || true
+              if [ -d "$HOME/gradeloop-core-v2" ]; then
+                cd "$HOME/gradeloop-core-v2"
+              else
+                echo "ERROR: Unable to locate or clone repository."
+                ls -la ~/
+                ls -la /opt/ 2>/dev/null || true
+                exit 1
+              fi
             fi
             echo "Working directory: $(pwd)"
+
+            # Authenticate to GHCR
+            if [ -n "$GHCR_TOKEN" ] && [ -n "$GHCR_USER" ]; then
+              echo "Logging in to ghcr.io..."
+              echo "$GHCR_TOKEN" | $RUNTIME login ghcr.io -u "$GHCR_USER" --password-stdin || { echo "WARNING: Login to ghcr.io failed"; }
+            fi
 
             # Fetch latest changes
             echo "Fetching latest main branch..."
@@ -502,6 +522,13 @@ jobs:
     environment:
       name: production
       url: https://api.gradeloop.example.com
+    env:
+      GHCR_USER: ${{ github.actor }}
+      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+      SHORT_SHA: ${{ github.sha }}
+      RUNTIME: podman
+      COMPOSE_FILE: "infra/compose/compose.prod.images.yaml"
+      GHCR_PACKAGE_PREFIX: ${{ vars.GHCR_PACKAGE_PREFIX || '4yrg' }}
     steps:
       - name: Deploy via SSH (Podman)
         uses: appleboy/ssh-action@v1.0.3
@@ -511,28 +538,43 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           command_timeout: 30m
           timeout: 120s
-          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA
+          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN
           script: |
             set -e
 
             RUNTIME=podman
             COMPOSE_FILE="infra/compose/compose.prod.images.yaml"
             GHCR_PACKAGE_PREFIX="$GHCR_PACKAGE_PREFIX"
-            SHORT_SHA="$SHORT_SHA"
+            SHORT_SHA=$(echo "$SHORT_SHA" | cut -c1-7)
 
             echo "--- Deployment Info (Podman) ---"
             echo "Runtime: $RUNTIME"
             echo ""
 
+            # Navigate to project directory (clone if missing)
             if [ -d "$HOME/gradeloop-core-v2" ]; then
               cd "$HOME/gradeloop-core-v2"
             elif [ -d "/opt/gradeloop-core-v2" ]; then
               cd "/opt/gradeloop-core-v2"
             else
-              echo "ERROR: Project directory not found."
-              exit 1
+              echo "Project directory not found. Attempting to clone..."
+              git clone --depth 1 https://github.com/4yrg/gradeloop-core-v2.git "$HOME/gradeloop-core-v2" || true
+              if [ -d "$HOME/gradeloop-core-v2" ]; then
+                cd "$HOME/gradeloop-core-v2"
+              else
+                echo "ERROR: Unable to locate or clone repository."
+                ls -la ~/
+                ls -la /opt/ 2>/dev/null || true
+                exit 1
+              fi
             fi
             echo "Working directory: $(pwd)"
+
+            # Authenticate to GHCR
+            if [ -n "$GHCR_TOKEN" ] && [ -n "$GHCR_USER" ]; then
+              echo "Logging in to ghcr.io..."
+              echo "$GHCR_TOKEN" | $RUNTIME login ghcr.io -u "$GHCR_USER" --password-stdin || { echo "WARNING: Login to ghcr.io failed"; }
+            fi
 
             if command -v podman-compose &>/dev/null; then
               COMPOSE_CMD="podman-compose"
