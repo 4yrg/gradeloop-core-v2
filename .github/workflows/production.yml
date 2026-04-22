@@ -486,6 +486,17 @@ jobs:
             echo "Updating compose file with ghcr.io images..."
             $COMPOSE_CMD -f $COMPOSE_FILE config > /dev/null
 
+            # Pre-flight image pull/check
+            echo "Pre-flight image check..."
+            images=$($COMPOSE_CMD -f $COMPOSE_FILE config 2>/dev/null | awk '/image:/ {print $2}' | sort -u)
+            for img in $images; do
+              echo "Checking image: $img"
+              if ! $RUNTIME pull "$img"; then
+                echo "ERROR: Failed to pull image $img"
+                exit 1
+              fi
+            done
+
             # Pull images from GHCR
             echo "Pulling images from GHCR..."
             $COMPOSE_CMD -f $COMPOSE_FILE pull
@@ -584,6 +595,17 @@ jobs:
 
             git fetch origin main
             git reset --hard origin/main
+
+            # Pre-flight image pull/check
+            echo "Pre-flight image check..."
+            images=$($COMPOSE_CMD -f $COMPOSE_FILE config 2>/dev/null | awk '/image:/ {print $2}' | sort -u)
+            for img in $images; do
+              echo "Checking image: $img"
+              if ! $RUNTIME pull "$img"; then
+                echo "ERROR: Failed to pull image $img"
+                exit 1
+              fi
+            done
 
             echo "Pulling images from GHCR..."
             $COMPOSE_CMD -f $COMPOSE_FILE pull
