@@ -68,7 +68,7 @@ export interface EditorState {
   fontSize: number;
 }
 
-export type ExecutionStatus = 
+export type ExecutionStatus =
   | "idle"
   | "running"
   | "accepted"

@@ -186,7 +186,7 @@ export function KeystrokeTimeline({
     }, [resolvedApiBase, sessionId]);
 
     // ── WebSocket connection ──────────────────────────────────────────────────
-    const connectWs = useCallback(() => {
+    const connectWs = useCallback(function connect() {
         if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
         const url = `${resolvedWsBase}/ws/monitor/${userId}/${sessionId}`;
@@ -197,7 +197,7 @@ export function KeystrokeTimeline({
         ws.onclose = () => {
             setWsStatus("disconnected");
             // Reconnect after 5 s if component still mounted
-            reconnectTimerRef.current = setTimeout(connectWs, 5000);
+            reconnectTimerRef.current = setTimeout(() => connect(), 5000);
         };
         ws.onerror = () => ws.close();
 

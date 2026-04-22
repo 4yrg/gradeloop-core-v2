@@ -5,22 +5,19 @@ Database connection and session management for CIPAS Syntactics.
 - SQLAlchemy engine → used only for schema creation via run_migrations()
 """
 
-import asyncpg
 import json
 import logging
 import os
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 from urllib.parse import urlparse, urlunparse
 
-from sqlalchemy.ext.asyncio import create_async_engine
+import asyncpg
 
 logger = logging.getLogger(__name__)
 
 # Database URL from environment
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/gradeloop"
-)
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/gradeloop")
 
 # ── asyncpg runtime pool ────────────────────────────────────────────────────
 # Connection pool (initialized on startup)
@@ -50,13 +47,11 @@ async def _ensure_database_exists(db_url: str) -> None:
     parsed = urlparse(db_url)
     db_name = parsed.path.lstrip("/")
     admin_dsn = urlunparse(parsed._replace(path="/postgres"))
-    
+
     try:
         conn = await asyncpg.connect(admin_dsn)
         try:
-            exists = await conn.fetchval(
-                "SELECT 1 FROM pg_database WHERE datname = $1", db_name
-            )
+            exists = await conn.fetchval("SELECT 1 FROM pg_database WHERE datname = $1", db_name)
             if not exists:
                 logger.info(f"Database {db_name} does not exist, creating...")
                 await conn.execute(f'CREATE DATABASE "{db_name}"')
@@ -66,6 +61,7 @@ async def _ensure_database_exists(db_url: str) -> None:
     except Exception as e:
         logger.warning(f"Failed to check/create database: {e}")
 
+
 async def init_db_pool() -> None:
     """Initialize the database connection pool."""
     global _pool
@@ -73,7 +69,10 @@ async def init_db_pool() -> None:
         logger.info("Initializing database connection pool...")
         await _ensure_database_exists(DATABASE_URL)
         _pool = await asyncpg.create_pool(
-            DATABASE_URL, min_size=2, max_size=10, command_timeout=60,
+            DATABASE_URL,
+            min_size=2,
+            max_size=10,
+            command_timeout=60,
             init=_init_connection,
         )
         logger.info("Database connection pool initialized.")

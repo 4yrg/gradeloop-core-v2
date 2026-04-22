@@ -21,7 +21,6 @@ import {
   Layers,
   Settings,
   Save,
-  ShieldAlert,
   Loader2,
   GraduationCap,
 } from "lucide-react";
@@ -33,7 +32,6 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils/cn";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -202,7 +200,7 @@ export default function DepartmentDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [params.departmentId]);
+  }, [params.departmentId, setPageTitle]);
 
   React.useEffect(() => {
     load();

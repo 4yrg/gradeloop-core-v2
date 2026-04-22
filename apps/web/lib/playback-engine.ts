@@ -266,7 +266,7 @@ export function usePlaybackEngine(
             setCurrentTimestamp(ts);
             setAuthEntry(getAuthAtTime(ts));
         },
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+
         []
     );
 

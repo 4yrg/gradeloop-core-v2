@@ -94,12 +94,12 @@ export default function SpecializationDetailPage() {
       setSpecialization(spec);
       setPageTitle(spec.name);
       setEditValues({ name: spec.name, code: spec.code });
-      
+
       // Lazily fetch degree info
       if (spec.degree_id) {
         degreesApi.get(spec.degree_id).then(setDegree).catch(() => {});
       }
-      
+
       // Try to fetch courses (may not be supported)
       try {
         const allCourses = await coursesApi.list();
@@ -115,7 +115,7 @@ export default function SpecializationDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [params.specializationId]);
+  }, [params.specializationId, setPageTitle]);
 
   React.useEffect(() => { load(); }, [load]);
 
@@ -343,7 +343,7 @@ export default function SpecializationDetailPage() {
                   <BookMarked className="h-10 w-10 text-muted-foreground/30 mb-3" />
                   <p className="font-medium text-muted-foreground text-sm mb-2">Course association coming soon</p>
                   <p className="text-xs text-muted-foreground max-w-md">
-                    The academic service API does not currently expose courses filtered by specialization. 
+                    The academic service API does not currently expose courses filtered by specialization.
                     This feature will be available when the endpoint is implemented.
                   </p>
                 </div>

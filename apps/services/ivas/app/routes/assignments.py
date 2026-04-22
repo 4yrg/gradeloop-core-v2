@@ -111,9 +111,7 @@ async def delete_assignment(assignment_id: UUID) -> None:
     response_model=GradingCriteriaOut,
     status_code=status.HTTP_201_CREATED,
 )
-async def create_criteria(
-    assignment_id: UUID, body: GradingCriteriaCreate
-) -> GradingCriteriaOut:
+async def create_criteria(assignment_id: UUID, body: GradingCriteriaCreate) -> GradingCriteriaOut:
     """Add grading criteria to an assignment."""
     db = _get_db()
     # Verify assignment exists

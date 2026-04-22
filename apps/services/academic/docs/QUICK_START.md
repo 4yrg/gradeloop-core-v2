@@ -396,7 +396,7 @@ Tests use SQLite in-memory database, so no PostgreSQL setup needed for testing.
 
 ---
 
-**Service Port:** 8083  
-**Base URL:** http://localhost:8083/api/v1  
-**Health Check:** http://localhost:8083/health  
+**Service Port:** 8083
+**Base URL:** http://localhost:8083/api/v1
+**Health Check:** http://localhost:8083/health
 **Authentication:** JWT Bearer Token (Super Admin)

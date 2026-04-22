@@ -16,7 +16,6 @@ NiCAD-style normalization is implemented via Tree-sitter (no external NiCAD tool
 
 import logging
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 
@@ -40,11 +39,11 @@ class TieredDetectionResult:
     normalization_level: str
     jaccard_similarity: float
     levenshtein_ratio: float
-    syntactic_features: Optional[np.ndarray] = None
-    blinded_code1: Optional[str] = None
-    blinded_code2: Optional[str] = None
-    normalized_code1: Optional[str] = None
-    normalized_code2: Optional[str] = None
+    syntactic_features: np.ndarray | None = None
+    blinded_code1: str | None = None
+    blinded_code2: str | None = None
+    normalized_code1: str | None = None
+    normalized_code2: str | None = None
 
 
 class TieredPipeline:
@@ -64,10 +63,10 @@ class TieredPipeline:
 
     def __init__(
         self,
-        normalizer: Optional[StructuralNormalizer] = None,
-        tokenizer: Optional[TreeSitterTokenizer] = None,
-        feature_extractor: Optional[SyntacticFeatureExtractor] = None,
-        classifier: Optional[SyntacticClassifier] = None,
+        normalizer: StructuralNormalizer | None = None,
+        tokenizer: TreeSitterTokenizer | None = None,
+        feature_extractor: SyntacticFeatureExtractor | None = None,
+        classifier: SyntacticClassifier | None = None,
     ):
         self.normalizer = normalizer or StructuralNormalizer()
         self.tokenizer = tokenizer or TreeSitterTokenizer()
@@ -123,9 +122,7 @@ class TieredPipeline:
     # Phase One — NiCAD-style normalizer
     # ──────────────────────────────────────────────────────────────────────
 
-    def _phase_one_nicad(
-        self, code1: str, code2: str, language: str
-    ) -> TieredDetectionResult:
+    def _phase_one_nicad(self, code1: str, code2: str, language: str) -> TieredDetectionResult:
         """
         NiCAD-style tiered comparison for Type-1 and Type-2 detection.
 
@@ -142,9 +139,7 @@ class TieredPipeline:
         with clone_type "Type-3" so the caller escalates to Phase Two.
         """
         # Pass A — Literal
-        jaccard_lit, lev_lit, norm1, norm2 = self.normalizer.compare_literal(
-            code1, code2, language
-        )
+        jaccard_lit, lev_lit, norm1, norm2 = self.normalizer.compare_literal(code1, code2, language)
 
         if (
             jaccard_lit >= self.normalizer.TYPE_1_JACCARD_THRESHOLD
@@ -233,22 +228,16 @@ class TieredPipeline:
         """
         # Extract hybrid features directly from raw code
         try:
-            features = self.feature_extractor.extract_features_from_code(
-                code1, code2, language
-            )
+            features = self.feature_extractor.extract_features_from_code(code1, code2, language)
         except Exception as exc:
-            self._logger.warning(
-                f"Feature extraction failed: {exc}; using zero features"
-            )
+            self._logger.warning(f"Feature extraction failed: {exc}; using zero features")
             features = np.zeros(len(self.feature_extractor.feature_names))
 
         # ── Classifier path ──────────────────────────────────────────────
         if self.classifier is not None and self.classifier.is_trained:
             try:
                 prediction = self.classifier.predict(features.reshape(1, -1))[0]
-                probabilities = self.classifier.predict_proba(features.reshape(1, -1))[
-                    0
-                ]
+                probabilities = self.classifier.predict_proba(features.reshape(1, -1))[0]
                 is_clone = bool(prediction == 1)
                 confidence = float(probabilities[1]) if len(probabilities) > 1 else 0.0
 
@@ -272,12 +261,10 @@ class TieredPipeline:
 
         # Conservative threshold — only flag high-confidence Type-3 clones
         # when the classifier is unavailable.
-        TYPE3_THRESHOLD = 0.6
-        is_clone = jaccard >= TYPE3_THRESHOLD and lev_ratio >= 0.70
+        type3_threshold = 0.6
+        is_clone = jaccard >= type3_threshold and lev_ratio >= 0.70
 
-        confidence = (
-            max(jaccard, lev_ratio) if is_clone else 1.0 - max(jaccard, lev_ratio)
-        )
+        confidence = max(jaccard, lev_ratio) if is_clone else 1.0 - max(jaccard, lev_ratio)
 
         return TieredDetectionResult(
             is_clone=is_clone,
@@ -291,7 +278,7 @@ class TieredPipeline:
 
 
 def get_tiered_pipeline(
-    classifier: Optional[SyntacticClassifier] = None,
+    classifier: SyntacticClassifier | None = None,
 ) -> TieredPipeline:
     """
     Convenience factory: returns a fully initialised TieredPipeline.

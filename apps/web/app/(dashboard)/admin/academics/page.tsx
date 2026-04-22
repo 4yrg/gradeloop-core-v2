@@ -4,8 +4,7 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Building2, Award, BookOpen, Landmark, ArrowRight, AlertTriangle, Calendar, Users2, ClipboardList } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+
 import { Skeleton } from '@/components/ui/skeleton';
 import { departmentsApi, degreesApi, coursesApi, facultiesApi, semestersApi, batchesApi } from '@/lib/api/academics';
 import { useAcademicsAccess } from '@/lib/hooks/useAcademicsAccess';

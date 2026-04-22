@@ -45,7 +45,9 @@ function ActivateContent() {
 
   useEffect(() => {
     if (!rawToken && state.status === "ready") {
-      setState({ status: "no-token" });
+      queueMicrotask(() => {
+        setState({ status: "no-token" });
+      });
     }
   }, [rawToken, state.status]);
 

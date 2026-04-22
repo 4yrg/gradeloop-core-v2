@@ -41,7 +41,6 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Optional
 
 # ────────────────────────────────────────────────────────────────────────────
 # Data classes
@@ -158,8 +157,8 @@ class CollusionGraph:
         student_b: str,
         clone_type: str,
         confidence: float,
-        frag_a_id: Optional[str] = None,
-        frag_b_id: Optional[str] = None,
+        frag_a_id: str | None = None,
+        frag_b_id: str | None = None,
     ) -> None:
         """
         Add (or update) a clone-match edge between two students.
@@ -178,9 +177,7 @@ class CollusionGraph:
         if key in self._edges:
             existing = self._edges[key]
             # Keep the most severe type
-            if _TYPE_SEVERITY.get(clone_type, 0) > _TYPE_SEVERITY.get(
-                existing.clone_type, 0
-            ):
+            if _TYPE_SEVERITY.get(clone_type, 0) > _TYPE_SEVERITY.get(existing.clone_type, 0):
                 existing.clone_type = clone_type
             # Keep max confidence
             existing.confidence = max(existing.confidence, confidence)
@@ -211,7 +208,7 @@ class CollusionGraph:
     def connected_components(
         self,
         min_group_size: int = 2,
-        min_confidence: Optional[float] = None,
+        min_confidence: float | None = None,
     ) -> list[CollusionGroup]:
         """
         Compute connected components and return CollusionGroup objects.
@@ -224,9 +221,7 @@ class CollusionGraph:
         Returns list of groups sorted by size (descending), then by max
         confidence (descending).
         """
-        threshold = (
-            min_confidence if min_confidence is not None else self._min_confidence
-        )
+        threshold = min_confidence if min_confidence is not None else self._min_confidence
         uf = _UnionFind()
 
         # Ensure every node is registered even if it has no edges
@@ -249,9 +244,7 @@ class CollusionGraph:
 
             member_set = set(members)
             group_edges = [
-                e
-                for e in active_edges
-                if e.student_a in member_set or e.student_b in member_set
+                e for e in active_edges if e.student_a in member_set or e.student_b in member_set
             ]
 
             max_conf = max((e.confidence for e in group_edges), default=0.0)
@@ -297,7 +290,7 @@ class CollusionGraph:
                 result.append(a)
         return result
 
-    def get_edge(self, student_a: str, student_b: str) -> Optional[CloneEdge]:
+    def get_edge(self, student_a: str, student_b: str) -> CloneEdge | None:
         key = (min(student_a, student_b), max(student_a, student_b))
         return self._edges.get(key)
 

@@ -15,22 +15,22 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
-from tqdm import tqdm
+from clone_detection.utils.type3_filter import is_type3_clone
 from sklearn.metrics import (
     accuracy_score,
-    precision_score,
-    recall_score,
-    f1_score,
-    roc_auc_score,
     classification_report,
     confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
 )
+from tqdm import tqdm
 
 from clone_detection.features.syntactic_features import SyntacticFeatureExtractor
 from clone_detection.models.classifiers import SyntacticClassifier
 from clone_detection.pipelines import TieredPipeline
-from clone_detection.utils.common_setup import setup_logging, load_config
-from clone_detection.utils.type3_filter import is_type3_clone
+from clone_detection.utils.common_setup import load_config, setup_logging
 
 logger = setup_logging(__name__)
 
@@ -81,7 +81,7 @@ def load_bcb_dataset(
         clone_types = SYNTACTIC_CLONE_TYPES
 
     logger.info(f"Loading BigCloneBench Balanced from {bcb_path} …")
-    with open(bcb_path, "r", encoding="utf-8") as fh:
+    with open(bcb_path, encoding="utf-8") as fh:
         records = json.load(fh)
     logger.info(f"  Loaded {len(records):,} total records")
 
@@ -104,13 +104,9 @@ def load_bcb_dataset(
     logger.info(
         f"  Syntactic clones (Type-{{{','.join(str(t) for t in sorted(clone_types))}}}): {len(clones):,}"
     )
-    logger.info(
-        f"  Non-clones                                      : {len(non_clones):,}"
-    )
+    logger.info(f"  Non-clones                                      : {len(non_clones):,}")
     if skipped_type4:
-        logger.info(
-            f"  Type-4 semantic clones skipped (excluded)       : {skipped_type4:,}"
-        )
+        logger.info(f"  Type-4 semantic clones skipped (excluded)       : {skipped_type4:,}")
 
     # Sample if requested (independently per class)
     if sample_size:
@@ -156,9 +152,7 @@ def extract_features(
     include_node_types: bool = True,
 ) -> tuple[np.ndarray, list[str]]:
     """Extract the same hybrid String + AST features used during training."""
-    extractor = SyntacticFeatureExtractor(
-        language=language, include_node_types=include_node_types
-    )
+    extractor = SyntacticFeatureExtractor(language=language, include_node_types=include_node_types)
     features: list[np.ndarray] = []
     failed = 0
 
@@ -224,16 +218,13 @@ def save_evaluation_artifacts(
     # ── 1. Metrics JSON ─────────────────────────────────────────────────────
     # Convert per-clone-type keys to strings for valid JSON.
     serialisable_per_type = {
-        str(ct): {
-            k: (round(float(v), 6) if isinstance(v, float) else v) for k, v in m.items()
-        }
+        str(ct): {k: (round(float(v), 6) if isinstance(v, float) else v) for k, v in m.items()}
         for ct, m in clone_type_metrics.items()
     }
     metrics_payload = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "metrics": {
-            k: (round(float(v), 6) if isinstance(v, float) else v)
-            for k, v in metrics.items()
+            k: (round(float(v), 6) if isinstance(v, float) else v) for k, v in metrics.items()
         },
         "per_clone_type": serialisable_per_type,
     }
@@ -286,9 +277,7 @@ def save_evaluation_artifacts(
         # ── 2b. Per-clone-type recall ───────────────────────────────────────
         if clone_type_metrics:
             ct_labels = [f"Type-{ct}" for ct in sorted(clone_type_metrics)]
-            ct_recalls = [
-                clone_type_metrics[ct]["recall"] for ct in sorted(clone_type_metrics)
-            ]
+            ct_recalls = [clone_type_metrics[ct]["recall"] for ct in sorted(clone_type_metrics)]
             ct_f1s = [clone_type_metrics[ct]["f1"] for ct in sorted(clone_type_metrics)]
             colors = ["tomato" if r < 0.4 else "steelblue" for r in ct_recalls]
 
@@ -430,9 +419,7 @@ def evaluate(
         clone_types = SYNTACTIC_CLONE_TYPES
 
     logger.info("=" * 80)
-    logger.info(
-        "Two-Stage Clone Detection — Pipeline Evaluation on BigCloneBench Balanced"
-    )
+    logger.info("Two-Stage Clone Detection — Pipeline Evaluation on BigCloneBench Balanced")
     logger.info("=" * 80)
     logger.info("Stage 0 (NiCAD)  : Type-1 / Type-2 via StructuralNormalizer")
     logger.info(f"Stage 1 (XGBoost): Type-3 via {model_name}")
@@ -449,10 +436,7 @@ def evaluate(
     try:
         model = SyntacticClassifier.load(model_name)
     except FileNotFoundError:
-        logger.error(
-            "Model file not found. Train the model first:\n"
-            "  poetry run python train.py"
-        )
+        logger.error("Model file not found. Train the model first:\n  poetry run python train.py")
         raise
 
     # ---- Build NiCAD pipeline (no XGBoost classifier) --------------------
@@ -475,7 +459,7 @@ def evaluate(
 
     # ---- Extract features (XGBoost uses these for Type-3 + non-clones) ---
     logger.info("\nExtracting String + AST features (used for XGBoost / Type-3 path) …")
-    X, raw_feature_names = extract_features(
+    x_data, raw_feature_names = extract_features(
         code1_list, code2_list, language="java", include_node_types=include_node_types
     )
     y = np.array(labels)
@@ -487,12 +471,12 @@ def evaluate(
         raise ValueError("Feature mismatch between training and inference")
 
     kept_indices = [raw_feature_names.index(f) for f in model.feature_names]
-    X_filtered = X[:, kept_indices]
+    x_filtered = x_data[:, kept_indices]
     feature_names = model.feature_names
 
     # ---- XGBoost probabilities (computed once for all pairs) -------------
     logger.info("\nComputing XGBoost clone probabilities …")
-    y_proba_xgb = model.predict_proba(X_filtered)[:, 1]
+    y_proba_xgb = model.predict_proba(x_filtered)[:, 1]
 
     # Resolve threshold: CLI arg → model's calibrated_threshold → default 0.5
     effective_threshold = threshold
@@ -555,14 +539,14 @@ def evaluate(
         elif label == 1 and clone_type == 3:
             xgb_routes += 1
             if prob_xgb > effective_threshold:
-                pred = int(is_type3_clone(X_filtered[i], feature_names, prob_xgb))
+                pred = int(is_type3_clone(x_filtered[i], feature_names, prob_xgb))
                 if log_type3_similarity and pred == 1:
                     lev_idx = feature_names.index("feat_levenshtein_ratio")
                     ast_idx = feature_names.index("feat_ast_jaccard")
                     logger.info(
                         "Type3 TP: lev=%.3f, ast=%.3f, prob=%.3f",
-                        X_filtered[i][lev_idx],
-                        X_filtered[i][ast_idx],
+                        x_filtered[i][lev_idx],
+                        x_filtered[i][ast_idx],
                         prob_xgb,
                     )
             else:
@@ -585,7 +569,7 @@ def evaluate(
                 # NiCAD falsely fires on a non-clone → FP
                 pred = 1
             elif prob_xgb > effective_threshold:
-                pred = int(is_type3_clone(X_filtered[i], feature_names, prob_xgb))
+                pred = int(is_type3_clone(x_filtered[i], feature_names, prob_xgb))
             else:
                 pred = 0
 
@@ -662,40 +646,34 @@ def evaluate(
     logger.info(f"ROC AUC     : {metrics['roc_auc']:.4f}")
 
     logger.info("\nClassification Report:")
-    logger.info(
-        classification_report(y, y_pred_arr, target_names=["Non-Clone", "Clone"])
-    )
+    logger.info(classification_report(y, y_pred_arr, target_names=["Non-Clone", "Clone"]))
 
     logger.info("Confusion Matrix (rows=actual, cols=predicted):")
     cm = confusion_matrix(y, y_pred_arr)
-    logger.info(f"  TN={cm[0,0]:>7}  FP={cm[0,1]:>7}")
-    logger.info(f"  FN={cm[1,0]:>7}  TP={cm[1,1]:>7}")
+    logger.info(f"  TN={cm[0, 0]:>7}  FP={cm[0, 1]:>7}")
+    logger.info(f"  FN={cm[1, 0]:>7}  TP={cm[1, 1]:>7}")
 
     # Per-clone-type recall — PRIMARY KPI
     if clone_type_metrics:
         logger.info("\n" + "=" * 80)
         logger.info("Per-Clone-Type Metrics — Routed Evaluation  (PRIMARY KPI)")
-        logger.info(
-            "  Type-1/2 → NiCAD (Phase One)  |  Type-3 → XGBoost + Type-3 Filter"
-        )
+        logger.info("  Type-1/2 → NiCAD (Phase One)  |  Type-3 → XGBoost + Type-3 Filter")
         logger.info("Target: Type-3 Recall ≥ 40%")
         logger.info("=" * 80)
         logger.info(
             f"  {'Type':<7} {'Recall':>7}  {'Precision':>9}  {'F1':>7}   bar (recall)             TP / (TP+FN)  n       Detector"
         )
         logger.info(
-            f"  {'-'*7} {'-'*7}  {'-'*9}  {'-'*7}   {'-'*24}  {'-'*12}  {'-'*6}  {'-'*26}"
+            f"  {'-' * 7} {'-' * 7}  {'-' * 9}  {'-' * 7}   {'-' * 24}  {'-' * 12}  {'-' * 6}  {'-' * 26}"
         )
         for ct, m in clone_type_metrics.items():
             bar_filled = int(m["recall"] * 20)
             bar = "█" * bar_filled + "░" * (20 - bar_filled)
             kpi = " ← TARGET" if ct == 3 else ""
-            meet = (
-                " ✓" if ct == 3 and m["recall"] >= 0.40 else (" ✗" if ct == 3 else "")
-            )
+            meet = " ✓" if ct == 3 and m["recall"] >= 0.40 else (" ✗" if ct == 3 else "")
             logger.info(
                 f"  Type-{ct}  {m['recall']:>7.4f}  {m['precision']:>9.4f}  {m['f1']:>7.4f}   [{bar}]"
-                f"  TP={m['tp']:>5} / {m['tp']+m['fn']:>5}  n={m['count']:>6}{kpi}{meet}"
+                f"  TP={m['tp']:>5} / {m['tp'] + m['fn']:>5}  n={m['count']:>6}{kpi}{meet}"
                 f"  {m['detector']}"
             )
 
@@ -711,18 +689,12 @@ def evaluate(
     # Boundary reminders
     logger.info("\nNiCAD Phase-One Thresholds (Type-1 / Type-2 path):")
     logger.info("  Type-1: Jaccard ≥ 0.98 AND Levenshtein ≥ 0.98 (literal CST)")
-    logger.info(
-        "  Type-2: max(Jaccard, Lev) ≥ 0.95, token-length delta ≤ 5 % (blinded CST)"
-    )
+    logger.info("  Type-2: max(Jaccard, Lev) ≥ 0.95, token-length delta ≤ 5 % (blinded CST)")
 
     logger.info("\nType-3 Filter Boundaries Applied (XGBoost path — Stage 2):")
     logger.info("  prob_floor       : 0.35  (pairs below this are not clones)")
-    logger.info(
-        "  lev_ratio_upper  : 0.85  (above this = Type-1/2, excluded from Type-3)"
-    )
-    logger.info(
-        "  ast_jaccard_upper: 0.90  (above this = Type-1/2, excluded from Type-3)"
-    )
+    logger.info("  lev_ratio_upper  : 0.85  (above this = Type-1/2, excluded from Type-3)")
+    logger.info("  ast_jaccard_upper: 0.90  (above this = Type-1/2, excluded from Type-3)")
 
     # ---- Persist metrics + visualizations --------------------------------
     save_evaluation_artifacts(
@@ -844,11 +816,8 @@ Examples:
         and features_config.get("include_node_types", True),
         "threshold": args.threshold or eval_config.get("threshold"),
         "log_type3_similarity": eval_config.get("log_type3_similarity", False),
-        "output_dir": args.output_dir
-        or Path(model_config.get("output_dir", "./results/evaluate")),
-        "bcb_path": config.get("datasets", {})
-        .get("bigclonebench_balanced", {})
-        .get("path"),
+        "output_dir": args.output_dir or Path(model_config.get("output_dir", "./results/evaluate")),
+        "bcb_path": config.get("datasets", {}).get("bigclonebench_balanced", {}).get("path"),
     }
 
     if args.verbose:

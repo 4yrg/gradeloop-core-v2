@@ -160,21 +160,21 @@ training:
   model:
     name: "clone_detector_xgb.pkl"
     output_dir: "./results/train"
-  
+
   xgboost:
     n_estimators: 500
     max_depth: 8
     learning_rate: 0.05
     scale_pos_weight: 2.0
-  
+
   sample_size: null  # null = full dataset
-  
+
 # Evaluation configuration
 evaluation:
   model:
     path: "clone_detector_xgb.pkl"
     output_dir: "./results/evaluate"
-  
+
   clone_types: [1, 2, 3]
   sample_size: null
   threshold: null  # null = use calibrated
@@ -771,5 +771,5 @@ cipas-syntactics/
 
 ---
 
-**Version**: 2.0.0 (Configuration-Based)  
+**Version**: 2.0.0 (Configuration-Based)
 **Last Updated**: March 6, 2026

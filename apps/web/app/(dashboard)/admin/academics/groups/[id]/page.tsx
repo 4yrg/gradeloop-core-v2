@@ -4,17 +4,13 @@ import * as React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
     ArrowLeft,
-    Plus,
     Search,
-    RefreshCw,
     UserPlus,
     X,
     Check,
     Loader2,
     Calendar,
     Users,
-    ChevronRight,
-    MoreHorizontal,
     UserCircle,
     Copy,
     Settings,
@@ -35,7 +31,7 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { batchesApi, batchMembersApi, degreesApi, specializationsApi } from '@/lib/api/academics';
+import { batchesApi, batchMembersApi } from '@/lib/api/academics';
 import { usersApi } from '@/lib/api/users';
 import { handleApiError } from '@/lib/api/axios';
 import { toast } from '@/lib/hooks/use-toast';
@@ -50,7 +46,7 @@ import {
     SideDialogHeader,
     SideDialogTitle,
 } from '@/components/ui/side-dialog';
-import type { Batch, BatchMemberDetail } from '@/types/academics.types';
+import type { Batch, BatchMemberDetail, Specialization, UpdateBatchRequest } from '@/types/academics.types';
 import type { UserListItem } from '@/types/auth.types';
 import { cn } from '@/lib/utils/cn';
 import { useUIStore } from '@/lib/stores/uiStore';
@@ -70,9 +66,9 @@ export default function GroupDetailPage() {
     const [activeTab, setActiveTab] = React.useState<'students' | 'settings'>('students');
 
     // Settings form state
-    const [editValues, setEditValues] = React.useState<any>({});
+    const [editValues, setEditValues] = React.useState<UpdateBatchRequest>({});
     const [saving, setSaving] = React.useState(false);
-    const [specializations, setSpecializations] = React.useState<any[]>([]);
+    const [specializations, setSpecializations] = React.useState<Specialization[]>([]);
 
     // Bulk Add state
     const [addOpen, setAddOpen] = React.useState(false);
@@ -110,7 +106,7 @@ export default function GroupDetailPage() {
         } finally {
             setLoading(false);
         }
-    }, [id]);
+    }, [id, setPageTitle]);
 
     React.useEffect(() => { fetchData(); }, [fetchData]);
 

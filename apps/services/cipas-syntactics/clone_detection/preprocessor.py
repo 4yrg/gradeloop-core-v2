@@ -41,8 +41,8 @@ Usage
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Optional, Sequence
 
 from .normalizers.universal_mapper import UniversalTokenMapper
 from .tokenizers.tree_sitter_tokenizer import TreeSitterTokenizer
@@ -110,11 +110,11 @@ class Fragment:
     token_count: int
     byte_offset: int  # Byte offset in the original file
     fragment_type: str  # "structural" | "window" | "whole_file"
-    node_type: Optional[str] = None  # CST node type if structural
+    node_type: str | None = None  # CST node type if structural
     is_template: bool = False
     # Populated after LSH indexing:
-    fragment_id: Optional[str] = None
-    lsh_signature: Optional[bytes] = None
+    fragment_id: str | None = None
+    lsh_signature: bytes | None = None
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -172,14 +172,10 @@ class Fragmenter:
                         fragments.append(frag)
                         # Slide if block is long
                         fragments.extend(
-                            self._slide_over(
-                                frag, submission_id, student_id, assignment_id
-                            )
+                            self._slide_over(frag, submission_id, student_id, assignment_id)
                         )
             except Exception as exc:
-                logger.warning(
-                    "Tree-sitter segmentation failed for %s: %s", ts_lang, exc
-                )
+                logger.warning("Tree-sitter segmentation failed for %s: %s", ts_lang, exc)
 
         # ── 2. Regex fallback for C# or when Tree-sitter produced nothing ──
         if not fragments or ts_lang is None:
@@ -212,9 +208,7 @@ class Fragmenter:
             )
             if whole:
                 fragments.append(whole)
-                fragments.extend(
-                    self._slide_over(whole, submission_id, student_id, assignment_id)
-                )
+                fragments.extend(self._slide_over(whole, submission_id, student_id, assignment_id))
 
         # Dedup by abstract token content
         seen: set[tuple[str, ...]] = set()
@@ -229,9 +223,7 @@ class Fragmenter:
 
     # ── Private helpers ────────────────────────────────────────────────────
 
-    def _extract_structural_blocks(
-        self, source: str, language: str
-    ) -> list[tuple[str, str, int]]:
+    def _extract_structural_blocks(self, source: str, language: str) -> list[tuple[str, str, int]]:
         """
         Walk the CST and collect (raw_source, node_type, byte_offset) for
         every node whose type is in ``_STRUCTURAL_BLOCK_TYPES``.
@@ -257,9 +249,7 @@ class Fragmenter:
         results: list[tuple[str, str, int]],
     ) -> None:
         if node.type in _STRUCTURAL_BLOCK_TYPES:
-            text = code_bytes[node.start_byte : node.end_byte].decode(
-                "utf-8", errors="ignore"
-            )
+            text = code_bytes[node.start_byte : node.end_byte].decode("utf-8", errors="ignore")
             if text.strip():
                 results.append((text, node.type, node.start_byte))
             # Don't recurse inside a matched block to avoid double-counting;
@@ -308,8 +298,8 @@ class Fragmenter:
         submission_id: str,
         student_id: str,
         assignment_id: str,
-        node_type: Optional[str] = None,
-    ) -> Optional[Fragment]:
+        node_type: str | None = None,
+    ) -> Fragment | None:
         """Tokenize + map raw source; return Fragment or None if too short."""
         ts_lang = self.language if self.language in ("java", "python", "c") else "java"
         try:

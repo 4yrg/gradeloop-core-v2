@@ -153,7 +153,7 @@ export default function InstructorStudentsPage() {
 
     // ── Columns: students ─────────────────────────────────────────────────
 
-    const studentColumns: ColumnDef<Enrollment, any>[] = [
+    const studentColumns: ColumnDef<Enrollment, unknown>[] = [
         {
             accessorKey: "student_id",
             header: "Student ID",
@@ -234,7 +234,7 @@ export default function InstructorStudentsPage() {
 
     // ── Columns: batches ──────────────────────────────────────────────────
 
-    const batchColumns: ColumnDef<EnrolledBatchStats, any>[] = [
+    const batchColumns: ColumnDef<EnrolledBatchStats, unknown>[] = [
         {
             accessorKey: "name",
             header: "Batch",

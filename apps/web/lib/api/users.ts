@@ -37,8 +37,17 @@ export interface UserActivityResponse {
  *   - { data: [], total, page, limit }
  *   - { users: [], meta: { total, page, limit } }
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function normalizePaginated(raw: any, params: ListUsersParams): PaginatedUsers {
+
+function normalizePaginated(raw: unknown, params: ListUsersParams): PaginatedUsers {
+  const data = raw as {
+    data?: UserListItem[];
+    users?: UserListItem[];
+    total?: number;
+    total_count?: number;
+    page?: number;
+    limit?: number;
+  };
+
   if (Array.isArray(raw)) {
     return {
       data: raw as UserListItem[],
@@ -47,17 +56,18 @@ function normalizePaginated(raw: any, params: ListUsersParams): PaginatedUsers {
       limit: params.limit ?? raw.length,
     };
   }
-  if (Array.isArray(raw?.data)) return raw as PaginatedUsers;
-  if (Array.isArray(raw?.users)) {
+
+  if (Array.isArray(data?.data)) return data as PaginatedUsers;
+
+  if (Array.isArray(data?.users)) {
     return {
-      data: raw.users as UserListItem[],
-      // backend sends total_count at top level, not nested under meta
-      total: raw.total_count ?? raw.users.length,
-      page: raw.page ?? 1,
-      limit: raw.limit ?? raw.users.length,
+      data: data.users,
+      total: data.total_count ?? data.users.length,
+      page: data.page ?? 1,
+      limit: data.limit ?? data.users.length,
     };
   }
-  return raw as PaginatedUsers;
+  return data as PaginatedUsers;
 }
 
 export const usersApi = {
@@ -145,7 +155,7 @@ export const usersApi = {
   },
 
   /** POST /users/import/preview */
-  importPreview: async (file: File): Promise<any> => {
+  importPreview: async (file: File): Promise<unknown> => {
     const formData = new FormData();
     formData.append("file", file);
     const { data } = await axiosInstance.post(
@@ -162,7 +172,7 @@ export const usersApi = {
   importExecute: async (
     file: File,
     mapping: Record<string, string>,
-  ): Promise<any> => {
+  ): Promise<unknown> => {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("column_mapping", JSON.stringify(mapping));

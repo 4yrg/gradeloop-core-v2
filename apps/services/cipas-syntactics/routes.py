@@ -17,7 +17,6 @@ Phase 1–4 endpoints:
 """
 
 import logging
-from typing import Optional
 
 from fastapi import HTTPException, status
 
@@ -55,12 +54,12 @@ from schemas import (
     IngestionResponse,
     ModelStatus,
     SubmissionClusterResult,
+    SubmissionIngestRequest,
     SyntacticFeatures,
     TemplateRegisterRequest,
     TemplateRegisterResponse,
     TokenizeRequest,
     TokenizeResponse,
-    SubmissionIngestRequest,
 )
 
 logger = logging.getLogger(__name__)
@@ -69,18 +68,18 @@ logger = logging.getLogger(__name__)
 # Global Singletons (lazy loaded)
 # ============================================================================
 
-_syntactic_model: Optional[SyntacticClassifier] = None
-_tokenizer: Optional[TreeSitterTokenizer] = None
-_syntactic_extractor: Optional[SyntacticFeatureExtractor] = None
-_normalizer: Optional[StructuralNormalizer] = None
-_tiered_pipeline: Optional[TieredPipeline] = None
+_syntactic_model: SyntacticClassifier | None = None
+_tokenizer: TreeSitterTokenizer | None = None
+_syntactic_extractor: SyntacticFeatureExtractor | None = None
+_normalizer: StructuralNormalizer | None = None
+_tiered_pipeline: TieredPipeline | None = None
 
 # Phase 1–4 singletons
-_db: Optional[InMemoryDB] = None
-_indexer: Optional[MinHashIndexer] = None
-_graph: Optional[CollusionGraph] = None
-_worker: Optional[CascadeWorker] = None
-_tpl_filter: Optional[TemplateFilter] = None
+_db: InMemoryDB | None = None
+_indexer: MinHashIndexer | None = None
+_graph: CollusionGraph | None = None
+_worker: CascadeWorker | None = None
+_tpl_filter: TemplateFilter | None = None
 
 
 def _get_tokenizer() -> TreeSitterTokenizer:
@@ -112,7 +111,7 @@ def _get_tiered_pipeline() -> TieredPipeline:
     return _tiered_pipeline
 
 
-def _load_syntactic_model() -> Optional[SyntacticClassifier]:
+def _load_syntactic_model() -> SyntacticClassifier | None:
     global _syntactic_model
     if _syntactic_model is None:
         try:
@@ -237,9 +236,7 @@ def compare_codes(
         result = ComparisonResult(
             is_clone=detection_result.is_clone,
             confidence=detection_result.confidence,
-            clone_type=(
-                detection_result.clone_type if detection_result.is_clone else None
-            ),
+            clone_type=(detection_result.clone_type if detection_result.is_clone else None),
             pipeline_used="Syntactic Cascade (Type-1 → Type-2 → Type-3)",
             normalization_level=detection_result.normalization_level,
             tokens1_count=len(tokens1),
@@ -484,7 +481,7 @@ def register_template(request: TemplateRegisterRequest) -> TemplateRegisterRespo
 
 
 def get_collusion_report(
-    assignment_id: Optional[str] = None,
+    assignment_id: str | None = None,
     min_confidence: float = 0.0,
 ) -> CollusionReportResponse:
     """
@@ -577,10 +574,6 @@ def cluster_assignment(request: AssignmentClusterRequest) -> AssignmentClusterRe
     4. Return per-submission summaries + collusion groups.
     5. Persistence is done in the HTTP layer (main.py) in the request event loop.
     """
-    import time
-
-    start_time = time.time()
-
     try:
         # ── Isolated pipeline ─────────────────────────────────────────────
         isolated_db = InMemoryDB()
@@ -706,8 +699,6 @@ def cluster_assignment(request: AssignmentClusterRequest) -> AssignmentClusterRe
             len(groups_out),
         )
 
-        processing_time = time.time() - start_time
-
         response = AssignmentClusterResponse(
             assignment_id=request.assignment_id,
             language=request.language.value,
@@ -780,15 +771,18 @@ async def get_similarity_report(assignment_id: str):
         )
     except Exception as exc:
         err_msg = str(exc).lower()
-        if "pool not initialized" in err_msg or "relation" in err_msg and "does not exist" in err_msg or "asyncpg" in type(exc).__module__:
+        if (
+            "pool not initialized" in err_msg
+            or "relation" in err_msg
+            and "does not exist" in err_msg
+            or "asyncpg" in type(exc).__module__
+        ):
             logger.warning("Report fetch skipped (DB error): %s", exc)
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="No similarity report found for this assignment.",
             )
-        logger.error(
-            "Failed to retrieve report for %s: %s", assignment_id, exc, exc_info=True
-        )
+        logger.error("Failed to retrieve report for %s: %s", assignment_id, exc, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve similarity report: {exc}",
@@ -809,8 +803,9 @@ async def create_annotation(request):
         HTTPException: 400 on invalid request, 500 on database error
     """
     try:
-        from repositories import InstructorAnnotationRepository
         from uuid import UUID
+
+        from repositories import InstructorAnnotationRepository
 
         # Convert string UUIDs to UUID objects if provided
         match_id = UUID(request.match_id) if request.match_id else None
@@ -874,8 +869,9 @@ async def update_annotation(annotation_id: str, request):
         HTTPException: 404 if not found, 500 on database error
     """
     try:
-        from repositories import InstructorAnnotationRepository
         from uuid import UUID
+
+        from repositories import InstructorAnnotationRepository
 
         annotation_uuid = UUID(annotation_id)
 
@@ -894,9 +890,7 @@ async def update_annotation(annotation_id: str, request):
             )
 
         # Retrieve the updated annotation
-        annotation = await InstructorAnnotationRepository.get_annotation(
-            annotation_uuid
-        )
+        annotation = await InstructorAnnotationRepository.get_annotation(annotation_uuid)
 
         from schemas import AnnotationResponse
 
@@ -921,9 +915,7 @@ async def update_annotation(annotation_id: str, request):
     except HTTPException:
         raise
     except Exception as exc:
-        logger.error(
-            "Failed to update annotation %s: %s", annotation_id, exc, exc_info=True
-        )
+        logger.error("Failed to update annotation %s: %s", annotation_id, exc, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update annotation: {exc}",
@@ -947,11 +939,9 @@ async def get_annotations(assignment_id: str, status_filter: str | None = None):
     try:
         from repositories import InstructorAnnotationRepository
 
-        annotations = (
-            await InstructorAnnotationRepository.get_annotations_for_assignment(
-                assignment_id=assignment_id,
-                status=status_filter,
-            )
+        annotations = await InstructorAnnotationRepository.get_annotations_for_assignment(
+            assignment_id=assignment_id,
+            status=status_filter,
         )
 
         from schemas import AnnotationResponse
@@ -973,9 +963,7 @@ async def get_annotations(assignment_id: str, status_filter: str | None = None):
         ]
 
     except Exception as exc:
-        logger.error(
-            "Failed to get annotations for %s: %s", assignment_id, exc, exc_info=True
-        )
+        logger.error("Failed to get annotations for %s: %s", assignment_id, exc, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve annotations: {exc}",
@@ -1039,10 +1027,12 @@ async def export_similarity_report_csv(assignment_id: str):
         HTTPException: 404 if report not found, 500 on database error
     """
     try:
-        from repositories import SimilarityReportRepository
-        from fastapi.responses import StreamingResponse
-        import io
         import csv
+        import io
+
+        from fastapi.responses import StreamingResponse
+
+        from repositories import SimilarityReportRepository
 
         # Fetch the report
         report = await SimilarityReportRepository.get_report(assignment_id)
@@ -1100,9 +1090,7 @@ async def export_similarity_report_csv(assignment_id: str):
     except HTTPException:
         raise
     except Exception as exc:
-        logger.error(
-            "Failed to export report for %s: %s", assignment_id, exc, exc_info=True
-        )
+        logger.error("Failed to export report for %s: %s", assignment_id, exc, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to export report: {exc}",

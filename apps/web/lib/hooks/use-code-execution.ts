@@ -107,10 +107,10 @@ export function useCodeExecution({
       } catch (err) {
         const error = err instanceof Error ? err : new Error("Failed to execute code");
         setError(error);
-        
+
         console.error("Code execution error:", err);
         toast.error(error.message || "Failed to execute code");
-        
+
         onError?.(error);
       } finally {
         setIsExecuting(false);

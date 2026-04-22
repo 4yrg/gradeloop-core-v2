@@ -5,7 +5,6 @@ Handles CRUD operations for instructor feedback on clone matches and clusters.
 """
 
 import logging
-from typing import Optional
 from uuid import UUID
 
 from database import get_db_connection
@@ -31,10 +30,10 @@ class InstructorAnnotationRepository:
         assignment_id: str,
         instructor_id: str,
         status: str,
-        match_id: Optional[UUID] = None,
-        group_id: Optional[UUID] = None,
-        comments: Optional[str] = None,
-        action_taken: Optional[str] = None,
+        match_id: UUID | None = None,
+        group_id: UUID | None = None,
+        comments: str | None = None,
+        action_taken: str | None = None,
     ) -> UUID:
         """
         Create a new instructor annotation.
@@ -83,9 +82,9 @@ class InstructorAnnotationRepository:
     @staticmethod
     async def update_annotation(
         annotation_id: UUID,
-        status: Optional[str] = None,
-        comments: Optional[str] = None,
-        action_taken: Optional[str] = None,
+        status: str | None = None,
+        comments: str | None = None,
+        action_taken: str | None = None,
     ) -> bool:
         """
         Update an existing annotation.
@@ -126,7 +125,7 @@ class InstructorAnnotationRepository:
 
         query = f"""
             UPDATE instructor_annotations
-            SET {', '.join(updates)}
+            SET {", ".join(updates)}
             WHERE id = ${param_idx}
         """
 
@@ -139,7 +138,7 @@ class InstructorAnnotationRepository:
         return updated
 
     @staticmethod
-    async def get_annotation(annotation_id: UUID) -> Optional[dict]:
+    async def get_annotation(annotation_id: UUID) -> dict | None:
         """
         Get an annotation by ID.
 
@@ -150,7 +149,7 @@ class InstructorAnnotationRepository:
             Dictionary with annotation data or None if not found
         """
         query = """
-            SELECT 
+            SELECT
                 id, match_id, group_id, assignment_id, instructor_id,
                 status, comments, action_taken, created_at, updated_at
             FROM instructor_annotations
@@ -164,7 +163,7 @@ class InstructorAnnotationRepository:
 
     @staticmethod
     async def get_annotations_for_assignment(
-        assignment_id: str, status: Optional[str] = None
+        assignment_id: str, status: str | None = None
     ) -> list[dict]:
         """
         Get all annotations for an assignment, optionally filtered by status.
@@ -178,7 +177,7 @@ class InstructorAnnotationRepository:
         """
         if status:
             query = """
-                SELECT 
+                SELECT
                     id, match_id, group_id, assignment_id, instructor_id,
                     status, comments, action_taken, created_at, updated_at
                 FROM instructor_annotations
@@ -188,7 +187,7 @@ class InstructorAnnotationRepository:
             params = [assignment_id, status]
         else:
             query = """
-                SELECT 
+                SELECT
                     id, match_id, group_id, assignment_id, instructor_id,
                     status, comments, action_taken, created_at, updated_at
                 FROM instructor_annotations
@@ -203,7 +202,7 @@ class InstructorAnnotationRepository:
         return [dict(row) for row in rows]
 
     @staticmethod
-    async def get_annotation_for_match(match_id: UUID) -> Optional[dict]:
+    async def get_annotation_for_match(match_id: UUID) -> dict | None:
         """
         Get annotation for a specific clone match.
 
@@ -214,7 +213,7 @@ class InstructorAnnotationRepository:
             Dictionary with annotation data or None if not found
         """
         query = """
-            SELECT 
+            SELECT
                 id, match_id, group_id, assignment_id, instructor_id,
                 status, comments, action_taken, created_at, updated_at
             FROM instructor_annotations
@@ -240,7 +239,7 @@ class InstructorAnnotationRepository:
             List of annotation dictionaries
         """
         query = """
-            SELECT 
+            SELECT
                 id, match_id, group_id, assignment_id, instructor_id,
                 status, comments, action_taken, created_at, updated_at
             FROM instructor_annotations
@@ -286,7 +285,7 @@ class InstructorAnnotationRepository:
             Dictionary with annotation counts by status
         """
         query = """
-            SELECT 
+            SELECT
                 status,
                 COUNT(*) as count
             FROM instructor_annotations

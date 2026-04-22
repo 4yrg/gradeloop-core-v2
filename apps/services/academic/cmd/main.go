@@ -8,8 +8,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gofiber/fiber/v3"
-	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/client"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/config"
 	_ "github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/domain" // ensure all models are registered
@@ -20,6 +18,8 @@ import (
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/router"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/service"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/utils"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/cors"
 	"go.uber.org/zap"
 )
 

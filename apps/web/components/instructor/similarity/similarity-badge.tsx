@@ -12,7 +12,7 @@ interface SimilarityBadgeProps {
 
 export function SimilarityBadge({ similarity, className }: SimilarityBadgeProps) {
   const level: RiskLevel = similarity >= 0.85 ? "high" : similarity >= 0.75 ? "medium" : "low";
-  
+
   const colors = {
     high: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
     medium: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
@@ -47,7 +47,7 @@ interface SimilarityScoreProps {
 export function SimilarityScore({ score, showBar = false, className }: SimilarityScoreProps) {
   const percentage = Math.round(score * 100);
   const level: RiskLevel = score >= 0.85 ? "high" : score >= 0.75 ? "medium" : "low";
-  
+
   const barColors = {
     high: "bg-red-500",
     medium: "bg-orange-500",
@@ -64,7 +64,7 @@ export function SimilarityScore({ score, showBar = false, className }: Similarit
     return (
       <div className={cn("flex items-center gap-2", className)}>
         <div className="w-24 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-          <div 
+          <div
             className={cn("h-full", barColors[level])}
             style={{ width: `${percentage}%` }}
           />

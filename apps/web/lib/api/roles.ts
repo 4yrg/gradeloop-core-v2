@@ -1,8 +1,8 @@
 import { axiosInstance } from './axios';
 import type { Role, Permission } from '@/types/auth.types';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function normalizeArray<T>(raw: any): T[] {
+
+function normalizeArray<T>(raw: unknown): T[] {
   if (Array.isArray(raw)) return raw as T[];
   if (Array.isArray(raw?.data)) return raw.data as T[];
   // GET /roles returns { roles: [] }

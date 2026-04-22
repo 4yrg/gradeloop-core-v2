@@ -37,7 +37,7 @@ export default function InstructorCoursesPage() {
     const [error, setError] = React.useState<string | null>(null);
     const [viewMode, setViewMode] = React.useState<"grid" | "list">("grid");
 
-    const courseColumns: ColumnDef<CourseWithStats, any>[] = [
+    const courseColumns: ColumnDef<CourseWithStats, unknown>[] = [
         {
             accessorKey: "course_code",
             header: "Code",

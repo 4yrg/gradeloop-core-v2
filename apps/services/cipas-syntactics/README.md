@@ -66,13 +66,13 @@ training:
   model:
     name: "clone_detector_xgb.pkl"
     output_dir: "./results/train"
-    
+
   xgboost:
     n_estimators: 500
     max_depth: 8
     learning_rate: 0.05
     scale_pos_weight: 2.0
-    
+
   dataset_config:
     - ["type-1.csv", 1, 8000, 1.5]
     - ["type-3.csv", 1, 20000, 2.0]
@@ -85,7 +85,7 @@ evaluation:
   model:
     path: "clone_detector_xgb.pkl"
     output_dir: "./results/evaluate"
-    
+
   clone_types: [1, 2, 3]
   sample_size: null  # null = full dataset
   threshold: null    # null = use calibrated threshold

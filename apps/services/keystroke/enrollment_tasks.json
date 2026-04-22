@@ -22,7 +22,7 @@
         }
       ]
     },
-    
+
     "transcription": {
       "name": "Code Transcription",
       "description": "Type pre-written Java code to capture pure motor rhythm without cognitive load",
@@ -45,7 +45,7 @@
         }
       ]
     },
-    
+
     "stress": {
       "name": "Timed Coding Challenge",
       "description": "Time-pressured task to capture stress-induced typing pattern changes",
@@ -85,7 +85,7 @@
         }
       ]
     },
-    
+
     "cognitive": {
       "name": "Complex Logic Implementation",
       "description": "High cognitive load task to capture typing under mental effort",
@@ -142,7 +142,7 @@
       ]
     }
   },
-  
+
   "enrollment_instructions": {
     "overview": "Complete all 4 phases to enable keystroke authentication",
     "total_duration_minutes": 20,
@@ -156,7 +156,7 @@
     ],
     "privacy_notice": "Only keystroke timing data is collected (not the actual keys typed). Your password is never stored - only the typing rhythm is analyzed."
   },
-  
+
   "feature_weights": {
     "dwell_time_weight": 1.5,
     "flight_time_weight": 1.0,

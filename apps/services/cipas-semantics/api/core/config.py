@@ -7,6 +7,7 @@ from pathlib import Path
 
 import torch
 
+
 class Settings:
     """Application settings loaded from environment variables"""
 

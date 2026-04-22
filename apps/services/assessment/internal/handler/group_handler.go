@@ -3,12 +3,12 @@ package handler
 import (
 	"encoding/json"
 
-	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/domain"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/dto"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/service"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/utils"
+	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 

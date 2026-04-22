@@ -14,7 +14,7 @@ ALTER TABLE batches ADD COLUMN start_date DATE;
 ALTER TABLE batches ADD COLUMN end_date DATE;
 
 -- Migrate existing data (example: convert year to academic year start)
-UPDATE batches 
+UPDATE batches
 SET start_date = MAKE_DATE(start_year, 7, 1),  -- July 1st of start year
     end_date = MAKE_DATE(end_year, 6, 30);     -- June 30th of end year
 
@@ -154,7 +154,7 @@ function validateCreate(v: CreateBatchRequest): AcademicFormErrors {
   if (!v.degree_id) e.degree_id = 'Degree is required';
   if (!v.start_date) e.start_date = 'Start date is required';
   if (!v.end_date) e.end_date = 'End date is required';
-  
+
   // Date validation
   if (v.start_date && v.end_date) {
     const start = new Date(v.start_date);
@@ -163,7 +163,7 @@ function validateCreate(v: CreateBatchRequest): AcademicFormErrors {
       e.end_date = 'End date must be after start date';
     }
   }
-  
+
   return e;
 }
 ```
@@ -182,7 +182,7 @@ Replace year display logic with formatted dates:
 
 // After:
 <p>
-  {new Date(batch.start_date).toLocaleDateString()} - 
+  {new Date(batch.start_date).toLocaleDateString()} -
   {new Date(batch.end_date).toLocaleDateString()}
 </p>
 ```
@@ -215,7 +215,7 @@ Replace year display logic with formatted dates:
 ## Timeline Estimate
 
 - Backend changes: 2-3 hours
-- Testing: 1-2 hours  
+- Testing: 1-2 hours
 - Frontend changes: 1 hour
 - End-to-end testing: 1 hour
 - **Total:** ~5-7 hours

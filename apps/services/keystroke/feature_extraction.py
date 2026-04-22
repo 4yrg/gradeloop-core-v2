@@ -3,9 +3,9 @@ Feature extraction for keystroke dynamics
 Extracts statistical features from raw keystroke events for authentication
 """
 
-import numpy as np
-from typing import List, Dict
 from collections import defaultdict
+
+import numpy as np
 
 
 class KeystrokeFeatureExtractor:
@@ -21,7 +21,7 @@ class KeystrokeFeatureExtractor:
         """
         self.window_size = window_size
 
-    def extract_features(self, keystroke_events: List[Dict]) -> np.ndarray:
+    def extract_features(self, keystroke_events: list[dict]) -> np.ndarray:
         """
         Extract feature vector from keystroke events
 
@@ -48,9 +48,7 @@ class KeystrokeFeatureExtractor:
             features.extend([0, 0, 0, 0, 0])
 
         # 2. Flight time features
-        flight_times = [
-            e["flightTime"] for e in keystroke_events if e["flightTime"] > 0
-        ]
+        flight_times = [e["flightTime"] for e in keystroke_events if e["flightTime"] > 0]
         if flight_times:
             features.extend(
                 [
@@ -98,9 +96,7 @@ class KeystrokeFeatureExtractor:
 
         return np.array(features, dtype=np.float32)
 
-    def _extract_digraph_features(
-        self, events: List[Dict], top_n: int = 5
-    ) -> List[float]:
+    def _extract_digraph_features(self, events: list[dict], top_n: int = 5) -> list[float]:
         """
         Extract timing features for common two-key sequences (digraphs)
         Research shows these are highly characteristic of individuals
@@ -119,9 +115,7 @@ class KeystrokeFeatureExtractor:
 
         # Get average timing for top N most common digraphs
         features = []
-        common_digraphs = sorted(
-            digraphs.items(), key=lambda x: len(x[1]), reverse=True
-        )[:top_n]
+        common_digraphs = sorted(digraphs.items(), key=lambda x: len(x[1]), reverse=True)[:top_n]
 
         for _, timings in common_digraphs:
             features.append(np.mean(timings))
@@ -133,7 +127,7 @@ class KeystrokeFeatureExtractor:
         return features
 
     def create_sequence(
-        self, keystroke_events: List[Dict], sequence_length: int = 50
+        self, keystroke_events: list[dict], sequence_length: int = 50
     ) -> np.ndarray:
         """
         Create a sequence of features for LSTM input
@@ -167,7 +161,7 @@ class KeystrokeFeatureExtractor:
         return np.array(sequence, dtype=np.float32)
 
     def create_typenet_sequence(
-        self, keystroke_events: List[Dict], sequence_length: int = 70
+        self, keystroke_events: list[dict], sequence_length: int = 70
     ) -> np.ndarray:
         """
         Create a sequence for TypeNet model input
@@ -222,9 +216,7 @@ class KeystrokeFeatureExtractor:
 
             # RL: Release Latency (time between key releases)
             if i > 0:
-                prev_release = events[i - 1]["timestamp"] + events[i - 1].get(
-                    "dwellTime", 0
-                )
+                prev_release = events[i - 1]["timestamp"] + events[i - 1].get("dwellTime", 0)
                 curr_release = events[i]["timestamp"] + events[i].get("dwellTime", 0)
                 rl = float(curr_release - prev_release)
             else:

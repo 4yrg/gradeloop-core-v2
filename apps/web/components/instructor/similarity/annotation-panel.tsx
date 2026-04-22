@@ -203,14 +203,14 @@ export function AnnotationHistory({ assignmentId, clusterId }: AnnotationHistory
         setError(null);
 
         const data = await getAnnotations(assignmentId);
-        
+
         if (mounted) {
           // Filter by cluster if specified
           const filtered = clusterId !== undefined
             ? data.filter((a) => a.group_id === clusterId.toString())
             : data;
-          
-          setAnnotations(filtered.sort((a, b) => 
+
+          setAnnotations(filtered.sort((a, b) =>
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
           ));
         }
@@ -333,7 +333,7 @@ export function AnnotationPanel({ assignmentId, clusterId }: AnnotationPanelProp
       try {
         setIsLoading(true);
         const data = await getAnnotations(assignmentId);
-        
+
         if (mounted) {
           const found = data.find((a) => a.group_id === clusterId.toString());
           setExistingAnnotation(found || null);

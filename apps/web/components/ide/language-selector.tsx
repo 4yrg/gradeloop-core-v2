@@ -81,7 +81,7 @@ export function LanguageSelector({
       } catch (err) {
         console.error("Failed to fetch languages:", err);
         setError("Failed to load languages");
-        
+
         // Fallback to default language
         setLanguages([
           { id: DEFAULT_LANGUAGE_ID, name: "Python (3.8.1)", is_archived: false },

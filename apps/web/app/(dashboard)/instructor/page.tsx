@@ -77,7 +77,7 @@ const mockRecentSubmissions: RecentSubmission[] = [
     },
 ];
 
-const submissionColumns: ColumnDef<RecentSubmission, any>[] = [
+const submissionColumns: ColumnDef<RecentSubmission, unknown>[] = [
     {
         accessorKey: "studentName",
         header: "Student",

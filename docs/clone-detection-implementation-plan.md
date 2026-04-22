@@ -1,8 +1,8 @@
 # Code Clone Detection System — Implementation Plan
 
-> **Project:** GradeLoop Core V2 — CIPAS Track B (Semantic Clone Detection)  
-> **Status:** Phase 1 Planning  
-> **Last Updated:** February 25, 2026  
+> **Project:** GradeLoop Core V2 — CIPAS Track B (Semantic Clone Detection)
+> **Status:** Phase 1 Planning
+> **Last Updated:** February 25, 2026
 > **Owner:** Platform Engineering
 
 ---
@@ -182,7 +182,7 @@ This document outlines the implementation plan for a **language-agnostic code cl
 
 ## 3. Phase 1: Environment and Core Parser Setup
 
-**Duration:** 2 weeks  
+**Duration:** 2 weeks
 **Goal:** Establish language-agnostic parsing foundation with Tree-sitter
 
 ### 3.1 Project Structure Setup
@@ -543,7 +543,7 @@ class Fragmenter:
 
 ## 4. Phase 2: The NiCAD Normalization Pipeline (Types 1 & 2)
 
-**Duration:** 3 weeks  
+**Duration:** 3 weeks
 **Goal:** Implement high-precision Type-1 and Type-2 clone detection
 
 ### 4.1 Noise Removal
@@ -987,7 +987,7 @@ class NiCADPipeline:
 
 ## 5. Phase 3: The ToMA IR and Feature Extraction (Type 3)
 
-**Duration:** 3 weeks  
+**Duration:** 3 weeks
 **Goal:** Transform code into 15-type token sequences and extract 6D feature vectors
 
 ### 5.1 ToMA Mapper (15-Type Token Schema)
@@ -1295,7 +1295,7 @@ class ToMAPipeline:
 
 ## 6. Phase 4: Machine Learning and Scalability
 
-**Duration:** 4 weeks  
+**Duration:** 4 weeks
 **Goal:** Enable large-scale clone detection with ML classification and indexing
 
 ### 6.1 Inverted Index for Search Pruning
@@ -1710,7 +1710,7 @@ class BCBTrainingGenerator:
 
 ## 7. Phase 5: Evaluation and Reporting
 
-**Duration:** 2 weeks  
+**Duration:** 2 weeks
 **Goal:** Evaluate against BigCloneBench and generate reports
 
 ### 7.1 BigCloneBench Evaluation Script
@@ -2298,8 +2298,8 @@ fragments = fragmenter.extract_fragments(
 
 ---
 
-**Document Owner:** Platform Engineering  
-**Last Updated:** February 25, 2026  
+**Document Owner:** Platform Engineering
+**Last Updated:** February 25, 2026
 **Version:** 1.0
 
 ---

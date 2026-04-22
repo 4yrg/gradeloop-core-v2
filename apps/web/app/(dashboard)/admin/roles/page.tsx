@@ -309,7 +309,7 @@ export default function RolesPermissionsPage() {
                                     })}
                                     {Object.keys(groupedPermissions).length === 0 && (
                                         <div className="py-12 text-center text-zinc-500">
-                                            No permissions found matching "{searchQuery}"
+                                            No permissions found matching &quot;{searchQuery}&quot;
                                         </div>
                                     )}
                                 </div>
