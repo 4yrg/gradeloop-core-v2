@@ -23,6 +23,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 def load_root_env():
     """Find project root and load environment variables."""
     path = Path(__file__).resolve()
@@ -31,7 +32,7 @@ def load_root_env():
         if (parent / "turbo.json").exists() or (parent / "package.json").exists():
             root = parent
             break
-    
+
     if root:
         app_env = os.getenv("APP_ENV", "development")
         load_dotenv(root / f".env.{app_env}")
@@ -39,6 +40,7 @@ def load_root_env():
     else:
         # Fallback to local .env if root not found
         load_dotenv()
+
 
 # Load environment variables from project root
 load_root_env()

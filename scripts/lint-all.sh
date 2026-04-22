@@ -42,26 +42,26 @@ Examples:
 EOF
 }
 
-LOG_FILE="lint-issues.txt"
-true > "$LOG_FILE"
+
 
 log_info() {
     if [ "$CI_MODE" -eq 0 ]; then
         echo -e "\033[0;34m[INFO]\033[0m $*"
+    else
+        echo "[INFO] $*"
     fi
-    echo "[INFO] $*" >> "$LOG_FILE"
 }
 
 log_error() {
     echo -e "\033[0;31m[ERROR]\033[0m $*" >&2
-    echo "[ERROR] $*" >> "$LOG_FILE"
 }
 
 log_success() {
     if [ "$CI_MODE" -eq 0 ]; then
         echo -e "\033[0;32m[OK]\033[0m $*"
+    else
+        echo "[OK] $*"
     fi
-    echo "[OK] $*" >> "$LOG_FILE"
 }
 
 log_section() {
@@ -70,20 +70,17 @@ log_section() {
         echo "=============================================="
         echo -e "\033[1;35m$*\033[0m"
         echo "=============================================="
-    fi
-    {
+    else
         echo ""
         echo "=============================================="
         echo "$*"
         echo "=============================================="
-    } >> "$LOG_FILE"
+    fi
 }
 
 # Run a command, show output, and log it (stripping colors for log)
 run_and_log() {
-    # Run the command and capture both stdout and stderr
-    # We use sed to strip ANSI color codes for the log file
-    "$@" 2>&1 | tee -a >(sed 's/\x1b\[[0-9;]*m//g' >> "$LOG_FILE")
+    "$@" 2>&1
     return ${PIPESTATUS[0]}
 }
 

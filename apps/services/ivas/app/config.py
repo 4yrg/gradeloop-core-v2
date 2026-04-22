@@ -7,13 +7,14 @@ from pathlib import Path
 from pydantic import Field, PostgresDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 def get_root_path() -> Path:
     """Find project root."""
     path = Path(__file__).resolve()
     for parent in path.parents:
         if (parent / "turbo.json").exists() or (parent / "package.json").exists():
             return parent
-    return path.parents[3] # Fallback to 3 levels up from app/config.py
+    return path.parents[3]  # Fallback to 3 levels up from app/config.py
 
 
 class Settings(BaseSettings):
