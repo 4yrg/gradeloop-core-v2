@@ -126,28 +126,6 @@ jobs:
             [ -d "$svc" ] && ruff format --check "$svc"
           done
 
-  sonarqube:
-    name: SonarQube Scan
-    runs-on: ubuntu-latest
-    needs: [go-checks, node-checks, python-checks]
-    if: false
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v4
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-
-      - name: SonarQube Quality Gate
-        uses: SonarSource/sonarqube-quality-gate-action@v1
-        timeout-minutes: 5
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
   # =============================================================================
   # Phase 2: Build & Push Container Images
   # =============================================================================
@@ -155,7 +133,7 @@ jobs:
   prepare-build:
     name: Prepare Build Context
     runs-on: ubuntu-latest
-    needs: [go-checks, node-checks, python-checks, sonarqube]
+    needs: [go-checks, node-checks, python-checks]
     outputs:
       short_sha: ${{ steps.meta.outputs.short_sha }}
       ghcr_prefix: ${{ steps.meta.outputs.ghcr_prefix }}
