@@ -147,7 +147,7 @@ services:
       - gradeloop-network
 
   kong-gateway:
-    image: ${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-kong:latest
+    image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-kong:latest
     <<: *ghcr_image
     container_name: gradeloop-kong-gateway
     restart: unless-stopped
@@ -200,7 +200,7 @@ services:
   # IAM Service (Go - Production)
   # =============================================================================
   iam:
-    image: ${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-iam:latest
+    image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-iam:latest
     <<: *ghcr_image
     container_name: gradeloop-iam
     restart: unless-stopped
@@ -231,7 +231,7 @@ services:
   # Academic Service (Go - Production)
   # =============================================================================
   academic:
-    image: ${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-academic:latest
+    image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-academic:latest
     <<: *ghcr_image
     container_name: gradeloop-academic
     restart: unless-stopped
@@ -255,7 +255,7 @@ services:
   # Assessment Service (Go - Production)
   # =============================================================================
   assessment:
-    image: ${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-assessment:latest
+    image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-assessment:latest
     <<: *ghcr_image
     container_name: gradeloop-assessment
     restart: unless-stopped
@@ -277,7 +277,7 @@ services:
   # Email Service (Go - Production)
   # =============================================================================
   email:
-    image: ${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-email:latest
+    image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-email:latest
     <<: *ghcr_image
     container_name: gradeloop-email
     restart: unless-stopped
@@ -300,7 +300,7 @@ services:
   # IVAS Service (Python - Production)
   # =============================================================================
   ivas:
-    image: ${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-ivas:latest
+    image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-ivas:latest
     <<: *ghcr_image
     container_name: gradeloop-ivas
     restart: unless-stopped
@@ -317,7 +317,7 @@ services:
   # ACAFS Service (Python - Production)
   # =============================================================================
   acafs:
-    image: ${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-acafs:latest
+    image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-acafs:latest
     <<: *ghcr_image
     container_name: gradeloop-acafs
     restart: unless-stopped
@@ -334,7 +334,7 @@ services:
   # Keystroke Service (Python - Production)
   # =============================================================================
   keystroke:
-    image: ${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-keystroke:latest
+    image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-keystroke:latest
     <<: *ghcr_image
     container_name: gradeloop-keystroke
     restart: unless-stopped
@@ -351,7 +351,7 @@ services:
   # CIPAS Syntactics Service (Python - Production)
   # =============================================================================
   cipas-syntactics:
-    image: ${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-cipas-syntactics:latest
+    image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-cipas-syntactics:latest
     <<: *ghcr_image
     container_name: gradeloop-cipas-syntactics
     restart: unless-stopped
@@ -368,7 +368,7 @@ services:
   # CIPAS Semantics Service (Python - Production)
   # =============================================================================
   cipas-semantics:
-    image: ${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-cipas-semantics:latest
+    image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-cipas-semantics:latest
     <<: *ghcr_image
     container_name: gradeloop-cipas-semantics
     restart: unless-stopped
@@ -385,7 +385,7 @@ services:
   # CIPAS AI Service (Python - Production)
   # =============================================================================
   cipas-ai:
-    image: ${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-cipas-ai:latest
+    image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-cipas-ai:latest
     <<: *ghcr_image
     container_name: gradeloop-cipas-ai
     restart: unless-stopped
@@ -402,7 +402,7 @@ services:
   # CIPAS XAI Service (Go - Production)
   # =============================================================================
   cipas-xai:
-    image: ${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-cipas-xai:latest
+    image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-cipas-xai:latest
     <<: *ghcr_image
     container_name: gradeloop-cipas-xai
     restart: unless-stopped
@@ -415,7 +415,7 @@ services:
   # Frontend (Next.js - Production)
   # =============================================================================
   frontend:
-    image: ${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-web:latest
+    image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-web:latest
     <<: *ghcr_image
     container_name: gradeloop-frontend
     restart: unless-stopped
