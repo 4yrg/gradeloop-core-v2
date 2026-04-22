@@ -89,12 +89,7 @@ jobs:
           for svc in ${{ steps.find-services.outputs.found }}; do
             if [ -f "$svc/go.mod" ]; then
               echo "==> go mod tidy -diff in $svc"
-              out="$(cd "$svc" && go mod tidy -diff 2>&1 || true)"
-              if [ -n "$out" ]; then
-                echo "go.mod or go.sum are not tidy in $svc:"
-                echo "$out"
-                exit 1
-              fi
+              (cd "$svc" && go mod tidy -diff)
             fi
           done
 
