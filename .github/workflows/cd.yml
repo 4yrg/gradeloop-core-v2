@@ -1,0 +1,52 @@
+name: CD - Deploy to Hetzner
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      runtime:
+        description: 'Container Runtime'
+        required: true
+        default: 'docker'
+        type: choice
+        options:
+          - docker
+          - podman
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          command_timeout: 30m
+          envs: CONTAINER_RUNTIME
+          script: |
+            echo "--- Deployment Debug Info ---"
+            echo "User: $(whoami)"
+            echo "Target: ~/gradeloop-core-v2"
+            
+            # Navigate to project directory
+            if [ -d "~/gradeloop-core-v2" ]; then
+              cd ~/gradeloop-core-v2
+            elif [ -d "$HOME/gradeloop-core-v2" ]; then
+              cd "$HOME/gradeloop-core-v2"
+            else
+              echo "ERROR: Directory ~/gradeloop-core-v2 not found."
+              echo "Available in $HOME:"
+              ls -F $HOME
+              exit 1
+            fi
+            
+            # Set runtime from input or default to docker
+            export CONTAINER_RUNTIME=${{ github.event.inputs.runtime || 'docker' }}
+            
+            echo "Running deployment script..."
+            bash scripts/deploy.sh

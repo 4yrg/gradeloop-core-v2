@@ -23,10 +23,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-RUN pip install --no-cache-dir poetry==1.7.1
+# Use a more recent Poetry version to avoid deprecation warnings
+RUN pip install --no-cache-dir poetry==1.8.2
 
 COPY pyproject.toml poetry.lock* ./
 
+# Configure poetry to not create virtualenvs and install dependencies
 RUN poetry config virtualenvs.create false \
     && poetry install --no-interaction --no-ansi --no-root --only main
 
@@ -70,7 +72,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /app/app ./app
 COPY models/ ./models/
 
-RUN addgroup -S ivas && adduser -S ivas -G ivas \
+RUN groupadd -r ivas && useradd -r -g ivas ivas \
     && chown -R ivas:ivas /app
 
 USER ivas

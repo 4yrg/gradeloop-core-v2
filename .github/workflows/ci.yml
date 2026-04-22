@@ -1,305 +1,81 @@
-name: CI - Linting
+name: CI - Quality Checks
 
 on:
+  push:
+    branches: [main, develop]
   pull_request:
     branches: [main, develop]
 
 permissions:
   contents: read
-  issues: write
-
-concurrency:
-  group: "ci-pr-${{ github.event.pull_request.number }}"
-  cancel-in-progress: true
-
-defaults:
-  run:
-    shell: bash
+  pull-requests: read
 
 jobs:
-  ci:
-    name: Run linters for changed services
+  lint-go:
+    name: Go Lint & Format
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    outputs:
-      result: ${{ steps.set-result.outputs.result }}
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          fetch-depth: 0
-
-      - name: Prepare summary file
+          go-version: '1.25'
+          cache: true
+      - name: Run go fmt
         run: |
-          echo "" > ci_summary.txt
-          echo "CI run for PR #${{ github.event.pull_request.number }}" >> ci_summary.txt
-
-      - name: Determine changed paths
-        id: changes
-        run: |
-          set -euo pipefail
-          BASE=${{ github.event.pull_request.base.ref }}
-          echo "Fetching base branch $BASE"
-          git fetch --no-tags --prune --depth=1 origin "$BASE" || true
-          CHANGED=$(git diff --name-only "origin/$BASE...HEAD" || true)
-          # persist changed files for debugging
-          printf '%s\n' "$CHANGED" > .changed_files
-
-          # default outputs
-          echo "go=false" >> $GITHUB_OUTPUT
-          echo "python=false" >> $GITHUB_OUTPUT
-          echo "docker=false" >> $GITHUB_OUTPUT
-          echo "yaml=false" >> $GITHUB_OUTPUT
-
-          # set flags if matching patterns are present in diff
-          if printf "%s\n" "$CHANGED" | grep -qE '\.go$|^shared/libs/go'; then
-            echo "go=true" >> $GITHUB_OUTPUT
-          fi
-          if printf "%s\n" "$CHANGED" | grep -qE '\.py$|^shared/libs/py'; then
-            echo "python=true" >> $GITHUB_OUTPUT
-          fi
-          if printf "%s\n" "$CHANGED" | grep -qE '(^|/)Dockerfile$|/docker/'; then
-            echo "docker=true" >> $GITHUB_OUTPUT
-          fi
-          if printf "%s\n" "$CHANGED" | grep -qE '\.ya?ml$|^\.github/|^docs/'; then
-            echo "yaml=true" >> $GITHUB_OUTPUT
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "Go files are not formatted. Run 'go fmt ./...' to fix."
+            gofmt -d .
+            exit 1
           fi
 
-      - name: YAML validation for doc-only PRs
-        if: ${{ !steps.changes.outputs.go && !steps.changes.outputs.python && !steps.changes.outputs.docker && steps.changes.outputs.yaml == 'true' }}
-        run: |
-          echo "Only CI/docs changes detected; running lightweight YAML validation" >> ci_summary.txt
-          python -m pip install --user yamllint >/dev/null
-          export PATH="$HOME/.local/bin:$PATH"
-          set -e
-          # Validate changed YAML files
-          git --no-pager diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD | grep -E '\.ya?ml$' | while read -r f; do
-            echo "Validating $f" >> ci_summary.txt
-            yamllint -d relaxed "$f" || { echo "YAML validation failed for $f" >> ci_summary.txt; exit 1; }
-          done
-          echo "YAML validation passed" >> ci_summary.txt
-
-      - name: Setup Go (only when Go changed)
-        if: ${{ steps.changes.outputs.go == 'true' }}
-        uses: actions/setup-go@7b8cf10d4e4a01d4992d18a89f4d7dc5a3e6d6f4
+  lint-node:
+    name: Node/Bun Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          go-version: "1.25"
+          bun-version: latest
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile
+      - name: Run Lint
+        run: bun run lint
 
-      - name: Go - Lint
-        if: ${{ steps.changes.outputs.go == 'true' }}
-        id: go_checks
-        run: |
-          set -euo pipefail
-          echo "Running Go lint checks" >> ci_summary.txt
-
-          # find unique top-level module/service directories that changed
-          mapfile -t targets < <(git --no-pager diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD | grep '\.go$' || true)
-          if [ ${#targets[@]} -eq 0 ]; then
-            echo "No Go files found in diff" >> ci_summary.txt
-            echo "result=skipped" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          # derive directories
-          declare -A dirs
-          for f in "${targets[@]}"; do
-            # prefer service root (apps/services/<service>)
-            if [[ "$f" =~ ^apps/services/[^/]+ ]]; then
-              d=$(printf "%s" "$f" | awk -F'/' '{print $1"/"$2"/"$3}')
-            elif [[ "$f" =~ ^shared/libs/go ]]; then
-              d="shared/libs/go"
-            else
-              d=$(dirname "$f")
-            fi
-            dirs["$d"]=1
-          done
-
-          # ensure golint available
-          if ! command -v golint >/dev/null 2>&1; then
-            echo "Installing golint" >> ci_summary.txt
-            go install golang.org/x/lint/golint@latest
-            export PATH="$PATH:$(go env GOPATH)/bin"
-          fi
-
-          for d in "${!dirs[@]}"; do
-            echo "Processing Go target: $d" >> ci_summary.txt
-
-            # Check if directory has any .go files
-            if ! find "$d" -maxdepth 1 -name "*.go" -print -quit | grep -q .; then
-              echo "Skipping $d (no .go files found)" >> ci_summary.txt
-              continue
-            fi
-
-            # gofmt check
-            gf=$(gofmt -l "$d" || true)
-            if [ -n "$gf" ]; then
-              echo "gofmt issues in $d:" >> ci_summary.txt
-              echo "$gf" >> ci_summary.txt
-              echo "::error file=$d::gofmt detected issues" # makes GitHub UI show error
-              exit 1
-            fi
-
-            # golint
-            lint_out=$(golint "$d" || true)
-            if [ -n "$lint_out" ]; then
-              echo "golint issues in $d:" >> ci_summary.txt
-              echo "$lint_out" >> ci_summary.txt
-              echo "::error file=$d::golint detected issues"
-              exit 1
-            fi
-
-            popd >/dev/null || true
-          done
-
-          echo "result=success" >> $GITHUB_OUTPUT
-
-      - name: Setup Python (only when Python changed)
-        if: ${{ steps.changes.outputs.python == 'true' }}
-        uses: actions/setup-python@7f4fc3e22c37d6ff65e88745f38bd3157c663f7c
+  lint-python:
+    name: Python Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-
-      - name: Python - Lint
-        if: ${{ steps.changes.outputs.python == 'true' }}
-        id: py_checks
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install dependencies
         run: |
-          set -euo pipefail
-          echo "Running Python linters" >> ci_summary.txt
           python -m pip install --upgrade pip
-          python -m pip install --user ruff black >/dev/null
-          export PATH="$HOME/.local/bin:$PATH"
+          pip install ruff black
+      - name: Run ruff
+        run: ruff check .
+      - name: Run black
+        run: black --check .
 
-          mapfile -t pyfiles < <(git --no-pager diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD | grep '\.py$' || true)
-          if [ ${#pyfiles[@]} -eq 0 ]; then
-            echo "No Python files found in diff" >> ci_summary.txt
-            echo "result=skipped" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          declare -A pdirs
-          for f in "${pyfiles[@]}"; do
-            if [[ "$f" =~ ^apps/services/cipas-services/[^/]+ ]]; then
-              # For cipas-services, extract to the individual service level (4 levels deep)
-              d=$(printf "%s" "$f" | awk -F'/' '{print $1"/"$2"/"$3"/"$4}')
-            elif [[ "$f" =~ ^apps/services/[^/]+ ]]; then
-              d=$(printf "%s" "$f" | awk -F'/' '{print $1"/"$2"/"$3}')
-            elif [[ "$f" =~ ^shared/libs/py/([^/]+) ]]; then
-              # Extract the package name (e.g., shared/libs/py/secrets)
-              d=$(printf "%s" "$f" | awk -F'/' '{print $1"/"$2"/"$3"/"$4}')
-            else
-              d=$(dirname "$f")
-            fi
-            pdirs["$d"]=1
-          done
-
-          for d in "${!pdirs[@]}"; do
-            echo "Processing Python target: $d" >> ci_summary.txt
-            ruff check "$d" || { echo "ruff failed for $d" >> ci_summary.txt; exit 1; }
-            black --check "$d" || { echo "black --check failed for $d" >> ci_summary.txt; exit 1; }
-          done
-
-          echo "result=success" >> $GITHUB_OUTPUT
-
-      - name: Build Docker images for changed services
-        if: ${{ steps.changes.outputs.docker == 'true' }}
+  sonarqube:
+    name: SonarQube Scan
+    runs-on: ubuntu-latest
+    needs: [lint-go, lint-node, lint-python]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@master
         env:
-          PR_NUM: ${{ github.event.pull_request.number }}
-        run: |
-          set -euo pipefail
-          echo "Building Docker images for changed services" >> ci_summary.txt
-          mapfile -t dockerfiles < <(git --no-pager diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD | grep -E 'Dockerfile$' || true)
-          if [ ${#dockerfiles[@]} -eq 0 ]; then
-            echo "No Dockerfiles changed directly; still attempt to detect services with Dockerfile" >> ci_summary.txt
-            # detect per service
-            for svc in apps/services/*; do
-              [ -e "$svc" ] || continue
-              if [ -f "$svc/Dockerfile" ]; then
-                echo "Building $svc" >> ci_summary.txt
-                docker build -t gradeloop/${svc//\//-}:pr-${PR_NUM} -f "$svc/Dockerfile" "$svc"
-              elif [ -f "$svc/docker/Dockerfile" ]; then
-                echo "Building $svc" >> ci_summary.txt
-                docker build -t gradeloop/${svc//\//-}:pr-${PR_NUM} -f "$svc/docker/Dockerfile" "$svc"
-              fi
-            done
-          else
-            for df in "${dockerfiles[@]}"; do
-              svc_dir=$(dirname "$df")
-              # If Dockerfile is in a 'docker' subdirectory, use the parent for the tag name
-              tag_dir="${svc_dir%/docker}"
-
-              # Special handling for apps/web - it requires root as build context
-              if [ "$svc_dir" = "apps/web" ]; then
-                echo "Building $svc_dir (with root context)" >> ci_summary.txt
-                docker build -t gradeloop/${tag_dir//\//-}:pr-${PR_NUM} -f "$df" .
-              else
-                echo "Building $svc_dir" >> ci_summary.txt
-                docker build -t gradeloop/${tag_dir//\//-}:pr-${PR_NUM} -f "$df" "$svc_dir"
-              fi
-            done
-          fi
-
-      - name: Upload CI summary and logs
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: ci-logs-pr-${{ github.event.pull_request.number }}
-          path: |
-            ci_summary.txt
-            # any other logs created by steps (if present)
-          retention-days: 30
-
-      - name: Set job result output
-        id: set-result
-        run: |
-          # If we reached here with non-zero exit earlier, job would have failed.
-          # Use 'success' when completed; GitHub job status will reflect failures.
-          echo "::set-output name=result::completed"
-          echo "result=completed"
-  comment:
-    name: Post PR summary on failure
-    runs-on: ubuntu-latest
-    needs: ci
-    if: needs.ci.result == 'failure' || needs.ci.result == 'cancelled'
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        with:
-          name: ci-logs-pr-${{ github.event.pull_request.number }}
-          path: artifacts
-        continue-on-error: true
-
-      - name: Post summary comment to PR
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require('fs');
-            let body = `Automated CI linting result for PR #${{ github.event.pull_request.number }}\n\n`;
-            const summaryPath = 'artifacts/ci_summary.txt';
-            if (fs.existsSync(summaryPath)) {
-              body += fs.readFileSync(summaryPath, 'utf8');
-            } else if (fs.existsSync('ci_summary.txt')) {
-              body += fs.readFileSync('ci_summary.txt', 'utf8');
-            } else {
-              body += '_No CI summary available in artifacts._';
-            }
-            body += '\n\nFor full logs see the workflow run artifacts.';
-            const pr = context.payload.pull_request.number;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: pr,
-              body: body
-            });
-
-  final-checks:
-    name: Final status
-    runs-on: ubuntu-latest
-    needs: [ci]
-    if: always()
-    steps:
-      - name: Output run summary
-        run: |
-          echo "CI job status: ${{ needs.ci.result }}" > final_status.txt
-          cat final_status.txt
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      - name: SonarQube Quality Gate Check
+        uses: SonarSource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

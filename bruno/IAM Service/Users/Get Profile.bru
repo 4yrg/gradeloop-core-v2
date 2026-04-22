@@ -1,17 +1,13 @@
 meta {
-  name: Get User By ID
+  name: Get Profile
   type: http
-  seq: 3
+  seq: 1
 }
 
 get {
-  url: {{USERS_URL_V1}}/:id
+  url: {{AUTH_URL_V1}}/profile
   body: none
   auth: bearer
-}
-
-params:path {
-  id: uuid-goes-here
 }
 
 auth:bearer {
