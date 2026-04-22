@@ -45,7 +45,7 @@ export function MultiSelectTagInput({
         }
     };
 
-    const remove = (optValue: string, e: React.MouseEvent) => {
+    const remove = (optValue: string, e: React.SyntheticEvent) => {
         e.stopPropagation();
         onChange(value.filter((v) => v !== optValue));
     };
@@ -83,7 +83,7 @@ export function MultiSelectTagInput({
                                         role="button"
                                         tabIndex={0}
                                         onClick={(e) => remove(value[i], e)}
-                                        onKeyDown={(e) => e.key === "Enter" && remove(value[i], e as unknown as React.KeyboardEvent)}
+                                        onKeyDown={(e) => e.key === "Enter" && remove(value[i], e)}
                                         className="ml-0.5 rounded-full hover:bg-muted-foreground/20 cursor-pointer p-0.5"
                                     >
                                         <X className="h-3 w-3" />
