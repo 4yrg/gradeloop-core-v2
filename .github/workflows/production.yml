@@ -258,12 +258,12 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Pull official Kong image
-        run: docker pull kong:3.4-alpine
+        run: docker pull kong:3.9.1
 
       - name: Tag gateway image
         run: |
-          docker tag kong:3.4-alpine ${{ steps.meta.outputs.full_tag }}:latest
-          docker tag kong:3.4-alpine ${{ steps.meta.outputs.full_tag }}:sha-${{ github.sha }}
+          docker tag kong:3.9.1 ${{ steps.meta.outputs.full_tag }}:latest
+          docker tag kong:3.9.1 ${{ steps.meta.outputs.full_tag }}:sha-${{ github.sha }}
 
       - name: Push gateway image
         run: |
