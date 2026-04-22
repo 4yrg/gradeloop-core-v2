@@ -324,7 +324,7 @@ jobs:
   build-complete:
     name: Build Complete
     runs-on: ubuntu-latest
-    needs: [login-ghcr, build-gateway]
+    needs: [login-ghcr, build-go-services, build-python-services, build-web, build-gateway]
     steps:
       - name: Summary
         run: |
@@ -356,7 +356,7 @@ jobs:
   deploy:
     name: Deploy to Hetzner
     runs-on: ubuntu-latest
-    needs: [build-complete, login-ghcr]
+    needs: [build-complete, build-go-services, build-python-services, build-web, build-gateway]
     if: github.event_name != 'workflow_dispatch' || github.event.inputs.runtime == 'docker'
     environment:
       name: production
@@ -453,10 +453,10 @@ jobs:
             echo "Commit: $SHORT_SHA"
             echo "Deployed at: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
             
-deploy-podman:
+  deploy-podman:
     name: Deploy to Hetzner (Podman)
     runs-on: ubuntu-latest
-    needs: [build-complete, login-ghcr]
+    needs: [build-complete, build-go-services, build-python-services, build-web, build-gateway]
     if: github.event.inputs.runtime == 'podman'
     environment:
       name: production
