@@ -35,6 +35,8 @@ interface SubmissionWithMeta extends SubmissionResponse {
     studentId?: string;
 }
 
+type FilterTab = "all" | "pending" | "graded" | "late" | "missing";
+
 export default function AssignmentSubmissionsPage({
     params,
 }: {
