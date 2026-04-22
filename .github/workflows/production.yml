@@ -1,0 +1,591 @@
+name: CD - Build, Push & Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      runtime:
+        description: "Container Runtime"
+        required: true
+        default: docker
+        type: choice
+        options:
+          - docker
+          - podman
+
+env:
+  REGISTRY: docker.io
+  REGISTRY_IMAGE_PREFIX: ${{ vars.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_USERNAME != '' && vars.DOCKERHUB_USERNAME != 'your-username' && secrets.DOCKERHUB_USERNAME != 'your-username' && github.event.inputs.runtime != 'podman' && github.event.inputs.runtime != '' && github.event.inputs.runtime != 'docker' }}
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # =============================================================================
+  # Phase 1: Quality Checks (same as development pipeline)
+  # =============================================================================
+
+  go-checks:
+    name: Go Lint & Format
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/services
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache: true
+          cache-dependency-path: apps/services/**/go.sum
+
+      - name: Run go fmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "The following Go files are not formatted:"
+            echo "$unformatted"
+            gofmt -d .
+            exit 1
+          fi
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Run go mod tidy check
+        run: |
+          uncommitted=$(go mod tidy -diff 2>&1)
+          if [ -n "$uncommitted" ]; then
+            echo "go.mod or go.sum are not tidy:"
+            echo "$uncommitted"
+            exit 1
+          fi
+
+  node-checks:
+    name: Node/Bun Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run lint
+        run: bun run lint
+
+      - name: Run typecheck
+        run: bun run typecheck
+
+  python-checks:
+    name: Python Lint & Format
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/services
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install linters
+        run: pip install --upgrade pip ruff black
+
+      - name: Run ruff check
+        run: |
+          for svc in ivas acafs keystroke cipas-ai cipas-semantics cipas-syntactics; do
+            [ -d "$svc" ] && ruff check "$svc"
+          done
+
+      - name: Run ruff format check
+        run: |
+          for svc in ivas acafs keystroke cipas-ai cipas-semantics cipas-syntactics; do
+            [ -d "$svc" ] && ruff format --check "$svc"
+          done
+
+  sonarqube:
+    name: SonarQube Scan
+    runs-on: ubuntu-latest
+    needs: [go-checks, node-checks, python-checks]
+    if: github.event_name != 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v4
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      - name: SonarQube Quality Gate
+        uses: SonarSource/sonarqube-quality-gate-action@v1
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # =============================================================================
+  # Phase 2: Build & Push Container Images
+  # =============================================================================
+
+  prepare-build:
+    name: Prepare Build Context
+    runs-on: ubuntu-latest
+    needs: [go-checks, node-checks, python-checks, sonarqube]
+    outputs:
+      short_sha: ${{ steps.meta.outputs.short_sha }}
+      dockerhub_username: ${{ vars.DOCKERHUB_USERNAME }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate image tags
+        id: meta
+        run: |
+          short_sha="${GITHUB_SHA:0:8}"
+          echo "short_sha=$short_sha" >> $GITHUB_OUTPUT
+          echo "short_sha: $short_sha"
+
+      - name: Validate DockerHub username
+        run: |
+          username="${{ vars.DOCKERHUB_USERNAME }}"
+          if [ -z "$username" ] || [ "$username" = "your-username" ]; then
+            echo "ERROR: DOCKERHUB_USERNAME repository variable is not set."
+            echo "Set it at: Settings → Variables → Repository variables → New variable"
+            echo "Name: DOCKERHUB_USERNAME"
+            echo "Value: your-dockerhub-username"
+            exit 1
+          fi
+          echo "DockerHub username: $username"
+
+  # --------------------------------------------------------------------------
+  # Build Go services
+  # --------------------------------------------------------------------------
+  build-go-services:
+    name: Build Go Services
+    runs-on: ubuntu-latest
+    needs: [prepare-build]
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - service: iam
+            context: apps/services/iam
+          - service: email
+            context: apps/services/email
+          - service: academic
+            context: apps/services/academic
+          - service: assessment
+            context: apps/services/assessment
+          - service: cipas-xai
+            context: apps/services/cipas-xai
+    outputs:
+      images: ${{ steps.meta.outputs.images }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate image tags
+        id: meta
+        run: |
+          username="${{ needs.prepare-build.outputs.dockerhub_username }}"
+          short_sha="${{ needs.prepare-build.outputs.short_sha }}"
+          full_tag="${username}/gradeloop-${{ matrix.service }}"
+          echo "full_tag=$full_tag"
+          echo "full_tag=$full_tag" >> $GITHUB_OUTPUT
+          echo "tags=--tag ${full_tag}:latest --tag ${full_tag}:sha-${short_sha}" >> $GITHUB_OUTPUT
+          echo "images=$full_tag" >> $GITHUB_OUTPUT
+          echo "tags: ${username}/gradeloop-${{ matrix.service }}:latest, :sha-${short_sha}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          registry: docker.io
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.service }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          provenance: true
+          sbom: true
+
+  # --------------------------------------------------------------------------
+  # Build Python services
+  # --------------------------------------------------------------------------
+  build-python-services:
+    name: Build Python Services
+    runs-on: ubuntu-latest
+    needs: [prepare-build]
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - service: ivas
+            context: apps/services/ivas
+          - service: acafs
+            context: apps/services/acafs
+          - service: keystroke
+            context: apps/services/keystroke
+          - service: cipas-ai
+            context: apps/services/cipas-ai
+          - service: cipas-semantics
+            context: apps/services/cipas-semantics
+          - service: cipas-syntactics
+            context: apps/services/cipas-syntactics
+    outputs:
+      images: ${{ steps.meta.outputs.images }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate image tags
+        id: meta
+        run: |
+          username="${{ needs.prepare-build.outputs.dockerhub_username }}"
+          short_sha="${{ needs.prepare-build.outputs.short_sha }}"
+          full_tag="${username}/gradeloop-${{ matrix.service }}"
+          echo "full_tag=$full_tag"
+          echo "full_tag=$full_tag" >> $GITHUB_OUTPUT
+          echo "tags=--tag ${full_tag}:latest --tag ${full_tag}:sha-${short_sha}" >> $GITHUB_OUTPUT
+          echo "images=$full_tag" >> $GITHUB_OUTPUT
+          echo "tags: ${username}/gradeloop-${{ matrix.service }}:latest, :sha-${short_sha}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          registry: docker.io
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.service }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          provenance: true
+          sbom: true
+
+  # --------------------------------------------------------------------------
+  # Build web frontend
+  # --------------------------------------------------------------------------
+  build-web:
+    name: Build Web Frontend
+    runs-on: ubuntu-latest
+    needs: [prepare-build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate image tags
+        id: meta
+        run: |
+          username="${{ needs.prepare-build.outputs.dockerhub_username }}"
+          short_sha="${{ needs.prepare-build.outputs.short_sha }}"
+          full_tag="${username}/gradeloop-web"
+          echo "full_tag=$full_tag"
+          echo "full_tag=$full_tag" >> $GITHUB_OUTPUT
+          echo "tags=--tag ${full_tag}:latest --tag ${full_tag}:sha-${short_sha}" >> $GITHUB_OUTPUT
+          echo "tags: ${username}/gradeloop-web:latest, :sha-${short_sha}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          registry: docker.io
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          dockerfile: apps/web/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=https://api.gradeloop.example.com
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+          provenance: true
+          sbom: true
+
+  # --------------------------------------------------------------------------
+  # Build API gateway (Kong)
+  # --------------------------------------------------------------------------
+  build-gateway:
+    name: Build API Gateway
+    runs-on: ubuntu-latest
+    needs: [prepare-build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate image tags
+        id: meta
+        run: |
+          username="${{ needs.prepare-build.outputs.dockerhub_username }}"
+          short_sha="${{ needs.prepare-build.outputs.short_sha }}"
+          full_tag="${username}/gradeloop-kong"
+          echo "full_tag=$full_tag"
+          echo "full_tag=$full_tag" >> $GITHUB_OUTPUT
+          echo "tags=--tag ${full_tag}:latest --tag ${full_tag}:sha-${short_sha}" >> $GITHUB_OUTPUT
+          echo "tags: ${username}/gradeloop-kong:latest, :sha-${short_sha}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          registry: docker.io
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Pull official Kong image
+        run: docker pull kong:3.4-alpine
+
+      - name: Tag gateway image
+        run: |
+          docker tag kong:3.4-alpine ${{ steps.meta.outputs.full_tag }}:latest
+          docker tag kong:3.4-alpine ${{ steps.meta.outputs.full_tag }}:sha-${{ needs.prepare-build.outputs.short_sha }}
+
+      - name: Push gateway image
+        run: |
+          docker push ${{ steps.meta.outputs.full_tag }}:latest
+          docker push ${{ steps.meta.outputs.full_tag }}:sha-${{ needs.prepare-build.outputs.short_sha }}
+
+  # --------------------------------------------------------------------------
+  # Build summary
+  # --------------------------------------------------------------------------
+  build-complete:
+    name: Build Complete
+    runs-on: ubuntu-latest
+    needs: [build-go-services, build-python-services, build-web, build-gateway]
+    steps:
+      - name: Summary
+        run: |
+          echo "## Build Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All images pushed to DockerHub:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Image |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| iam | ${{ vars.DOCKERHUB_USERNAME }}/gradeloop-iam |" >> $GITHUB_STEP_SUMMARY
+          echo "| email | ${{ vars.DOCKERHUB_USERNAME }}/gradeloop-email |" >> $GITHUB_STEP_SUMMARY
+          echo "| academic | ${{ vars.DOCKERHUB_USERNAME }}/gradeloop-academic |" >> $GITHUB_STEP_SUMMARY
+          echo "| assessment | ${{ vars.DOCKERHUB_USERNAME }}/gradeloop-assessment |" >> $GITHUB_STEP_SUMMARY
+          echo "| cipas-xai | ${{ vars.DOCKERHUB_USERNAME }}/gradeloop-cipas-xai |" >> $GITHUB_STEP_SUMMARY
+          echo "| ivas | ${{ vars.DOCKERHUB_USERNAME }}/gradeloop-ivas |" >> $GITHUB_STEP_SUMMARY
+          echo "| acafs | ${{ vars.DOCKERHUB_USERNAME }}/gradeloop-acafs |" >> $GITHUB_STEP_SUMMARY
+          echo "| keystroke | ${{ vars.DOCKERHUB_USERNAME }}/gradeloop-keystroke |" >> $GITHUB_STEP_SUMMARY
+          echo "| cipas-ai | ${{ vars.DOCKERHUB_USERNAME }}/gradeloop-cipas-ai |" >> $GITHUB_STEP_SUMMARY
+          echo "| cipas-semantics | ${{ vars.DOCKERHUB_USERNAME }}/gradeloop-cipas-semantics |" >> $GITHUB_STEP_SUMMARY
+          echo "| cipas-syntactics | ${{ vars.DOCKERHUB_USERNAME }}/gradeloop-cipas-syntactics |" >> $GITHUB_STEP_SUMMARY
+          echo "| web | ${{ vars.DOCKERHUB_USERNAME }}/gradeloop-web |" >> $GITHUB_STEP_SUMMARY
+          echo "| kong | ${{ vars.DOCKERHUB_USERNAME }}/gradeloop-kong |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Tags: \`latest\`, \`sha-${{ needs.prepare-build.outputs.short_sha }}\`" >> $GITHUB_STEP_SUMMARY
+
+  # =============================================================================
+  # Phase 3: Deploy to Hetzner
+  # =============================================================================
+
+  deploy:
+    name: Deploy to Hetzner
+    runs-on: ubuntu-latest
+    needs: [build-complete, prepare-build]
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.runtime == 'docker'
+    environment:
+      name: production
+      url: https://api.gradeloop.example.com
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 30m
+          timeout: 120s
+          envs: RUNTIME,COMPOSE_FILE,REGISTRY_IMAGE_PREFIX,DOCKERHUB_USERNAME,SHORT_SHA
+          script: |
+            set -e
+
+            RUNTIME="${RUNTIME:-docker}"
+            COMPOSE_FILE="infra/compose/compose.prod.yaml"
+            DOCKERHUB_USERNAME="$DOCKERHUB_USERNAME"
+            SHORT_SHA="$SHORT_SHA"
+
+            echo "--- Deployment Info ---"
+            echo "Runtime: $RUNTIME"
+            echo "Compose file: $COMPOSE_FILE"
+            echo "DockerHub user: $DOCKERHUB_USERNAME"
+            echo "Commit SHA: $SHORT_SHA"
+            echo "User: $(whoami)"
+            echo "Hostname: $(hostname)"
+            echo ""
+
+            # Detect compose command
+            if command -v podman >/dev/null 2>&1 && [ "$RUNTIME" = "podman" ]; then
+              RUNTIME=podman
+              if command -v podman-compose &>/dev/null; then
+                COMPOSE_CMD="podman-compose"
+              else
+                COMPOSE_CMD="$RUNTIME compose"
+              fi
+            else
+              RUNTIME=docker
+              COMPOSE_CMD="$RUNTIME compose"
+            fi
+            echo "Using: $COMPOSE_CMD"
+
+            # Navigate to project directory
+            if [ -d "$HOME/gradeloop-core-v2" ]; then
+              cd "$HOME/gradeloop-core-v2"
+            elif [ -d "/opt/gradeloop-core-v2" ]; then
+              cd "/opt/gradeloop-core-v2"
+            else
+              echo "ERROR: Project directory not found."
+              echo "Available:"
+              ls -la ~/
+              ls -la /opt/ 2>/dev/null || true
+              exit 1
+            fi
+            echo "Working directory: $(pwd)"
+
+            # Fetch latest changes
+            echo "Fetching latest main branch..."
+            git fetch origin main
+            git reset --hard origin/main
+
+            # Build compose file with DockerHub images
+            echo "Updating compose file with DockerHub images..."
+            $COMPOSE_CMD -f $COMPOSE_FILE config > /dev/null
+
+            # Pull images from DockerHub
+            echo "Pulling images from DockerHub..."
+            $COMPOSE_CMD -f $COMPOSE_FILE pull
+
+            # Stop existing services gracefully
+            echo "Stopping existing services..."
+            $COMPOSE_CMD -f $COMPOSE_FILE down --remove-orphans 2>/dev/null || true
+
+            # Start services with zero-downtime
+            echo "Starting services (zero-downtime)..."
+            $COMPOSE_CMD -f $COMPOSE_FILE up -d --remove-orphans
+
+            # Wait for health checks
+            echo "Waiting for services to be healthy..."
+            sleep 30
+
+            # Verify services are running
+            echo "Verifying services..."
+            $COMPOSE_CMD -f $COMPOSE_FILE ps
+
+            # Cleanup unused images
+            echo "Cleaning up unused images..."
+            $RUNTIME image prune -f
+
+            echo "--- Deployment Complete ---"
+            echo "Commit: $SHORT_SHA"
+            echo "Deployed at: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+
+  deploy-podman:
+    name: Deploy to Hetzner (Podman)
+    runs-on: ubuntu-latest
+    needs: [build-complete, prepare-build]
+    if: github.event.inputs.runtime == 'podman'
+    environment:
+      name: production
+      url: https://api.gradeloop.example.com
+    steps:
+      - name: Deploy via SSH (Podman)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 30m
+          timeout: 120s
+          envs: RUNTIME,COMPOSE_FILE,DOCKERHUB_USERNAME,SHORT_SHA
+          script: |
+            set -e
+
+            RUNTIME=podman
+            COMPOSE_FILE="infra/compose/compose.prod.yaml"
+            DOCKERHUB_USERNAME="$DOCKERHUB_USERNAME"
+            SHORT_SHA="$SHORT_SHA"
+
+            echo "--- Deployment Info (Podman) ---"
+            echo "Runtime: $RUNTIME"
+            echo ""
+
+            if [ -d "$HOME/gradeloop-core-v2" ]; then
+              cd "$HOME/gradeloop-core-v2"
+            elif [ -d "/opt/gradeloop-core-v2" ]; then
+              cd "/opt/gradeloop-core-v2"
+            else
+              echo "ERROR: Project directory not found."
+              exit 1
+            fi
+            echo "Working directory: $(pwd)"
+
+            if command -v podman-compose &>/dev/null; then
+              COMPOSE_CMD="podman-compose"
+            else
+              COMPOSE_CMD="podman compose"
+            fi
+
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "Pulling images from DockerHub..."
+            $COMPOSE_CMD -f $COMPOSE_FILE pull
+
+            echo "Stopping existing services..."
+            $COMPOSE_CMD -f $COMPOSE_FILE down --remove-orphans 2>/dev/null || true
+
+            echo "Starting services..."
+            $COMPOSE_CMD -f $COMPOSE_FILE up -d --remove-orphans
+
+            echo "Waiting for services..."
+            sleep 30
+
+            echo "Verifying services..."
+            $COMPOSE_CMD -f $COMPOSE_FILE ps
+
+            $RUNTIME image prune -f
+
+            echo "--- Deployment Complete ---"
+            echo "Commit: $SHORT_SHA"
+            echo "Deployed at: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
