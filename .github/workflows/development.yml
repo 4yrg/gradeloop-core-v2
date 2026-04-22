@@ -51,27 +51,52 @@ jobs:
           cache: true
           cache-dependency-path: apps/services/**/go.sum
 
-      - name: Run go fmt
+      - name: Run go fmt (per module)
+        if: steps.find-services.outputs.found != ''
         run: |
-          unformatted=$(gofmt -l .)
-          if [ -n "$unformatted" ]; then
+          set -euo pipefail
+          unformatted=""
+          for svc in ${{ steps.find-services.outputs.found }}; do
+            if [ -f "$svc/go.mod" ]; then
+              files=$(gofmt -l "$svc")
+              if [ -n "$files" ]; then
+                unformatted="$unformatted"$'\n'"$files"
+              fi
+            fi
+          done
+
+          if [ -n "${unformatted//$'\n'/}" ]; then
             echo "The following Go files are not formatted:"
             echo "$unformatted"
-            gofmt -d .
             exit 1
           fi
 
-      - name: Run go vet
-        run: go vet ./...
-
-      - name: Run go mod tidy check
+      - name: Run go vet (per module)
+        if: steps.find-services.outputs.found != ''
         run: |
-          uncommitted=$(go mod tidy -diff 2>&1)
-          if [ -n "$uncommitted" ]; then
-            echo "go.mod or go.sum are not tidy:"
-            echo "$uncommitted"
-            exit 1
-          fi
+          set -euo pipefail
+          for svc in ${{ steps.find-services.outputs.found }}; do
+            if [ -f "$svc/go.mod" ]; then
+              echo "==> go vet in $svc"
+              (cd "$svc" && go vet ./...)
+            fi
+          done
+
+      - name: Run go mod tidy check (per module)
+        if: steps.find-services.outputs.found != ''
+        run: |
+          set -euo pipefail
+          for svc in ${{ steps.find-services.outputs.found }}; do
+            if [ -f "$svc/go.mod" ]; then
+              echo "==> go mod tidy -diff in $svc"
+              out="$(cd "$svc" && go mod tidy -diff 2>&1 || true)"
+              if [ -n "$out" ]; then
+                echo "go.mod or go.sum are not tidy in $svc:"
+                echo "$out"
+                exit 1
+              fi
+            fi
+          done
 
   node-checks:
     name: Node/Bun Checks
