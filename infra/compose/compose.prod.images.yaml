@@ -128,7 +128,7 @@ services:
   # Kong Gateway (Production)
   # =============================================================================
   kong-migrations:
-    image: kong:3.4-alpine
+    image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-kong:latest
     <<: *ghcr_image
     container_name: gradeloop-kong-migrations
     restart: "no"
