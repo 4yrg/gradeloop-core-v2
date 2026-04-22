@@ -11,6 +11,7 @@
  * - AI likelihood badges shown in panel headers
  */
 
+import * as React from "react";
 import { useRef, useState, useCallback } from "react";
 import {
   ChevronLeft,
