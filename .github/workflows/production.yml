@@ -35,9 +35,6 @@ jobs:
   go-checks:
     name: Go Lint & Format
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/services
     steps:
       - uses: actions/checkout@v4
 
@@ -48,27 +45,36 @@ jobs:
           cache: true
           cache-dependency-path: apps/services/**/go.sum
 
-      - name: Run go fmt
+      - name: Run gofmt, go vet, go mod tidy (per module)
+        shell: bash
         run: |
-          unformatted=$(gofmt -l .)
-          if [ -n "$unformatted" ]; then
-            echo "The following Go files are not formatted:"
-            echo "$unformatted"
-            gofmt -d .
-            exit 1
+          set -euo pipefail
+
+          # Find all directories that contain a go.mod
+          mapfile -t modules < <(find apps/services -name go.mod -print0 2>/dev/null | xargs -0 -n1 dirname | sort)
+
+          if [ "${#modules[@]}" -eq 0 ]; then
+            echo "No Go modules found"
+            exit 0
           fi
 
-      - name: Run go vet
-        run: go vet ./...
+          for m in "${modules[@]}"; do
+            echo "===> Module: $m"
 
-      - name: Run go mod tidy check
-        run: |
-          uncommitted=$(go mod tidy -diff 2>&1)
-          if [ -n "$uncommitted" ]; then
-            echo "go.mod or go.sum are not tidy:"
-            echo "$uncommitted"
-            exit 1
-          fi
+            # gofmt check
+            unformatted=$(gofmt -l "$m")
+            if [ -n "$unformatted" ]; then
+              echo "Not formatted in $m:"
+              echo "$unformatted"
+              exit 1
+            fi
+
+            # vet check
+            (cd "$m" && go vet ./...)
+
+            # tidy check
+            (cd "$m" && go mod tidy -diff)
+          done
 
   node-checks:
     name: Node/Bun Checks
