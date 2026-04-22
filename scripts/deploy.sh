@@ -3,7 +3,8 @@
 # =============================================================================
 # GradeLoop Core v2 - Deployment Script
 # =============================================================================
-# Pulls pre-built images from DockerHub and deploys to Hetzner server.
+# Pulls pre-built images from GitHub Container Registry (ghcr.io) and deploys
+# to the production server.
 #
 # Usage:
 #   ./scripts/deploy.sh                    # docker runtime (default)
@@ -11,19 +12,19 @@
 #
 # Prerequisites:
 #   - Docker/podman installed on server
-#   - DockerHub credentials configured (.env or env vars)
+#   - GitHub Container Registry credentials configured
 #   - Project directory exists at ~/gradeloop-core-v2 or /opt/gradeloop-core-v2
 #
 # Required Environment Variables:
 #   RUNTIME              Container runtime (docker or podman). Default: docker
-#   DOCKERHUB_USERNAME   DockerHub username
-#   DOCKERHUB_TOKEN       DockerHub access token (not password)
+#   GHCR_PACKAGE_PREFIX  GitHub package prefix (e.g., your-username or org)
+#   GHCR_TOKEN           GitHub Personal Access Token with packages:read scope
 
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 repo_root="$(cd "$script_dir/.." && pwd -P)"
-compose_file="infra/compose/compose.prod.yaml"
+compose_file="infra/compose/compose.prod.images.yaml"
 
 usage() {
     cat <<EOF
@@ -38,8 +39,8 @@ Options:
 
 Environment Variables:
   RUNTIME             Container runtime (default: docker)
-  DOCKERHUB_USERNAME  DockerHub username
-  DOCKERHUB_TOKEN     DockerHub access token
+  GHCR_PACKAGE_PREFIX GitHub package prefix (e.g., 4yrg)
+  GHCR_TOKEN          GitHub PAT with packages:read permission
   SKIP_PULL           Set to '1' to skip image pull
   FORCE_RECREATE      Set to '1' to force recreate containers
 
@@ -97,16 +98,16 @@ main() {
     fi
     echo "Compose command: $compose_cmd"
 
-    # Validate DockerHub credentials
-    if [ -z "${DOCKERHUB_USERNAME:-}" ]; then
-        echo "ERROR: DOCKERHUB_USERNAME is not set"
-        echo "Set it via: export DOCKERHUB_USERNAME=your-username"
+    # Validate GHCR credentials
+    if [ -z "${GHCR_PACKAGE_PREFIX:-}" ]; then
+        echo "ERROR: GHCR_PACKAGE_PREFIX is not set"
+        echo "Set it via: export GHCR_PACKAGE_PREFIX=your-username"
         exit 1
     fi
 
-    if [ -z "${DOCKERHUB_TOKEN:-}" ]; then
-        echo "ERROR: DOCKERHUB_TOKEN is not set"
-        echo "Set it via: export DOCKERHUB_TOKEN=your-access-token"
+    if [ -z "${GHCR_TOKEN:-}" ]; then
+        echo "ERROR: GHCR_TOKEN is not set"
+        echo "Set it via: export GHCR_TOKEN=your-github-pat"
         exit 1
     fi
 
@@ -115,18 +116,18 @@ main() {
     echo "Working directory: $(pwd)"
     echo ""
 
-    # Login to DockerHub
-    echo "Logging into DockerHub..."
+    # Login to GHCR
+    echo "Logging into GitHub Container Registry..."
     if [ "$dry_run" -eq 0 ]; then
-        echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin docker.io
+        echo "$GHCR_TOKEN" | docker login -u "$GHCR_PACKAGE_PREFIX" --password-stdin ghcr.io
     else
-        echo "[dry-run] docker login -u $DOCKERHUB_USERNAME"
+        echo "[dry-run] docker login -u $GHCR_PACKAGE_PREFIX"
     fi
 
-    # Pull images from DockerHub
+    # Pull images from GHCR
     if [ "$skip_pull" -eq 0 ]; then
         echo ""
-        echo "Pulling images from DockerHub..."
+        echo "Pulling images from GHCR..."
         if [ "$dry_run" -eq 0 ]; then
             $compose_cmd -f "$compose_file" pull
         else
@@ -179,13 +180,13 @@ main() {
         echo "[dry-run] $runtime image prune -f"
     fi
 
-    # Logout from DockerHub
+    # Logout from GHCR
     echo ""
-    echo "Logging out from DockerHub..."
+    echo "Logging out from GHCR..."
     if [ "$dry_run" -eq 0 ]; then
-        docker logout docker.io
+        docker logout ghcr.io
     else
-        echo "[dry-run] docker logout docker.io"
+        echo "[dry-run] docker logout ghcr.io"
     fi
 
     echo ""

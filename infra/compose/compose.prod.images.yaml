@@ -1,0 +1,438 @@
+# =============================================================================
+# GradeLoop Core v2 - Production Compose (Pre-built Images)
+# =============================================================================
+# This file is used for production deployment with pre-built images from
+# GitHub Container Registry (ghcr.io).
+#
+# Usage:
+#   docker compose -f infra/compose/compose.prod.images.yaml up -d
+#
+# Environment Variables:
+#   GHCR_PACKAGE_PREFIX  GitHub package prefix (e.g., 4yrg)
+
+x-shared-environment: &shared_env
+  GRA_DB_USER: ${GRA_DB_USER:-postgres}
+  GRA_DB_PASSWORD: ${GRA_DB_PASSWORD:-postgres}
+  GRA_DB_HOST: postgres
+  GRA_DB_PORT: 5432
+  GRA_DB_SSLMODE: ${GRA_DB_SSLMODE:-disable}
+
+x-ghcr-image: &ghcr_image
+  pull_policy: always
+
+services:
+  # =============================================================================
+  # Infrastructure (Production)
+  # =============================================================================
+  postgres:
+    image: postgres:16-alpine
+    <<: *ghcr_image
+    container_name: gradeloop-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${GRA_DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${GRA_DB_PASSWORD:-postgres}
+      - POSTGRES_DB=${IAM_SVC_DB_NAME:-iam_db}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: "pg_isready -U ${GRA_DB_USER:-postgres}"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  postgres-keystroke:
+    image: postgres:16-alpine
+    <<: *ghcr_image
+    container_name: gradeloop-postgres-keystroke
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=keystroke_user
+      - POSTGRES_PASSWORD=${KEYSTROKE_DB_PASSWORD:-keystroke_pass}
+      - POSTGRES_DB=keystroke-db
+    volumes:
+      - postgres-keystroke-data:/var/lib/postgresql/data
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: "pg_isready -U keystroke_user -d keystroke-db"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    <<: *ghcr_image
+    container_name: gradeloop-rabbitmq
+    restart: unless-stopped
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-guest}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    <<: *ghcr_image
+    container_name: gradeloop-redis
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    networks:
+      - gradeloop-network
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_pass}
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  seaweed:
+    image: docker.io/seaweedfs/seaweedfs:3.71
+    <<: *ghcr_image
+    container_name: gradeloop-seaweed
+    restart: unless-stopped
+    environment:
+      - WEEAD_IDENTITY=seaweedfs
+    ports:
+      - "9333:9333"   # S3 API
+      - "9320:9320"   # Console
+      - "8080:8080"   # Volume server
+    volumes:
+      - seaweed-data:/data
+    networks:
+      - gradeloop-network
+    command: server -s3 -identity=seaweedfs -s3Port=9333 -consolePort=9320
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9320/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # =============================================================================
+  # Kong Gateway (Production)
+  # =============================================================================
+  kong-migrations:
+    image: kong:3.4-alpine
+    <<: *ghcr_image
+    container_name: gradeloop-kong-migrations
+    restart: "no"
+    command: kong migrations bootstrap
+    environment:
+      - KONG_DATABASE=postgres
+      - KONG_PG_HOST=kong-database
+      - KONG_PG_PORT=5432
+      - KONG_PG_USER=kong
+      - KONG_PG_PASSWORD=${KONG_DB_PASSWORD:-kong_pass}
+      - KONG_PG_DB=kong
+    depends_on:
+      kong-database:
+        condition: service_healthy
+    networks:
+      - gradeloop-network
+
+  kong-gateway:
+    image: ${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-kong:latest
+    <<: *ghcr_image
+    container_name: gradeloop-kong-gateway
+    restart: unless-stopped
+    command: kong start
+    environment:
+      - KONG_DATABASE=postgres
+      - KONG_PG_HOST=kong-database
+      - KONG_PG_PORT=5432
+      - KONG_PG_USER=kong
+      - KONG_PG_PASSWORD=${KONG_DB_PASSWORD:-kong_pass}
+      - KONG_PG_DB=kong
+      - KONG_DECLARATIVE_CONFIG=/usr/local/kong/declarative/kong.yml
+      - KONG_PROXY_ACCESS_LOG=/dev/stdout
+      - KONG_ADMIN_ACCESS_LOG=/dev/stdout
+      - KONG_LOG_LEVEL=info
+    ports:
+      - "8000:8000"
+      - "8443:8443"
+      - "8001:8001"
+      - "8444:8444"
+    volumes:
+      - ../../apps/api-gateway/config:/usr/local/kong/declarative:ro
+    depends_on:
+      kong-migrations:
+        condition: service_completed_successfully
+    networks:
+      - gradeloop-network
+
+  kong-database:
+    image: postgres:16-alpine
+    <<: *ghcr_image
+    container_name: gradeloop-kong-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=kong
+      - POSTGRES_PASSWORD=${KONG_DB_PASSWORD:-kong_pass}
+      - POSTGRES_DB=kong
+    volumes:
+      - kong-database-data:/var/lib/postgresql/data
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: "pg_isready -U kong -d kong"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # =============================================================================
+  # IAM Service (Go - Production)
+  # =============================================================================
+  iam:
+    image: ${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-iam:latest
+    <<: *ghcr_image
+    container_name: gradeloop-iam
+    restart: unless-stopped
+    environment:
+      - SERVER_PORT=8081
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${GRA_DB_USER:-postgres}
+      - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
+      - DB_NAME=${IAM_SVC_DB_NAME:-iam_db}
+      - DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
+      - EMAIL_SERVICE_URL=http://email:8082
+      - MINIO_ENDPOINT=seaweed:9333
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - JWT_ACCESS_TOKEN_EXPIRY=${JWT_ACCESS_TOKEN_EXPIRY:-15}
+      - JWT_REFRESH_TOKEN_EXPIRY=${JWT_REFRESH_TOKEN_EXPIRY:-10080}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      seaweed:
+        condition: service_started
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # Academic Service (Go - Production)
+  # =============================================================================
+  academic:
+    image: ${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-academic:latest
+    <<: *ghcr_image
+    container_name: gradeloop-academic
+    restart: unless-stopped
+    environment:
+      - SERVER_PORT=8083
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${GRA_DB_USER:-postgres}
+      - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
+      - DB_NAME=${ACADEMIC_SVC_DB_NAME:-academic_db}
+      - IAM_SERVICE_URL=http://iam:8081
+    depends_on:
+      postgres:
+        condition: service_healthy
+      iam:
+        condition: service_started
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # Assessment Service (Go - Production)
+  # =============================================================================
+  assessment:
+    image: ${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-assessment:latest
+    <<: *ghcr_image
+    container_name: gradeloop-assessment
+    restart: unless-stopped
+    environment:
+      - SERVER_PORT=8084
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${GRA_DB_USER:-postgres}
+      - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
+      - DB_NAME=${ASSESSMENT_SVC_DB_NAME:-assessment_db}
+      - ACADEMIC_SERVICE_URL=http://academic:8083
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # Email Service (Go - Production)
+  # =============================================================================
+  email:
+    image: ${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-email:latest
+    <<: *ghcr_image
+    container_name: gradeloop-email
+    restart: unless-stopped
+    environment:
+      - SERVER_PORT=8082
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${GRA_DB_USER:-postgres}
+      - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
+      - DB_NAME=${EMAIL_SVC_DB_NAME:-email_db}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # IVAS Service (Python - Production)
+  # =============================================================================
+  ivas:
+    image: ${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-ivas:latest
+    <<: *ghcr_image
+    container_name: gradeloop-ivas
+    restart: unless-stopped
+    environment:
+      - API_PORT=8088
+      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${IVAS_SVC_DB_NAME:-ivas_db}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # ACAFS Service (Python - Production)
+  # =============================================================================
+  acafs:
+    image: ${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-acafs:latest
+    <<: *ghcr_image
+    container_name: gradeloop-acafs
+    restart: unless-stopped
+    environment:
+      - SERVER_PORT=8086
+      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${ACAFS_SVC_DB_NAME:-acafs_db}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # Keystroke Service (Python - Production)
+  # =============================================================================
+  keystroke:
+    image: ${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-keystroke:latest
+    <<: *ghcr_image
+    container_name: gradeloop-keystroke
+    restart: unless-stopped
+    environment:
+      - SERVER_PORT=8003
+      - DATABASE_URL=postgresql://keystroke_user:${KEYSTROKE_DB_PASSWORD:-keystroke_pass}@postgres-keystroke:5432/keystroke-db
+    depends_on:
+      postgres-keystroke:
+        condition: service_healthy
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # CIPAS Syntactics Service (Python - Production)
+  # =============================================================================
+  cipas-syntactics:
+    image: ${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-cipas-syntactics:latest
+    <<: *ghcr_image
+    container_name: gradeloop-cipas-syntactics
+    restart: unless-stopped
+    environment:
+      - CIPAS_SYNTACTICS_PORT=8086
+      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # CIPAS Semantics Service (Python - Production)
+  # =============================================================================
+  cipas-semantics:
+    image: ${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-cipas-semantics:latest
+    <<: *ghcr_image
+    container_name: gradeloop-cipas-semantics
+    restart: unless-stopped
+    environment:
+      - API_PORT=8087
+      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # CIPAS AI Service (Python - Production)
+  # =============================================================================
+  cipas-ai:
+    image: ${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-cipas-ai:latest
+    <<: *ghcr_image
+    container_name: gradeloop-cipas-ai
+    restart: unless-stopped
+    environment:
+      - CIPAS_AI_PORT=8104
+      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${CIPAS_AI_SVC_DB_NAME:-cipas_ai_db}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # CIPAS XAI Service (Go - Production)
+  # =============================================================================
+  cipas-xai:
+    image: ${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-cipas-xai:latest
+    <<: *ghcr_image
+    container_name: gradeloop-cipas-xai
+    restart: unless-stopped
+    environment:
+      - SERVER_PORT=8085
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # Frontend (Next.js - Production)
+  # =============================================================================
+  frontend:
+    image: ${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-web:latest
+    <<: *ghcr_image
+    container_name: gradeloop-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    networks:
+      - gradeloop-network
+
+networks:
+  gradeloop-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  postgres-keystroke-data:
+  rabbitmq-data:
+  redis-data:
+  seaweed-data:
+  minio-data:
+  kong-database-data:
