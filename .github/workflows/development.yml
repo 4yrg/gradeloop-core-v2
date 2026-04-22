@@ -118,5 +118,3 @@ jobs:
           for svc in ivas acafs keystroke cipas-ai cipas-semantics cipas-syntactics; do
             [ -d "$svc" ] && ruff format --check "$svc"
           done
-
-# sonarqube job disabled - can re-enable when SONAR_HOST_URL is configured
