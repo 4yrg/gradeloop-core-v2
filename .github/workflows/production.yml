@@ -62,18 +62,18 @@ jobs:
 
             unformatted=$(gofmt -l "$m")
             if [ -n "$unformatted" ]; then
-              echo "ERROR: Unformatted files found:"
+              echo "ERROR: Unformatted files found in $m:"
               echo "$unformatted"
               exit 1
             fi
 
-            if ! go vet "./$m/..." 2>/dev/null; then
-              echo "ERROR: go vet failed"
+            if ! (cd "$m" && go vet ./...); then
+              echo "ERROR: go vet failed in $m"
               exit 1
             fi
 
-            if ! go mod tidy -diff 2>/dev/null; then
-              echo "ERROR: go mod tidy would make changes"
+            if ! (cd "$m" && go mod tidy -diff); then
+              echo "ERROR: go mod tidy would make changes in $m"
               exit 1
             fi
           done
@@ -95,6 +95,47 @@ jobs:
 
       - name: Run lint
         run: bun run lint
+
+  # --------------------------------------------------------------------------
+  python-checks:
+    name: Python Lint & Format
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/services
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Find Python services
+        id: find-services
+        run: |
+          services=$(find . -maxdepth 1 -type d \( -name 'ivas' -o -name 'acafs' -o -name 'keystroke' -o -name 'cipas-*' \) 2>/dev/null | sort | tr '\n' ' ')
+          echo "found=$services" >> $GITHUB_OUTPUT
+
+      - name: Set up Python
+        if: steps.find-services.outputs.found != ''
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install linters
+        if: steps.find-services.outputs.found != ''
+        run: pip install --upgrade pip ruff black
+
+      - name: Run ruff check
+        if: steps.find-services.outputs.found != ''
+        run: |
+          for svc in ivas acafs keystroke cipas-ai cipas-semantics cipas-syntactics; do
+            [ -d "$svc" ] && ruff check "$svc"
+          done
+
+      - name: Run ruff format check
+        if: steps.find-services.outputs.found != ''
+        run: |
+          for svc in ivas acafs keystroke cipas-ai cipas-semantics cipas-syntactics; do
+            [ -d "$svc" ] && ruff format --check "$svc"
+          done
 
   # --------------------------------------------------------------------------
   # Login to GHCR (once for all build jobs)
@@ -123,7 +164,7 @@ jobs:
   build-go-services:
     name: Build Go Services
     runs-on: ubuntu-latest
-    needs: [login-ghcr, go-checks, node-checks]
+    needs: [login-ghcr, go-checks, node-checks, python-checks]
     strategy:
       fail-fast: true
       matrix:
@@ -180,7 +221,7 @@ jobs:
   build-python-services:
     name: Build Python Services
     runs-on: ubuntu-latest
-    needs: [login-ghcr, go-checks, node-checks]
+    needs: [login-ghcr, go-checks, node-checks, python-checks]
     strategy:
       fail-fast: true
       matrix:
@@ -239,7 +280,7 @@ jobs:
   build-web:
     name: Build Web Frontend
     runs-on: ubuntu-latest
-    needs: [login-ghcr, go-checks, node-checks]
+    needs: [login-ghcr, go-checks, node-checks, python-checks]
     steps:
       - uses: actions/checkout@v4
 
@@ -281,7 +322,7 @@ jobs:
   build-gateway:
     name: Build Kong Gateway
     runs-on: ubuntu-latest
-    needs: [login-ghcr, go-checks, node-checks]
+    needs: [login-ghcr, go-checks, node-checks, python-checks]
     steps:
       - uses: actions/checkout@v4
 
