@@ -11,7 +11,9 @@ post {
 }
 
 script:post-response {
-  if (res.status === 200 && res.body.access_token) {
-    bru.setEnvVar("ACCESS_TOKEN", res.body.access_token);
+  if (res.status === 200) {
+    if (res.body.access_token) {
+      bru.setEnvVar("ACCESS_TOKEN", res.body.access_token);
+    }
   }
 }
