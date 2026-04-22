@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { instructorAssessmentsApi } from "@/lib/api/assessments";
 import type { AssignmentResponse } from "@/types/assessments.types";
 import { handleApiError } from "@/lib/api/axios";
@@ -28,7 +28,6 @@ import { Badge } from "@/components/ui/badge";
 
 export default function InstructorAssignmentDetailsPage() {
     const params = useParams();
-    const router = useRouter();
     const assignmentId = params.assignmentId as string;
     const instanceId = params.instanceId as string;
 

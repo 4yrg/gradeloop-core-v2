@@ -5,9 +5,7 @@ import {
     Bell,
     Lock,
     Palette,
-    Globe,
-    Mail,
-    Smartphone,
+
     Monitor,
     Moon,
     Sun,

@@ -19,7 +19,6 @@ import { toast } from "@/lib/hooks/use-toast";
 import type {
   UpdateUserRequest,
   UpdateUserResponse,
-  FormErrors,
 } from "@/types/admin.types";
 import type { UserListItem } from "@/types/auth.types";
 import { USER_TYPES_ARRAY } from "@/types/auth.types";
@@ -41,7 +40,6 @@ export function EditUserDialog({ user, open, onOpenChange, onSuccess }: Props) {
     is_active: true,
     user_type: "student",
   });
-  const [errors, setErrors] = React.useState<FormErrors>({});
   const [submitting, setSubmitting] = React.useState(false);
 
   // Populate form from user
@@ -51,7 +49,7 @@ export function EditUserDialog({ user, open, onOpenChange, onSuccess }: Props) {
         is_active: user.is_active,
         user_type: user.user_type || "student",
       });
-      setErrors({});
+
     }
   }, [user, open]);
 

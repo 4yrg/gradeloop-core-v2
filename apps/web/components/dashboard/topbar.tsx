@@ -2,11 +2,9 @@
 
 import * as React from "react";
 import { usePathname } from "next/navigation";
-import { Search, Bell, Menu, Plus, Upload, LayoutGrid, List } from "lucide-react";
+import { Bell, Menu, LayoutGrid } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +12,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { useAuthStore } from "@/lib/stores/authStore";
 import { useUIStore } from "@/lib/stores/uiStore";
 
 interface TopbarProps {
@@ -24,7 +21,6 @@ interface TopbarProps {
 
 export function Topbar({ onMenuClick, className }: TopbarProps) {
   const pathname = usePathname();
-  const user = useAuthStore((s) => s.user);
   const pageTitle = useUIStore((s) => s.pageTitle);
 
   // Format pathname as Title

@@ -122,10 +122,10 @@ export default function StudentAssignmentDetailPage() {
         return () => {
             mounted = false;
         };
-    }, [assignmentId]);
+    }, [assignmentId, setPageTitle]);
 
     // Clear topbar title when leaving this page
-    React.useEffect(() => () => { setPageTitle(null); }, []);
+    React.useEffect(() => () => { setPageTitle(null); }, [setPageTitle]);
 
     if (isLoading) {
         return (

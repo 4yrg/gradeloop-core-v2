@@ -25,19 +25,9 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { batchesApi, degreesApi, specializationsApi } from '@/lib/api/academics';
-import { handleApiError } from '@/lib/api/axios';
-import { toast } from '@/lib/hooks/use-toast';
 import { useAcademicsAccess } from '@/lib/hooks/useAcademicsAccess';
 import {
     CreateGroupDialog,
@@ -56,7 +46,6 @@ export default function GroupsPage() {
     const [degrees, setDegrees] = React.useState<Degree[]>([]);
     const [specializations, setSpecializations] = React.useState<Specialization[]>([]);
     const [loading, setLoading] = React.useState(true);
-    const [error, setError] = React.useState('');
     const [search, setSearch] = React.useState('');
     const [expandedIds, setExpandedIds] = React.useState<Set<string>>(new Set());
     const [degreeFilter, setDegreeFilter] = React.useState('');
@@ -68,7 +57,6 @@ export default function GroupsPage() {
 
     const fetchData = React.useCallback(async () => {
         setLoading(true);
-        setError('');
         try {
             const [batchList, degreeList] = await Promise.all([
                 batchesApi.list(true),
@@ -83,7 +71,7 @@ export default function GroupsPage() {
             );
             setSpecializations(specs.flat());
         } catch (err) {
-            setError(handleApiError(err));
+            console.error('Failed to fetch data:', err);
         } finally {
             setLoading(false);
         }
@@ -135,21 +123,6 @@ export default function GroupsPage() {
             else next.add(id);
             return next;
         });
-    }
-
-    async function toggleActive(batch: Batch) {
-        try {
-            if (batch.is_active) {
-                await batchesApi.deactivate(batch.id);
-                toast.success('Group deactivated', batch.name);
-            } else {
-                await batchesApi.reactivate(batch.id);
-                toast.success('Group reactivated', batch.name);
-            }
-            fetchData();
-        } catch (err) {
-            toast.error('Action failed', handleApiError(err));
-        }
     }
 
     const getSpecName = (specId: string | null) => {

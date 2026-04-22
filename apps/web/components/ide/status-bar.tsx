@@ -2,7 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Clock, Database, Loader2 } from "lucide-react";
-import type { StatusBarData, ExecutionStatus } from "./types";
+import type { StatusBarData } from "./types";
 import { STATUS_CONFIG } from "./constants";
 import { cn } from "@/lib/utils";
 import { LanguageSelector } from "./language-selector";

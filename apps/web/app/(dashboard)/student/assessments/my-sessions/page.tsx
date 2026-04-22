@@ -11,7 +11,6 @@ import {
     Play,
     BarChart3,
     PlusCircle,
-    Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -80,7 +79,7 @@ export default function MyVivaSessionsPage() {
         }
         load();
         return () => { mounted = false; };
-    }, [user?.id]);
+    }, [user]);
 
     const assignmentMap = React.useMemo(
         () => new Map(assignments.map((a) => [a.id, a.title])),

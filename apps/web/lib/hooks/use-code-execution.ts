@@ -116,7 +116,7 @@ export function useCodeExecution({
         setIsExecuting(false);
       }
     },
-    [assignmentId, onSuccess, onError]
+    [assignmentId, onSuccess, onError, expectedLanguageId]
   );
 
   const reset = useCallback(() => {

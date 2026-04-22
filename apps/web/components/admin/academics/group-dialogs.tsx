@@ -4,7 +4,7 @@
  * Group (Batch) dialogs: Create + Edit
  */
 import * as React from 'react';
-import { Users2, Shield, Info } from 'lucide-react';
+import { Users2, Info } from 'lucide-react';
 import {
     SideDialog,
     SideDialogContent,

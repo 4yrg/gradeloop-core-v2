@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useParams, useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
     ShieldCheck,
     ShieldAlert,
@@ -9,7 +9,6 @@ import {
     Activity,
     RefreshCw,
     ArrowLeft,
-    Loader2,
     AlertCircle,
     Clock,
     Users,

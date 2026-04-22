@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { EditorPanel } from "./editor-panel";
 import { ExecutionPanel } from "./execution-panel";
 import { StatusBar } from "./status-bar";
@@ -70,7 +70,7 @@ export function CodeIDE({
   const [fontSize, setFontSize] = useState<number>(DEFAULT_FONT_SIZE);
 
   // Code execution
-  const { execute, isExecuting, result, error } = useCodeExecution({
+  const { execute, isExecuting, result } = useCodeExecution({
     assignmentId,
     // When the language is locked, guard the run hook against mismatches.
     expectedLanguageId: lockLanguage ? (expectedLanguageId ?? initialLanguage) : undefined,
@@ -102,7 +102,7 @@ export function CodeIDE({
         setLanguage(parseInt(savedLanguage, 10));
       }
     }
-  }, [initialLanguage]);
+  }, [initialLanguage, lockLanguage]);
 
   // Save font size to localStorage
   useEffect(() => {

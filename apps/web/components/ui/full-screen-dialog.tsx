@@ -34,7 +34,7 @@ const FullScreenDialogContent = React.forwardRef<
   }
 >(
   (
-    { className, children, showMaximize, onMaximize, isMaximized, ...props },
+    { className, children, isMaximized, ...props },
     ref,
   ) => (
     <DialogPrimitive.Portal>
@@ -63,13 +63,11 @@ FullScreenDialogContent.displayName = DialogPrimitive.Content.displayName;
 const FullScreenDialogHeader = ({
   className,
   children,
-  onClose,
   onMaximize,
   isMaximized,
   showMaximize,
   ...props
 }: React.HTMLAttributes<HTMLDivElement> & {
-  onClose?: () => void;
   onMaximize?: () => void;
   isMaximized?: boolean;
   showMaximize?: boolean;

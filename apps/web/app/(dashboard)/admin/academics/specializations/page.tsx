@@ -4,7 +4,6 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Plus,
   RefreshCw,
   Layers,
   MoreHorizontal,

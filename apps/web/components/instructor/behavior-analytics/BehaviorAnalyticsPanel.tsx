@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import type { AnalyticsData, BehavioralAnalysis } from "@/lib/api/keystroke";
+import type { AnalyticsData } from "@/lib/api/keystroke";
 import { ProcessScoreGauge } from "./ProcessScoreGauge";
 import { RiskTimelineChart } from "./RiskTimelineChart";
 import { CognitiveLoadChart } from "./CognitiveLoadChart";
@@ -122,41 +122,7 @@ export function BehaviorAnalyticsPanel({ data, onRetryAi }: BehaviorAnalyticsPan
         }
     }
     const ba = data.behavioral_analysis;
-    const sm = ba?.session_metrics;
-    const ai = ba?.authenticity_indicators;
-    const ca = ba?.cognitive_analysis;
-    const ps = ba?.process_score;
-
-    const contributorPct = ai ? Math.round(ai.multiple_contributor_probability * 100) : 0;
-    const humanPct = ai ? Math.round(ai.human_signature_score) : 0;
-    const syntheticPct = ai ? Math.round(ai.synthetic_signature_score) : 0;
-    const overallScore = ps ? Math.round(ps.overall_score) : 0;
-
-    const overallVariant =
-        overallScore >= 75 ? "success" : overallScore >= 50 ? "warning" : "danger";
-
-    // ── LLM / AI insights ─────────────────────────────────────────────────────
-    const llm = ba?.llm_insights ?? {};
-    const llmAnalysis = llm.llm_analysis ?? {};
-    const pedFeedback = ba?.pedagogical_feedback ?? {};
-
-    const narrativeText: string = pedFeedback.narrative ?? llmAnalysis.narrative_summary ?? "";
-    const recommendations: string[] =
-        (pedFeedback.recommendations ?? llmAnalysis.pedagogical_recommendations ?? [])
-            .filter((r): r is string => typeof r === "string" && r.trim().length > 0);
-    const struggleConcepts: string[] =
-        (pedFeedback.struggle_concepts ?? llmAnalysis.struggle_concepts ?? [])
-            .filter((c): c is string => typeof c === "string" && c.trim().length > 0);
-    const developmentalLogic: string = llmAnalysis.developmental_logic ?? "";
-    const cognitiveInsights: string = llmAnalysis.cognitive_insights ?? "";
-    const authenticityAssessment: string = llmAnalysis.authenticity_assessment ?? "";
-    const confidenceAssessment: string = llmAnalysis.confidence_assessment ?? "";
-    const hasGeminiAnalysis = !!(developmentalLogic || cognitiveInsights || authenticityAssessment || narrativeText);
-    const hasBasicFeedback = recommendations.length > 0 || struggleConcepts.length > 0;
-    const llmError: string | undefined = llm.error;
-    const filteredFrictionConcepts = ca?.high_friction_concepts.filter(
-        (c) => c !== "See friction points for details",
-    ) ?? [];
+    const llmError = ba?.llm_insights?.error;
 
     // Log LLM error to console so it's visible in dev-tools / server logs
     useEffect(() => {
@@ -180,6 +146,41 @@ export function BehaviorAnalyticsPanel({ data, onRetryAi }: BehaviorAnalyticsPan
             </div>
         );
     }
+
+    const sm = ba.session_metrics;
+    const ai = ba.authenticity_indicators;
+    const ca = ba.cognitive_analysis;
+    const ps = ba.process_score;
+
+    const contributorPct = Math.round(ai.multiple_contributor_probability * 100);
+    const humanPct = Math.round(ai.human_signature_score);
+    const syntheticPct = Math.round(ai.synthetic_signature_score);
+    const overallScore = Math.round(ps.overall_score);
+
+    const overallVariant =
+        overallScore >= 75 ? "success" : overallScore >= 50 ? "warning" : "danger";
+
+    // ── LLM / AI insights ─────────────────────────────────────────────────────
+    const llm = ba.llm_insights ?? {};
+    const llmAnalysis = llm.llm_analysis ?? {};
+    const pedFeedback = ba.pedagogical_feedback ?? {};
+
+    const narrativeText: string = pedFeedback.narrative ?? llmAnalysis.narrative_summary ?? "";
+    const recommendations: string[] =
+        (pedFeedback.recommendations ?? llmAnalysis.pedagogical_recommendations ?? [])
+            .filter((r): r is string => typeof r === "string" && r.trim().length > 0);
+    const struggleConcepts: string[] =
+        (pedFeedback.struggle_concepts ?? llmAnalysis.struggle_concepts ?? [])
+            .filter((c): c is string => typeof c === "string" && c.trim().length > 0);
+    const developmentalLogic: string = llmAnalysis.developmental_logic ?? "";
+    const cognitiveInsights: string = llmAnalysis.cognitive_insights ?? "";
+    const authenticityAssessment: string = llmAnalysis.authenticity_assessment ?? "";
+    const confidenceAssessment: string = llmAnalysis.confidence_assessment ?? "";
+    const hasGeminiAnalysis = !!(developmentalLogic || cognitiveInsights || authenticityAssessment || narrativeText);
+    const hasBasicFeedback = recommendations.length > 0 || struggleConcepts.length > 0;
+    const filteredFrictionConcepts = ca.high_friction_concepts.filter(
+        (c) => c !== "See friction points for details",
+    ) ?? [];
 
     return (
         <div className="space-y-6">

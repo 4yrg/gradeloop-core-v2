@@ -137,7 +137,7 @@ export function ForceDirectedGraph({
     // Draw nodes
     const node = g
       .append("g")
-      .selectAll("circle")
+      .selectAll<SVGCircleElement, GraphNode>("circle")
       .data(nodes)
       .join("circle")
       .attr("r", 20)

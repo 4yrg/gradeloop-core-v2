@@ -1,23 +1,20 @@
 "use client";
 
 import * as React from "react";
-import { useParams, useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SectionHeader } from "@/components/instructor/section-header";
 import { SimilarityScore } from "@/components/instructor/similarity/similarity-badge";
 import {
   AlertCircle,
   ArrowLeft,
-  Code2,
-  GitCompare,
   Download,
   Check,
-  X,
   FileCode,
 } from "lucide-react";
 import Link from "next/link";
@@ -45,14 +42,13 @@ export default function DiffViewerPage({
 }) {
   const { assignmentId, instanceId } = React.use(params);
   const searchParams = useSearchParams();
-  const router = useRouter();
 
   const submission1Id = searchParams.get("submission1");
   const submission2Id = searchParams.get("submission2");
 
   const [submission1, setSubmission1] = React.useState<SubmissionData | null>(null);
   const [submission2, setSubmission2] = React.useState<SubmissionData | null>(null);
-  const [similarity, setSimilarity] = React.useState(92.5);
+  const [similarity] = React.useState(92.5);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [viewMode, setViewMode] = React.useState<"side-by-side" | "unified">("side-by-side");

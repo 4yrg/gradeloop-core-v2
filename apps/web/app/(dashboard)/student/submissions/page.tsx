@@ -5,14 +5,13 @@ import Link from "next/link";
 import {
     ClipboardList,
     FileText,
-    Loader2,
-    Search,
-    History,
-    Send,
-    BookOpen,
-    ChevronRight,
-    AlertCircle,
     SlidersHorizontal,
+    AlertCircle,
+    ChevronRight,
+    Search,
+    BookOpen,
+    Send,
+    History,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +30,7 @@ import { studentAssessmentsApi } from "@/lib/api/assessments";
 import type { StudentCourseEnrollment } from "@/types/academics.types";
 import type { AssignmentResponse, SubmissionResponse } from "@/types/assessments.types";
 import { handleApiError } from "@/lib/api/axios";
-import { format, formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { AILikelihoodBadge } from "@/components/clone-detector/AILikelihoodBadge";
 import { SemanticSimilarityBadge } from "@/components/ui/semantic-similarity-badge";
 

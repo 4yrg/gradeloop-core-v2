@@ -61,8 +61,8 @@ export default function GroupDetailPage() {
     const [batch, setBatch] = React.useState<Batch | null>(null);
     const [members, setMembers] = React.useState<BatchMemberDetail[]>([]);
     const [loading, setLoading] = React.useState(true);
-    const [error, setError] = React.useState('');
     const [search, setSearch] = React.useState('');
+    const [, setError] = React.useState<string | null>(null);
     const [activeTab, setActiveTab] = React.useState<'students' | 'settings'>('students');
 
     // Settings form state
@@ -80,7 +80,6 @@ export default function GroupDetailPage() {
 
     const fetchData = React.useCallback(async () => {
         setLoading(true);
-        setError('');
         try {
             const [batchData, membersData] = await Promise.all([
                 batchesApi.get(id),

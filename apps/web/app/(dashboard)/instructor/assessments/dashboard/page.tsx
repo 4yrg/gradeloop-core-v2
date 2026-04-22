@@ -5,7 +5,6 @@ import Link from "next/link";
 import { format } from "date-fns";
 import {
     Mic2,
-    Loader2,
     Search,
     CheckCircle2,
     Clock,
@@ -15,9 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
 import { ivasApi } from "@/lib/ivas-api";
-import { useAuthStore } from "@/lib/stores/authStore";
 import type { VivaSession, IvasAssignment } from "@/types/ivas";
 import {
     Select,
@@ -53,7 +50,6 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function InstructorDashboardPage() {
-    const user = useAuthStore((s) => s.user);
 
     const [sessions, setSessions] = React.useState<VivaSession[]>([]);
     const [assignments, setAssignments] = React.useState<IvasAssignment[]>([]);

@@ -4,9 +4,11 @@ import type { Role, Permission } from '@/types/auth.types';
 
 function normalizeArray<T>(raw: unknown): T[] {
   if (Array.isArray(raw)) return raw as T[];
-  if (Array.isArray(raw?.data)) return raw.data as T[];
-  // GET /roles returns { roles: [] }
-  if (Array.isArray(raw?.roles)) return raw.roles as T[];
+  if (raw && typeof raw === 'object') {
+    const r = raw as Record<string, unknown>;
+    if (Array.isArray(r.data)) return r.data as T[];
+    if (Array.isArray(r.roles)) return r.roles as T[];
+  }
   return [];
 }
 

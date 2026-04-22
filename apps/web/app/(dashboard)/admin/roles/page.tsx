@@ -1,12 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { Plus, Search, Shield, Info, MoreHorizontal, UserCog } from "lucide-react";
-import { Copy, RefreshCw } from "lucide-react";
+import { Plus, Search, Shield } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
+import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +19,6 @@ export default function RolesPermissionsPage() {
     const [roles, setRoles] = React.useState<Role[]>([]);
     const [permissions, setPermissions] = React.useState<Permission[]>([]);
     const [loading, setLoading] = React.useState(true);
-    const [error, setError] = React.useState<string | null>(null);
 
     const [selectedRoleId, setSelectedRoleId] = React.useState<string | null>(null);
     const [searchQuery, setSearchQuery] = React.useState("");
@@ -34,7 +32,6 @@ export default function RolesPermissionsPage() {
 
     const fetchInitialData = React.useCallback(async () => {
         setLoading(true);
-        setError(null);
         try {
             const [fetchedRoles, fetchedPerms] = await Promise.all([
                 rolesApi.list(),
@@ -46,7 +43,6 @@ export default function RolesPermissionsPage() {
                 setSelectedRoleId(fetchedRoles[0].id);
             }
         } catch (err) {
-            setError(handleApiError(err));
             toast.error("Failed to load roles & permissions", handleApiError(err));
         } finally {
             setLoading(false);
