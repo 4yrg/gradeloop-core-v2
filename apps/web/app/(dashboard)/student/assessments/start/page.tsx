@@ -54,7 +54,7 @@ export default function StartAssessmentPage() {
         }
         loadAssignments();
         return () => { mounted = false; };
-    }, [addToast]);
+    }, [addToast, selectedAssignment]);
 
     const selectedData = assignments.find(a => a.id === selectedAssignment);
 

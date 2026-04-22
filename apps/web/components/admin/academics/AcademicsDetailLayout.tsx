@@ -3,7 +3,6 @@
 import * as React from 'react';
 import { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils/cn';
 
 interface Tab<T extends string = string> {

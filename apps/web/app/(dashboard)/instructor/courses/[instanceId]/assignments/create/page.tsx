@@ -6,7 +6,6 @@ import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import {
   useAssignmentCreateStore,
-  DEFAULT_CRITERIA,
   type RubricCriterion,
   type TestCase,
 } from "@/lib/stores/assignmentCreateStore";

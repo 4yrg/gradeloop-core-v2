@@ -16,7 +16,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toaster";
 import { ivasApi } from "@/lib/ivas-api";
-import { useAuthStore } from "@/lib/stores/authStore";
 import type { VivaSession, WsMessageIncoming, ChatMessage } from "@/types/ivas";
 
 type ConnectionState = "connecting" | "connected" | "disconnected" | "error";
@@ -26,7 +25,6 @@ export default function VivaSessionPage() {
     const params = useParams<{ sessionId: string }>();
     const router = useRouter();
     const { addToast } = useToast();
-    const user = useAuthStore((s) => s.user);
     const sessionId = params.sessionId;
 
     // Session state

@@ -83,7 +83,7 @@ const STATUS_COLOR: Record<string, string> = {
 export default function SemesterDetailPage() {
   const router = useRouter();
   const params = useParams<{ semesterId: string }>();
-  const { canAccess, canWrite } = useAcademicsAccess();
+  const { canAccess } = useAcademicsAccess();
 
   const setPageTitle = useUIStore((s) => s.setPageTitle);
 

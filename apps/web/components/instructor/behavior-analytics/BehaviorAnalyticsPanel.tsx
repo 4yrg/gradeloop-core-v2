@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import type { AnalyticsData, BehavioralAnalysis } from "@/lib/api/keystroke";
+import type { AnalyticsData } from "@/lib/api/keystroke";
 import { ProcessScoreGauge } from "./ProcessScoreGauge";
 import { RiskTimelineChart } from "./RiskTimelineChart";
 import { CognitiveLoadChart } from "./CognitiveLoadChart";

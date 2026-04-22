@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
   getSimilarityReport,
   clusterAssignment,
@@ -34,16 +34,12 @@ import {
   AlertCircle,
   Loader2,
   Eye,
-  Filter,
   BarChart3,
 } from "lucide-react";
-import { format } from "date-fns";
 
 export default function SimilarityOverviewPage() {
   const params = useParams();
-  const router = useRouter();
   const assignmentId = params.assignmentId as string;
-  const instanceId = params.instanceId as string;
 
   const [report, setReport] = React.useState<AssignmentClusterResponse | null>(null);
   const [assignment, setAssignment] = React.useState<AssignmentResponse | null>(null);
@@ -237,7 +233,7 @@ export default function SimilarityOverviewPage() {
     }
 
     analyzeSubmissions();
-  }, [report, assignment, assignmentId]);
+  }, [report, assignment, assignmentId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Run similarity analysis
   const handleRunAnalysis = async () => {

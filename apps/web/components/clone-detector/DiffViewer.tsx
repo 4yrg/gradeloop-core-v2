@@ -252,7 +252,7 @@ export function DiffViewer({
     leftSub && rightSub
       ? diffLines(leftSub.source_code, rightSub.source_code)
       : [],
-    [leftSub?.source_code, rightSub?.source_code]
+    [leftSub, rightSub]
   );
 
   const cloneStarts = React.useMemo(() => 

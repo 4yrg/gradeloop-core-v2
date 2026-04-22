@@ -33,7 +33,6 @@ import { toast } from '@/lib/hooks/use-toast';
 import type {
     BulkImportPreviewResponse,
     BulkImportExecuteResponse,
-    BulkImportUserRow,
 } from '@/types/admin.types';
 
 interface Props {

@@ -124,7 +124,7 @@ export default function AssessmentSetupPage() {
             await ivasApi.deleteCriteria(id);
             setCriteria(prev => prev.filter(c => c.id !== id));
             addToast({ title: "Criteria deleted", variant: "success" });
-        } catch (err) {
+        } catch {
             addToast({ title: "Failed to delete", variant: "error" });
         }
     };
@@ -173,12 +173,20 @@ export default function AssessmentSetupPage() {
     // Toggle expanded
     const toggleCriteria = (id: string) => setExpandedCriteria(prev => {
         const next = new Set(prev);
-        next.has(id) ? next.delete(id) : next.add(id);
+        if (next.has(id)) {
+            next.delete(id);
+        } else {
+            next.add(id);
+        }
         return next;
     });
     const toggleQuestion = (id: string) => setExpandedQuestions(prev => {
         const next = new Set(prev);
-        next.has(id) ? next.delete(id) : next.add(id);
+        if (next.has(id)) {
+            next.delete(id);
+        } else {
+            next.add(id);
+        }
         return next;
     });
 

@@ -24,7 +24,7 @@ import type {
 
 export default function CloneDetectorPage() {
   const [isLoading, setIsLoading] = useState(false);
-  const [isAiLoading, setIsAiLoading] = useState(false);
+
   const [result, setResult] = useState<AssignmentClusterResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastSubmissions, setLastSubmissions] = useState<SubmissionItem[]>([]);
@@ -43,14 +43,12 @@ export default function CloneDetectorPage() {
       setResult(res);
 
       // Run AI detection on all submissions
-      setIsAiLoading(true);
       const aiResults = await detectAICodeBatch(req.submissions);
       setAiDetectionMap(aiResults);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setIsLoading(false);
-      setIsAiLoading(false);
     }
   };
 

@@ -267,7 +267,7 @@ export default function CourseInstancePage() {
   if (!instance) return null;
 
   // ── Student roster derivations ───────────────────────────────────────
-  const q = search.toLowerCase().trim();
+
   const batchMemberIds = new Set(batchMembers.map((m) => m.user_id));
 
   // Batch students: batchMembers with their enrollment status overlaid

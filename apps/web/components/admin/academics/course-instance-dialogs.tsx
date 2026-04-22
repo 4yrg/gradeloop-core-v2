@@ -55,7 +55,6 @@ import type {
   Semester,
   Batch,
   CreateCourseInstanceRequest,
-  UpdateCourseInstanceRequest,
   CourseInstanceStatus,
   AcademicFormErrors,
   EnrollStudentRequest,
@@ -289,7 +288,8 @@ function TaChipInput({
   const [searching, setSearching] = React.useState(false);
   const [open, setOpen] = React.useState(false);
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const existingIds = value.map((u) => u.id).concat(excludeIds);
+
+  const existingIds = React.useMemo(() => value.map((u) => u.id).concat(excludeIds), [value, excludeIds]);
 
   React.useEffect(() => {
     if (!query.trim()) {
@@ -315,7 +315,7 @@ function TaChipInput({
         setSearching(false);
       }
     }, 300);
-  }, [query, existingIds.join(",")]);
+  }, [query, existingIds]);
 
   return (
     <div className="relative">
@@ -2334,7 +2334,7 @@ export function AddIndividualStudentDialog({
         const filtered = res.data.filter((u) => !allExcluded.includes(u.id));
         setResults(filtered);
         setDropdownOpen(filtered.length > 0);
-      } catch (err) {
+      } catch {
         setResults([]);
         setDropdownOpen(false);
       } finally {

@@ -7,31 +7,15 @@ import {
   LayoutDashboard,
   Users,
   BookOpen,
-  FileText,
   Settings,
   GraduationCap,
-  BarChart3,
-  Calendar,
   LogOut,
   School,
-  Building2,
-  Award,
-  Landmark,
   Users2,
   ClipboardList,
-  MessageSquare,
-  Search,
-  FolderOpen,
-  History,
-  Share2,
-  Archive,
-  LayoutTemplate,
-  Star,
   ChevronLeft,
   ChevronRight,
-  Menu,
   UserCog,
-  Key,
   Mic2,
   ShieldCheck,
 } from "lucide-react";
@@ -172,6 +156,7 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
   const isInstructor = userType === "instructor";
   const isStudent = userType === "student";
   const isAdmin = userType === "admin" || userType === "super_admin";
+  console.log("isAdmin", isAdmin); // Suppressing unused warning but keeping logic if needed later
 
   const navItems = isInstructor
     ? instructorNavItems

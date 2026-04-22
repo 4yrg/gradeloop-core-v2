@@ -20,7 +20,6 @@ import {
   ChevronDown,
   ClipboardList,
   Users2,
-  Plus,
   Mic2,
   ShieldCheck,
 } from "lucide-react";
@@ -28,7 +27,6 @@ import { useAuthStore } from "@/lib/stores/authStore";
 import { useLogoutMutation } from "@/lib/hooks/useAuthMutation";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
   SheetContent,
@@ -168,7 +166,6 @@ export function MobileSidebar({ open, onOpenChange }: MobileSidebarProps) {
   const userType = user?.user_type?.toLowerCase().trim() ?? "";
   const isInstructor = userType === "instructor";
   const isStudent = userType === "student";
-  const isAdmin = userType === "admin" || userType === "super_admin";
 
   const navItems = isInstructor
     ? instructorNavItems

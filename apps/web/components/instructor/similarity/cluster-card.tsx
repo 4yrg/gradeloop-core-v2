@@ -3,7 +3,6 @@
 import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { SimilarityBadge, SimilarityScore } from "./similarity-badge";
 import { Eye, Users } from "lucide-react";
 import type { CollusionGroup } from "@/types/cipas";

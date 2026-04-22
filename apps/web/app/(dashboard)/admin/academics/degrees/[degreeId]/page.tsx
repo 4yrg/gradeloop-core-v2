@@ -15,8 +15,6 @@ import {
   AlertTriangle,
   ChevronRight,
   CalendarDays,
-  CheckCircle2,
-  XCircle,
   GraduationCap,
   Building2,
   Layers,

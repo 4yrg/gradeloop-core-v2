@@ -1,9 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Camera, Loader2, Upload } from "lucide-react";
+import { Camera, Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { profileApi } from "@/lib/api/profile";
 import { cn } from "@/lib/utils";
 

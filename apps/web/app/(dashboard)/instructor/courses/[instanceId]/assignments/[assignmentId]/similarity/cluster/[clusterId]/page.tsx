@@ -1,9 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useParams, useRouter } from "next/navigation";
 import { getSimilarityReport } from "@/lib/api/cipas-client";
-import type { AssignmentClusterResponse, CollusionGroup, CollusionEdge } from "@/types/cipas";
+import type { CollusionGroup, CollusionEdge } from "@/types/cipas";
 import { SectionHeader } from "@/components/instructor/section-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,9 +15,7 @@ import {
   AlertCircle,
   Download,
   Flag,
-  MessageSquare,
   ArrowLeft,
-  Users,
   Link2,
   GitCompare,
 } from "lucide-react";
@@ -33,7 +30,6 @@ export default function ClusterInspectionPage({
 }) {
   const { assignmentId, instanceId, clusterId: clusterIdParam } = React.use(params);
 
-  const [report, setReport] = React.useState<AssignmentClusterResponse | null>(null);
   const [cluster, setCluster] = React.useState<CollusionGroup | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -50,7 +46,6 @@ export default function ClusterInspectionPage({
         const cachedReport = await getSimilarityReport(assignmentId);
 
         if (mounted) {
-          setReport(cachedReport);
 
           if (cachedReport) {
             const found = cachedReport.collusion_groups.find(
