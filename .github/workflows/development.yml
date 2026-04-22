@@ -123,7 +123,7 @@ jobs:
     name: SonarQube Scan
     runs-on: ubuntu-latest
     needs: [go-checks, node-checks, python-checks]
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && secrets.SONAR_HOST_URL != ''
     steps:
       - uses: actions/checkout@v4
         with:
