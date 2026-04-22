@@ -1,6 +1,7 @@
 """PostgreSQL client for IVAS Service."""
 
-from json import dumps as json_dumps, loads as json_loads
+from json import dumps as json_dumps
+from json import loads as json_loads
 from urllib.parse import urlparse, urlunparse
 from uuid import UUID
 
@@ -22,16 +23,16 @@ class PostgresClient:
         """Create connection pool."""
         parsed = urlparse(self._dsn)
         db_name = parsed.path.lstrip("/")
-        
+
         logger.info(
             "postgres_connecting",
             host=parsed.hostname,
             port=parsed.port,
             database=db_name,
         )
-        
+
         await self._ensure_database_exists(parsed, db_name)
-        
+
         self._pool = await asyncpg.create_pool(
             dsn=self._dsn,
             min_size=2,
@@ -102,7 +103,6 @@ class PostgresClient:
                 except Exception:
                     pass
 
-
     # =========================================================================
     # Voice Profiles
     # =========================================================================
@@ -128,7 +128,9 @@ class PostgresClient:
                         updated_at = now()
                 RETURNING *
                 """,
-                student_id, embedding, samples_count,
+                student_id,
+                embedding,
+                samples_count,
             )
             return dict(row)
 
@@ -165,7 +167,9 @@ class PostgresClient:
                 VALUES ($1, $2, $3::jsonb)
                 RETURNING *
                 """,
-                assignment_id, student_id, json_dumps(assignment_context or {}),
+                assignment_id,
+                student_id,
+                json_dumps(assignment_context or {}),
             )
             return self._parse_session_row(row)
 
@@ -211,7 +215,8 @@ class PostgresClient:
                 WHERE id = $1
                 RETURNING *
                 """,
-                session_id, status,
+                session_id,
+                status,
             )
             return self._parse_session_row(row) if row else None
 

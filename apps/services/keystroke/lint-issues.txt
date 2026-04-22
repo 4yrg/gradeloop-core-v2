@@ -1,0 +1,964 @@
+N815 Variable `keyCode` in class scope should not be mixedCase
+  --> behavioral_analysis.py:23:5
+   |
+21 |     timestamp: float  # milliseconds since session start
+22 |     key: str
+23 |     keyCode: int
+   |     ^^^^^^^
+24 |     dwellTime: float  # time key was held down (ms)
+25 |     flightTime: float  # time between this key and previous key (ms)
+   |
+
+N815 Variable `dwellTime` in class scope should not be mixedCase
+  --> behavioral_analysis.py:24:5
+   |
+22 |     key: str
+23 |     keyCode: int
+24 |     dwellTime: float  # time key was held down (ms)
+   |     ^^^^^^^^^
+25 |     flightTime: float  # time between this key and previous key (ms)
+26 |     action: str  # 'type', 'delete', 'paste', etc.
+   |
+
+N815 Variable `flightTime` in class scope should not be mixedCase
+  --> behavioral_analysis.py:25:5
+   |
+23 |     keyCode: int
+24 |     dwellTime: float  # time key was held down (ms)
+25 |     flightTime: float  # time between this key and previous key (ms)
+   |     ^^^^^^^^^^
+26 |     action: str  # 'type', 'delete', 'paste', etc.
+27 |     lineNumber: int | None = None
+   |
+
+N815 Variable `lineNumber` in class scope should not be mixedCase
+  --> behavioral_analysis.py:27:5
+   |
+25 |     flightTime: float  # time between this key and previous key (ms)
+26 |     action: str  # 'type', 'delete', 'paste', etc.
+27 |     lineNumber: int | None = None
+   |     ^^^^^^^^^^
+28 |     columnNumber: int | None = None
+29 |     codeSnapshot: str | None = None  # code state at this moment
+   |
+
+N815 Variable `columnNumber` in class scope should not be mixedCase
+  --> behavioral_analysis.py:28:5
+   |
+26 |     action: str  # 'type', 'delete', 'paste', etc.
+27 |     lineNumber: int | None = None
+28 |     columnNumber: int | None = None
+   |     ^^^^^^^^^^^^
+29 |     codeSnapshot: str | None = None  # code state at this moment
+   |
+
+N815 Variable `codeSnapshot` in class scope should not be mixedCase
+  --> behavioral_analysis.py:29:5
+   |
+27 |     lineNumber: int | None = None
+28 |     columnNumber: int | None = None
+29 |     codeSnapshot: str | None = None  # code state at this moment
+   |     ^^^^^^^^^^^^
+   |
+
+F821 Undefined name `pika`
+   --> main.py:124:23
+    |
+122 |     """Publish authentication event to RabbitMQ"""
+123 |     try:
+124 |         credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASS)
+    |                       ^^^^
+125 |         connection = pika.BlockingConnection(
+126 |             pika.ConnectionParameters(
+    |
+
+F821 Undefined name `pika`
+   --> main.py:125:22
+    |
+123 |     try:
+124 |         credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASS)
+125 |         connection = pika.BlockingConnection(
+    |                      ^^^^
+126 |             pika.ConnectionParameters(
+127 |                 host=RABBITMQ_HOST,
+    |
+
+F821 Undefined name `pika`
+   --> main.py:126:13
+    |
+124 |         credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASS)
+125 |         connection = pika.BlockingConnection(
+126 |             pika.ConnectionParameters(
+    |             ^^^^
+127 |                 host=RABBITMQ_HOST,
+128 |                 port=RABBITMQ_PORT,
+    |
+
+F821 Undefined name `pika`
+   --> main.py:142:24
+    |
+140 |             routing_key=RABBITMQ_ROUTING_KEY,
+141 |             body=json.dumps(event_data),
+142 |             properties=pika.BasicProperties(
+    |                        ^^^^
+143 |                 content_type="application/json",
+144 |                 delivery_mode=2,  # Make message persistent
+    |
+
+N815 Variable `userId` in class scope should not be mixedCase
+   --> main.py:177:5
+    |
+176 | class KeystrokeEvent(BaseModel):
+177 |     userId: str
+    |     ^^^^^^
+178 |     sessionId: str
+179 |     timestamp: int
+    |
+
+N815 Variable `sessionId` in class scope should not be mixedCase
+   --> main.py:178:5
+    |
+176 | class KeystrokeEvent(BaseModel):
+177 |     userId: str
+178 |     sessionId: str
+    |     ^^^^^^^^^
+179 |     timestamp: int
+180 |     key: str
+    |
+
+N815 Variable `dwellTime` in class scope should not be mixedCase
+   --> main.py:181:5
+    |
+179 |     timestamp: int
+180 |     key: str
+181 |     dwellTime: int
+    |     ^^^^^^^^^
+182 |     flightTime: int
+183 |     keyCode: int
+    |
+
+N815 Variable `flightTime` in class scope should not be mixedCase
+   --> main.py:182:5
+    |
+180 |     key: str
+181 |     dwellTime: int
+182 |     flightTime: int
+    |     ^^^^^^^^^^
+183 |     keyCode: int
+184 |     assignmentId: str | None = None
+    |
+
+N815 Variable `keyCode` in class scope should not be mixedCase
+   --> main.py:183:5
+    |
+181 |     dwellTime: int
+182 |     flightTime: int
+183 |     keyCode: int
+    |     ^^^^^^^
+184 |     assignmentId: str | None = None
+185 |     courseId: str | None = None
+    |
+
+N815 Variable `assignmentId` in class scope should not be mixedCase
+   --> main.py:184:5
+    |
+182 |     flightTime: int
+183 |     keyCode: int
+184 |     assignmentId: str | None = None
+    |     ^^^^^^^^^^^^
+185 |     courseId: str | None = None
+    |
+
+N815 Variable `courseId` in class scope should not be mixedCase
+   --> main.py:185:5
+    |
+183 |     keyCode: int
+184 |     assignmentId: str | None = None
+185 |     courseId: str | None = None
+    |     ^^^^^^^^
+    |
+
+N815 Variable `userId` in class scope should not be mixedCase
+   --> main.py:193:5
+    |
+192 | class EnrollmentRequest(BaseModel):
+193 |     userId: str
+    |     ^^^^^^
+194 |     keystrokeEvents: list[dict]
+    |
+
+N815 Variable `keystrokeEvents` in class scope should not be mixedCase
+   --> main.py:194:5
+    |
+192 | class EnrollmentRequest(BaseModel):
+193 |     userId: str
+194 |     keystrokeEvents: list[dict]
+    |     ^^^^^^^^^^^^^^^
+    |
+
+N815 Variable `userId` in class scope should not be mixedCase
+   --> main.py:198:5
+    |
+197 | class VerificationRequest(BaseModel):
+198 |     userId: str
+    |     ^^^^^^
+199 |     keystrokeEvents: list[dict]
+200 |     threshold: float | None = 0.7
+    |
+
+N815 Variable `keystrokeEvents` in class scope should not be mixedCase
+   --> main.py:199:5
+    |
+197 | class VerificationRequest(BaseModel):
+198 |     userId: str
+199 |     keystrokeEvents: list[dict]
+    |     ^^^^^^^^^^^^^^^
+200 |     threshold: float | None = 0.7
+201 |     assignmentId: str | None = None
+    |
+
+N815 Variable `assignmentId` in class scope should not be mixedCase
+   --> main.py:201:5
+    |
+199 |     keystrokeEvents: list[dict]
+200 |     threshold: float | None = 0.7
+201 |     assignmentId: str | None = None
+    |     ^^^^^^^^^^^^
+202 |     courseId: str | None = None
+    |
+
+N815 Variable `courseId` in class scope should not be mixedCase
+   --> main.py:202:5
+    |
+200 |     threshold: float | None = 0.7
+201 |     assignmentId: str | None = None
+202 |     courseId: str | None = None
+    |     ^^^^^^^^
+    |
+
+N815 Variable `keystrokeEvents` in class scope should not be mixedCase
+   --> main.py:206:5
+    |
+205 | class IdentificationRequest(BaseModel):
+206 |     keystrokeEvents: list[dict]
+    |     ^^^^^^^^^^^^^^^
+207 |     topK: int | None = 3
+    |
+
+N815 Variable `topK` in class scope should not be mixedCase
+   --> main.py:207:5
+    |
+205 | class IdentificationRequest(BaseModel):
+206 |     keystrokeEvents: list[dict]
+207 |     topK: int | None = 3
+    |     ^^^^
+    |
+
+N815 Variable `sessionId` in class scope should not be mixedCase
+   --> main.py:211:5
+    |
+210 | class BehavioralAnalysisRequest(BaseModel):
+211 |     sessionId: str
+    |     ^^^^^^^^^
+212 |     studentId: str
+213 |     events: list[dict]
+    |
+
+N815 Variable `studentId` in class scope should not be mixedCase
+   --> main.py:212:5
+    |
+210 | class BehavioralAnalysisRequest(BaseModel):
+211 |     sessionId: str
+212 |     studentId: str
+    |     ^^^^^^^^^
+213 |     events: list[dict]
+214 |     finalCode: str
+    |
+
+N815 Variable `finalCode` in class scope should not be mixedCase
+   --> main.py:214:5
+    |
+212 |     studentId: str
+213 |     events: list[dict]
+214 |     finalCode: str
+    |     ^^^^^^^^^
+215 |     includeReport: bool | None = False
+    |
+
+N815 Variable `includeReport` in class scope should not be mixedCase
+   --> main.py:215:5
+    |
+213 |     events: list[dict]
+214 |     finalCode: str
+215 |     includeReport: bool | None = False
+    |     ^^^^^^^^^^^^^
+    |
+
+N815 Variable `userId` in class scope should not be mixedCase
+   --> main.py:219:5
+    |
+218 | class MonitoringRequest(BaseModel):
+219 |     userId: str
+    |     ^^^^^^
+220 |     sessionId: str
+221 |     assignmentId: str | None = None
+    |
+
+N815 Variable `sessionId` in class scope should not be mixedCase
+   --> main.py:220:5
+    |
+218 | class MonitoringRequest(BaseModel):
+219 |     userId: str
+220 |     sessionId: str
+    |     ^^^^^^^^^
+221 |     assignmentId: str | None = None
+222 |     courseId: str | None = None
+    |
+
+N815 Variable `assignmentId` in class scope should not be mixedCase
+   --> main.py:221:5
+    |
+219 |     userId: str
+220 |     sessionId: str
+221 |     assignmentId: str | None = None
+    |     ^^^^^^^^^^^^
+222 |     courseId: str | None = None
+    |
+
+N815 Variable `courseId` in class scope should not be mixedCase
+   --> main.py:222:5
+    |
+220 |     sessionId: str
+221 |     assignmentId: str | None = None
+222 |     courseId: str | None = None
+    |     ^^^^^^^^
+    |
+
+N812 Lowercase `functional` imported as non-lowercase `F`
+  --> models/RTX 6000 Pro Blackwell/train_workstation v2.py:10:8
+   |
+ 8 | import torch
+ 9 | import torch.nn as nn
+10 | import torch.nn.functional as F
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^
+11 | import torch.optim as optim
+12 | from torch.utils.data import DataLoader, Dataset
+   |
+
+N812 Lowercase `functional` imported as non-lowercase `F`
+  --> models/RTX 6000 Pro Blackwell/train_workstation.py:57:8
+   |
+55 |     gdown = None  # lazy check in download helper
+56 | import torch.nn as nn
+57 | import torch.nn.functional as F
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^
+58 | import torch.optim as optim
+59 | from torch.utils.data import DataLoader, Dataset
+   |
+
+N812 Lowercase `functional` imported as non-lowercase `F`
+ --> models/typenet_colab_training.ipynb:cell 15:3:8
+  |
+1 | import torch
+2 | import torch.nn as nn
+3 | import torch.nn.functional as F
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^
+4 | from torch.utils.data import DataLoader, Dataset
+  |
+
+Found 36 errors.
+[ERROR] keystroke: ruff check failed
+12 files already formatted
+N815 Variable `keyCode` in class scope should not be mixedCase
+  --> behavioral_analysis.py:23:5
+   |
+21 |     timestamp: float  # milliseconds since session start
+22 |     key: str
+23 |     keyCode: int
+   |     ^^^^^^^
+24 |     dwellTime: float  # time key was held down (ms)
+25 |     flightTime: float  # time between this key and previous key (ms)
+   |
+
+N815 Variable `dwellTime` in class scope should not be mixedCase
+  --> behavioral_analysis.py:24:5
+   |
+22 |     key: str
+23 |     keyCode: int
+24 |     dwellTime: float  # time key was held down (ms)
+   |     ^^^^^^^^^
+25 |     flightTime: float  # time between this key and previous key (ms)
+26 |     action: str  # 'type', 'delete', 'paste', etc.
+   |
+
+N815 Variable `flightTime` in class scope should not be mixedCase
+  --> behavioral_analysis.py:25:5
+   |
+23 |     keyCode: int
+24 |     dwellTime: float  # time key was held down (ms)
+25 |     flightTime: float  # time between this key and previous key (ms)
+   |     ^^^^^^^^^^
+26 |     action: str  # 'type', 'delete', 'paste', etc.
+27 |     lineNumber: int | None = None
+   |
+
+N815 Variable `lineNumber` in class scope should not be mixedCase
+  --> behavioral_analysis.py:27:5
+   |
+25 |     flightTime: float  # time between this key and previous key (ms)
+26 |     action: str  # 'type', 'delete', 'paste', etc.
+27 |     lineNumber: int | None = None
+   |     ^^^^^^^^^^
+28 |     columnNumber: int | None = None
+29 |     codeSnapshot: str | None = None  # code state at this moment
+   |
+
+N815 Variable `columnNumber` in class scope should not be mixedCase
+  --> behavioral_analysis.py:28:5
+   |
+26 |     action: str  # 'type', 'delete', 'paste', etc.
+27 |     lineNumber: int | None = None
+28 |     columnNumber: int | None = None
+   |     ^^^^^^^^^^^^
+29 |     codeSnapshot: str | None = None  # code state at this moment
+   |
+
+N815 Variable `codeSnapshot` in class scope should not be mixedCase
+  --> behavioral_analysis.py:29:5
+   |
+27 |     lineNumber: int | None = None
+28 |     columnNumber: int | None = None
+29 |     codeSnapshot: str | None = None  # code state at this moment
+   |     ^^^^^^^^^^^^
+   |
+
+F821 Undefined name `pika`
+   --> main.py:124:23
+    |
+122 |     """Publish authentication event to RabbitMQ"""
+123 |     try:
+124 |         credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASS)
+    |                       ^^^^
+125 |         connection = pika.BlockingConnection(
+126 |             pika.ConnectionParameters(
+    |
+
+F821 Undefined name `pika`
+   --> main.py:125:22
+    |
+123 |     try:
+124 |         credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASS)
+125 |         connection = pika.BlockingConnection(
+    |                      ^^^^
+126 |             pika.ConnectionParameters(
+127 |                 host=RABBITMQ_HOST,
+    |
+
+F821 Undefined name `pika`
+   --> main.py:126:13
+    |
+124 |         credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASS)
+125 |         connection = pika.BlockingConnection(
+126 |             pika.ConnectionParameters(
+    |             ^^^^
+127 |                 host=RABBITMQ_HOST,
+128 |                 port=RABBITMQ_PORT,
+    |
+
+F821 Undefined name `pika`
+   --> main.py:142:24
+    |
+140 |             routing_key=RABBITMQ_ROUTING_KEY,
+141 |             body=json.dumps(event_data),
+142 |             properties=pika.BasicProperties(
+    |                        ^^^^
+143 |                 content_type="application/json",
+144 |                 delivery_mode=2,  # Make message persistent
+    |
+
+N815 Variable `userId` in class scope should not be mixedCase
+   --> main.py:177:5
+    |
+176 | class KeystrokeEvent(BaseModel):
+177 |     userId: str
+    |     ^^^^^^
+178 |     sessionId: str
+179 |     timestamp: int
+    |
+
+N815 Variable `sessionId` in class scope should not be mixedCase
+   --> main.py:178:5
+    |
+176 | class KeystrokeEvent(BaseModel):
+177 |     userId: str
+178 |     sessionId: str
+    |     ^^^^^^^^^
+179 |     timestamp: int
+180 |     key: str
+    |
+
+N815 Variable `dwellTime` in class scope should not be mixedCase
+   --> main.py:181:5
+    |
+179 |     timestamp: int
+180 |     key: str
+181 |     dwellTime: int
+    |     ^^^^^^^^^
+182 |     flightTime: int
+183 |     keyCode: int
+    |
+
+N815 Variable `flightTime` in class scope should not be mixedCase
+   --> main.py:182:5
+    |
+180 |     key: str
+181 |     dwellTime: int
+182 |     flightTime: int
+    |     ^^^^^^^^^^
+183 |     keyCode: int
+184 |     assignmentId: str | None = None
+    |
+
+N815 Variable `keyCode` in class scope should not be mixedCase
+   --> main.py:183:5
+    |
+181 |     dwellTime: int
+182 |     flightTime: int
+183 |     keyCode: int
+    |     ^^^^^^^
+184 |     assignmentId: str | None = None
+185 |     courseId: str | None = None
+    |
+
+N815 Variable `assignmentId` in class scope should not be mixedCase
+   --> main.py:184:5
+    |
+182 |     flightTime: int
+183 |     keyCode: int
+184 |     assignmentId: str | None = None
+    |     ^^^^^^^^^^^^
+185 |     courseId: str | None = None
+    |
+
+N815 Variable `courseId` in class scope should not be mixedCase
+   --> main.py:185:5
+    |
+183 |     keyCode: int
+184 |     assignmentId: str | None = None
+185 |     courseId: str | None = None
+    |     ^^^^^^^^
+    |
+
+N815 Variable `userId` in class scope should not be mixedCase
+   --> main.py:193:5
+    |
+192 | class EnrollmentRequest(BaseModel):
+193 |     userId: str
+    |     ^^^^^^
+194 |     keystrokeEvents: list[dict]
+    |
+
+N815 Variable `keystrokeEvents` in class scope should not be mixedCase
+   --> main.py:194:5
+    |
+192 | class EnrollmentRequest(BaseModel):
+193 |     userId: str
+194 |     keystrokeEvents: list[dict]
+    |     ^^^^^^^^^^^^^^^
+    |
+
+N815 Variable `userId` in class scope should not be mixedCase
+   --> main.py:198:5
+    |
+197 | class VerificationRequest(BaseModel):
+198 |     userId: str
+    |     ^^^^^^
+199 |     keystrokeEvents: list[dict]
+200 |     threshold: float | None = 0.7
+    |
+
+N815 Variable `keystrokeEvents` in class scope should not be mixedCase
+   --> main.py:199:5
+    |
+197 | class VerificationRequest(BaseModel):
+198 |     userId: str
+199 |     keystrokeEvents: list[dict]
+    |     ^^^^^^^^^^^^^^^
+200 |     threshold: float | None = 0.7
+201 |     assignmentId: str | None = None
+    |
+
+N815 Variable `assignmentId` in class scope should not be mixedCase
+   --> main.py:201:5
+    |
+199 |     keystrokeEvents: list[dict]
+200 |     threshold: float | None = 0.7
+201 |     assignmentId: str | None = None
+    |     ^^^^^^^^^^^^
+202 |     courseId: str | None = None
+    |
+
+N815 Variable `courseId` in class scope should not be mixedCase
+   --> main.py:202:5
+    |
+200 |     threshold: float | None = 0.7
+201 |     assignmentId: str | None = None
+202 |     courseId: str | None = None
+    |     ^^^^^^^^
+    |
+
+N815 Variable `keystrokeEvents` in class scope should not be mixedCase
+   --> main.py:206:5
+    |
+205 | class IdentificationRequest(BaseModel):
+206 |     keystrokeEvents: list[dict]
+    |     ^^^^^^^^^^^^^^^
+207 |     topK: int | None = 3
+    |
+
+N815 Variable `topK` in class scope should not be mixedCase
+   --> main.py:207:5
+    |
+205 | class IdentificationRequest(BaseModel):
+206 |     keystrokeEvents: list[dict]
+207 |     topK: int | None = 3
+    |     ^^^^
+    |
+
+N815 Variable `sessionId` in class scope should not be mixedCase
+   --> main.py:211:5
+    |
+210 | class BehavioralAnalysisRequest(BaseModel):
+211 |     sessionId: str
+    |     ^^^^^^^^^
+212 |     studentId: str
+213 |     events: list[dict]
+    |
+
+N815 Variable `studentId` in class scope should not be mixedCase
+   --> main.py:212:5
+    |
+210 | class BehavioralAnalysisRequest(BaseModel):
+211 |     sessionId: str
+212 |     studentId: str
+    |     ^^^^^^^^^
+213 |     events: list[dict]
+214 |     finalCode: str
+    |
+
+N815 Variable `finalCode` in class scope should not be mixedCase
+   --> main.py:214:5
+    |
+212 |     studentId: str
+213 |     events: list[dict]
+214 |     finalCode: str
+    |     ^^^^^^^^^
+215 |     includeReport: bool | None = False
+    |
+
+N815 Variable `includeReport` in class scope should not be mixedCase
+   --> main.py:215:5
+    |
+213 |     events: list[dict]
+214 |     finalCode: str
+215 |     includeReport: bool | None = False
+    |     ^^^^^^^^^^^^^
+    |
+
+N815 Variable `userId` in class scope should not be mixedCase
+   --> main.py:219:5
+    |
+218 | class MonitoringRequest(BaseModel):
+219 |     userId: str
+    |     ^^^^^^
+220 |     sessionId: str
+221 |     assignmentId: str | None = None
+    |
+
+N815 Variable `sessionId` in class scope should not be mixedCase
+   --> main.py:220:5
+    |
+218 | class MonitoringRequest(BaseModel):
+219 |     userId: str
+220 |     sessionId: str
+    |     ^^^^^^^^^
+221 |     assignmentId: str | None = None
+222 |     courseId: str | None = None
+    |
+
+N815 Variable `assignmentId` in class scope should not be mixedCase
+   --> main.py:221:5
+    |
+219 |     userId: str
+220 |     sessionId: str
+221 |     assignmentId: str | None = None
+    |     ^^^^^^^^^^^^
+222 |     courseId: str | None = None
+    |
+
+N815 Variable `courseId` in class scope should not be mixedCase
+   --> main.py:222:5
+    |
+220 |     sessionId: str
+221 |     assignmentId: str | None = None
+222 |     courseId: str | None = None
+    |     ^^^^^^^^
+    |
+
+N812 Lowercase `functional` imported as non-lowercase `F`
+  --> models/RTX 6000 Pro Blackwell/train_workstation v2.py:10:8
+   |
+ 8 | import torch
+ 9 | import torch.nn as nn
+10 | import torch.nn.functional as F
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^
+11 | import torch.optim as optim
+12 | from torch.utils.data import DataLoader, Dataset
+   |
+
+N812 Lowercase `functional` imported as non-lowercase `F`
+  --> models/RTX 6000 Pro Blackwell/train_workstation.py:57:8
+   |
+55 |     gdown = None  # lazy check in download helper
+56 | import torch.nn as nn
+57 | import torch.nn.functional as F
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^
+58 | import torch.optim as optim
+59 | from torch.utils.data import DataLoader, Dataset
+   |
+
+N812 Lowercase `functional` imported as non-lowercase `F`
+ --> models/typenet_colab_training.ipynb:cell 15:3:8
+  |
+1 | import torch
+2 | import torch.nn as nn
+3 | import torch.nn.functional as F
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^
+4 | from torch.utils.data import DataLoader, Dataset
+  |
+
+Found 36 errors.
+[ERROR] keystroke: ruff check failed
+12 files already formatted
+N815 Variable `keyCode` in class scope should not be mixedCase
+  --> behavioral_analysis.py:23:5
+   |
+21 |     timestamp: float  # milliseconds since session start
+22 |     key: str
+23 |     keyCode: int
+   |     ^^^^^^^
+24 |     dwellTime: float  # time key was held down (ms)
+25 |     flightTime: float  # time between this key and previous key (ms)
+   |
+
+N815 Variable `dwellTime` in class scope should not be mixedCase
+  --> behavioral_analysis.py:24:5
+   |
+22 |     key: str
+23 |     keyCode: int
+24 |     dwellTime: float  # time key was held down (ms)
+   |     ^^^^^^^^^
+25 |     flightTime: float  # time between this key and previous key (ms)
+26 |     action: str  # 'type', 'delete', 'paste', etc.
+   |
+
+N815 Variable `flightTime` in class scope should not be mixedCase
+  --> behavioral_analysis.py:25:5
+   |
+23 |     keyCode: int
+24 |     dwellTime: float  # time key was held down (ms)
+25 |     flightTime: float  # time between this key and previous key (ms)
+   |     ^^^^^^^^^^
+26 |     action: str  # 'type', 'delete', 'paste', etc.
+27 |     lineNumber: int | None = None
+   |
+
+N815 Variable `lineNumber` in class scope should not be mixedCase
+  --> behavioral_analysis.py:27:5
+   |
+25 |     flightTime: float  # time between this key and previous key (ms)
+26 |     action: str  # 'type', 'delete', 'paste', etc.
+27 |     lineNumber: int | None = None
+   |     ^^^^^^^^^^
+28 |     columnNumber: int | None = None
+29 |     codeSnapshot: str | None = None  # code state at this moment
+   |
+
+N815 Variable `columnNumber` in class scope should not be mixedCase
+  --> behavioral_analysis.py:28:5
+   |
+26 |     action: str  # 'type', 'delete', 'paste', etc.
+27 |     lineNumber: int | None = None
+28 |     columnNumber: int | None = None
+   |     ^^^^^^^^^^^^
+29 |     codeSnapshot: str | None = None  # code state at this moment
+   |
+
+N815 Variable `codeSnapshot` in class scope should not be mixedCase
+  --> behavioral_analysis.py:29:5
+   |
+27 |     lineNumber: int | None = None
+28 |     columnNumber: int | None = None
+29 |     codeSnapshot: str | None = None  # code state at this moment
+   |     ^^^^^^^^^^^^
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> main.py:6:1
+   |
+ 4 |   """
+ 5 |
+ 6 | / import asyncio
+ 7 | | import json
+ 8 | | import os
+ 9 | | from datetime import datetime
+10 | |
+11 | | from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+12 | | from fastapi.middleware.cors import CORSMiddleware
+13 | | from psycopg2 import extras
+14 | | import pika
+15 | | from pydantic import BaseModel, ConfigDict
+16 | |
+17 | | from behavioral_analysis import (
+18 | |     BehavioralAnalyzer,
+19 | |     KeystrokeSessionEvent,
+20 | |     format_analysis_report,
+21 | | )
+22 | |
+23 | | # Import new clients
+24 | | from db import get_db_client
+25 | | from feature_extraction import KeystrokeFeatureExtractor
+26 | | from redis_client import get_redis_client
+27 | | from typenet_inference import TypeNetAuthenticator
+   | |__________________________________________________^
+28 |
+29 |   # Initialize FastAPI app
+   |
+help: Organize imports
+
+N812 Lowercase `functional` imported as non-lowercase `F`
+ --> models/typenet_colab_training.ipynb:cell 15:3:8
+  |
+1 | import torch
+2 | import torch.nn as nn
+3 | import torch.nn.functional as F
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^
+4 | from torch.utils.data import DataLoader, Dataset
+  |
+
+Found 8 errors.
+[*] 1 fixable with the `--fix` option.
+[ERROR] keystroke: ruff check failed
+12 files already formatted
+N815 Variable `keyCode` in class scope should not be mixedCase
+  --> behavioral_analysis.py:23:5
+   |
+21 |     timestamp: float  # milliseconds since session start
+22 |     key: str
+23 |     keyCode: int
+   |     ^^^^^^^
+24 |     dwellTime: float  # time key was held down (ms)
+25 |     flightTime: float  # time between this key and previous key (ms)
+   |
+
+N815 Variable `dwellTime` in class scope should not be mixedCase
+  --> behavioral_analysis.py:24:5
+   |
+22 |     key: str
+23 |     keyCode: int
+24 |     dwellTime: float  # time key was held down (ms)
+   |     ^^^^^^^^^
+25 |     flightTime: float  # time between this key and previous key (ms)
+26 |     action: str  # 'type', 'delete', 'paste', etc.
+   |
+
+N815 Variable `flightTime` in class scope should not be mixedCase
+  --> behavioral_analysis.py:25:5
+   |
+23 |     keyCode: int
+24 |     dwellTime: float  # time key was held down (ms)
+25 |     flightTime: float  # time between this key and previous key (ms)
+   |     ^^^^^^^^^^
+26 |     action: str  # 'type', 'delete', 'paste', etc.
+27 |     lineNumber: int | None = None
+   |
+
+N815 Variable `lineNumber` in class scope should not be mixedCase
+  --> behavioral_analysis.py:27:5
+   |
+25 |     flightTime: float  # time between this key and previous key (ms)
+26 |     action: str  # 'type', 'delete', 'paste', etc.
+27 |     lineNumber: int | None = None
+   |     ^^^^^^^^^^
+28 |     columnNumber: int | None = None
+29 |     codeSnapshot: str | None = None  # code state at this moment
+   |
+
+N815 Variable `columnNumber` in class scope should not be mixedCase
+  --> behavioral_analysis.py:28:5
+   |
+26 |     action: str  # 'type', 'delete', 'paste', etc.
+27 |     lineNumber: int | None = None
+28 |     columnNumber: int | None = None
+   |     ^^^^^^^^^^^^
+29 |     codeSnapshot: str | None = None  # code state at this moment
+   |
+
+N815 Variable `codeSnapshot` in class scope should not be mixedCase
+  --> behavioral_analysis.py:29:5
+   |
+27 |     lineNumber: int | None = None
+28 |     columnNumber: int | None = None
+29 |     codeSnapshot: str | None = None  # code state at this moment
+   |     ^^^^^^^^^^^^
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> main.py:6:1
+   |
+ 4 |   """
+ 5 |
+ 6 | / import asyncio
+ 7 | | import json
+ 8 | | import os
+ 9 | | from datetime import datetime
+10 | |
+11 | | from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+12 | | from fastapi.middleware.cors import CORSMiddleware
+13 | | from psycopg2 import extras
+14 | | import pika
+15 | | from pydantic import BaseModel, ConfigDict
+16 | |
+17 | | from behavioral_analysis import (
+18 | |     BehavioralAnalyzer,
+19 | |     KeystrokeSessionEvent,
+20 | |     format_analysis_report,
+21 | | )
+22 | |
+23 | | # Import new clients
+24 | | from db import get_db_client
+25 | | from feature_extraction import KeystrokeFeatureExtractor
+26 | | from redis_client import get_redis_client
+27 | | from typenet_inference import TypeNetAuthenticator
+   | |__________________________________________________^
+28 |
+29 |   # Initialize FastAPI app
+   |
+help: Organize imports
+
+N812 Lowercase `functional` imported as non-lowercase `F`
+ --> models/typenet_colab_training.ipynb:cell 15:3:8
+  |
+1 | import torch
+2 | import torch.nn as nn
+3 | import torch.nn.functional as F
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^
+4 | from torch.utils.data import DataLoader, Dataset
+  |
+
+Found 8 errors.
+[*] 1 fixable with the `--fix` option.
+[ERROR] keystroke: ruff check failed
+12 files already formatted
+All checks passed!
+12 files left unchanged

@@ -332,7 +332,7 @@ export default function SemesterDetailPage() {
                   <BookOpen className="h-10 w-10 text-muted-foreground/30 mb-3" />
                   <p className="font-medium text-muted-foreground text-sm mb-2">Course instances coming soon</p>
                   <p className="text-xs text-muted-foreground max-w-md">
-                    The academic service API does not currently expose course instances filtered by semester. 
+                    The academic service API does not currently expose course instances filtered by semester.
                     This feature will be available when the endpoint is implemented.
                   </p>
                 </div>

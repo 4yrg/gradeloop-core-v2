@@ -19,7 +19,7 @@ Successfully implemented **Faculty Management with Leadership Panel Support** fo
   - Unique code constraint
   - Soft delete support via `deleted_at`
   - Active/inactive status via `is_active`
-  
+
 - [x] `faculty_leadership` table
   - Composite primary key (faculty_id, user_id)
   - Foreign key to faculties with CASCADE delete
@@ -354,7 +354,7 @@ go test ./... -v
 # Repository tests
 go test ./internal/repository -v
 
-# Service tests  
+# Service tests
 go test ./internal/service -v
 
 # Handler tests
@@ -471,8 +471,8 @@ To use the Faculty Management feature:
 
 ---
 
-**Implementation Date:** 2024-01-15  
-**Version:** 1.0.0  
-**Status:** ✅ Complete  
-**Service:** Academic Management Service  
+**Implementation Date:** 2024-01-15
+**Version:** 1.0.0
+**Status:** ✅ Complete
+**Service:** Academic Management Service
 **Feature:** Faculty Management with Leadership Panel

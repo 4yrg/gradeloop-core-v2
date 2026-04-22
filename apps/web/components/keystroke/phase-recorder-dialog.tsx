@@ -297,7 +297,7 @@ export function PhaseRecorderDialog({
             });
         },
         // phase is captured at mount time; timerStartedRef/keyDownTimes/lastKeyUpTime are refs
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+
         [phase]
     );
 

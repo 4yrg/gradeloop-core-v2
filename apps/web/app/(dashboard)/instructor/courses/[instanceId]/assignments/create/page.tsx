@@ -821,13 +821,13 @@ export default function CreateAssignmentPage() {
                       <ul className="space-y-2 list-disc list-inside">
                         <li>
                           <strong>All weights must sum to exactly 100.</strong>{" "}
-                          Each criterion's weight reflects its share of the
+                          Each criterion&apos;s weight reflects its share of the
                           total grade.
                         </li>
                         <li>
                           <strong>Use concrete, observable descriptions</strong>{" "}
-                          for each band — avoid vague language like "good
-                          effort".
+                          for each band — avoid vague language like &quot;good
+                          effort&quot;.
                         </li>
                         <li>
                           <strong>LLM mode</strong> uses GPT to evaluate code
@@ -846,7 +846,7 @@ export default function CreateAssignmentPage() {
                         </li>
                         <li>
                           <strong>Band ranges</strong> define what percentage of
-                          the criterion's weight a submission receives (e.g.
+                          the criterion&apos;s weight a submission receives (e.g.
                           85–100% of the criterion weight for Excellent).
                         </li>
                       </ul>
@@ -939,7 +939,7 @@ export default function CreateAssignmentPage() {
                     <div className="space-y-4 text-sm text-muted-foreground">
                       <p>
                         Test cases are run via <strong>Judge0</strong> — each
-                        test case sends your input to the student's code via
+                        test case sends your input to the student&apos;s code via
                         stdin and compares stdout to your expected output.
                       </p>
                       <ul className="space-y-2 list-disc list-inside">

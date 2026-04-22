@@ -5,7 +5,7 @@ export const LANGUAGE_MODE_MAP: Record<number, string> = {
   // Assembly
   45: "asm", // Assembly (NASM 2.14.02)
   46: "shell", // Bash (5.0.0)
-  
+
   // C/C++
   50: "c", // C (GCC 9.2.0)
   75: "c", // C (Clang 7.0.1)
@@ -15,106 +15,106 @@ export const LANGUAGE_MODE_MAP: Record<number, string> = {
   52: "cpp", // C++ (GCC 7.4.0)
   53: "cpp", // C++ (GCC 8.3.0)
   54: "cpp", // C++ (GCC 9.2.0)
-  
+
   // C#
   51: "csharp", // C# (Mono 6.6.0.161)
-  
+
   // Clojure
   86: "clojure", // Clojure (1.10.1)
-  
+
   // COBOL
   77: "cobol", // COBOL (GnuCOBOL 2.2)
-  
+
   // Common Lisp
   55: "commonlisp", // Common Lisp (SBCL 2.0.0)
-  
+
   // D
   56: "d", // D (DMD 2.089.1)
-  
+
   // Elixir
   57: "elixir", // Elixir (1.9.4)
-  
+
   // Erlang
   58: "erlang", // Erlang (OTP 22.2)
-  
+
   // F#
   87: "fsharp", // F# (.NET Core SDK 3.1.202)
-  
+
   // Fortran
   59: "fortran", // Fortran (GFortran 9.2.0)
-  
+
   // Go
   60: "go", // Go (1.13.5)
   95: "go", // Go (1.18.5)
-  
+
   // Groovy
   88: "groovy", // Groovy (3.0.3)
-  
+
   // Haskell
   61: "haskell", // Haskell (GHC 8.8.1)
-  
+
   // Java
   62: "java", // Java (OpenJDK 13.0.1)
 
   // JavaScript
   63: "javascript", // JavaScript (Node.js 12.14.0)
-  
+
   // Kotlin
   78: "kotlin", // Kotlin (1.3.70)
-  
+
   // Lua
   64: "lua", // Lua (5.3.5)
-  
+
   // Objective-C
   79: "objective-c", // Objective-C (Clang 7.0.1)
-  
+
   // OCaml
   65: "ocaml", // OCaml (4.09.0)
-  
+
   // Octave
   66: "octave", // Octave (5.1.0)
-  
+
   // Pascal
   67: "pascal", // Pascal (FPC 3.0.4)
-  
+
   // Perl
   85: "perl", // Perl (5.28.1)
-  
+
   // PHP
   68: "php", // PHP (7.4.1)
-  
+
   // Plain Text
   43: "plaintext", // Plain Text
   44: "plaintext", // Executable
-  
+
   // Prolog
   69: "prolog", // Prolog (GNU Prolog 1.4.5)
-  
+
   // Python
   70: "python", // Python (2.7.17)
   71: "python", // Python (3.8.1)
-  
+
   // R
   80: "r", // R (4.0.0)
-  
+
   // Ruby
   72: "ruby", // Ruby (2.7.0)
-  
+
   // Rust
   73: "rust", // Rust (1.40.0)
-  
+
   // Scala
   81: "scala", // Scala (2.13.2)
-  
+
   // SQL
   82: "sql", // SQL (SQLite 3.27.2)
-  
+
   // Swift
   83: "swift", // Swift (5.2.3)
-  
+
   // TypeScript
   74: "typescript", // TypeScript (3.7.4)
-  
+
   // Visual Basic
   84: "vb", // Visual Basic.Net (vbnc 0.0.0.5943)
 };

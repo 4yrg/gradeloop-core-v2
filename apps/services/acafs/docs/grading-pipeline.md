@@ -199,7 +199,7 @@ The frontend renders this with `react-markdown` + `remark-gfm` and
 
 ## Confidence Scoring
 
-Each criterion score carries a `confidence` value (0.0–1.0).  
+Each criterion score carries a `confidence` value (0.0–1.0).
 Values below **0.6** are flagged in the instructor view with a warning badge,
 indicating the grade should be manually reviewed.
 

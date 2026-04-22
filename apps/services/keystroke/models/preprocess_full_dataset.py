@@ -42,21 +42,21 @@ import numpy as np
 # ──────────────────────────────────────────────────────────────
 # CONFIGURATION
 # ──────────────────────────────────────────────────────────────
-SEQ_LEN   = 70       # keystrokes per sequence (TypeNet optimal)
-STRIDE    = 35       # sliding-window stride (50 % overlap → 2× more samples)
-MIN_SEQS  = 5        # skip users with fewer than this many valid sequences
-MAX_SEQS  = 50       # cap per-user sequences (class balance for triplet loss)
+SEQ_LEN = 70  # keystrokes per sequence (TypeNet optimal)
+STRIDE = 35  # sliding-window stride (50 % overlap → 2× more samples)
+MIN_SEQS = 5  # skip users with fewer than this many valid sequences
+MAX_SEQS = 50  # cap per-user sequences (class balance for triplet loss)
 
 # Normalisation: clip raw ms values then scale to [0, 1]
 # Keys: feature index → (clip_min, clip_max)
 CLIP = {
-    "HL": (0,   1000),   # hold time: 0 – 1000 ms
+    "HL": (0, 1000),  # hold time: 0 – 1000 ms
     "IL": (-200, 2000),  # inter-key:  can be negative briefly
     "PL": (-500, 2000),  # up-down:    can be negative (key overlap)
     "RL": (-500, 2000),  # up-up:      same
 }
 
-CHUNK_WRITE = 4096   # sequences to buffer before writing to HDF5
+CHUNK_WRITE = 4096  # sequences to buffer before writing to HDF5
 
 
 # ──────────────────────────────────────────────────────────────
@@ -96,10 +96,10 @@ def extract_sequences(lines: list[bytes], seq_len: int, stride: int) -> list[np.
             continue  # header row
 
         try:
-            section_id   = row[1].strip()
-            press_time   = float(row[5].strip())
+            section_id = row[1].strip()
+            press_time = float(row[5].strip())
             release_time = float(row[6].strip())
-            keycode      = int(row[8].strip())
+            keycode = int(row[8].strip())
         except (ValueError, IndexError):
             continue
 
@@ -130,8 +130,8 @@ def extract_sequences(lines: list[bytes], seq_len: int, stride: int) -> list[np.
 
             if i > 0:
                 press_prev, release_prev, _ = keystrokes[i - 1]
-                il = press_i   - press_prev
-                pl = press_i   - release_prev
+                il = press_i - press_prev
+                pl = press_i - release_prev
                 rl = release_i - release_prev
                 feat[i, 1] = _norm(il, *CLIP["IL"])
                 feat[i, 2] = _norm(pl, *CLIP["PL"])
@@ -153,10 +153,10 @@ def extract_sequences(lines: list[bytes], seq_len: int, stride: int) -> list[np.
 def preprocess(
     zip_path: Path,
     out_path: Path,
-    seq_len: int   = SEQ_LEN,
-    stride: int    = STRIDE,
-    min_seqs: int  = MIN_SEQS,
-    max_seqs: int  = MAX_SEQS,
+    seq_len: int = SEQ_LEN,
+    stride: int = STRIDE,
+    min_seqs: int = MIN_SEQS,
+    max_seqs: int = MAX_SEQS,
 ) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -168,26 +168,23 @@ def preprocess(
     # Discover all per-user keystroke files inside the zip
     with zipfile.ZipFile(zip_path, "r") as zf:
         user_entries = sorted(
-            e for e in zf.namelist()
-            if e.endswith("_keystrokes.txt") and "metadata" not in e
+            e for e in zf.namelist() if e.endswith("_keystrokes.txt") and "metadata" not in e
         )
     total_files = len(user_entries)
     print(f"Found {total_files:,} user keystroke files in ZIP.\n")
 
     # ── Open HDF5 for incremental writing ──────────────────────
-    with zipfile.ZipFile(zip_path, "r") as zf, \
-         h5py.File(out_path, "w") as hf:
-
+    with zipfile.ZipFile(zip_path, "r") as zf, h5py.File(out_path, "w") as hf:
         # Resizable datasets
-        seq_ds  = hf.create_dataset(
+        seq_ds = hf.create_dataset(
             "sequences",
             shape=(0, seq_len, 5),
             maxshape=(None, seq_len, 5),
             dtype="float32",
             chunks=(min(CHUNK_WRITE, 2048), seq_len, 5),
-            compression="lzf",          # fast, lightweight compression
+            compression="lzf",  # fast, lightweight compression
         )
-        lbl_ds  = hf.create_dataset(
+        lbl_ds = hf.create_dataset(
             "labels",
             shape=(0,),
             maxshape=(None,),
@@ -197,23 +194,23 @@ def preprocess(
         )
 
         # Buffers for batch writes
-        seq_buf:  list[np.ndarray] = []
-        lbl_buf:  list[int]        = []
+        seq_buf: list[np.ndarray] = []
+        lbl_buf: list[int] = []
 
         # Metadata accumulated per user
-        orig_ids:   list[int]        = []
-        index_map:  list[tuple[int, int]] = []
-        total_seqs = 0      # running count of sequences written so far
-        user_idx   = 0      # consecutive user counter
+        orig_ids: list[int] = []
+        index_map: list[tuple[int, int]] = []
+        total_seqs = 0  # running count of sequences written so far
+        user_idx = 0  # consecutive user counter
 
         def flush():
             """Write buffered sequences + labels to HDF5."""
             nonlocal seq_buf, lbl_buf
             if not seq_buf:
                 return
-            batch      = np.stack(seq_buf, axis=0)
-            old_n      = seq_ds.shape[0]
-            new_n      = old_n + len(batch)
+            batch = np.stack(seq_buf, axis=0)
+            old_n = seq_ds.shape[0]
+            new_n = old_n + len(batch)
             seq_ds.resize(new_n, axis=0)
             lbl_ds.resize(new_n, axis=0)
             seq_ds[old_n:new_n] = batch
@@ -240,7 +237,7 @@ def preprocess(
                 continue
 
             lines = raw_bytes.splitlines(keepends=False)
-            seqs  = extract_sequences(lines, seq_len, stride)
+            seqs = extract_sequences(lines, seq_len, stride)
 
             if len(seqs) < min_seqs:
                 continue  # not enough data for this user
@@ -258,7 +255,7 @@ def preprocess(
 
             n_seqs = len(seqs)
             seq_start = total_seqs
-            seq_end   = total_seqs + n_seqs
+            seq_end = total_seqs + n_seqs
 
             orig_ids.append(orig_id)
             index_map.append((seq_start, seq_end))
@@ -276,16 +273,16 @@ def preprocess(
         flush()  # final write
 
         # ── Store index metadata ───────────────────────────────
-        hf.create_dataset("orig_ids",  data=np.array(orig_ids,  dtype=np.int32))
+        hf.create_dataset("orig_ids", data=np.array(orig_ids, dtype=np.int32))
         hf.create_dataset("index_map", data=np.array(index_map, dtype=np.int64))
 
         # Root-level attributes
-        hf.attrs["n_users"]     = user_idx
+        hf.attrs["n_users"] = user_idx
         hf.attrs["n_sequences"] = total_seqs
-        hf.attrs["seq_len"]     = seq_len
-        hf.attrs["stride"]      = stride
-        hf.attrs["min_seqs"]    = min_seqs
-        hf.attrs["max_seqs"]    = max_seqs
+        hf.attrs["seq_len"] = seq_len
+        hf.attrs["stride"] = stride
+        hf.attrs["min_seqs"] = min_seqs
+        hf.attrs["max_seqs"] = max_seqs
 
     print()
     print("── Preprocessing complete ─────────────────────────────────")
@@ -299,15 +296,21 @@ def preprocess(
 # ──────────────────────────────────────────────────────────────
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Preprocess Aalto 136M Keystrokes for TypeNet")
-    p.add_argument("--zip",      type=Path, default=Path("dataset/Keystrokes.zip"),
-                   help="Path to Keystrokes.zip")
-    p.add_argument("--out",      type=Path, default=Path("models/aalto_full.h5"),
-                   help="Output HDF5 path")
-    p.add_argument("--seq_len",  type=int,  default=SEQ_LEN,  help="Sequence length (default 70)")
-    p.add_argument("--stride",   type=int,  default=STRIDE,   help="Sliding-window stride (default 35)")
-    p.add_argument("--min_seqs", type=int,  default=MIN_SEQS, help="Min sequences per user (default 5)")
-    p.add_argument("--max_seqs", type=int,  default=MAX_SEQS, help="Max sequences per user (default 50)")
-    p.add_argument("--seed",     type=int,  default=42,       help="Random seed")
+    p.add_argument(
+        "--zip", type=Path, default=Path("dataset/Keystrokes.zip"), help="Path to Keystrokes.zip"
+    )
+    p.add_argument(
+        "--out", type=Path, default=Path("models/aalto_full.h5"), help="Output HDF5 path"
+    )
+    p.add_argument("--seq_len", type=int, default=SEQ_LEN, help="Sequence length (default 70)")
+    p.add_argument("--stride", type=int, default=STRIDE, help="Sliding-window stride (default 35)")
+    p.add_argument(
+        "--min_seqs", type=int, default=MIN_SEQS, help="Min sequences per user (default 5)"
+    )
+    p.add_argument(
+        "--max_seqs", type=int, default=MAX_SEQS, help="Max sequences per user (default 50)"
+    )
+    p.add_argument("--seed", type=int, default=42, help="Random seed")
     return p.parse_args()
 
 
@@ -315,10 +318,10 @@ if __name__ == "__main__":
     args = _parse_args()
     np.random.seed(args.seed)
     preprocess(
-        zip_path = args.zip,
-        out_path = args.out,
-        seq_len  = args.seq_len,
-        stride   = args.stride,
-        min_seqs = args.min_seqs,
-        max_seqs = args.max_seqs,
+        zip_path=args.zip,
+        out_path=args.out,
+        seq_len=args.seq_len,
+        stride=args.stride,
+        min_seqs=args.min_seqs,
+        max_seqs=args.max_seqs,
     )

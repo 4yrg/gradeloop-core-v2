@@ -3,12 +3,12 @@ package service
 import (
 	"encoding/json"
 
-	"github.com/google/uuid"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/client"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/domain"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/dto"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/repository"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/utils"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gorm.io/datatypes"
 )

@@ -3,10 +3,10 @@ package service
 import (
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/client"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/domain"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/dto"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

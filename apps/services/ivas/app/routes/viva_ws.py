@@ -30,6 +30,7 @@ router = APIRouter()
 # Core Gemini Live bridge
 # =============================================================================
 
+
 async def _bridge_gemini_live(websocket: WebSocket, settings) -> None:
     """Bridge a browser WebSocket to a Gemini Live session.
 
@@ -49,7 +50,8 @@ async def _bridge_gemini_live(websocket: WebSocket, settings) -> None:
     logger.info("gemini_connecting", model=settings.gemini_live_model)
 
     async with client.aio.live.connect(
-        model=settings.gemini_live_model, config=config,
+        model=settings.gemini_live_model,
+        config=config,
     ) as live:
         logger.info("gemini_connected")
         await websocket.send_json({"type": "session_started"})
@@ -62,7 +64,8 @@ async def _bridge_gemini_live(websocket: WebSocket, settings) -> None:
                 while not end.is_set():
                     try:
                         raw = await asyncio.wait_for(
-                            websocket.receive_text(), timeout=300,
+                            websocket.receive_text(),
+                            timeout=300,
                         )
                     except asyncio.TimeoutError:
                         continue
@@ -78,7 +81,8 @@ async def _bridge_gemini_live(websocket: WebSocket, settings) -> None:
                         audio = base64.b64decode(msg["data"])
                         await live.send_realtime_input(
                             audio=types.Blob(
-                                data=audio, mime_type="audio/pcm;rate=16000",
+                                data=audio,
+                                mime_type="audio/pcm;rate=16000",
                             ),
                         )
                     elif msg.get("type") == "end_session":
@@ -113,9 +117,12 @@ async def _bridge_gemini_live(websocket: WebSocket, settings) -> None:
                                     b64 = base64.b64encode(
                                         part.inline_data.data,
                                     ).decode()
-                                    await websocket.send_json({
-                                        "type": "audio", "data": b64,
-                                    })
+                                    await websocket.send_json(
+                                        {
+                                            "type": "audio",
+                                            "data": b64,
+                                        }
+                                    )
 
                         # Gemini finished this response turn
                         if getattr(sc, "turn_complete", False):
@@ -147,6 +154,7 @@ async def _bridge_gemini_live(websocket: WebSocket, settings) -> None:
 # Endpoints
 # =============================================================================
 
+
 @router.websocket("/ws/ivas/viva")
 async def gemini_voice_chat(websocket: WebSocket) -> None:
     """Standalone Gemini voice chat — no DB, no session."""
@@ -173,6 +181,7 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
     logger.info("session_ws_accepted", session_id=session_id)
 
     from app.main import postgres_client as db
+
     if db is None:
         await websocket.send_json({"type": "error", "data": "Service not ready."})
         await websocket.close()

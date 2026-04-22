@@ -8,7 +8,6 @@ import os
 import pickle
 from contextlib import contextmanager
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
 
 import numpy as np
 import psycopg2
@@ -42,15 +41,11 @@ class DatabaseClient:
 
         try:
             self._ensure_database_exists()
-            
+
             # Create connection pool
-            self.pool = psycopg2.pool.ThreadedConnectionPool(
-                min_conn, max_conn, self.database_url
-            )
+            self.pool = psycopg2.pool.ThreadedConnectionPool(min_conn, max_conn, self.database_url)
             self.enabled = True
-            print(
-                f"✅ Database connection pool initialized ({min_conn}-{max_conn} connections)"
-            )
+            print(f"✅ Database connection pool initialized ({min_conn}-{max_conn} connections)")
 
             # Run schema initialization
             self._initialize_schema()
@@ -79,11 +74,11 @@ class DatabaseClient:
     def _ensure_database_exists(self):
         """Check if database exists and create if missing."""
         from urllib.parse import urlparse, urlunparse
-        
+
         parsed = urlparse(self.database_url)
         db_name = parsed.path.lstrip("/")
         admin_dsn = urlunparse(parsed._replace(path="/postgres"))
-        
+
         try:
             conn = psycopg2.connect(admin_dsn)
             conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
@@ -106,7 +101,7 @@ class DatabaseClient:
                 print("⚠️  schema.sql not found - run manually")
                 return
 
-            with open(schema_path, "r") as f:
+            with open(schema_path) as f:
                 schema_sql = f.read()
 
             with self.get_connection() as conn:
@@ -128,7 +123,7 @@ class DatabaseClient:
         template: np.ndarray,
         template_std: np.ndarray = None,
         sample_count: int = 1,
-        metadata: Dict = None,
+        metadata: dict = None,
     ) -> bool:
         """
         Save or update user biometric template for a specific enrollment phase
@@ -187,7 +182,7 @@ class DatabaseClient:
             print(f"❌ Error saving template: {e}")
             return False
 
-    def load_templates(self, user_id: str) -> Dict[str, Dict]:
+    def load_templates(self, user_id: str) -> dict[str, dict]:
         """
         Load all enrollment phase templates for a user
 
@@ -220,9 +215,7 @@ class DatabaseClient:
                         templates[row["enrollment_phase"]] = {
                             "template": pickle.loads(row["template_data"]),
                             "std": (
-                                pickle.loads(row["template_std"])
-                                if row["template_std"]
-                                else None
+                                pickle.loads(row["template_std"]) if row["template_std"] else None
                             ),
                             "sample_count": row["sample_count"],
                             "created_at": row["created_at"],
@@ -235,7 +228,7 @@ class DatabaseClient:
             print(f"❌ Error loading templates: {e}")
             return {}
 
-    def load_all_templates(self) -> Dict[str, Dict[str, Dict]]:
+    def load_all_templates(self) -> dict[str, dict[str, dict]]:
         """
         Load all user templates (for service initialization)
 
@@ -267,9 +260,7 @@ class DatabaseClient:
                         all_templates[user_id][phase] = {
                             "template": pickle.loads(row["template_data"]),
                             "std": (
-                                pickle.loads(row["template_std"])
-                                if row["template_std"]
-                                else None
+                                pickle.loads(row["template_std"]) if row["template_std"] else None
                             ),
                             "sample_count": row["sample_count"],
                         }
@@ -281,7 +272,7 @@ class DatabaseClient:
             print(f"❌ Error loading all templates: {e}")
             return {}
 
-    def get_enrolled_users(self) -> List[str]:
+    def get_enrolled_users(self) -> list[str]:
         """Get list of all enrolled users"""
         if not self.enabled:
             return []
@@ -343,22 +334,23 @@ class DatabaseClient:
                     # config-required phases. We read REQUIRED_PHASES from env
                     # (same source as main.py) so the DB flag stays in sync even
                     # when the config changes.
-                    import os as _os
                     import json as _json
-                    _config_path = _os.path.join(_os.path.dirname(__file__), 'enrollment_tasks.json')
+                    import os as _os
+
+                    _config_path = _os.path.join(
+                        _os.path.dirname(__file__), "enrollment_tasks.json"
+                    )
                     try:
                         with open(_config_path) as _f:
                             _cfg = _json.load(_f)
-                        _required = _cfg.get('enrollment_instructions', {}).get(
-                            'phases_required', ['baseline', 'transcription', 'stress', 'cognitive']
+                        _required = _cfg.get("enrollment_instructions", {}).get(
+                            "phases_required", ["baseline", "transcription", "stress", "cognitive"]
                         )
                     except Exception:
-                        _required = ['baseline', 'transcription', 'stress', 'cognitive']
+                        _required = ["baseline", "transcription", "stress", "cognitive"]
 
                     # Build a dynamic WHERE clause that only checks required phases
-                    _phase_checks = " AND ".join(
-                        f"{p}_complete" for p in _required
-                    )
+                    _phase_checks = " AND ".join(f"{p}_complete" for p in _required)
                     cursor.execute(
                         f"""
                         UPDATE enrollment_progress
@@ -377,7 +369,7 @@ class DatabaseClient:
             print(f"❌ Error updating enrollment progress: {e}")
             return False
 
-    def get_enrollment_progress(self, user_id: str) -> Optional[Dict]:
+    def get_enrollment_progress(self, user_id: str) -> dict | None:
         """Get enrollment progress for a user"""
         if not self.enabled:
             return None
@@ -412,7 +404,7 @@ class DatabaseClient:
         anomaly_type: str = None,
         is_struggling: bool = False,
         matched_phase: str = None,
-        metadata: Dict = None,
+        metadata: dict = None,
     ) -> bool:
         """
         Log authentication event for timeline tracking
@@ -483,7 +475,7 @@ class DatabaseClient:
             print(f"❌ Error logging auth event: {e}")
             return False
 
-    def get_session_timeline(self, session_id: str) -> List[Dict]:
+    def get_session_timeline(self, session_id: str) -> list[dict]:
         """Get authentication event timeline for a session"""
         if not self.enabled:
             return []
@@ -515,11 +507,11 @@ class DatabaseClient:
         self,
         user_id: str,
         session_id: str,
-        events: List[Dict],
+        events: list[dict],
         assignment_id: str = None,
         course_id: str = None,
         final_code: str = None,
-        behavioral_analysis: Dict = None,
+        behavioral_analysis: dict = None,
         retention_days: int = 365,
     ) -> bool:
         """
@@ -604,7 +596,7 @@ class DatabaseClient:
             print(f"❌ Error archiving session: {e}")
             return False
 
-    def get_archived_session(self, session_id: str) -> Optional[Dict]:
+    def get_archived_session(self, session_id: str) -> dict | None:
         """Retrieve archived session data"""
         if not self.enabled:
             return None
@@ -624,9 +616,7 @@ class DatabaseClient:
             print(f"❌ Error retrieving archived session: {e}")
             return None
 
-    def lookup_archive_by_assignment(
-        self, assignment_id: str, user_id: str
-    ) -> Optional[Dict]:
+    def lookup_archive_by_assignment(self, assignment_id: str, user_id: str) -> dict | None:
         """Look up the most recent archived session by assignment_id and user_id"""
         if not self.enabled:
             return None
@@ -654,7 +644,7 @@ class DatabaseClient:
             return None
 
     def update_archive_behavioral_analysis(
-        self, session_id: str, behavioral_analysis: Dict
+        self, session_id: str, behavioral_analysis: dict
     ) -> bool:
         """Cache a newly computed behavioral analysis result in the archive"""
         if not self.enabled:

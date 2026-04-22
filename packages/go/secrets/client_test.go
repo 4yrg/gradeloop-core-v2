@@ -83,7 +83,7 @@ func TestDatabaseConfigConnectionStringWithSSL(t *testing.T) {
 	if connStr == "" {
 		t.Error("Connection string should not be empty")
 	}
-	
+
 	// Check if SSL mode is in the connection string
 	expected := "sslmode=require"
 	found := false
@@ -158,7 +158,7 @@ func TestNewClientWithNilConfig(t *testing.T) {
 	if client == nil {
 		t.Error("Expected client to be created")
 	}
-	
+
 	if client != nil {
 		_ = client.Close()
 	}

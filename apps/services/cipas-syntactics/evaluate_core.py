@@ -9,7 +9,6 @@ import json
 import random
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 from sklearn.metrics import (
@@ -46,7 +45,7 @@ def load_bcb_dataset(
         clone_types = SYNTACTIC_CLONE_TYPES
 
     logger.info(f"Loading BigCloneBench from {bcb_path} …")
-    with open(bcb_path, "r", encoding="utf-8") as fh:
+    with open(bcb_path, encoding="utf-8") as fh:
         records = json.load(fh)
     logger.info(f"  Loaded {len(records):,} total records")
 
@@ -97,9 +96,7 @@ def extract_features(
     include_node_types: bool = True,
 ) -> tuple[np.ndarray, list[str]]:
     """Extract hybrid String + AST features."""
-    extractor = SyntacticFeatureExtractor(
-        language=language, include_node_types=include_node_types
-    )
+    extractor = SyntacticFeatureExtractor(language=language, include_node_types=include_node_types)
     features: list[np.ndarray] = []
     failed = 0
 
@@ -128,7 +125,7 @@ def save_evaluation_artifacts(
     y: np.ndarray,
     y_pred: np.ndarray,
     model,
-    output_dir: Optional[Path] = None,
+    output_dir: Path | None = None,
 ) -> None:
     """Persist evaluation metrics as JSON and generate visualisation plots."""
     if output_dir is None:
@@ -139,16 +136,13 @@ def save_evaluation_artifacts(
 
     # Metrics JSON
     serialisable_per_type = {
-        str(ct): {
-            k: (round(float(v), 6) if isinstance(v, float) else v) for k, v in m.items()
-        }
+        str(ct): {k: (round(float(v), 6) if isinstance(v, float) else v) for k, v in m.items()}
         for ct, m in clone_type_metrics.items()
     }
     metrics_payload = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "metrics": {
-            k: (round(float(v), 6) if isinstance(v, float) else v)
-            for k, v in metrics.items()
+            k: (round(float(v), 6) if isinstance(v, float) else v) for k, v in metrics.items()
         },
         "per_clone_type": serialisable_per_type,
     }
@@ -200,18 +194,14 @@ def save_evaluation_artifacts(
         # Per-clone-type recall
         if clone_type_metrics:
             ct_labels = [f"Type-{ct}" for ct in sorted(clone_type_metrics)]
-            ct_recalls = [
-                clone_type_metrics[ct]["recall"] for ct in sorted(clone_type_metrics)
-            ]
+            ct_recalls = [clone_type_metrics[ct]["recall"] for ct in sorted(clone_type_metrics)]
             colors = ["tomato" if r < 0.4 else "steelblue" for r in ct_recalls]
 
             fig, ax = plt.subplots(figsize=(8, 5))
             ax.barh(ct_labels, ct_recalls, color=colors)
             for i, rec in enumerate(ct_recalls):
                 ax.text(rec + 0.01, i, f"{rec:.3f}", va="center", fontsize=9)
-            ax.axhline(
-                y=0.40, color="red", linestyle="--", alpha=0.7, label="Type-3 target"
-            )
+            ax.axhline(y=0.40, color="red", linestyle="--", alpha=0.7, label="Type-3 target")
             ax.set_xlabel("Recall")
             ax.set_title("Per-Clone-Type Recall")
             ax.legend()
@@ -230,13 +220,13 @@ def save_evaluation_artifacts(
 
 def evaluate(
     model_name: str = "clone_detector_xgb.pkl",
-    clone_types: Optional[set[int]] = None,
-    sample_size: Optional[int] = None,
+    clone_types: set[int] | None = None,
+    sample_size: int | None = None,
     include_node_types: bool = True,
-    threshold: Optional[float] = None,
+    threshold: float | None = None,
     log_type3_similarity: bool = False,
-    output_dir: Optional[Path] = None,
-    bcb_path: Optional[str] = None,
+    output_dir: Path | None = None,
+    bcb_path: str | None = None,
 ) -> dict:
     """
     Evaluate the two-stage clone detection pipeline on BigCloneBench Balanced.
@@ -280,25 +270,23 @@ def evaluate(
     total = len(labels)
     n_clones = sum(labels)
     n_nonclones = total - n_clones
-    logger.info(
-        f"\nTotal: {total:,} | Clones: {n_clones:,} | Non-clones: {n_nonclones:,}"
-    )
+    logger.info(f"\nTotal: {total:,} | Clones: {n_clones:,} | Non-clones: {n_nonclones:,}")
 
     # Extract features
     logger.info("\nExtracting features …")
-    X, raw_feature_names = extract_features(
+    x_data, raw_feature_names = extract_features(
         code1_list, code2_list, language="java", include_node_types=include_node_types
     )
     y = np.array(labels)
 
     # Filter features
     kept_indices = [raw_feature_names.index(f) for f in model.feature_names]
-    X_filtered = X[:, kept_indices]
+    x_filtered = x_data[:, kept_indices]
     feature_names = model.feature_names
 
     # Compute probabilities
     logger.info("\nComputing XGBoost probabilities …")
-    y_proba_xgb = model.predict_proba(X_filtered)[:, 1]
+    y_proba_xgb = model.predict_proba(x_filtered)[:, 1]
 
     # Resolve threshold
     effective_threshold = threshold
@@ -331,7 +319,7 @@ def evaluate(
         elif label == 1 and clone_type == 3:
             # XGBoost + Type-3 Filter
             if prob_xgb > effective_threshold:
-                pred = int(is_type3_clone(X_filtered[i], feature_names, prob_xgb))
+                pred = int(is_type3_clone(x_filtered[i], feature_names, prob_xgb))
             else:
                 pred = 0
             y_pred.append(pred)
@@ -347,7 +335,7 @@ def evaluate(
             if nicad_fired:
                 pred = 1
             elif prob_xgb > effective_threshold:
-                pred = int(is_type3_clone(X_filtered[i], feature_names, prob_xgb))
+                pred = int(is_type3_clone(x_filtered[i], feature_names, prob_xgb))
             else:
                 pred = 0
             y_pred.append(pred)

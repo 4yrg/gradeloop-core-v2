@@ -20,7 +20,7 @@ type Batch struct {
 	StartYear int `gorm:"type:integer" json:"start_year"`
 	EndYear   int `gorm:"type:integer" json:"end_year"`
 
-	IsActive bool `gorm:"default:true" json:"is_active"`
+	IsActive  bool      `gorm:"default:true" json:"is_active"`
 	CreatedBy uuid.UUID `gorm:"type:uuid;index:idx_batches_created_by" json:"created_by"`
 
 	CreatedAt time.Time  `json:"created_at"`

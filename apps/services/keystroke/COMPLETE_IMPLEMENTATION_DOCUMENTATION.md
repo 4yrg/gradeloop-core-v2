@@ -1,9 +1,9 @@
 # Keystroke Service - Complete Implementation Documentation
 
 > **Comprehensive Technical Documentation for LLM Analysis and System Integration**
-> 
-> **Service Version**: 1.0.0  
-> **Last Updated**: March 7, 2026  
+>
+> **Service Version**: 1.0.0
+> **Last Updated**: March 7, 2026
 > **Author**: GradeLoop Core Team
 
 ---
@@ -135,8 +135,8 @@ The **Keystroke Dynamics Authentication & Behavioral Analysis Service** is a Pyt
 
 ### 3.1 Main Application (`main.py`)
 
-**File**: `apps/services/keystroke-service/main.py`  
-**Lines of Code**: 633  
+**File**: `apps/services/keystroke-service/main.py`
+**Lines of Code**: 633
 **Purpose**: FastAPI application with REST and WebSocket endpoints
 
 #### Key Sections:
@@ -197,8 +197,8 @@ def publish_auth_event(event_data: dict):
 
 ### 3.2 Feature Extraction (`feature_extraction.py`)
 
-**File**: `apps/services/keystroke-service/feature_extraction.py`  
-**Lines of Code**: 219  
+**File**: `apps/services/keystroke-service/feature_extraction.py`
+**Lines of Code**: 219
 **Purpose**: Transform raw keystroke events into ML-ready features
 
 #### 3.2.1 KeystrokeFeatureExtractor Class
@@ -261,7 +261,7 @@ def create_typenet_sequence(self, keystroke_events, sequence_length=70):
         events = keystroke_events[-sequence_length:]
     else:
         events = keystroke_events + [keystroke_events[-1]] * (sequence_length - len(keystroke_events))
-    
+
     sequence = []
     for i, event in enumerate(events):
         hl = event['dwellTime'] / 1000.0  # Convert ms to seconds
@@ -269,9 +269,9 @@ def create_typenet_sequence(self, keystroke_events, sequence_length=70):
         pl = (events[i]['timestamp'] - events[i-1]['timestamp']) / 1000.0 if i > 0 else 0
         rl = calculate_release_latency(events, i)
         keycode = event['keyCode'] / 255.0  # Normalize
-        
+
         sequence.append([hl, il, pl, rl, keycode])
-    
+
     return np.array(sequence, dtype=np.float32)  # Shape: (70, 5)
 ```
 
@@ -279,8 +279,8 @@ def create_typenet_sequence(self, keystroke_events, sequence_length=70):
 
 ### 3.3 TypeNet Authenticator (`typenet_inference.py`)
 
-**File**: `apps/services/keystroke-service/typenet_inference.py`  
-**Lines of Code**: 398  
+**File**: `apps/services/keystroke-service/typenet_inference.py`
+**Lines of Code**: 398
 **Purpose**: LSTM-based keystroke dynamics authentication
 
 #### 3.3.1 TypeNet Neural Network Architecture
@@ -324,20 +324,20 @@ class TypeNet(nn.Module):
         self.bn2 = nn.BatchNorm1d(hidden_size)
         self.dropout2 = nn.Dropout(dropout_rate)
         self.fc = nn.Linear(hidden_size, output_size)
-    
+
     def forward(self, x):
         out, _ = self.lstm1(x)
         out = out.permute(0, 2, 1)
         out = self.bn1(out)
         out = out.permute(0, 2, 1)
         out = self.dropout1(out)
-        
+
         out, _ = self.lstm2(out)
         out = out.permute(0, 2, 1)
         out = self.bn2(out)
         out = out.permute(0, 2, 1)
         out = self.dropout2(out)
-        
+
         last_timestep = out[:, -1, :]
         embedding = self.fc(last_timestep)
         return embedding
@@ -363,13 +363,13 @@ def enroll_user(self, user_id, keystroke_sequences):
     embeddings = [self.get_embedding(seq) for seq in keystroke_sequences]
     template = np.mean(embeddings, axis=0)  # Shape: (128,)
     template_std = np.std(embeddings, axis=0)
-    
+
     self.user_templates[user_id] = {
         'template': template,
         'std': template_std,
         'sample_count': len(embeddings)
     }
-    
+
     self.save_templates('models/user_templates.pkl')
 ```
 
@@ -440,11 +440,11 @@ authenticated = similarity >= threshold
 def continuous_authentication(self, user_id, sequences):
     """
     Verify user across multiple recent sequences for continuous monitoring
-    
+
     Args:
         user_id: User to verify
         sequences: List of recent sequences (e.g., last 5)
-    
+
     Returns:
         {
             'status': 'AUTHENTICATED' | 'SUSPICIOUS' | 'REJECTED',
@@ -462,25 +462,25 @@ def continuous_authentication(self, user_id, sequences):
 def continuous_authentication(self, user_id: str, sequences: List[np.ndarray]) -> Dict:
     if user_id not in self.user_templates:
         return {'status': 'ERROR', 'message': 'User not enrolled'}
-    
+
     risk_scores = []
     for sequence in sequences:
         result = self.verify_user(user_id, sequence, threshold=0.7)
         if result['success']:
             risk_scores.append(result['risk_score'])
-    
+
     if not risk_scores:
         return {'status': 'ERROR', 'message': 'No valid sequences'}
-    
+
     avg_risk = np.mean(risk_scores)
-    
+
     if avg_risk < 0.3:
         status = 'AUTHENTICATED'
     elif avg_risk < 0.6:
         status = 'SUSPICIOUS'
     else:
         status = 'REJECTED'
-    
+
     return {
         'status': status,
         'average_risk_score': float(avg_risk),
@@ -493,8 +493,8 @@ def continuous_authentication(self, user_id: str, sequences: List[np.ndarray]) -
 
 ### 3.4 Behavioral Analysis Engine (`behavioral_analysis.py`)
 
-**File**: `apps/services/keystroke-service/behavioral_analysis.py`  
-**Lines of Code**: 718  
+**File**: `apps/services/keystroke-service/behavioral_analysis.py`
+**Lines of Code**: 718
 **Purpose**: Comprehensive cognitive and authenticity analysis with LLM integration
 
 #### 3.4.1 Data Models (Pydantic)
@@ -644,13 +644,13 @@ def _identify_friction_points(events):
     """Sliding window analysis (50-keystroke windows with 50% overlap)"""
     friction_points = []
     window_size = 50
-    
+
     for i in range(0, len(events) - window_size, window_size // 2):
         window = events[i:i + window_size]
         deletions = sum(1 for e in window if 'Backspace' in e.key)
         long_pauses = sum(1 for e in window if e.flightTime > 3000)
         deletion_rate = deletions / len(window)
-        
+
         if deletion_rate > 0.3 or long_pauses > 2:  # High friction threshold
             friction_points.append({
                 'timestamp': window[0].timestamp,
@@ -659,7 +659,7 @@ def _identify_friction_points(events):
                 'long_pauses': long_pauses,
                 'severity': 'high' if deletion_rate > 0.5 else 'medium'
             })
-    
+
     return friction_points
 ```
 
@@ -779,10 +779,10 @@ for i in range(0, len(events), window_size):
     window = events[i:i + window_size]
     long_pauses = sum(1 for e in window if e.flightTime > 3000)
     deletions = sum(1 for e in window if 'Backspace' in e.key)
-    
+
     # High load = long pauses + many deletions
     load = min(1.0, (long_pauses * 0.2 + deletions * 0.05))
-    
+
     cognitive_load_timeline.append({
         'timestamp': window[0].timestamp / 1000,
         'load': load
@@ -862,14 +862,14 @@ Respond ONLY with valid JSON, no additional text.
 try:
     response = self.model.generate_content(prompt)
     result_text = response.text.strip()
-    
+
     # Extract JSON from markdown code blocks if present
     if '```json' in result_text:
         result_text = result_text.split('```json')[1].split('```')[0].strip()
-    
+
     analysis = json.loads(result_text)
     return analysis
-    
+
 except Exception as e:
     print(f"⚠️  LLM analysis failed: {e}")
     return self._rule_based_anomalies()  # Fallback
@@ -941,14 +941,14 @@ active_sessions = {
 @app.websocket("/ws/monitor/{user_id}/{session_id}")
 async def websocket_monitor(websocket: WebSocket, user_id: str, session_id: str):
     await websocket.accept()
-    
+
     try:
         while True:
             await asyncio.sleep(5)  # Check every 5 seconds
-            
+
             if session_key in active_sessions:
                 session_data = active_sessions[session_key]
-                
+
                 # Send status update
                 await websocket.send_json({
                     "type": "status_update",
@@ -958,7 +958,7 @@ async def websocket_monitor(websocket: WebSocket, user_id: str, session_id: str)
                     "events_captured": len(session_data['events']),
                     "timestamp": datetime.now().isoformat()
                 })
-                
+
                 # Alert on high risk
                 if session_data['risk_score'] > 0.7:
                     await websocket.send_json({
@@ -967,7 +967,7 @@ async def websocket_monitor(websocket: WebSocket, user_id: str, session_id: str)
                         "message": "Potential impersonation detected!",
                         "risk_score": session_data['risk_score']
                     })
-    
+
     except WebSocketDisconnect:
         print(f"WebSocket disconnected for {session_key}")
 ```
@@ -979,8 +979,8 @@ async def websocket_monitor(websocket: WebSocket, user_id: str, session_id: str)
 ### 5.1 Health & Info
 
 #### GET `/health`
-**Purpose**: Container health check  
-**Auth**: None  
+**Purpose**: Container health check
+**Auth**: None
 **Response**:
 ```json
 {
@@ -991,8 +991,8 @@ async def websocket_monitor(websocket: WebSocket, user_id: str, session_id: str)
 ```
 
 #### GET `/`
-**Purpose**: Service information and endpoint listing  
-**Auth**: None  
+**Purpose**: Service information and endpoint listing
+**Auth**: None
 **Response**:
 ```json
 {
@@ -1013,7 +1013,7 @@ async def websocket_monitor(websocket: WebSocket, user_id: str, session_id: str)
 ### 5.2 Keystroke Capture
 
 #### POST `/api/keystroke/capture`
-**Purpose**: Capture keystroke events for session buffering  
+**Purpose**: Capture keystroke events for session buffering
 **Auth**: JWT (via API Gateway)
 
 **Request Body**:
@@ -1050,7 +1050,7 @@ async def websocket_monitor(websocket: WebSocket, user_id: str, session_id: str)
 ### 5.3 User Enrollment
 
 #### POST `/api/keystroke/enroll`
-**Purpose**: Create biometric template from typing samples  
+**Purpose**: Create biometric template from typing samples
 **Auth**: JWT
 
 **Requirements**:
@@ -1095,7 +1095,7 @@ async def websocket_monitor(websocket: WebSocket, user_id: str, session_id: str)
 ### 5.4 User Verification
 
 #### POST `/api/keystroke/verify`
-**Purpose**: Verify claimed identity (1:1 matching)  
+**Purpose**: Verify claimed identity (1:1 matching)
 **Auth**: JWT
 
 **Request Body**:
@@ -1136,7 +1136,7 @@ async def websocket_monitor(websocket: WebSocket, user_id: str, session_id: str)
 ### 5.5 User Identification
 
 #### POST `/api/keystroke/identify`
-**Purpose**: Identify user from typing pattern (1:N matching)  
+**Purpose**: Identify user from typing pattern (1:N matching)
 **Auth**: JWT
 
 **Request Body**:
@@ -1173,7 +1173,7 @@ async def websocket_monitor(websocket: WebSocket, user_id: str, session_id: str)
 ### 5.6 Continuous Monitoring
 
 #### POST `/api/keystroke/monitor`
-**Purpose**: Continuous authentication on active session  
+**Purpose**: Continuous authentication on active session
 **Auth**: JWT
 
 **Request Body**:
@@ -1221,7 +1221,7 @@ async def websocket_monitor(websocket: WebSocket, user_id: str, session_id: str)
 ### 5.7 Session Management
 
 #### GET `/api/keystroke/session/status/{user_id}/{session_id}`
-**Purpose**: Get current session status  
+**Purpose**: Get current session status
 **Auth**: JWT
 
 **Response**:
@@ -1237,7 +1237,7 @@ async def websocket_monitor(websocket: WebSocket, user_id: str, session_id: str)
 ```
 
 #### DELETE `/api/keystroke/session/{user_id}/{session_id}`
-**Purpose**: End session and cleanup  
+**Purpose**: End session and cleanup
 **Auth**: JWT
 
 **Response**:
@@ -1251,7 +1251,7 @@ async def websocket_monitor(websocket: WebSocket, user_id: str, session_id: str)
 ### 5.8 Behavioral Analysis
 
 #### POST `/api/keystroke/analyze`
-**Purpose**: Comprehensive behavioral analysis of coding session  
+**Purpose**: Comprehensive behavioral analysis of coding session
 **Auth**: JWT
 
 **Request Body**:
@@ -1315,7 +1315,7 @@ async def websocket_monitor(websocket: WebSocket, user_id: str, session_id: str)
 ```
 
 #### GET `/api/keystroke/analyze/config`
-**Purpose**: Get analysis configuration  
+**Purpose**: Get analysis configuration
 **Auth**: JWT
 
 **Response**:
@@ -1346,7 +1346,7 @@ async def websocket_monitor(websocket: WebSocket, user_id: str, session_id: str)
 ### 5.9 User Management
 
 #### GET `/api/keystroke/users/enrolled`
-**Purpose**: List all enrolled users  
+**Purpose**: List all enrolled users
 **Auth**: JWT
 
 **Response**:
@@ -1448,10 +1448,10 @@ def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     dot_product = np.dot(a, b)
     norm_a = np.linalg.norm(a)
     norm_b = np.linalg.norm(b)
-    
+
     if norm_a == 0 or norm_b == 0:
         return 0.0
-    
+
     return dot_product / (norm_a * norm_b)
 ```
 
@@ -1483,11 +1483,11 @@ overlap = 25      # 50% overlap
 
 for i in range(0, len(events) - window_size, overlap):
     window = events[i:i + window_size]
-    
+
     # Compute friction indicators
     deletion_rate = count_deletions(window) / window_size
     long_pauses = count_pauses(window, threshold=3000)  # > 3 seconds
-    
+
     # Classify friction level
     if deletion_rate > 0.3 or long_pauses > 2:
         friction_points.append({
@@ -1749,9 +1749,9 @@ python-jose[cryptography]==3.3.0
 ### 11.1 Critical Issues
 
 #### ⚠️ **Issue #1**: Missing `continuous_authentication()` Implementation
-**Location**: `typenet_inference.py`  
-**Impact**: HIGH  
-**Status**: BUG  
+**Location**: `typenet_inference.py`
+**Impact**: HIGH
+**Status**: BUG
 **Description**: The method is called in `main.py` line 409 but does not exist in `TypeNetAuthenticator` class.
 
 **Call Site** (`main.py:409`):
@@ -1764,7 +1764,7 @@ result = authenticator.continuous_authentication(user_id, sequences)
 def continuous_authentication(self, user_id: str, sequences: List[np.ndarray]) -> Dict:
     """
     Verify user across multiple recent sequences
-    
+
     Returns:
         {
             'status': 'AUTHENTICATED' | 'SUSPICIOUS' | 'REJECTED',
@@ -1778,15 +1778,15 @@ def continuous_authentication(self, user_id: str, sequences: List[np.ndarray]) -
 **Workaround**: Add implementation as shown in Section 3.3.2.
 
 #### ⚠️ **Issue #2**: In-Memory Session Storage
-**Location**: `main.py` (active_sessions dict)  
-**Impact**: MEDIUM  
+**Location**: `main.py` (active_sessions dict)
+**Impact**: MEDIUM
 **Description**: Sessions stored in memory, lost on restart. Not suitable for production.
 
 **Recommendation**: Implement Redis-based session storage.
 
 #### ⚠️ **Issue #3**: Pickle-based Template Storage
-**Location**: `models/user_templates.pkl`  
-**Impact**: MEDIUM  
+**Location**: `models/user_templates.pkl`
+**Impact**: MEDIUM
 **Description**: Not concurrent-safe, no versioning, single point of failure.
 
 **Recommendation**: Migrate to PostgreSQL or MongoDB.

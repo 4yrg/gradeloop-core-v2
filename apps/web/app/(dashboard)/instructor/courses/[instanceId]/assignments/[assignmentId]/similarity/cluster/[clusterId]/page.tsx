@@ -12,9 +12,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { SimilarityBadge, SimilarityScore } from "@/components/instructor/similarity/similarity-badge";
 import { AnnotationPanel } from "@/components/instructor/similarity/annotation-panel";
-import { 
-  AlertCircle, 
-  Download, 
+import {
+  AlertCircle,
+  Download,
   Flag,
   MessageSquare,
   ArrowLeft,
@@ -51,12 +51,12 @@ export default function ClusterInspectionPage({
 
         if (mounted) {
           setReport(cachedReport);
-          
+
           if (cachedReport) {
             const found = cachedReport.collusion_groups.find(
               (g) => g.group_id === parseInt(clusterIdParam, 10)
             );
-            
+
             if (found) {
               setCluster(found);
             } else {
@@ -97,7 +97,7 @@ export default function ClusterInspectionPage({
     try {
       const { exportSimilarityReport } = await import("@/lib/api/cipas-client");
       const blob = await exportSimilarityReport(assignmentId, "csv");
-      
+
       // Download the file
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -141,9 +141,9 @@ export default function ClusterInspectionPage({
   }
 
   const clusterId = String.fromCharCode(64 + cluster.group_id);
-  
+
   // Find highest similarity edge
-  const maxEdge = cluster.edges.reduce((max, edge) => 
+  const maxEdge = cluster.edges.reduce((max, edge) =>
     edge.confidence > max.confidence ? edge : max
   , cluster.edges[0]);
 
@@ -206,7 +206,7 @@ export default function ClusterInspectionPage({
                       { x1: "75%", y1: "75%", x2: "50%", y2: "50%" },
                     ];
                     const pos = positions[idx % positions.length];
-                    
+
                     return (
                       <line
                         key={idx}
@@ -327,7 +327,7 @@ export default function ClusterInspectionPage({
                   {["Type-1", "Type-2", "Type-3"].map((type) => {
                     const count = cluster.edges.filter((e) => e.clone_type === type).length;
                     if (count === 0) return null;
-                    
+
                     return (
                       <div key={type} className="flex justify-between text-sm">
                         <span>{type}</span>
@@ -341,9 +341,9 @@ export default function ClusterInspectionPage({
           </Card>
 
           {/* Annotation Panel */}
-          <AnnotationPanel 
-            assignmentId={assignmentId} 
-            clusterId={cluster.group_id} 
+          <AnnotationPanel
+            assignmentId={assignmentId}
+            clusterId={cluster.group_id}
           />
 
           <Card className="bg-primary/5 border-primary/20">

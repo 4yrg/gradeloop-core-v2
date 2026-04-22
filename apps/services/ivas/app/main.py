@@ -12,8 +12,8 @@ from app.config import get_settings
 from app.logging_config import configure_logging, get_logger
 from app.routes.chat_ui import router as chat_ui_router
 from app.routes.sessions import router as sessions_router
-from app.routes.voice import router as voice_router
 from app.routes.viva_ws import router as viva_ws_router
+from app.routes.voice import router as voice_router
 from app.services.storage.postgres_client import PostgresClient
 
 logger = get_logger(__name__)

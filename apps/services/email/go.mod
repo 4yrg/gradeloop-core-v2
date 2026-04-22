@@ -14,9 +14,13 @@ require (
 )
 
 replace github.com/4yrg/gradeloop-core-v2/packages/go/logger => ../../../packages/go/logger
+
 replace github.com/4yrg/gradeloop-core-v2/packages/go/middleware => ../../../packages/go/middleware
+
 replace github.com/4yrg/gradeloop-core-v2/packages/go/errors => ../../../packages/go/errors
+
 replace github.com/4yrg/gradeloop-core-v2/packages/go/secrets => ../../../packages/go/secrets
+
 replace github.com/4yrg/gradeloop-core-v2/packages/go/grpc => ../../../packages/go/grpc
 
 require (

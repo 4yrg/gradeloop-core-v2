@@ -10,7 +10,6 @@ import {
   Search,
   MoreHorizontal,
   Mail,
-  ChevronLeft,
   ChevronRight,
   Loader2,
   AlertTriangle,
@@ -18,8 +17,6 @@ import {
   BookOpen,
   Calendar,
   Settings2,
-  Trash2,
-  XCircle,
   Save,
   GraduationCap,
   UserMinus,
@@ -109,14 +106,6 @@ const statusVariantClasses: Record<
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const ROSTER_PER_PAGE = 20;
-
-function instanceStatusVariant(status: string) {
-  if (status === "Active") return "success" as const;
-  if (status === "Planned") return "info" as const;
-  if (status === "Completed") return "secondary" as const;
-  return "destructive" as const;
-}
 
 function enrollmentStatusVariant(status: string) {
   if (status === "Enrolled") return "success" as const;
@@ -168,7 +157,6 @@ export default function CourseInstancePage() {
 
   // ── Search & pagination ─────────────────────────────────────────────
   const [search, setSearch] = React.useState("");
-  const [rosterPage, setRosterPage] = React.useState(1);
   const [expandedBatches, setExpandedBatches] = React.useState<Set<string>>(
     new Set(),
   );
@@ -227,7 +215,9 @@ export default function CourseInstancePage() {
 
   React.useEffect(() => {
     if (!canAccess) return;
-    fetchAll();
+    queueMicrotask(() => {
+      fetchAll();
+    });
   }, [canAccess, fetchAll]);
 
   React.useEffect(() => {
@@ -281,45 +271,13 @@ export default function CourseInstancePage() {
   const batchMemberIds = new Set(batchMembers.map((m) => m.user_id));
 
   // Batch students: batchMembers with their enrollment status overlaid
-  const filteredBatchStudents = batchMembers.filter((m) => {
-    if (!q) return true;
-    return (
-      m.full_name.toLowerCase().includes(q) ||
-      m.email.toLowerCase().includes(q) ||
-      m.student_id.toLowerCase().includes(q)
-    );
-  });
 
   // Individual students: enrolled but NOT in batch
   const individualEnrollments = enrollments.filter(
     (e) => !batchMemberIds.has(e.user_id),
   );
-  const filteredIndividual = individualEnrollments.filter((e) => {
-    if (!q) return true;
-    return (
-      e.full_name.toLowerCase().includes(q) ||
-      e.email.toLowerCase().includes(q) ||
-      e.student_id.toLowerCase().includes(q)
-    );
-  });
 
-  // All enrollments for search-across-all view (paged)
-  const allFiltered = enrollments.filter((e) => {
-    if (!q) return true;
-    return (
-      e.full_name.toLowerCase().includes(q) ||
-      e.email.toLowerCase().includes(q) ||
-      e.student_id.toLowerCase().includes(q)
-    );
-  });
-  const totalRosterPages = Math.max(
-    1,
-    Math.ceil(allFiltered.length / ROSTER_PER_PAGE),
-  );
-  const pagedEnrollments = allFiltered.slice(
-    (rosterPage - 1) * ROSTER_PER_PAGE,
-    rosterPage * ROSTER_PER_PAGE,
-  );
+  
 
   // Enrollment lookup map (for batch member status badge overlay)
   const enrollmentByUserId = new Map(enrollments.map((e) => [e.user_id, e]));
@@ -520,7 +478,6 @@ export default function CourseInstancePage() {
                     value={search}
                     onChange={(e) => {
                       setSearch(e.target.value);
-                      setRosterPage(1);
                     }}
                   />
                 </div>
@@ -1116,7 +1073,7 @@ export default function CourseInstancePage() {
                 <CardContent className="flex flex-col items-center justify-center py-16">
                   <Settings2 className="h-10 w-10 text-muted-foreground/40 mb-3" />
                   <p className="text-sm text-muted-foreground">
-                    You don't have permission to modify settings
+                    You don&apos;t have permission to modify settings
                   </p>
                 </CardContent>
               </Card>

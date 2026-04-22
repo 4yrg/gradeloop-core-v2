@@ -25,8 +25,8 @@ export function SummaryStats({
   aiInsight,
   className,
 }: SummaryStatsProps) {
-  const flaggedPercentage = totalSubmissions > 0 
-    ? Math.round((flaggedCases / totalSubmissions) * 100) 
+  const flaggedPercentage = totalSubmissions > 0
+    ? Math.round((flaggedCases / totalSubmissions) * 100)
     : 0;
 
   const highRiskWidth = totalSubmissions > 0 ? (highRisk / totalSubmissions) * 100 : 0;
@@ -53,17 +53,17 @@ export function SummaryStats({
           </div>
 
           <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden flex">
-            <div 
-              className="bg-red-500 h-full" 
+            <div
+              className="bg-red-500 h-full"
               style={{ width: `${highRiskWidth}%` }}
               title={`High Risk: ${highRisk}`}
             />
-            <div 
-              className="bg-orange-500 h-full" 
+            <div
+              className="bg-orange-500 h-full"
               style={{ width: `${mediumRiskWidth}%` }}
               title={`Medium Risk: ${mediumRisk}`}
             />
-            <div 
+            <div
               className="bg-primary/20 h-full flex-1"
               title={`Low/No Risk: ${totalSubmissions - highRisk - mediumRisk}`}
             />
@@ -72,7 +72,7 @@ export function SummaryStats({
           {flaggedPercentage > 0 && (
             <div className="pt-2">
               <p className="text-[11px] leading-relaxed text-muted-foreground italic">
-                {flaggedPercentage}% of submissions flagged for review. 
+                {flaggedPercentage}% of submissions flagged for review.
                 {flaggedPercentage > 15 && " Significantly higher than typical baseline."}
               </p>
             </div>

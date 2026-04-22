@@ -3,14 +3,12 @@
 import * as React from 'react';
 import {
     Upload,
-    FileText,
     CheckCircle2,
     AlertCircle,
     Download,
     ArrowRight,
     Check,
     Loader2,
-    Table as TableIcon,
 } from 'lucide-react';
 import {
     SideDialog as Dialog,
@@ -149,7 +147,7 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: Props) {
 
                             <div className="space-y-3">
                                 <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
-                                    Don't have a file? Download our template
+                                    Don&apos;t have a file? Download our template
                                 </p>
                                 <div className="flex gap-3">
                                     <Button
@@ -269,7 +267,7 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: Props) {
                                     Import Completed Successfully
                                 </h3>
                                 <p className="text-zinc-500 max-w-md mx-auto">
-                                    We've finished processing your file. Below is a summary of the operation.
+                                    We&apos;ve finished processing your file. Below is a summary of the operation.
                                 </p>
                             </div>
 

@@ -11,9 +11,9 @@ import (
 )
 
 type Client struct {
-	conn   *grpc.ClientConn
-	addr   string
-	opts   []grpc.DialOption
+	conn *grpc.ClientConn
+	addr string
+	opts []grpc.DialOption
 }
 
 func NewClient(addr string, opts ...grpc.DialOption) *Client {
@@ -86,10 +86,10 @@ func NewServerInterceptor(token string) grpc.UnaryServerInterceptor {
 }
 
 const (
-	ServiceIAM         = "iam-service:8081"
+	ServiceIAM        = "iam-service:8081"
 	ServiceAcademic   = "academic-service:8083"
 	ServiceAssessment = "assessment-service:8084"
 	ServiceEmail      = "email-service:8082"
 	ServiceKeystroke  = "keystroke-service:8003"
-	ServiceIVAS      = "ivas-service:8088"
+	ServiceIVAS       = "ivas-service:8088"
 )

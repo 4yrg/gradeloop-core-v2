@@ -91,7 +91,7 @@ export function ExecutionPanel({
                   {result.stdout || ""}
                 </pre>
               )}
-              
+
               {/* Show errors if any */}
               {hasErrors && (
                 <div className="space-y-2">

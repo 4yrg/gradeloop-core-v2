@@ -26,27 +26,23 @@ from routes import (
     cluster_assignment,
     compare_codes,
     compare_codes_batch,
+    create_annotation,
+    export_similarity_report_csv,
+    get_annotation_stats,
+    get_annotations,
     get_collusion_report,
     get_feature_importance,
     get_health,
     get_index_status,
+    get_similarity_report,
     ingest_submission,
     register_template,
     tokenize_code,
-    get_similarity_report,
-    create_annotation,
-    get_annotations,
     update_annotation,
-    get_annotation_stats,
-    export_similarity_report_csv,
-    get_similarity_report,
-    create_annotation,
-    get_annotations,
-    update_annotation,
-    get_annotation_stats,
-    export_similarity_report_csv,
 )
 from schemas import (
+    AnnotationResponse,
+    AnnotationStatsResponse,
     AssignmentClusterRequest,
     AssignmentClusterResponse,
     BatchComparisonRequest,
@@ -54,25 +50,18 @@ from schemas import (
     CollusionReportResponse,
     ComparisonRequest,
     ComparisonResult,
+    CreateAnnotationRequest,
     FeatureImportanceResponse,
     HealthResponse,
     IndexStatusResponse,
     IngestionResponse,
+    SimilarityReportMetadata,
     SubmissionIngestRequest,
     TemplateRegisterRequest,
     TemplateRegisterResponse,
     TokenizeRequest,
     TokenizeResponse,
-    CreateAnnotationRequest,
     UpdateAnnotationRequest,
-    AnnotationResponse,
-    AnnotationStatsResponse,
-    SimilarityReportMetadata,
-    CreateAnnotationRequest,
-    UpdateAnnotationRequest,
-    AnnotationResponse,
-    AnnotationStatsResponse,
-    SimilarityReportMetadata,
 )
 
 # Configure logging
@@ -85,7 +74,9 @@ logger = setup_logging(__name__)
 # ---------------------------------------------------------------------------
 _SCHEMA_DDL: list[tuple[str, str]] = [
     # ── assignment_templates ────────────────────────────────────────────────
-    ("table:assignment_templates", """
+    (
+        "table:assignment_templates",
+        """
         CREATE TABLE IF NOT EXISTS assignment_templates (
             id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
             assignment_id     TEXT        NOT NULL,
@@ -93,13 +84,19 @@ _SCHEMA_DDL: list[tuple[str, str]] = [
             created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
             updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
         )
-    """),
-    ("index:idx_assignment_templates_assignment_id", """
+    """,
+    ),
+    (
+        "index:idx_assignment_templates_assignment_id",
+        """
         CREATE UNIQUE INDEX IF NOT EXISTS idx_assignment_templates_assignment_id
             ON assignment_templates (assignment_id)
-    """),
+    """,
+    ),
     # ── fragments ───────────────────────────────────────────────────────────
-    ("table:fragments", """
+    (
+        "table:fragments",
+        """
         CREATE TABLE IF NOT EXISTS fragments (
             id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
             submission_id     TEXT        NOT NULL,
@@ -117,13 +114,28 @@ _SCHEMA_DDL: list[tuple[str, str]] = [
             is_template       BOOLEAN     NOT NULL DEFAULT FALSE,
             created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
         )
-    """),
-    ("index:idx_fragments_submission_id",  "CREATE INDEX IF NOT EXISTS idx_fragments_submission_id  ON fragments (submission_id)"),
-    ("index:idx_fragments_student_id",     "CREATE INDEX IF NOT EXISTS idx_fragments_student_id     ON fragments (student_id)"),
-    ("index:idx_fragments_assignment_id",  "CREATE INDEX IF NOT EXISTS idx_fragments_assignment_id  ON fragments (assignment_id)"),
-    ("index:idx_fragments_assignment_student", "CREATE INDEX IF NOT EXISTS idx_fragments_assignment_student ON fragments (assignment_id, student_id)"),
+    """,
+    ),
+    (
+        "index:idx_fragments_submission_id",
+        "CREATE INDEX IF NOT EXISTS idx_fragments_submission_id  ON fragments (submission_id)",
+    ),
+    (
+        "index:idx_fragments_student_id",
+        "CREATE INDEX IF NOT EXISTS idx_fragments_student_id     ON fragments (student_id)",
+    ),
+    (
+        "index:idx_fragments_assignment_id",
+        "CREATE INDEX IF NOT EXISTS idx_fragments_assignment_id  ON fragments (assignment_id)",
+    ),
+    (
+        "index:idx_fragments_assignment_student",
+        "CREATE INDEX IF NOT EXISTS idx_fragments_assignment_student ON fragments (assignment_id, student_id)",
+    ),
     # ── plagiarism_groups (must exist before clone_matches FK) ──────────────
-    ("table:plagiarism_groups", """
+    (
+        "table:plagiarism_groups",
+        """
         CREATE TABLE IF NOT EXISTS plagiarism_groups (
             id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
             assignment_id     TEXT        NOT NULL,
@@ -135,10 +147,16 @@ _SCHEMA_DDL: list[tuple[str, str]] = [
             dominant_type     TEXT        NOT NULL DEFAULT 'Unknown',
             created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
         )
-    """),
-    ("index:idx_plagiarism_groups_assignment", "CREATE INDEX IF NOT EXISTS idx_plagiarism_groups_assignment ON plagiarism_groups (assignment_id, group_index)"),
+    """,
+    ),
+    (
+        "index:idx_plagiarism_groups_assignment",
+        "CREATE INDEX IF NOT EXISTS idx_plagiarism_groups_assignment ON plagiarism_groups (assignment_id, group_index)",
+    ),
     # ── clone_matches ───────────────────────────────────────────────────────
-    ("table:clone_matches", """
+    (
+        "table:clone_matches",
+        """
         CREATE TABLE IF NOT EXISTS clone_matches (
             id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
             frag_a_id         UUID        NOT NULL REFERENCES fragments(id) ON DELETE CASCADE,
@@ -157,13 +175,28 @@ _SCHEMA_DDL: list[tuple[str, str]] = [
             detected_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
             CONSTRAINT uq_clone_matches_pair UNIQUE (frag_a_id, frag_b_id)
         )
-    """),
-    ("index:idx_clone_matches_assignment",  "CREATE INDEX IF NOT EXISTS idx_clone_matches_assignment  ON clone_matches (assignment_id)"),
-    ("index:idx_clone_matches_students",    "CREATE INDEX IF NOT EXISTS idx_clone_matches_students    ON clone_matches (student_a, student_b, assignment_id)"),
-    ("index:idx_clone_matches_is_clone",    "CREATE INDEX IF NOT EXISTS idx_clone_matches_is_clone    ON clone_matches (assignment_id, is_clone) WHERE is_clone = TRUE"),
-    ("index:idx_clone_matches_confidence",  "CREATE INDEX IF NOT EXISTS idx_clone_matches_confidence  ON clone_matches (assignment_id, confidence DESC) WHERE is_clone = TRUE"),
+    """,
+    ),
+    (
+        "index:idx_clone_matches_assignment",
+        "CREATE INDEX IF NOT EXISTS idx_clone_matches_assignment  ON clone_matches (assignment_id)",
+    ),
+    (
+        "index:idx_clone_matches_students",
+        "CREATE INDEX IF NOT EXISTS idx_clone_matches_students    ON clone_matches (student_a, student_b, assignment_id)",
+    ),
+    (
+        "index:idx_clone_matches_is_clone",
+        "CREATE INDEX IF NOT EXISTS idx_clone_matches_is_clone    ON clone_matches (assignment_id, is_clone) WHERE is_clone = TRUE",
+    ),
+    (
+        "index:idx_clone_matches_confidence",
+        "CREATE INDEX IF NOT EXISTS idx_clone_matches_confidence  ON clone_matches (assignment_id, confidence DESC) WHERE is_clone = TRUE",
+    ),
     # ── lsh_bucket_metadata ─────────────────────────────────────────────────
-    ("table:lsh_bucket_metadata", """
+    (
+        "table:lsh_bucket_metadata",
+        """
         CREATE TABLE IF NOT EXISTS lsh_bucket_metadata (
             id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
             fragment_id       UUID        NOT NULL REFERENCES fragments(id) ON DELETE CASCADE,
@@ -172,10 +205,16 @@ _SCHEMA_DDL: list[tuple[str, str]] = [
             threshold         FLOAT       NOT NULL DEFAULT 0.3,
             created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
         )
-    """),
-    ("index:idx_lsh_bucket_metadata_fragment", "CREATE INDEX IF NOT EXISTS idx_lsh_bucket_metadata_fragment ON lsh_bucket_metadata (fragment_id)"),
+    """,
+    ),
+    (
+        "index:idx_lsh_bucket_metadata_fragment",
+        "CREATE INDEX IF NOT EXISTS idx_lsh_bucket_metadata_fragment ON lsh_bucket_metadata (fragment_id)",
+    ),
     # ── similarity_reports ──────────────────────────────────────────────────
-    ("table:similarity_reports", """
+    (
+        "table:similarity_reports",
+        """
         CREATE TABLE IF NOT EXISTS similarity_reports (
             id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
             assignment_id     TEXT        NOT NULL,
@@ -191,11 +230,20 @@ _SCHEMA_DDL: list[tuple[str, str]] = [
             created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
             updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
         )
-    """),
-    ("index:idx_similarity_reports_assignment", "CREATE UNIQUE INDEX IF NOT EXISTS idx_similarity_reports_assignment ON similarity_reports (assignment_id)"),
-    ("index:idx_similarity_reports_created",    "CREATE INDEX IF NOT EXISTS idx_similarity_reports_created    ON similarity_reports (created_at DESC)"),
+    """,
+    ),
+    (
+        "index:idx_similarity_reports_assignment",
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_similarity_reports_assignment ON similarity_reports (assignment_id)",
+    ),
+    (
+        "index:idx_similarity_reports_created",
+        "CREATE INDEX IF NOT EXISTS idx_similarity_reports_created    ON similarity_reports (created_at DESC)",
+    ),
     # ── instructor_annotations ──────────────────────────────────────────────
-    ("table:instructor_annotations", """
+    (
+        "table:instructor_annotations",
+        """
         CREATE TABLE IF NOT EXISTS instructor_annotations (
             id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
             match_id          UUID        REFERENCES clone_matches(id) ON DELETE CASCADE,
@@ -216,13 +264,28 @@ _SCHEMA_DDL: list[tuple[str, str]] = [
             updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
             CONSTRAINT chk_annotation_target CHECK (match_id IS NOT NULL OR group_id IS NOT NULL)
         )
-    """),
-    ("index:idx_instructor_annotations_match",      "CREATE INDEX IF NOT EXISTS idx_instructor_annotations_match      ON instructor_annotations (match_id)"),
-    ("index:idx_instructor_annotations_group",      "CREATE INDEX IF NOT EXISTS idx_instructor_annotations_group      ON instructor_annotations (group_id)"),
-    ("index:idx_instructor_annotations_assignment", "CREATE INDEX IF NOT EXISTS idx_instructor_annotations_assignment ON instructor_annotations (assignment_id)"),
-    ("index:idx_instructor_annotations_status",     "CREATE INDEX IF NOT EXISTS idx_instructor_annotations_status     ON instructor_annotations (assignment_id, status)"),
+    """,
+    ),
+    (
+        "index:idx_instructor_annotations_match",
+        "CREATE INDEX IF NOT EXISTS idx_instructor_annotations_match      ON instructor_annotations (match_id)",
+    ),
+    (
+        "index:idx_instructor_annotations_group",
+        "CREATE INDEX IF NOT EXISTS idx_instructor_annotations_group      ON instructor_annotations (group_id)",
+    ),
+    (
+        "index:idx_instructor_annotations_assignment",
+        "CREATE INDEX IF NOT EXISTS idx_instructor_annotations_assignment ON instructor_annotations (assignment_id)",
+    ),
+    (
+        "index:idx_instructor_annotations_status",
+        "CREATE INDEX IF NOT EXISTS idx_instructor_annotations_status     ON instructor_annotations (assignment_id, status)",
+    ),
     # ── report_exports ──────────────────────────────────────────────────────
-    ("table:report_exports", """
+    (
+        "table:report_exports",
+        """
         CREATE TABLE IF NOT EXISTS report_exports (
             id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
             report_id         UUID        NOT NULL REFERENCES similarity_reports(id) ON DELETE CASCADE,
@@ -234,11 +297,20 @@ _SCHEMA_DDL: list[tuple[str, str]] = [
             export_filters    JSONB,
             exported_at       TIMESTAMPTZ NOT NULL DEFAULT now()
         )
-    """),
-    ("index:idx_report_exports_report",     "CREATE INDEX IF NOT EXISTS idx_report_exports_report     ON report_exports (report_id)"),
-    ("index:idx_report_exports_assignment", "CREATE INDEX IF NOT EXISTS idx_report_exports_assignment ON report_exports (assignment_id)"),
+    """,
+    ),
+    (
+        "index:idx_report_exports_report",
+        "CREATE INDEX IF NOT EXISTS idx_report_exports_report     ON report_exports (report_id)",
+    ),
+    (
+        "index:idx_report_exports_assignment",
+        "CREATE INDEX IF NOT EXISTS idx_report_exports_assignment ON report_exports (assignment_id)",
+    ),
     # ── views ───────────────────────────────────────────────────────────────
-    ("view:confirmed_clones_summary", """
+    (
+        "view:confirmed_clones_summary",
+        """
         CREATE OR REPLACE VIEW confirmed_clones_summary AS
         SELECT cm.assignment_id, cm.student_a, cm.student_b, cm.clone_type, cm.confidence,
                cm.detected_at, f_a.submission_id AS submission_a, f_b.submission_id AS submission_b
@@ -247,8 +319,11 @@ _SCHEMA_DDL: list[tuple[str, str]] = [
         JOIN fragments f_b ON f_b.id = cm.frag_b_id
         WHERE cm.is_clone = TRUE
         ORDER BY cm.assignment_id, cm.confidence DESC
-    """),
-    ("view:annotated_clones_summary", """
+    """,
+    ),
+    (
+        "view:annotated_clones_summary",
+        """
         CREATE OR REPLACE VIEW annotated_clones_summary AS
         SELECT cm.id AS match_id, cm.assignment_id, cm.student_a, cm.student_b,
                cm.clone_type, cm.confidence, ia.status AS annotation_status,
@@ -258,9 +333,12 @@ _SCHEMA_DDL: list[tuple[str, str]] = [
         LEFT JOIN instructor_annotations ia ON ia.match_id = cm.id
         WHERE cm.is_clone = TRUE
         ORDER BY cm.assignment_id, cm.confidence DESC
-    """),
+    """,
+    ),
     # ── helper function ──────────────────────────────────────────────────────
-    ("function:get_cluster_stats", """
+    (
+        "function:get_cluster_stats",
+        """
         CREATE OR REPLACE FUNCTION get_cluster_stats(p_assignment_id TEXT)
         RETURNS TABLE (
             total_submissions BIGINT, total_clones BIGINT,
@@ -283,7 +361,8 @@ _SCHEMA_DDL: list[tuple[str, str]] = [
             WHERE f.assignment_id = p_assignment_id;
         END;
         $$ LANGUAGE plpgsql
-    """),
+    """,
+    ),
 ]
 
 
@@ -314,8 +393,8 @@ async def lifespan(app: FastAPI):
     logger.info("Starting CIPAS Syntactics Service...")
     logger.info("Loading pre-trained syntactic model...")
 
+    from database import close_db_pool, init_db_pool
     from routes import _get_model_status, _load_syntactic_model
-    from database import init_db_pool, close_db_pool
 
     # Initialize database connection pool and run migrations
     try:
@@ -323,9 +402,7 @@ async def lifespan(app: FastAPI):
         logger.info("Database connection pool initialized successfully")
         await _auto_migrate()
     except Exception as e:
-        logger.warning(
-            f"Failed to initialize database pool: {e}. Running without persistence."
-        )
+        logger.warning(f"Failed to initialize database pool: {e}. Running without persistence.")
 
     # Force load syntactic model
     _load_syntactic_model()
@@ -593,8 +670,7 @@ async def readiness_check():
 
     models = _get_model_status()
     all_models_ready = all(
-        model_status.available and model_status.loaded
-        for model_status in models.values()
+        model_status.available and model_status.loaded for model_status in models.values()
     )
 
     if all_models_ready:
@@ -674,9 +750,7 @@ async def collusion_report_endpoint(
     - ``min_confidence`` — filter out low-confidence edges (e.g. set 0.7 to
       see only high-confidence Type-3 matches).
     """
-    return get_collusion_report(
-        assignment_id=assignment_id, min_confidence=min_confidence
-    )
+    return get_collusion_report(assignment_id=assignment_id, min_confidence=min_confidence)
 
 
 @api_router.get(
@@ -751,9 +825,7 @@ async def cluster_assignment_endpoint(request: AssignmentClusterRequest):
             min_confidence=request.min_confidence,
             processing_time=processing_time,
         )
-        logger.info(
-            "Persisted similarity report for assignment %s", request.assignment_id
-        )
+        logger.info("Persisted similarity report for assignment %s", request.assignment_id)
     except Exception as exc:
         logger.warning(
             "Failed to persist similarity report for %s: %s. Report still returned.",
@@ -858,9 +930,7 @@ async def create_annotation_endpoint(request: CreateAnnotationRequest):
         500: {"description": "Database error"},
     },
 )
-async def update_annotation_endpoint(
-    annotation_id: str, request: UpdateAnnotationRequest
-):
+async def update_annotation_endpoint(annotation_id: str, request: UpdateAnnotationRequest):
     """
     Update an existing instructor annotation.
 
@@ -879,9 +949,7 @@ async def update_annotation_endpoint(
         500: {"description": "Database error"},
     },
 )
-async def get_annotations_for_assignment_endpoint(
-    assignment_id: str, status: str | None = None
-):
+async def get_annotations_for_assignment_endpoint(assignment_id: str, status: str | None = None):
     """
     Get all instructor annotations for an assignment.
 

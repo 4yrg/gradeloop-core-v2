@@ -265,8 +265,8 @@ export default function SpecializationsPage() {
             </TableHeader>
             <TableBody>
               {filtered.map((spec) => (
-                <TableRow 
-                  key={spec.id} 
+                <TableRow
+                  key={spec.id}
                   className="cursor-pointer hover:bg-muted/30 transition-colors"
                   onClick={() => router.push(`/admin/academics/specializations/${spec.id}`)}
                 >

@@ -16,7 +16,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import {
     batchesApi,
 } from '@/lib/api/academics';
-import { handleApiError } from '@/lib/api/axios';
 import { useAcademicsAccess } from '@/lib/hooks/useAcademicsAccess';
 
 interface SectionCard {

@@ -7,10 +7,10 @@ import (
 	"log"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/domain"
 	infra "github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/infrastructure"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/infrastructure/rabbitmq"
+	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 

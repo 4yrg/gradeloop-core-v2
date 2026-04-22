@@ -80,9 +80,9 @@ export function CodeIDE({
   });
 
   // Keystroke biometric capture — only active for real (non-read-only) assignment sessions
-  const sessionId = useRef(
+  const [sessionId] = useState(() =>
     `asgn_${assignmentId ?? "unknown"}_${userId ?? "anon"}_${Date.now()}`
-  ).current;
+  );
   const { handleEditorMount, finalizeSession } = useKeystrokeCapture({
     userId: userId ?? "",
     sessionId,

@@ -5,7 +5,6 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from app.config import get_settings
 from app.schemas.voice import (
     VoiceEnrollmentOut,
-    VoiceProfileOut,
     VoiceProfileStatus,
     VoiceVerifyOut,
 )
