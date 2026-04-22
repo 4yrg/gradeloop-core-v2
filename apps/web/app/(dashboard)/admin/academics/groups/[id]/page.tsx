@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { batchesApi, batchMembersApi } from '@/lib/api/academics';
+import { batchesApi, batchMembersApi, specializationsApi } from '@/lib/api/academics';
 import { usersApi } from '@/lib/api/users';
 import { handleApiError } from '@/lib/api/axios';
 import { toast } from '@/lib/hooks/use-toast';
