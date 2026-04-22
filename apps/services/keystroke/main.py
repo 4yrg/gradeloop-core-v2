@@ -7,6 +7,8 @@ import asyncio
 import json
 import os
 from datetime import datetime
+from pathlib import Path
+from dotenv import load_dotenv
 
 import pika
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
@@ -23,6 +25,26 @@ from db import get_db_client
 from feature_extraction import KeystrokeFeatureExtractor
 from redis_client import get_redis_client
 from typenet_inference import TypeNetAuthenticator
+
+def load_root_env():
+    """Find project root and load environment variables."""
+    path = Path(__file__).resolve()
+    root = None
+    for parent in path.parents:
+        if (parent / "turbo.json").exists() or (parent / "package.json").exists():
+            root = parent
+            break
+    
+    if root:
+        app_env = os.getenv("APP_ENV", "development")
+        load_dotenv(root / f".env.{app_env}")
+        load_dotenv(root / ".env")
+    else:
+        # Fallback to local .env if root not found
+        load_dotenv()
+
+# Load environment variables from project root
+load_root_env()
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -112,7 +134,7 @@ SESSION_TTL_SECONDS = int(os.getenv("SESSION_TTL_HOURS", "2")) * 3600
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
 RABBITMQ_PORT = int(os.getenv("RABBITMQ_PORT", "5672"))
 RABBITMQ_USER = os.getenv("RABBITMQ_USER", "guest")
-RABBITMQ_PASS = os.getenv("RABBITMQ_PASS", "guest")
+RABBITMQ_PASS = os.getenv("RABBITMQ_PASSWORD", "guest")
 RABBITMQ_EXCHANGE = "keystroke.exchange"
 RABBITMQ_ROUTING_KEY = "keystroke.auth.result"
 
@@ -1432,5 +1454,5 @@ async def websocket_monitor(websocket: WebSocket, user_id: str, session_id: str)
 if __name__ == "__main__":
     import uvicorn
 
-    port = int(os.getenv("PORT", 8103))
+    port = int(os.getenv("KEYSTROKE_SVC_PORT", 8103))
     uvicorn.run(app, host="0.0.0.0", port=port)

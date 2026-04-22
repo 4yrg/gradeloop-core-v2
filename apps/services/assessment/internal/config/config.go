@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/joho/godotenv"
+	"github.com/4yrg/gradeloop-core-v2/packages/go/env"
 )
 
 // Config holds all configuration for the assessment service.
@@ -84,24 +84,20 @@ type Judge0Config struct {
 // Load reads configuration from environment variables, falling back to
 // sensible defaults. A missing .env file is silently ignored.
 func Load() (*Config, error) {
-	if err := godotenv.Load(); err != nil {
-		if !os.IsNotExist(err) {
-			return nil, fmt.Errorf("loading .env file: %w", err)
-		}
-	}
+	env.Load()
 
 	return &Config{
 		Server: ServerConfig{
-			Port:          getEnv("SERVER_PORT", "8084"),
+			Port:          getEnv("ASSESSMENT_SVC_PORT", "8084"),
 			EnablePrefork: getEnvAsBool("ENABLE_PREFORK", false),
 		},
 		Database: DatabaseConfig{
-			Host:     getEnv("DB_HOST", "localhost"),
-			Port:     getEnv("DB_PORT", "5432"),
-			User:     getEnv("DB_USER", "postgres"),
-			Password: getEnv("DB_PASSWORD", ""),
-			Name:     getEnv("DB_NAME", "assessment_db"),
-			SSLMode:  getEnv("DB_SSLMODE", "disable"),
+			Host:     getEnv("GRA_DB_HOST", "localhost"),
+			Port:     getEnv("GRA_DB_PORT", "5432"),
+			User:     getEnv("GRA_DB_USER", "postgres"),
+			Password: getEnv("GRA_DB_PASSWORD", ""),
+			Name:     getEnv("ASSESSMENT_SVC_DB_NAME", "assessment_db"),
+			SSLMode:  getEnv("GRA_DB_SSLMODE", "disable"),
 		},
 		JWT: JWTConfig{
 			SecretKey: getEnv("JWT_SECRET_KEY", ""),

@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/gofiber/fiber/v3 v3.0.0-rc.1
 	github.com/joho/godotenv v1.5.1
+	github.com/4yrg/gradeloop-core-v2/packages/go/env v1.0.0
 	go.uber.org/zap v1.26.0
 )
 
@@ -17,6 +18,8 @@ replace github.com/4yrg/gradeloop-core-v2/packages/go/errors => ../../../package
 replace github.com/4yrg/gradeloop-core-v2/packages/go/secrets => ../../../packages/go/secrets
 
 replace github.com/4yrg/gradeloop-core-v2/packages/go/grpc => ../../../packages/go/grpc
+
+replace github.com/4yrg/gradeloop-core-v2/packages/go/env => ../../../packages/go/env
 
 require (
 	github.com/andybalholm/brotli v1.2.0 // indirect

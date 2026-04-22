@@ -3,6 +3,7 @@ module github.com/4yrg/gradeloop-core-v2/apps/services/academic
 go 1.25.0
 
 require (
+	github.com/4yrg/gradeloop-core-v2/packages/go/env v1.0.0
 	github.com/gofiber/fiber/v3 v3.0.0-rc.1
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
@@ -24,6 +25,8 @@ replace github.com/4yrg/gradeloop-core-v2/packages/go/errors => ../../../package
 replace github.com/4yrg/gradeloop-core-v2/packages/go/secrets => ../../../packages/go/secrets
 
 replace github.com/4yrg/gradeloop-core-v2/packages/go/grpc => ../../../packages/go/grpc
+
+replace github.com/4yrg/gradeloop-core-v2/packages/go/env => ../../../packages/go/env
 
 require (
 	github.com/KyleBanks/depth v1.2.1 // indirect

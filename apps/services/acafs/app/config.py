@@ -1,9 +1,19 @@
 """Configuration management for ACAFS Engine."""
 
+import os
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field, PostgresDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+def get_root_path() -> Path:
+    """Find project root."""
+    path = Path(__file__).resolve()
+    for parent in path.parents:
+        if (parent / "turbo.json").exists() or (parent / "package.json").exists():
+            return parent
+    return path.parents[3] # Fallback to 3 levels up from app/config.py
 
 
 class Settings(BaseSettings):
@@ -16,17 +26,20 @@ class Settings(BaseSettings):
     """
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=[
+            get_root_path() / f".env.{os.getenv('APP_ENV', 'development')}",
+            get_root_path() / ".env",
+        ],
         env_file_encoding="utf-8",
         extra="ignore",
     )
 
     # Service
     service_name: str = Field(default="acafs-service", alias="SERVICE_NAME")
-    service_port: int = Field(default=8102, alias="SERVICE_PORT")
+    service_port: int = Field(default=8102, alias="ACAFS_SVC_PORT")
     service_host: str = Field(default="0.0.0.0", alias="SERVICE_HOST")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
-    environment: str = Field(default="development", alias="ENVIRONMENT")
+    environment: str = Field(default="development", alias="APP_ENV")
 
     # RabbitMQ
     rabbitmq_url: str = Field(
@@ -44,7 +57,7 @@ class Settings(BaseSettings):
     # PostgreSQL
     database_url: PostgresDsn = Field(
         default="postgresql://postgres:postgres@localhost:5432/acafs_db",
-        alias="DATABASE_URL",
+        alias="ACAFS_DATABASE_URL",
     )
 
     # MinIO

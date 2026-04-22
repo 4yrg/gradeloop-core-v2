@@ -10,6 +10,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pathlib import Path
+from dotenv import load_dotenv
 
 from src.models import AIDetectionModel
 from src.schemas import CodeSnippetRequest, AIDetectionResponse, HealthResponse
@@ -20,6 +22,26 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+def load_root_env():
+    """Find project root and load environment variables."""
+    path = Path(__file__).resolve()
+    root = None
+    for parent in path.parents:
+        if (parent / "turbo.json").exists() or (parent / "package.json").exists():
+            root = parent
+            break
+    
+    if root:
+        app_env = os.getenv("APP_ENV", "development")
+        load_dotenv(root / f".env.{app_env}")
+        load_dotenv(root / ".env")
+    else:
+        # Fallback to local .env if root not found
+        load_dotenv()
+
+# Load environment variables from project root
+load_root_env()
 
 
 # Global model instance
@@ -152,11 +174,11 @@ if __name__ == "__main__":
     import uvicorn
 
     host = os.getenv("CIPAS_AI_HOST", "0.0.0.0")
-    port = int(os.getenv("CIPAS_AI_PORT", "8104"))
+    port = int(os.getenv("CIPAS_AI_SVC_PORT", os.getenv("CIPAS_AI_PORT", "8104")))
 
     uvicorn.run(
         "main:app",
         host=host,
         port=port,
-        reload=os.getenv("ENVIRONMENT", "production") == "development",
+        reload=os.getenv("APP_ENV", "production") == "development",
     )

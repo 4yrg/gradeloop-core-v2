@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/joho/godotenv"
+	"github.com/4yrg/gradeloop-core-v2/packages/go/env"
 )
 
 type Config struct {
@@ -31,8 +31,7 @@ type LLMConfig struct {
 
 // Load loads configuration from environment variables
 func Load() (*Config, error) {
-	// Load .env file if it exists
-	_ = godotenv.Load()
+	env.Load()
 
 	cfg := &Config{
 		Server: ServerConfig{

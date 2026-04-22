@@ -24,7 +24,7 @@ class RedisSessionClient:
             redis_url: Redis connection string (from env if not provided)
             session_ttl: Session TTL in seconds (default 2 hours)
         """
-        self.redis_url = redis_url or os.getenv("REDIS_URL", "redis://localhost:6379")
+        self.redis_url = redis_url or os.getenv("KEYSTROKE_REDIS_URL", "redis://localhost:6379")
         self.session_ttl = session_ttl
 
         try:

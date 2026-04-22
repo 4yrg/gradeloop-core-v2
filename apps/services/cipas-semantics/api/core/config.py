@@ -6,6 +6,27 @@ import os
 from pathlib import Path
 
 import torch
+from dotenv import load_dotenv
+
+def load_root_env():
+    """Find project root and load environment variables."""
+    path = Path(__file__).resolve()
+    root = None
+    for parent in path.parents:
+        if (parent / "turbo.json").exists() or (parent / "package.json").exists():
+            root = parent
+            break
+    
+    if root:
+        app_env = os.getenv("APP_ENV", "development")
+        load_dotenv(root / f".env.{app_env}")
+        load_dotenv(root / ".env")
+    else:
+        # Fallback to local .env if root not found
+        load_dotenv()
+
+# Load environment variables from project root
+load_root_env()
 
 
 class Settings:
@@ -20,7 +41,7 @@ class Settings:
 
     # Server Settings
     HOST: str = os.getenv("API_HOST", "0.0.0.0")
-    PORT: int = int(os.getenv("API_PORT", "8105"))
+    PORT: int = int(os.getenv("CIPAS_SEM_SVC_PORT", os.getenv("API_PORT", "8105")))
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
 
     # Model Settings

@@ -7,6 +7,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
+	github.com/4yrg/gradeloop-core-v2/packages/go/env v1.0.0
 	github.com/minio/minio-go/v7 v7.0.98
 	github.com/rabbitmq/amqp091-go v1.10.0
 	go.uber.org/zap v1.27.0
@@ -24,6 +25,8 @@ replace github.com/4yrg/gradeloop-core-v2/packages/go/errors => ../../../package
 replace github.com/4yrg/gradeloop-core-v2/packages/go/secrets => ../../../packages/go/secrets
 
 replace github.com/4yrg/gradeloop-core-v2/packages/go/grpc => ../../../packages/go/grpc
+
+replace github.com/4yrg/gradeloop-core-v2/packages/go/env => ../../../packages/go/env
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect

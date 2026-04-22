@@ -5,7 +5,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/joho/godotenv"
+	"github.com/4yrg/gradeloop-core-v2/packages/go/env"
 )
 
 type Config struct {
@@ -36,26 +36,22 @@ type JWTConfig struct {
 }
 
 func Load() (*Config, error) {
-	if err := godotenv.Load(); err != nil {
-		if !os.IsNotExist(err) {
-			return nil, fmt.Errorf("loading .env file: %w", err)
-		}
-	}
+	env.Load()
 
-	dbPort := getEnv("DB_PORT", "5432")
-	dbSSLMode := getEnv("DB_SSLMODE", "disable")
+	dbPort := getEnv("GRA_DB_PORT", "5432")
+	dbSSLMode := getEnv("GRA_DB_SSLMODE", "disable")
 
 	return &Config{
 		Server: ServerConfig{
-			Port:          getEnv("SERVER_PORT", "8083"),
+			Port:          getEnv("ACADEMIC_SVC_PORT", "8083"),
 			EnablePrefork: getEnvAsBool("ENABLE_PREFORK", false),
 		},
 		Database: DatabaseConfig{
-			Host:     getEnv("DB_HOST", "localhost"),
+			Host:     getEnv("GRA_DB_HOST", "localhost"),
 			Port:     dbPort,
-			User:     getEnv("DB_USER", "postgres"),
-			Password: getEnv("DB_PASSWORD", ""),
-			Name:     getEnv("DB_NAME", "academic_db"),
+			User:     getEnv("GRA_DB_USER", "postgres"),
+			Password: getEnv("GRA_DB_PASSWORD", ""),
+			Name:     getEnv("ACADEMIC_SVC_DB_NAME", "academic_db"),
 			SSLMode:  dbSSLMode,
 		},
 		JWT: JWTConfig{

@@ -3,6 +3,7 @@ module github.com/4yrg/gradeloop-core-v2/apps/services/email
 go 1.25.0
 
 require (
+	github.com/4yrg/gradeloop-core-v2/packages/go/env v1.0.0
 	github.com/gofiber/fiber/v3 v3.0.0
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
@@ -22,6 +23,8 @@ replace github.com/4yrg/gradeloop-core-v2/packages/go/errors => ../../../package
 replace github.com/4yrg/gradeloop-core-v2/packages/go/secrets => ../../../packages/go/secrets
 
 replace github.com/4yrg/gradeloop-core-v2/packages/go/grpc => ../../../packages/go/grpc
+
+replace github.com/4yrg/gradeloop-core-v2/packages/go/env => ../../../packages/go/env
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
