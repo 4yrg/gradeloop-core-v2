@@ -123,19 +123,21 @@ jobs:
     name: SonarQube Scan
     runs-on: ubuntu-latest
     needs: [go-checks, node-checks, python-checks]
-    if: github.event_name == 'pull_request' && secrets.SONAR_HOST_URL != ''
+    if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: SonarQube Scan
+        if: secrets.SONAR_HOST_URL != ''
         uses: SonarSource/sonarqube-scan-action@v4
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
       - name: SonarQube Quality Gate
+        if: secrets.SONAR_HOST_URL != ''
         uses: SonarSource/sonarqube-quality-gate-action@v1
         timeout-minutes: 5
         env:
