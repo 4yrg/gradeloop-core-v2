@@ -61,7 +61,6 @@ jobs:
   login-ghcr:
     name: Login to GitHub Container Registry
     runs-on: ubuntu-latest
-    needs: [prepare-build]
     outputs:
       ghcr_prefix: ${{ steps.meta.outputs.ghcr_prefix }}
     steps:
@@ -83,7 +82,7 @@ jobs:
   build-go-services:
     name: Build Go Services
     runs-on: ubuntu-latest
-    needs: [prepare-build, login-ghcr]
+    needs: [login-ghcr]
     strategy:
       fail-fast: true
       matrix:
@@ -105,7 +104,7 @@ jobs:
         id: meta
         run: |
           ghcr_prefix="${{ needs.login-ghcr.outputs.ghcr_prefix }}"
-          short_sha="${{ needs.prepare-build.outputs.short_sha }}"
+          short_sha="${{ github.sha }}"
           full_tag="ghcr.io/${ghcr_prefix}/gradeloop-${{ matrix.service }}"
           echo "full_tag=$full_tag"
           echo "full_tag=$full_tag" >> $GITHUB_OUTPUT
@@ -132,7 +131,7 @@ jobs:
   build-python-services:
     name: Build Python Services
     runs-on: ubuntu-latest
-    needs: [prepare-build, login-ghcr]
+    needs: [login-ghcr]
     strategy:
       fail-fast: true
       matrix:
@@ -163,7 +162,7 @@ jobs:
         id: meta
         run: |
           ghcr_prefix="${{ needs.login-ghcr.outputs.ghcr_prefix }}"
-          short_sha="${{ needs.prepare-build.outputs.short_sha }}"
+          short_sha="${{ github.sha }}"
           full_tag="ghcr.io/${ghcr_prefix}/gradeloop-${{ matrix.service }}"
           echo "full_tag=$full_tag"
           echo "full_tag=$full_tag" >> $GITHUB_OUTPUT
@@ -190,7 +189,7 @@ jobs:
   build-web:
     name: Build Web Frontend
     runs-on: ubuntu-latest
-    needs: [prepare-build, login-ghcr]
+    needs: [login-ghcr]
     steps:
       - uses: actions/checkout@v4
 
@@ -205,7 +204,7 @@ jobs:
         id: meta
         run: |
           ghcr_prefix="${{ needs.login-ghcr.outputs.ghcr_prefix }}"
-          short_sha="${{ needs.prepare-build.outputs.short_sha }}"
+          short_sha="${{ github.sha }}"
           full_tag="ghcr.io/${ghcr_prefix}/gradeloop-web"
           echo "full_tag=$full_tag"
           echo "full_tag=$full_tag" >> $GITHUB_OUTPUT
@@ -234,7 +233,7 @@ jobs:
   build-gateway:
     name: Build API Gateway
     runs-on: ubuntu-latest
-    needs: [prepare-build, login-ghcr]
+    needs: [login-ghcr]
     steps:
       - uses: actions/checkout@v4
 
@@ -249,7 +248,7 @@ jobs:
         id: meta
         run: |
           ghcr_prefix="${{ needs.login-ghcr.outputs.ghcr_prefix }}"
-          short_sha="${{ needs.prepare-build.outputs.short_sha }}"
+          short_sha="${{ github.sha }}"
           full_tag="ghcr.io/${ghcr_prefix}/gradeloop-kong"
           echo "full_tag=$full_tag"
           echo "full_tag=$full_tag" >> $GITHUB_OUTPUT
@@ -264,12 +263,12 @@ jobs:
       - name: Tag gateway image
         run: |
           docker tag kong:3.4-alpine ${{ steps.meta.outputs.full_tag }}:latest
-          docker tag kong:3.4-alpine ${{ steps.meta.outputs.full_tag }}:sha-${{ needs.prepare-build.outputs.short_sha }}
+          docker tag kong:3.4-alpine ${{ steps.meta.outputs.full_tag }}:sha-${{ github.sha }}
 
       - name: Push gateway image
         run: |
           docker push ${{ steps.meta.outputs.full_tag }}:latest
-          docker push ${{ steps.meta.outputs.full_tag }}:sha-${{ needs.prepare-build.outputs.short_sha }}
+          docker push ${{ steps.meta.outputs.full_tag }}:sha-${{ github.sha }}
 
   # --------------------------------------------------------------------------
   # Build summary
@@ -277,14 +276,7 @@ jobs:
   build-complete:
     name: Build Complete
     runs-on: ubuntu-latest
-    needs:
-      [
-        build-go-services,
-        build-python-services,
-        build-web,
-        build-gateway,
-        prepare-build,
-      ]
+    needs: [login-ghcr]
     steps:
       - name: Summary
         run: |
@@ -294,21 +286,21 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Service | Image |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| iam | ghcr.io/${{ needs.prepare-build.outputs.ghcr_prefix }}/gradeloop-iam |" >> $GITHUB_STEP_SUMMARY
-          echo "| email | ghcr.io/${{ needs.prepare-build.outputs.ghcr_prefix }}/gradeloop-email |" >> $GITHUB_STEP_SUMMARY
-          echo "| academic | ghcr.io/${{ needs.prepare-build.outputs.ghcr_prefix }}/gradeloop-academic |" >> $GITHUB_STEP_SUMMARY
-          echo "| assessment | ghcr.io/${{ needs.prepare-build.outputs.ghcr_prefix }}/gradeloop-assessment |" >> $GITHUB_STEP_SUMMARY
-          echo "| cipas-xai | ghcr.io/${{ needs.prepare-build.outputs.ghcr_prefix }}/gradeloop-cipas-xai |" >> $GITHUB_STEP_SUMMARY
-          echo "| ivas | ghcr.io/${{ needs.prepare-build.outputs.ghcr_prefix }}/gradeloop-ivas |" >> $GITHUB_STEP_SUMMARY
-          echo "| acafs | ghcr.io/${{ needs.prepare-build.outputs.ghcr_prefix }}/gradeloop-acafs |" >> $GITHUB_STEP_SUMMARY
-          echo "| keystroke | ghcr.io/${{ needs.prepare-build.outputs.ghcr_prefix }}/gradeloop-keystroke |" >> $GITHUB_STEP_SUMMARY
-          echo "| cipas-ai | ghcr.io/${{ needs.prepare-build.outputs.ghcr_prefix }}/gradeloop-cipas-ai |" >> $GITHUB_STEP_SUMMARY
-          echo "| cipas-semantics | ghcr.io/${{ needs.prepare-build.outputs.ghcr_prefix }}/gradeloop-cipas-semantics |" >> $GITHUB_STEP_SUMMARY
-          echo "| cipas-syntactics | ghcr.io/${{ needs.prepare-build.outputs.ghcr_prefix }}/gradeloop-cipas-syntactics |" >> $GITHUB_STEP_SUMMARY
-          echo "| web | ghcr.io/${{ needs.prepare-build.outputs.ghcr_prefix }}/gradeloop-web |" >> $GITHUB_STEP_SUMMARY
-          echo "| kong | ghcr.io/${{ needs.prepare-build.outputs.ghcr_prefix }}/gradeloop-kong |" >> $GITHUB_STEP_SUMMARY
+          echo "| iam | ghcr.io/${{ needs.login-ghcr.outputs.ghcr_prefix }}/gradeloop-iam |" >> $GITHUB_STEP_SUMMARY
+          echo "| email | ghcr.io/${{ needs.login-ghcr.outputs.ghcr_prefix }}/gradeloop-email |" >> $GITHUB_STEP_SUMMARY
+          echo "| academic | ghcr.io/${{ needs.login-ghcr.outputs.ghcr_prefix }}/gradeloop-academic |" >> $GITHUB_STEP_SUMMARY
+          echo "| assessment | ghcr.io/${{ needs.login-ghcr.outputs.ghcr_prefix }}/gradeloop-assessment |" >> $GITHUB_STEP_SUMMARY
+          echo "| cipas-xai | ghcr.io/${{ needs.login-ghcr.outputs.ghcr_prefix }}/gradeloop-cipas-xai |" >> $GITHUB_STEP_SUMMARY
+          echo "| ivas | ghcr.io/${{ needs.login-ghcr.outputs.ghcr_prefix }}/gradeloop-ivas |" >> $GITHUB_STEP_SUMMARY
+          echo "| acafs | ghcr.io/${{ needs.login-ghcr.outputs.ghcr_prefix }}/gradeloop-acafs |" >> $GITHUB_STEP_SUMMARY
+          echo "| keystroke | ghcr.io/${{ needs.login-ghcr.outputs.ghcr_prefix }}/gradeloop-keystroke |" >> $GITHUB_STEP_SUMMARY
+          echo "| cipas-ai | ghcr.io/${{ needs.login-ghcr.outputs.ghcr_prefix }}/gradeloop-cipas-ai |" >> $GITHUB_STEP_SUMMARY
+          echo "| cipas-semantics | ghcr.io/${{ needs.login-ghcr.outputs.ghcr_prefix }}/gradeloop-cipas-semantics |" >> $GITHUB_STEP_SUMMARY
+          echo "| cipas-syntactics | ghcr.io/${{ needs.login-ghcr.outputs.ghcr_prefix }}/gradeloop-cipas-syntactics |" >> $GITHUB_STEP_SUMMARY
+          echo "| web | ghcr.io/${{ needs.login-ghcr.outputs.ghcr_prefix }}/gradeloop-web |" >> $GITHUB_STEP_SUMMARY
+          echo "| kong | ghcr.io/${{ needs.login-ghcr.outputs.ghcr_prefix }}/gradeloop-kong |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Tags: \`latest\`, \`sha-${{ needs.prepare-build.outputs.short_sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "Tags: \`latest\`, \`sha-${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
 
   # =============================================================================
   # Phase 3: Deploy to Hetzner
@@ -317,7 +309,7 @@ jobs:
   deploy:
     name: Deploy to Hetzner
     runs-on: ubuntu-latest
-    needs: [build-complete, prepare-build]
+    needs: [build-complete, login-ghcr]
     if: github.event_name != 'workflow_dispatch' || github.event.inputs.runtime == 'docker'
     environment:
       name: production
@@ -417,7 +409,7 @@ jobs:
   deploy-podman:
     name: Deploy to Hetzner (Podman)
     runs-on: ubuntu-latest
-    needs: [build-complete, prepare-build]
+    needs: [build-complete, login-ghcr]
     if: github.event.inputs.runtime == 'podman'
     environment:
       name: production
