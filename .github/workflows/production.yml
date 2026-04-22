@@ -298,8 +298,8 @@ jobs:
       - name: Build and push web
         uses: docker/build-push-action@v6
         with:
-          context: .
-          dockerfile: apps/web/Dockerfile
+          context: apps/web
+          file: Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
