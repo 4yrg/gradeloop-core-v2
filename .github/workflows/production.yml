@@ -38,22 +38,63 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Login to GHCR
-        uses: docker/login-action@v3
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          go-version: "1.25"
+          cache: true
+          cache-dependency-path: apps/services/**/go.sum
 
-      - name: Generate image tags
-        id: meta
+      - name: Run gofmt, go vet, go mod tidy (per module)
+        shell: bash
         run: |
-          short_sha="${GITHUB_SHA:0:8}"
-          ghcr_prefix="${{ env.GHCR_PACKAGE_PREFIX }}"
-          echo "short_sha=$short_sha" >> $GITHUB_OUTPUT
-          echo "ghcr_prefix=$ghcr_prefix" >> $GITHUB_OUTPUT
-          echo "short_sha: $short_sha"
-          echo "GHCR prefix: $ghcr_prefix"
+          set -euo pipefail
+
+          mapfile -t modules < <(find apps/services -name go.mod -print0 2>/dev/null | xargs -0 -n1 dirname | sort)
+
+          if [ "${#modules[@]}" -eq 0 ]; then
+            echo "No Go modules found"
+            exit 0
+          fi
+
+          for m in "${modules[@]}"; do
+            echo "===> Module: $m"
+
+            unformatted=$(gofmt -l "$m")
+            if [ -n "$unformatted" ]; then
+              echo "ERROR: Unformatted files found:"
+              echo "$unformatted"
+              exit 1
+            fi
+
+            if ! go vet "./$m/..." 2>/dev/null; then
+              echo "ERROR: go vet failed"
+              exit 1
+            fi
+
+            if ! go mod tidy -diff 2>/dev/null; then
+              echo "ERROR: go mod tidy would make changes"
+              exit 1
+            fi
+          done
+
+  # --------------------------------------------------------------------------
+  node-checks:
+    name: Node/Bun Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run lint
+        run: bun run lint
 
   # --------------------------------------------------------------------------
   # Login to GHCR (once for all build jobs)
@@ -82,7 +123,7 @@ jobs:
   build-go-services:
     name: Build Go Services
     runs-on: ubuntu-latest
-    needs: [login-ghcr]
+    needs: [login-ghcr, go-checks, node-checks]
     strategy:
       fail-fast: true
       matrix:
@@ -125,6 +166,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha,scope=${{ matrix.service }}
@@ -138,7 +180,7 @@ jobs:
   build-python-services:
     name: Build Python Services
     runs-on: ubuntu-latest
-    needs: [login-ghcr]
+    needs: [login-ghcr, go-checks, node-checks]
     strategy:
       fail-fast: true
       matrix:
@@ -183,6 +225,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha,scope=${{ matrix.service }}
@@ -196,7 +239,7 @@ jobs:
   build-web:
     name: Build Web Frontend
     runs-on: ubuntu-latest
-    needs: [login-ghcr]
+    needs: [login-ghcr, go-checks, node-checks]
     steps:
       - uses: actions/checkout@v4
 
@@ -224,23 +267,21 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: apps/web
-          file: Dockerfile
+          file: apps/web/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          build-args: |
-            NEXT_PUBLIC_API_URL=https://api.gradeloop.example.com
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web
           provenance: true
           sbom: true
 
   # --------------------------------------------------------------------------
-  # Build API gateway (Kong)
+  # Build Kong gateway image
   # --------------------------------------------------------------------------
   build-gateway:
-    name: Build API Gateway
+    name: Build Kong Gateway
     runs-on: ubuntu-latest
-    needs: [login-ghcr]
+    needs: [login-ghcr, go-checks, node-checks]
     steps:
       - uses: actions/checkout@v4
 
@@ -283,7 +324,7 @@ jobs:
   build-complete:
     name: Build Complete
     runs-on: ubuntu-latest
-    needs: [login-ghcr]
+    needs: [login-ghcr, build-go-services, build-python-services, build-web, build-gateway]
     steps:
       - name: Summary
         run: |
@@ -308,7 +349,6 @@ jobs:
           echo "| kong | ghcr.io/${{ needs.login-ghcr.outputs.ghcr_prefix }}/gradeloop-kong |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Tags: \`latest\`, \`sha-${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-
   # =============================================================================
   # Phase 3: Deploy to Hetzner
   # =============================================================================
@@ -316,7 +356,7 @@ jobs:
   deploy:
     name: Deploy to Hetzner
     runs-on: ubuntu-latest
-    needs: [build-complete, login-ghcr]
+    needs: [build-complete, build-go-services, build-python-services, build-web, build-gateway]
     if: github.event_name != 'workflow_dispatch' || github.event.inputs.runtime == 'docker'
     environment:
       name: production
@@ -412,11 +452,11 @@ jobs:
             echo "--- Deployment Complete ---"
             echo "Commit: $SHORT_SHA"
             echo "Deployed at: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
-
+            
   deploy-podman:
     name: Deploy to Hetzner (Podman)
     runs-on: ubuntu-latest
-    needs: [build-complete, login-ghcr]
+    needs: [build-complete, build-go-services, build-python-services, build-web, build-gateway]
     if: github.event.inputs.runtime == 'podman'
     environment:
       name: production
