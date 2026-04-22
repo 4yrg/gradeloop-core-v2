@@ -6,11 +6,8 @@ import os
 from pathlib import Path
 
 import torch
-from dotenv import load_dotenv
 
 from env_utils.env_utils import load_root_env
-
-
 
 
 # Load environment variables from project root

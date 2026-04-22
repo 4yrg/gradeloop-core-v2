@@ -3,8 +3,8 @@ package config
 import (
 	"fmt"
 	"os"
-	"strings"
 	"strconv"
+	"strings"
 
 	"github.com/4yrg/gradeloop-core-v2/packages/go/env"
 )

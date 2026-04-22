@@ -7,13 +7,10 @@ import asyncio
 import json
 import os
 from datetime import datetime
-from pathlib import Path
 
 import pika
-from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
-
 from env_utils.env_utils import load_root_env
+from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from psycopg2 import extras
 from pydantic import BaseModel, ConfigDict
@@ -27,9 +24,6 @@ from db import get_db_client
 from feature_extraction import KeystrokeFeatureExtractor
 from redis_client import get_redis_client
 from typenet_inference import TypeNetAuthenticator
-
-
-
 
 # Load environment variables from project root
 load_root_env()
