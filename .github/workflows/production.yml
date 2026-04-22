@@ -204,7 +204,7 @@ jobs:
           full_tag="ghcr.io/${ghcr_prefix}/gradeloop-${{ matrix.service }}"
           echo "full_tag=$full_tag"
           echo "full_tag=$full_tag" >> $GITHUB_OUTPUT
-          echo "tags=--tag ${full_tag}:latest --tag ${full_tag}:sha-${short_sha}" >> $GITHUB_OUTPUT
+          echo "tags=${full_tag}:latest,${full_tag}:sha-${short_sha}" >> $GITHUB_OUTPUT
           echo "images=$full_tag" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
@@ -255,7 +255,7 @@ jobs:
           full_tag="ghcr.io/${ghcr_prefix}/gradeloop-${{ matrix.service }}"
           echo "full_tag=$full_tag"
           echo "full_tag=$full_tag" >> $GITHUB_OUTPUT
-          echo "tags=--tag ${full_tag}:latest --tag ${full_tag}:sha-${short_sha}" >> $GITHUB_OUTPUT
+          echo "tags=${full_tag}:latest,${full_tag}:sha-${short_sha}" >> $GITHUB_OUTPUT
           echo "images=$full_tag" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
@@ -290,7 +290,7 @@ jobs:
           full_tag="ghcr.io/${ghcr_prefix}/gradeloop-web"
           echo "full_tag=$full_tag"
           echo "full_tag=$full_tag" >> $GITHUB_OUTPUT
-          echo "tags=--tag ${full_tag}:latest --tag ${full_tag}:sha-${short_sha}" >> $GITHUB_OUTPUT
+          echo "tags=${full_tag}:latest,${full_tag}:sha-${short_sha}" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -327,7 +327,7 @@ jobs:
           full_tag="ghcr.io/${ghcr_prefix}/gradeloop-kong"
           echo "full_tag=$full_tag"
           echo "full_tag=$full_tag" >> $GITHUB_OUTPUT
-          echo "tags=--tag ${full_tag}:latest --tag ${full_tag}:sha-${short_sha}" >> $GITHUB_OUTPUT
+          echo "tags=${full_tag}:latest,${full_tag}:sha-${short_sha}" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
