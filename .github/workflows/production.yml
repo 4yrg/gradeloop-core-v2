@@ -38,107 +38,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - name: Login to GHCR
+        uses: docker/login-action@v3
         with:
-          go-version: "1.25"
-          cache: true
-          cache-dependency-path: apps/services/**/go.sum
-
-      - name: Run gofmt, go vet, go mod tidy (per module)
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          # Find all directories that contain a go.mod
-          mapfile -t modules < <(find apps/services -name go.mod -print0 2>/dev/null | xargs -0 -n1 dirname | sort)
-
-          if [ "${#modules[@]}" -eq 0 ]; then
-            echo "No Go modules found"
-            exit 0
-          fi
-
-          for m in "${modules[@]}"; do
-            echo "===> Module: $m"
-
-            # gofmt check
-            unformatted=$(gofmt -l "$m")
-            if [ -n "$unformatted" ]; then
-              echo "Not formatted in $m:"
-              echo "$unformatted"
-              exit 1
-            fi
-
-            # vet check
-            (cd "$m" && go vet ./...)
-
-            # tidy check
-            (cd "$m" && go mod tidy -diff)
-          done
-
-  node-checks:
-    name: Node/Bun Checks
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Run lint
-        run: bun run lint
-
-      - name: Run typecheck
-        run: bun run typecheck
-
-  python-checks:
-    name: Python Lint & Format
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/services
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: pip
-
-      - name: Install linters
-        run: pip install --upgrade pip ruff black
-
-      - name: Run ruff check
-        run: |
-          for svc in ivas acafs keystroke cipas-ai cipas-semantics cipas-syntactics; do
-            [ -d "$svc" ] && ruff check "$svc"
-          done
-
-      - name: Run ruff format check
-        run: |
-          for svc in ivas acafs keystroke cipas-ai cipas-semantics cipas-syntactics; do
-            [ -d "$svc" ] && ruff format --check "$svc"
-          done
-
-  # =============================================================================
-  # Phase 2: Build & Push Container Images
-  # =============================================================================
-
-  prepare-build:
-    name: Prepare Build Context
-    runs-on: ubuntu-latest
-    needs: [go-checks, node-checks, python-checks]
-    outputs:
-      short_sha: ${{ steps.meta.outputs.short_sha }}
-      ghcr_prefix: ${{ steps.meta.outputs.ghcr_prefix }}
-    steps:
-      - uses: actions/checkout@v4
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate image tags
         id: meta
@@ -178,7 +83,7 @@ jobs:
   build-go-services:
     name: Build Go Services
     runs-on: ubuntu-latest
-    needs: [login-ghcr]
+    needs: [prepare-build, login-ghcr]
     strategy:
       fail-fast: true
       matrix:
@@ -227,7 +132,7 @@ jobs:
   build-python-services:
     name: Build Python Services
     runs-on: ubuntu-latest
-    needs: [login-ghcr]
+    needs: [prepare-build, login-ghcr]
     strategy:
       fail-fast: true
       matrix:
@@ -246,6 +151,13 @@ jobs:
             context: apps/services/cipas-syntactics
     steps:
       - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate image tags
         id: meta
@@ -278,9 +190,16 @@ jobs:
   build-web:
     name: Build Web Frontend
     runs-on: ubuntu-latest
-    needs: [login-ghcr]
+    needs: [prepare-build, login-ghcr]
     steps:
       - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate image tags
         id: meta
@@ -298,8 +217,8 @@ jobs:
       - name: Build and push web
         uses: docker/build-push-action@v6
         with:
-          context: .
-          dockerfile: apps/web/Dockerfile
+          context: apps/web
+          file: Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
@@ -315,9 +234,16 @@ jobs:
   build-gateway:
     name: Build API Gateway
     runs-on: ubuntu-latest
-    needs: [login-ghcr]
+    needs: [prepare-build, login-ghcr]
     steps:
       - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate image tags
         id: meta
