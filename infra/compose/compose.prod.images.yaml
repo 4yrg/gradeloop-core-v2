@@ -102,7 +102,7 @@ services:
       start_period: 10s
 
   seaweed:
-    image: docker.io/seaweedfs/seaweedfs:3.71
+    image: chrislusf/seaweedfs:3.71
     <<: *ghcr_image
     container_name: gradeloop-seaweed
     restart: unless-stopped
