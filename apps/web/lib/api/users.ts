@@ -7,6 +7,8 @@ import type {
   UpdateUserRequest,
   CreateUserResponse,
   UpdateUserResponse,
+  BulkImportPreviewResponse,
+  BulkImportExecuteResponse,
 } from "@/types/admin.types";
 
 export type PaginatedUsers = PaginatedResponse<UserListItem>;
@@ -155,10 +157,10 @@ export const usersApi = {
   },
 
   /** POST /users/import/preview */
-  importPreview: async (file: File): Promise<unknown> => {
+  importPreview: async (file: File): Promise<BulkImportPreviewResponse> => {
     const formData = new FormData();
     formData.append("file", file);
-    const { data } = await axiosInstance.post(
+    const { data } = await axiosInstance.post<BulkImportPreviewResponse>(
       "/users/import/preview",
       formData,
       {
@@ -172,11 +174,11 @@ export const usersApi = {
   importExecute: async (
     file: File,
     mapping: Record<string, string>,
-  ): Promise<unknown> => {
+  ): Promise<BulkImportExecuteResponse> => {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("column_mapping", JSON.stringify(mapping));
-    const { data } = await axiosInstance.post(
+    const { data } = await axiosInstance.post<BulkImportExecuteResponse>(
       "/users/import/execute",
       formData,
       {
