@@ -16,6 +16,8 @@ import {
   AlertTriangle,
   ChevronRight,
   CalendarDays,
+  CheckCircle2,
+  XCircle,
   Settings,
   Save,
   Loader2,
