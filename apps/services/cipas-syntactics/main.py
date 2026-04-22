@@ -78,7 +78,7 @@ def load_root_env():
             break
 
     if root:
-        app_env = os.Getenv("APP_ENV", "development")
+        app_env = os.getenv("APP_ENV", "development")
         load_dotenv(root / f".env.{app_env}")
         load_dotenv(root / ".env")
     else:

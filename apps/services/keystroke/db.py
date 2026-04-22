@@ -31,7 +31,7 @@ class DatabaseClient:
             min_conn: Minimum connections in pool
             max_conn: Maximum connections in pool
         """
-        self.database_url = database_url or os.getenv("KEYSTROKE_DATABASE_URL")
+        self.database_url = database_url or os.getenv("KEYSTROKE_DATABASE_URL") or os.getenv("DATABASE_URL")
 
         if not self.database_url:
             print("⚠️  DATABASE_URL not configured - database features disabled")

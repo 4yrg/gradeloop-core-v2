@@ -8,6 +8,7 @@ import (
 	"github.com/4yrg/gradeloop-core-v2/packages/go/env"
 )
 
+// Config holds all configuration for the IAM service.
 type Config struct {
 	Server          ServerConfig
 	Database        DatabaseConfig
@@ -17,11 +18,13 @@ type Config struct {
 	EmailServiceURL string
 }
 
+// ServerConfig holds server-related configuration.
 type ServerConfig struct {
 	Port          string
 	EnablePrefork bool
 }
 
+// DatabaseConfig holds database connection configuration.
 type DatabaseConfig struct {
 	Host     string
 	Port     string
@@ -31,6 +34,7 @@ type DatabaseConfig struct {
 	SSLMode  string
 }
 
+// MinIOConfig holds MinIO connection configuration.
 type MinIOConfig struct {
 	Endpoint   string
 	AccessKey  string
@@ -40,6 +44,7 @@ type MinIOConfig struct {
 	PublicHost string // base URL used to build public object URLs
 }
 
+// JWTConfig holds JWT-related configuration.
 type JWTConfig struct {
 	SecretKey          string
 	AccessTokenExpiry  int64  // in minutes
@@ -48,6 +53,7 @@ type JWTConfig struct {
 	CookieSameSite     string // SameSite setting for cookies
 }
 
+// Load reads configuration from environment variables.
 func Load() (*Config, error) {
 	env.Load()
 
@@ -87,6 +93,7 @@ func Load() (*Config, error) {
 	}, nil
 }
 
+// DSN returns the database connection string.
 func (c *Config) DSN() string {
 	return fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",

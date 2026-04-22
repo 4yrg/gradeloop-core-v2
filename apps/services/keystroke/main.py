@@ -12,6 +12,8 @@ from pathlib import Path
 import pika
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+
+from env_utils.env_utils import load_root_env
 from fastapi.middleware.cors import CORSMiddleware
 from psycopg2 import extras
 from pydantic import BaseModel, ConfigDict
@@ -27,22 +29,6 @@ from redis_client import get_redis_client
 from typenet_inference import TypeNetAuthenticator
 
 
-def load_root_env():
-    """Find project root and load environment variables."""
-    path = Path(__file__).resolve()
-    root = None
-    for parent in path.parents:
-        if (parent / "turbo.json").exists() or (parent / "package.json").exists():
-            root = parent
-            break
-
-    if root:
-        app_env = os.getenv("APP_ENV", "development")
-        load_dotenv(root / f".env.{app_env}")
-        load_dotenv(root / ".env")
-    else:
-        # Fallback to local .env if root not found
-        load_dotenv()
 
 
 # Load environment variables from project root

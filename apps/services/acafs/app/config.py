@@ -1,7 +1,7 @@
 """Configuration management for ACAFS Engine."""
 
-import os
 from functools import lru_cache
+import os
 from pathlib import Path
 
 from pydantic import Field, PostgresDsn
@@ -37,7 +37,7 @@ class Settings(BaseSettings):
 
     # Service
     service_name: str = Field(default="acafs-service", alias="SERVICE_NAME")
-    service_port: int = Field(default=8102, alias="ACAFS_SVC_PORT")
+    service_port: int = Field(default=8102, alias="SERVICE_PORT")
     service_host: str = Field(default="0.0.0.0", alias="SERVICE_HOST")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     environment: str = Field(default="development", alias="APP_ENV")
@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     # PostgreSQL
     database_url: PostgresDsn = Field(
         default="postgresql://postgres:postgres@localhost:5432/acafs_db",
-        alias="ACAFS_DATABASE_URL",
+        alias="DATABASE_URL",
     )
 
     # MinIO

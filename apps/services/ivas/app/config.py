@@ -1,7 +1,7 @@
 """Configuration management for IVAS Service."""
 
-import os
 from functools import lru_cache
+import os
 from pathlib import Path
 
 from pydantic import Field, PostgresDsn
@@ -35,7 +35,7 @@ class Settings(BaseSettings):
 
     # Service
     service_name: str = Field(default="ivas-service", alias="SERVICE_NAME")
-    service_port: int = Field(default=8101, alias="IVAS_SVC_PORT")
+    service_port: int = Field(default=8101, alias="SERVICE_PORT")
     service_host: str = Field(default="0.0.0.0", alias="SERVICE_HOST")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     environment: str = Field(default="development", alias="APP_ENV")
@@ -43,13 +43,13 @@ class Settings(BaseSettings):
     # PostgreSQL (dedicated ivas-postgres instance)
     database_url: PostgresDsn = Field(
         default="postgresql://ivas_user:ivas_pass@localhost:5434/ivas-db",
-        alias="IVAS_DATABASE_URL",
+        alias="DATABASE_URL",
     )
 
     # Redis
     redis_url: str = Field(
         default="redis://localhost:6379/1",
-        alias="IVAS_REDIS_URL",
+        alias="REDIS_URL",
     )
 
     # MinIO

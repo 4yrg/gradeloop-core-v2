@@ -8,6 +8,7 @@ import (
 	"github.com/4yrg/gradeloop-core-v2/packages/go/env"
 )
 
+// Config holds all configuration for the Academic service.
 type Config struct {
 	Server          ServerConfig
 	Database        DatabaseConfig
@@ -17,11 +18,13 @@ type Config struct {
 	IAMServiceURL   string
 }
 
+// ServerConfig holds server-related configuration.
 type ServerConfig struct {
 	Port          string
 	EnablePrefork bool
 }
 
+// DatabaseConfig holds database connection configuration.
 type DatabaseConfig struct {
 	Host     string
 	Port     string
@@ -31,10 +34,12 @@ type DatabaseConfig struct {
 	SSLMode  string
 }
 
+// JWTConfig holds JWT-related configuration.
 type JWTConfig struct {
 	SecretKey string
 }
 
+// Load reads configuration from environment variables.
 func Load() (*Config, error) {
 	env.Load()
 
@@ -63,6 +68,7 @@ func Load() (*Config, error) {
 	}, nil
 }
 
+// DSN returns the database connection string.
 func (c *Config) DSN() string {
 	return fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",

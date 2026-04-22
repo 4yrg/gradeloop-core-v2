@@ -334,13 +334,13 @@ services:
       context: ../../apps/services/ivas
       dockerfile: Dockerfile
       target: development
-    volumes:
-      - ../../apps/services/ivas:/app
-    container_name: gradeloop-ivas
-    restart: unless-stopped
     environment:
       - SERVICE_PORT=${IVAS_SVC_PORT:-8101}
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@gradeloop-postgres:5432/${IVAS_SVC_DB_NAME:-ivas_db}
+      - PYTHONPATH=/app:/packages/python
+    volumes:
+      - ../../apps/services/ivas:/app
+      - ../../packages/python:/packages/python
     expose:
       - "8101"
     depends_on:
@@ -357,16 +357,16 @@ services:
       context: ../../apps/services/acafs
       dockerfile: Dockerfile
       target: development
-    volumes:
-      - ../../apps/services/acafs:/app
-    container_name: gradeloop-acafs
-    restart: unless-stopped
     environment:
       - SERVICE_PORT=${ACAFS_SVC_PORT:-8102}
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@gradeloop-postgres:5432/${ACAFS_SVC_DB_NAME:-acafs_db}
       - MINIO_ENDPOINT=gradeloop-seaweed:8333
       - MINIO_ACCESS_KEY=root
       - MINIO_SECRET_KEY=root
+      - PYTHONPATH=/app:/packages/python
+    volumes:
+      - ../../apps/services/acafs:/app
+      - ../../packages/python:/packages/python
     expose:
       - "8102"
     depends_on:
@@ -385,14 +385,14 @@ services:
       context: ../../apps/services/keystroke
       dockerfile: Dockerfile
       target: development
-    volumes:
-      - ../../apps/services/keystroke:/app
-    container_name: gradeloop-keystroke
-    restart: unless-stopped
     environment:
       - PORT=${KEYSTROKE_SVC_PORT:-8103}
       - DATABASE_URL=postgresql://keystroke_user:keystroke_pass@gradeloop-postgres-keystroke:5432/keystroke-db
       - REDIS_URL=redis://:${REDIS_PASSWORD:-redis_pass}@gradeloop-redis:6379
+      - PYTHONPATH=/app:/packages/python
+    volumes:
+      - ../../apps/services/keystroke:/app
+      - ../../packages/python:/packages/python
     expose:
       - "8103"
     depends_on:
@@ -411,13 +411,13 @@ services:
       context: ../../apps/services/cipas-syntactics
       dockerfile: Dockerfile
       target: development
-    volumes:
-      - ../../apps/services/cipas-syntactics:/app
-    container_name: gradeloop-cipas-syntactics
-    restart: unless-stopped
     environment:
       - CIPAS_SYNTACTICS_PORT=${CIPAS_SYN_SVC_PORT:-8106}
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@gradeloop-postgres:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
+      - PYTHONPATH=/app:/packages/python
+    volumes:
+      - ../../apps/services/cipas-syntactics:/app
+      - ../../packages/python:/packages/python
     expose:
       - "8106"
     depends_on:
@@ -434,13 +434,13 @@ services:
       context: ../../apps/services/cipas-semantics
       dockerfile: Dockerfile
       target: development
-    volumes:
-      - ../../apps/services/cipas-semantics:/app
-    container_name: gradeloop-cipas-semantics
-    restart: unless-stopped
     environment:
       - API_PORT=${CIPAS_SEM_SVC_PORT:-8105}
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@gradeloop-postgres:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
+      - PYTHONPATH=/app:/packages/python
+    volumes:
+      - ../../apps/services/cipas-semantics:/app
+      - ../../packages/python:/packages/python
     expose:
       - "8105"
     depends_on:
@@ -457,13 +457,13 @@ services:
       context: ../../apps/services/cipas-ai
       dockerfile: Dockerfile
       target: development
-    volumes:
-      - ../../apps/services/cipas-ai:/app
-    container_name: gradeloop-cipas-ai
-    restart: unless-stopped
     environment:
       - CIPAS_AI_PORT=${CIPAS_AI_SVC_PORT:-8104}
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@gradeloop-postgres:5432/${CIPAS_AI_SVC_DB_NAME:-cipas_ai_db}
+      - PYTHONPATH=/app:/packages/python
+    volumes:
+      - ../../apps/services/cipas-ai:/app
+      - ../../packages/python:/packages/python
     expose:
       - "8104"
     depends_on:

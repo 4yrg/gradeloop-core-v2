@@ -8,23 +8,9 @@ from pathlib import Path
 import torch
 from dotenv import load_dotenv
 
+from env_utils.env_utils import load_root_env
 
-def load_root_env():
-    """Find project root and load environment variables."""
-    path = Path(__file__).resolve()
-    root = None
-    for parent in path.parents:
-        if (parent / "turbo.json").exists() or (parent / "package.json").exists():
-            root = parent
-            break
 
-    if root:
-        app_env = os.getenv("APP_ENV", "development")
-        load_dotenv(root / f".env.{app_env}")
-        load_dotenv(root / ".env")
-    else:
-        # Fallback to local .env if root not found
-        load_dotenv()
 
 
 # Load environment variables from project root
