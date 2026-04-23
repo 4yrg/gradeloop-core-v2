@@ -11,6 +11,7 @@ import torch.nn as nn
 
 try:
     import numpy._core.multiarray as _scalar
+
     torch.serialization.add_safe_globals([_scalar])
 except Exception:
     pass
