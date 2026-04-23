@@ -15,7 +15,7 @@ import {
   assessmentsApi,
 } from "@/lib/api/assessments";
 import { handleApiError } from "@/lib/api/axios";
-import { cn } from "@/lib/utils";
+import { cn, generateId } from "@/lib/utils";
 import { RubricCriterionBlock } from "@/components/instructor/rubric-criterion-block";
 import {
   TestCaseBlock,
@@ -86,10 +86,7 @@ function makeSlug(name: string) {
 }
 
 function makeId() {
-  if (typeof globalThis.window !== 'undefined') {
-    return globalThis.crypto.randomUUID().slice(0, 8);
-  }
-  return Math.random().toString(36).slice(2, 10);
+  return generateId(8);
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────

@@ -39,7 +39,7 @@ const pathVariants = {
 // Pre-generate random values for lines to ensure purity during render
 const STATIC_RANDOM_VALUES = Array.from({ length: 21 }, () => {
   const arr = new Uint32Array(4);
-  if (typeof globalThis.window === 'undefined') {
+  if (globalThis.window === undefined) {
       arr[0] = Math.floor(Math.random() * 100);
       arr[1] = Math.floor(Math.random() * 100);
       arr[2] = Math.floor(Math.random() * 100);

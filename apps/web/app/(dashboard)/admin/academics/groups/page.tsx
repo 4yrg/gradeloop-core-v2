@@ -193,7 +193,7 @@ export default function GroupsPage() {
                             {/* Mocking student count for now */}
                             {(() => {
                                 const arr = new Uint32Array(1);
-                                if (typeof globalThis.window !== 'undefined') globalThis.crypto.getRandomValues(arr);
+                                if (globalThis.window !== undefined) globalThis.crypto.getRandomValues(arr);
                                 return (arr[0] % 50) + 10;
                             })()}
                         </span>
