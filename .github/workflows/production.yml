@@ -483,19 +483,10 @@ jobs:
             echo "Cleaning up unused images before git sync..."
             $RUNTIME image prune -a -f
 
-            # Fetch latest changes (continue with current checkout if sync fails)
+            # Fetch latest changes
             echo "Fetching latest main branch..."
-            if git fetch origin main; then
-              if git reset --hard origin/main; then
-                echo "Repository synced to origin/main"
-              else
-                echo "WARNING: git reset failed. Deployment will proceed using the existing checkout, which may not reflect the latest changes."
-                df -h /
-              fi
-            else
-              echo "WARNING: git fetch failed. Deployment will proceed using the existing checkout, which may not reflect the latest changes."
-              df -h /
-            fi
+            git fetch origin main
+            git reset --hard origin/main
 
             # Build compose file with ghcr.io images
             echo "Updating compose file with ghcr.io images..."
@@ -625,17 +616,8 @@ jobs:
             echo "Cleaning up unused images before git sync..."
             $RUNTIME image prune -a -f
 
-            if git fetch origin main; then
-              if git reset --hard origin/main; then
-                echo "Repository synced to origin/main"
-              else
-                echo "WARNING: git reset failed. Deployment will proceed using the existing checkout, which may not reflect the latest changes."
-                df -h /
-              fi
-            else
-              echo "WARNING: git fetch failed. Deployment will proceed using the existing checkout, which may not reflect the latest changes."
-              df -h /
-            fi
+            git fetch origin main
+            git reset --hard origin/main
 
             # Pre-flight image pull/check
             echo "Disk space check:"
