@@ -54,8 +54,8 @@ export function TestCaseBlock({
             )}
         >
             {/* ── Header ── */}
-            <div
-                className="flex items-center gap-3 p-4 cursor-pointer select-none hover:bg-muted/20 transition-colors"
+            <button
+                className="flex w-full items-center gap-3 p-4 cursor-pointer select-none hover:bg-muted/20 transition-colors text-left"
                 onClick={onToggle}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
@@ -63,8 +63,6 @@ export function TestCaseBlock({
                         onToggle();
                     }
                 }}
-                role="button"
-                tabIndex={0}
             >
                 {isExpanded ? (
                     <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -110,7 +108,7 @@ export function TestCaseBlock({
                         <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                 </div>
-            </div>
+            </button>
 
             {/* ── Body ── */}
             {isExpanded && (

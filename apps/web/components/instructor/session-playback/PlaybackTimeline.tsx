@@ -43,7 +43,6 @@ export function PlaybackTimeline({
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             if (!barRef.current) return;
-            const rect = barRef.current.getBoundingClientRect();
             const centerRatio = 0.5;
             onSeekToTime(centerRatio * durationSeconds * 1000);
         }

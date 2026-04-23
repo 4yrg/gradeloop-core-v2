@@ -118,8 +118,8 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: Props) {
                 <div className="flex-1 overflow-hidden">
                     {step === 'upload' && (
                         <div className="pt-2 space-y-6">
-                            <div
-                                className="border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl p-12 flex flex-col items-center justify-center text-center space-y-4 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors cursor-pointer relative"
+                            <button
+                                className="w-full border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl p-12 flex flex-col items-center justify-center text-center space-y-4 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors cursor-pointer relative"
                                 onClick={() => document.getElementById('file-upload')?.click()}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' || e.key === ' ') {
@@ -127,8 +127,6 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: Props) {
                                         document.getElementById('file-upload')?.click();
                                     }
                                 }}
-                                role="button"
-                                tabIndex={0}
                             >
                                 <input
                                     id="file-upload"
@@ -150,7 +148,7 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: Props) {
                                     </p>
                                     <p className="text-sm text-zinc-500">CSV or XLSX (max 5,000 rows)</p>
                                 </div>
-                            </div>
+                            </button>
 
                             <div className="space-y-3">
                                 <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">

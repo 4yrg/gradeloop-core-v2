@@ -236,6 +236,28 @@ class SyntacticFeatureExtractor:
             for node_type in self._node_types:
                 self.feature_names.append(f"{NODE_TYPE_FEATURE_PREFIX}{node_type}_diff")
 
+        self._setup_node_categories()
+
+    def _setup_node_categories(self):
+        """Setup language-specific node categories for structural metrics."""
+        if self.language == "python":
+            self._loop_nodes = ["for_statement", "while_statement"]
+            self._cond_nodes = ["if_statement", "conditional_expression"]
+            self._call_node = "call"
+        elif self.language in ("c", "cpp"):
+            self._loop_nodes = ["for_statement", "while_statement", "do_statement"]
+            self._cond_nodes = ["if_statement", "switch_statement", "conditional_expression"]
+            self._call_node = "call_expression"
+        else:  # java default
+            self._loop_nodes = [
+                "for_statement",
+                "while_statement",
+                "do_statement",
+                "enhanced_for_statement",
+            ]
+            self._cond_nodes = ["if_statement", "switch_statement", "ternary_expression"]
+            self._call_node = "method_invocation"
+
     def extract_features(self, tokens1: list[str], tokens2: list[str]) -> np.ndarray:
         """
         Extract hybrid syntactic + structural features from two token sequences.
@@ -515,41 +537,18 @@ class SyntacticFeatureExtractor:
         lines_ratio = min(loc1, loc2) / max(loc1, loc2) if max(loc1, loc2) > 0 else 1.0
 
         # loop count
-        if self.language == "python":
-            loop_nodes = ["for_statement", "while_statement"]
-        elif self.language in ("c", "cpp"):
-            loop_nodes = ["for_statement", "while_statement", "do_statement"]
-        else:  # java default
-            loop_nodes = [
-                "for_statement",
-                "while_statement",
-                "do_statement",
-                "enhanced_for_statement",
-            ]
-        loop1 = sum(cnt1.get(n, 0) for n in loop_nodes)
-        loop2 = sum(cnt2.get(n, 0) for n in loop_nodes)
+        loop1 = sum(cnt1.get(n, 0) for n in self._loop_nodes)
+        loop2 = sum(cnt2.get(n, 0) for n in self._loop_nodes)
         loop_diff = abs(loop1 - loop2)
 
         # conditions
-        if self.language == "python":
-            cond_nodes = ["if_statement", "conditional_expression"]
-        elif self.language in ("c", "cpp"):
-            cond_nodes = ["if_statement", "switch_statement", "conditional_expression"]
-        else:  # java
-            cond_nodes = ["if_statement", "switch_statement", "ternary_expression"]
-        cond1 = sum(cnt1.get(n, 0) for n in cond_nodes)
-        cond2 = sum(cnt2.get(n, 0) for n in cond_nodes)
+        cond1 = sum(cnt1.get(n, 0) for n in self._cond_nodes)
+        cond2 = sum(cnt2.get(n, 0) for n in self._cond_nodes)
         cond_diff = abs(cond1 - cond2)
 
         # function calls
-        if self.language == "python":
-            call_node = "call"
-        elif self.language in ("c", "cpp"):
-            call_node = "call_expression"
-        else:  # java
-            call_node = "method_invocation"
-        call1 = cnt1.get(call_node, 0)
-        call2 = cnt2.get(call_node, 0)
+        call1 = cnt1.get(self._call_node, 0)
+        call2 = cnt2.get(self._call_node, 0)
         func_call_sim = min(call1, call2) / max(call1, call2) if max(call1, call2) > 0 else 1.0
 
         metrics = [lines_ratio, 0.0, float(loop_diff), float(cond_diff), func_call_sim]
