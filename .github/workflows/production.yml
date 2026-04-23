@@ -477,6 +477,12 @@ jobs:
               echo "$GHCR_TOKEN" | $RUNTIME login ghcr.io -u "$GHCR_USER" --password-stdin || { echo "WARNING: Login to ghcr.io failed"; }
             fi
 
+            # Free up space before syncing repository updates
+            echo "Disk space before git sync:"
+            df -h /
+            echo "Cleaning up unused images before git sync..."
+            $RUNTIME image prune -a -f --filter "until=1h"
+
             # Fetch latest changes
             echo "Fetching latest main branch..."
             git fetch origin main
@@ -604,6 +610,11 @@ jobs:
             else
               COMPOSE_CMD="podman compose"
             fi
+
+            echo "Disk space before git sync:"
+            df -h /
+            echo "Cleaning up unused images before git sync..."
+            $RUNTIME image prune -a -f --filter "until=1h"
 
             git fetch origin main
             git reset --hard origin/main
