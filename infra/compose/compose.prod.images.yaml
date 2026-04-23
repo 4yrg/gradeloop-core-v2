@@ -25,7 +25,7 @@ services:
   # Infrastructure (Production)
   # =============================================================================
   postgres:
-    image: postgres:16.2-alpine
+    image: postgres:16-alpine
     <<: *ghcr_image
     container_name: gradeloop-postgres
     restart: unless-stopped
@@ -54,7 +54,7 @@ services:
           memory: 2G
 
   postgres-keystroke:
-    image: postgres:16.2-alpine
+    image: postgres:16-alpine
     <<: *ghcr_image
     container_name: gradeloop-postgres-keystroke
     restart: unless-stopped
@@ -82,7 +82,7 @@ services:
           memory: 1G
 
   rabbitmq:
-    image: rabbitmq:3.13-management-alpine
+    image: rabbitmq:4.2-management-alpine
     <<: *ghcr_image
     container_name: gradeloop-rabbitmq
     restart: unless-stopped
@@ -110,7 +110,7 @@ services:
           memory: 1G
 
   redis:
-    image: redis:7.2.4-alpine
+    image: redis:7-alpine
     <<: *ghcr_image
     container_name: gradeloop-redis
     restart: unless-stopped
