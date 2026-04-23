@@ -57,6 +57,14 @@ export function TestCaseBlock({
             <div
                 className="flex items-center gap-3 p-4 cursor-pointer select-none hover:bg-muted/20 transition-colors"
                 onClick={onToggle}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onToggle();
+                    }
+                }}
+                role="button"
+                tabIndex={0}
             >
                 {isExpanded ? (
                     <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />

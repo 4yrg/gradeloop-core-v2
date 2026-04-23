@@ -272,9 +272,17 @@ export default function AssessmentSetupPage() {
                         <p className="text-sm text-muted-foreground text-center py-6">No criteria yet. Add some to define your rubric.</p>
                     ) : criteria.map(c => (
                         <div key={c.id} className="border border-border/60 rounded-lg">
-                            <div
+<div
                                 className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/30"
                                 onClick={() => toggleCriteria(c.id)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        toggleCriteria(c.id);
+                                    }
+                                }}
+                                role="button"
+                                tabIndex={0}
                             >
                                 <div className="flex items-center gap-3">
                                     <span className="font-medium text-sm">{c.competency}</span>
@@ -341,6 +349,14 @@ export default function AssessmentSetupPage() {
                             <div
                                 className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/30"
                                 onClick={() => toggleQuestion(q.id)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        toggleQuestion(q.id);
+                                    }
+                                }}
+                                role="button"
+                                tabIndex={0}
                             >
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm truncate">{q.question_text}</p>

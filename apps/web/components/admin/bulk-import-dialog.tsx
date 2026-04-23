@@ -121,6 +121,14 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: Props) {
                             <div
                                 className="border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl p-12 flex flex-col items-center justify-center text-center space-y-4 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors cursor-pointer relative"
                                 onClick={() => document.getElementById('file-upload')?.click()}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        document.getElementById('file-upload')?.click();
+                                    }
+                                }}
+                                role="button"
+                                tabIndex={0}
                             >
                                 <input
                                     id="file-upload"

@@ -322,6 +322,14 @@ export default function GroupDetailPage() {
                                                     isAlreadyMember && "opacity-50 pointer-events-none grayscale"
                                                 )}
                                                 onClick={() => !isAlreadyMember && toggleStudentSelection(student.id)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        !isAlreadyMember && toggleStudentSelection(student.id);
+                                                    }
+                                                }}
+                                                role="button"
+                                                tabIndex={0}
                                             >
                                                 <div className="flex items-center gap-3">
                                                     <Avatar className="h-8 w-8">

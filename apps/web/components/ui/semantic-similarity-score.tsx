@@ -154,6 +154,14 @@ export function SemanticSimilarityScore({
           className,
         )}
         onClick={onClick}
+        onKeyDown={(e) => {
+          if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            onClick();
+          }
+        }}
+        role={onClick ? "button" : undefined}
+        tabIndex={onClick ? 0 : undefined}
       >
         <span className={cn("font-bold", currentSize.score)}>{score}%</span>
         {change !== undefined && showTrend && (
@@ -184,6 +192,14 @@ export function SemanticSimilarityScore({
           className,
         )}
         onClick={onClick}
+        onKeyDown={(e) => {
+          if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            onClick();
+          }
+        }}
+        role={onClick ? "button" : undefined}
+        tabIndex={onClick ? 0 : undefined}
       >
         <p
           className={cn(
@@ -225,6 +241,14 @@ export function SemanticSimilarityScore({
         className,
       )}
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
     >
       <div className={cn("flex items-baseline gap-2", currentSize.gap)}>
         <span className={cn("font-bold", scheme.text, currentSize.score)}>

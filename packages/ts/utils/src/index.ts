@@ -11,24 +11,19 @@ export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export function retry<T>(
+export async function retry<T>(
   fn: () => Promise<T>,
   options: { attempts: number; delay: number } = { attempts: 3, delay: 1000 }
 ): Promise<T> {
-  return new Promise(async (resolve, reject) => {
-    for (let i = 0; i < options.attempts; i++) {
-      try {
-        const result = await fn();
-        resolve(result);
-        return;
-      } catch (error) {
-        if (i === options.attempts - 1) {
-          reject(error);
-        }
-        await sleep(options.delay * Math.pow(2, i));
-      }
+  for (let i = 0; i < options.attempts; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (i === options.attempts - 1) throw error;
+      await sleep(options.delay * Math.pow(2, i));
     }
-  });
+  }
+  throw new Error('Retry failed');
 }
 
 export function debounce<T extends (...args: any[]) => any>(

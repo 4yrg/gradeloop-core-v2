@@ -39,6 +39,16 @@ export function PlaybackTimeline({
         onSeekToTime(ratio * durationSeconds * 1000);
     }
 
+    function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            if (!barRef.current) return;
+            const rect = barRef.current.getBoundingClientRect();
+            const centerRatio = 0.5;
+            onSeekToTime(centerRatio * durationSeconds * 1000);
+        }
+    }
+
     const totalMs = durationSeconds * 1000 || 1;
     const playheadPct = Math.min(100, (currentTimestamp / totalMs) * 100);
 
@@ -78,6 +88,13 @@ export function PlaybackTimeline({
                 <div
                     ref={barRef}
                     onClick={handleClick}
+                    onKeyDown={handleKeyDown}
+                    role="slider"
+                    tabIndex={0}
+                    aria-valuenow={Math.round(currentTimestamp / (durationSeconds * 1000) * 100)}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label="Playback timeline"
                     className="relative h-5 bg-muted rounded-full overflow-hidden cursor-pointer"
                 >
                     {/* Risk segments */}
