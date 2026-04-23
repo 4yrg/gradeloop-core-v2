@@ -125,7 +125,7 @@ services:
           memory: 512M
 
   seaweed:
-    image: docker.io/seaweedfs/seaweedfs:3.71
+    image: chrislusf/seaweedfs:3.71
     pull_policy: missing
     container_name: gradeloop-seaweed
     restart: unless-stopped
