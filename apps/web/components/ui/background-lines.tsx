@@ -36,24 +36,30 @@ const pathVariants = {
   },
 };
 
-// Pre-generate random values for lines to ensure purity during render
-const STATIC_RANDOM_VALUES = Array.from({ length: 21 }, () => {
-  const arr = new Uint32Array(4);
-  if (globalThis.window === undefined) {
-      arr[0] = Math.floor(Math.random() * 100);
-      arr[1] = Math.floor(Math.random() * 100);
-      arr[2] = Math.floor(Math.random() * 100);
-      arr[3] = Math.floor(Math.random() * 100);
-  } else {
-      globalThis.crypto.getRandomValues(arr);
-  }
-  return {
-    delay1: arr[0] % 10,
-    repeatDelay1: (arr[1] % 10) + 2,
-    delay2: arr[2] % 10,
-    repeatDelay2: (arr[3] % 10) + 2,
-  };
-});
+// Deterministic static values for animation timing (avoids hydration mismatch and removes Math.random)
+const STATIC_RANDOM_VALUES = [
+  { delay1: 3, repeatDelay1: 7, delay2: 1, repeatDelay2: 9 },
+  { delay1: 8, repeatDelay1: 4, delay2: 5, repeatDelay2: 3 },
+  { delay1: 2, repeatDelay1: 6, delay2: 9, repeatDelay2: 5 },
+  { delay1: 7, repeatDelay1: 3, delay2: 4, repeatDelay2: 8 },
+  { delay1: 1, repeatDelay1: 9, delay2: 6, repeatDelay2: 2 },
+  { delay1: 5, repeatDelay1: 2, delay2: 3, repeatDelay2: 7 },
+  { delay1: 9, repeatDelay1: 5, delay2: 8, repeatDelay2: 4 },
+  { delay1: 4, repeatDelay1: 8, delay2: 2, repeatDelay2: 6 },
+  { delay1: 6, repeatDelay1: 1, delay2: 7, repeatDelay2: 3 },
+  { delay1: 0, repeatDelay1: 7, delay2: 5, repeatDelay2: 9 },
+  { delay1: 3, repeatDelay1: 5, delay2: 1, repeatDelay2: 8 },
+  { delay1: 8, repeatDelay1: 2, delay2: 4, repeatDelay2: 6 },
+  { delay1: 2, repeatDelay1: 9, delay2: 6, repeatDelay2: 3 },
+  { delay1: 7, repeatDelay1: 4, delay2: 9, repeatDelay2: 1 },
+  { delay1: 1, repeatDelay1: 6, delay2: 3, repeatDelay2: 7 },
+  { delay1: 5, repeatDelay1: 3, delay2: 8, repeatDelay2: 2 },
+  { delay1: 9, repeatDelay1: 7, delay2: 2, repeatDelay2: 5 },
+  { delay1: 4, repeatDelay1: 1, delay2: 6, repeatDelay2: 9 },
+  { delay1: 6, repeatDelay1: 8, delay2: 0, repeatDelay2: 4 },
+  { delay1: 0, repeatDelay1: 5, delay2: 7, repeatDelay2: 3 },
+  { delay1: 3, repeatDelay1: 9, delay2: 4, repeatDelay2: 6 },
+];
 
 const SVG = ({
   svgOptions,

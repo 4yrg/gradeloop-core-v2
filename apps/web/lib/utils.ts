@@ -7,11 +7,17 @@ export function cn(...inputs: ClassValue[]) {
 
 /**
  * Generates a cryptographically secure random ID.
- * Falls back to Math.random only if crypto is unavailable.
+ * Uses crypto.getRandomValues() for secure random generation.
  */
 export function generateId(length: number = 8): string {
-  if (typeof globalThis !== 'undefined' && globalThis.crypto?.randomUUID) {
-    return globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, length);
+  const arr = new Uint8Array(length);
+  if (typeof globalThis !== 'undefined' && globalThis.crypto) {
+    globalThis.crypto.getRandomValues(arr);
+  } else {
+    // Fallback for environments without crypto (e.g., some SSR scenarios)
+    for (let i = 0; i < length; i++) {
+      arr[i] = Math.floor(Math.random() * 256);
+    }
   }
-  return Math.random().toString(36).slice(2, 2 + length);
+  return Array.from(arr, (byte) => byte.toString(16).padStart(2, '0')).join('').slice(0, length);
 }

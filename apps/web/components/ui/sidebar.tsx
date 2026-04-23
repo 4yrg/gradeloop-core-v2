@@ -665,8 +665,8 @@ const SidebarMenuSkeleton = React.forwardRef<
 
   React.useEffect(() => {
     const arr = new Uint32Array(1);
-    if (globalThis.window !== undefined) globalThis.crypto.getRandomValues(arr);
-    setWidth(`${((arr[0] || Math.floor(Math.random() * 100)) % 40) + 50}%`)
+    globalThis.crypto?.getRandomValues(arr);
+    setWidth(`${((arr[0] || 50) % 40) + 50}%`)
   }, [])
 
   return (
