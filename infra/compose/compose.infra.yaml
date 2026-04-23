@@ -94,6 +94,7 @@ services:
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-guest}
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
     networks:
       - gradeloop-infra-network
     healthcheck:
@@ -209,6 +210,9 @@ volumes:
   postgres-data:
   postgres-keystroke-data:
   rabbitmq-data:
+    name: gradeloop-infra-rabbitmq-data
+  rabbitmq-config:
+    name: gradeloop-infra-rabbitmq-config
   redis-data:
   seaweed-data:
   kong-database-data:
