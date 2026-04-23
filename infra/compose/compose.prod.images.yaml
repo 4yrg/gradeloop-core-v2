@@ -218,7 +218,7 @@ services:
       - gradeloop-network
 
   kong-database:
-    image: postgres:16.2-alpine
+    image: postgres:16-alpine
     <<: *ghcr_image
     container_name: gradeloop-kong-db
     restart: unless-stopped
