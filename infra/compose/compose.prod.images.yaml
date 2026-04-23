@@ -25,7 +25,7 @@ services:
   # Infrastructure (Production)
   # =============================================================================
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16.2-alpine
     <<: *ghcr_image
     container_name: gradeloop-postgres
     restart: unless-stopped
@@ -39,14 +39,22 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: "pg_isready -U ${GRA_DB_USER:-postgres}"
+      test: ["CMD-SHELL", "pg_isready -U ${GRA_DB_USER:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
 
   postgres-keystroke:
-    image: postgres:16-alpine
+    image: postgres:16.2-alpine
     <<: *ghcr_image
     container_name: gradeloop-postgres-keystroke
     restart: unless-stopped
@@ -59,14 +67,22 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: "pg_isready -U keystroke_user -d keystroke-db"
+      test: ["CMD-SHELL", "pg_isready -U keystroke_user -d keystroke-db"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
 
   rabbitmq:
-    image: rabbitmq:3.13-management-alpine
+    image: rabbitmq:3.13.9-management-alpine
     <<: *ghcr_image
     container_name: gradeloop-rabbitmq
     restart: unless-stopped
@@ -83,9 +99,17 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
 
   redis:
-    image: redis:7-alpine
+    image: redis:7.2.4-alpine
     <<: *ghcr_image
     container_name: gradeloop-redis
     restart: unless-stopped
@@ -100,11 +124,19 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
 
-  seaweed:
-    image: chrislusf/seaweedfs:3.71
+  seaweedfs:
+    image: docker.io/seaweedfs/seaweedfs:3.71
     <<: *ghcr_image
-    container_name: gradeloop-seaweed
+    container_name: gradeloop-seaweedfs
     restart: unless-stopped
     environment:
       - WEEAD_IDENTITY=seaweedfs
@@ -123,6 +155,14 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
 
   # =============================================================================
   # Kong Gateway (Production)
@@ -177,7 +217,7 @@ services:
       - gradeloop-network
 
   kong-database:
-    image: postgres:16-alpine
+    image: postgres:16.2-alpine
     <<: *ghcr_image
     container_name: gradeloop-kong-db
     restart: unless-stopped
@@ -190,11 +230,19 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: "pg_isready -U kong -d kong"
+      test: ["CMD-SHELL", "pg_isready -U kong -d kong"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
 
   # =============================================================================
   # IAM Service (Go - Production)
@@ -213,7 +261,7 @@ services:
       - DB_NAME=${IAM_SVC_DB_NAME:-iam_db}
       - DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
       - EMAIL_SERVICE_URL=http://email:8082
-      - MINIO_ENDPOINT=seaweed:9333
+      - MINIO_ENDPOINT=seaweedfs:9333
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
@@ -222,10 +270,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      seaweed:
+      seaweedfs:
         condition: service_started
     networks:
       - gradeloop-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
 
   # =============================================================================
   # Academic Service (Go - Production)
@@ -250,6 +303,11 @@ services:
         condition: service_started
     networks:
       - gradeloop-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
 
   # =============================================================================
   # Assessment Service (Go - Production)
@@ -272,6 +330,11 @@ services:
         condition: service_healthy
     networks:
       - gradeloop-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
 
   # =============================================================================
   # Email Service (Go - Production)
@@ -295,6 +358,11 @@ services:
         condition: service_started
     networks:
       - gradeloop-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
 
   # =============================================================================
   # IVAS Service (Python - Production)
@@ -312,6 +380,11 @@ services:
         condition: service_healthy
     networks:
       - gradeloop-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
 
   # =============================================================================
   # ACAFS Service (Python - Production)
@@ -346,6 +419,11 @@ services:
         condition: service_healthy
     networks:
       - gradeloop-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
 
   # =============================================================================
   # CIPAS Syntactics Service (Python - Production)
@@ -363,6 +441,11 @@ services:
         condition: service_healthy
     networks:
       - gradeloop-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
 
   # =============================================================================
   # CIPAS Semantics Service (Python - Production)
@@ -380,6 +463,11 @@ services:
         condition: service_healthy
     networks:
       - gradeloop-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
 
   # =============================================================================
   # CIPAS AI Service (Python - Production)
@@ -410,6 +498,11 @@ services:
       - SERVER_PORT=8085
     networks:
       - gradeloop-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
 
   # =============================================================================
   # Frontend (Next.js - Production)
@@ -423,6 +516,11 @@ services:
       - "3000:3000"
     networks:
       - gradeloop-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
 
 networks:
   gradeloop-network:
