@@ -214,10 +214,11 @@ class StructuralNormalizer:
 
         # Remove annotations/decorators (metadata)
         if language == "python":
-            text = re.sub(r"@\w+(?:\([^)]*\))?\s*", "", text)
+            # Match @decorator or @decorator(...) but avoid nested parens issues
+            text = re.sub(r"@\w+(\([^)]*\))?\s*", "", text)
         else:
             # Java annotations
-            text = re.sub(r"@\w+(?:\([^)]*\))?(\s|$)", r"\1", text)
+            text = re.sub(r"@\w+(\([^)]*\))?(\s|$)", r"\2", text)
 
         return text.strip()
 
@@ -436,8 +437,8 @@ class StructuralNormalizer:
             "...",
         }
 
-        # Split into tokens
-        tokens = re.findall(r'"[^"]*"|\'[^\']*\'|\b\w+\b|[+\-*/%=<>!&|^~?:;,\[\]{}().]+', text)
+        # Split into tokens: strings, words, or sequences of operators
+        tokens = re.findall(r'"[^"]*"|\'[^\']*\'|\b\w+\b|[^\w\s"\']+', text)
 
         blinded_tokens = []
         for token in tokens:

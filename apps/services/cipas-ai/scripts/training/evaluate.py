@@ -118,7 +118,7 @@ def main():
     print("Loading model...")
     model = CodeClassifier()
     model_path = MODEL_DIR / "pytorch_model.bin"
-    model.load_state_dict(torch.load(model_path, map_location=DEVICE))
+    model.load_state_dict(torch.load(model_path, map_location=DEVICE, weights_only=True))
     model.to(DEVICE)
 
     benchmarks = ["T1", "T2", "T3"]

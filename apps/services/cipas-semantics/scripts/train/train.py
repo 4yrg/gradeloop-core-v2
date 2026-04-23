@@ -684,7 +684,7 @@ class Trainer:
         return hist, time.time() - start
 
     def load_checkpoint(self, path):
-        ckpt = torch.load(path, map_location=self.dev, weights_only=False)
+        ckpt = torch.load(path, map_location=self.dev, weights_only=True)
         self.model.load_state_dict(ckpt["model_state_dict"])
         return ckpt["epoch"], ckpt["metrics"]
 
@@ -767,7 +767,7 @@ class ModelExporter:
 
         self.logger.info(f"Loading checkpoint from {selected_ckpt}")
         try:
-            ckpt = torch.load(selected_ckpt, map_location="cpu", weights_only=False)
+            ckpt = torch.load(selected_ckpt, map_location="cpu", weights_only=True)
         except Exception as e:
             self.logger.error(f"Failed to load checkpoint: {e}")
             return

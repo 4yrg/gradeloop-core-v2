@@ -86,6 +86,9 @@ function makeSlug(name: string) {
 }
 
 function makeId() {
+  if (typeof window !== 'undefined') {
+    return window.crypto.randomUUID().slice(0, 8);
+  }
   return Math.random().toString(36).slice(2, 10);
 }
 

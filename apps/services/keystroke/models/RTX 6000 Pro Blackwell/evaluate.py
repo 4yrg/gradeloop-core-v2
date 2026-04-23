@@ -35,7 +35,7 @@ EVAL_PROP = 0.1  # 10% of users
 # LOAD MODEL
 # ------------------------------
 model = TypeNet()
-model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
+model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE, weights_only=True))
 model.to(DEVICE)
 model.eval()
 

@@ -25,7 +25,7 @@ interface Props {
 }
 
 const makeSubmission = (): SubmissionItem => ({
-  submission_id: `sub-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+  submission_id: `sub-${Date.now()}-${typeof window !== 'undefined' ? window.crypto.randomUUID().slice(0, 4) : Math.random().toString(36).slice(2, 6)}`,
   student_id: "",
   source_code: "",
 });

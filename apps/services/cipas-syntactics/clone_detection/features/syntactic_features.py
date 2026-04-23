@@ -69,6 +69,81 @@ JAVA_NODE_TYPES = [
     "unary_expression",
 ]
 
+# Standardized Python AST node types for structural features
+PYTHON_NODE_TYPES = [
+    "if_statement",
+    "for_statement",
+    "while_statement",
+    "with_statement",
+    "try_statement",
+    "except_clause",
+    "finally_clause",
+    "return_statement",
+    "break_statement",
+    "continue_statement",
+    "raise_statement",
+    "assert_statement",
+    "assignment",
+    "augmented_assignment",
+    "expression_statement",
+    "binary_operator",
+    "call",
+    "class_definition",
+    "function_definition",
+    "lambda",
+    "conditional_expression",
+    "list_comprehension",
+    "dictionary_comprehension",
+    "set_comprehension",
+    "generator_expression",
+    "attribute",
+    "subscript",
+    "list",
+    "tuple",
+    "dictionary",
+    "set",
+    "yield",
+    "global_statement",
+    "nonlocal_statement",
+    "import_statement",
+    "import_from_statement",
+    "decorated_definition",
+]
+
+# Standardized C AST node types for structural features
+C_NODE_TYPES = [
+    "if_statement",
+    "for_statement",
+    "while_statement",
+    "do_statement",
+    "switch_statement",
+    "case_statement",
+    "return_statement",
+    "break_statement",
+    "continue_statement",
+    "goto_statement",
+    "declaration",
+    "assignment_expression",
+    "binary_expression",
+    "call_expression",
+    "struct_specifier",
+    "enum_specifier",
+    "function_definition",
+    "conditional_expression",
+    "pointer_expression",
+    "array_expression",
+    "cast_expression",
+    "sizeof_expression",
+    "update_expression",
+    "unary_expression",
+    "type_definition",
+    "preproc_include",
+    "preproc_def",
+    "preproc_if",
+    "compound_statement",
+    "expression_statement",
+]
+
 # Feature names for explainability (GRADELOOP-83)
 SYNTACTIC_FEATURE_NAMES = [
     "feat_jaccard_similarity",
@@ -146,15 +221,20 @@ class SyntacticFeatureExtractor:
         self.feature_names.extend(CODE_METRICS_NAMES)
         self.feature_names.extend(STRUCTURAL_FEATURE_NAMES)
 
+        # Cache for AST node types supported by the language
+        if self.language == "java":
+            self._node_types = JAVA_NODE_TYPES
+        elif self.language == "python":
+            self._node_types = PYTHON_NODE_TYPES
+        elif self.language in ("c", "cpp"):
+            self._node_types = C_NODE_TYPES
+        else:
+            self._node_types = JAVA_NODE_TYPES  # Default fallback
+
         # Add node type distribution features if enabled
         if self.include_node_types:
-            for node_type in JAVA_NODE_TYPES:
+            for node_type in self._node_types:
                 self.feature_names.append(f"{NODE_TYPE_FEATURE_PREFIX}{node_type}_diff")
-
-        # Cache for AST node types supported by the language
-        self._node_types = (
-            JAVA_NODE_TYPES if language == "java" else JAVA_NODE_TYPES
-        )  # Can be extended for other languages
 
     def extract_features(self, tokens1: list[str], tokens2: list[str]) -> np.ndarray:
         """
@@ -435,25 +515,41 @@ class SyntacticFeatureExtractor:
         lines_ratio = min(loc1, loc2) / max(loc1, loc2) if max(loc1, loc2) > 0 else 1.0
 
         # loop count
-        loop_nodes = [
-            "for_statement",
-            "while_statement",
-            "do_statement",
-            "enhanced_for_statement",
-        ]
+        if self.language == "python":
+            loop_nodes = ["for_statement", "while_statement"]
+        elif self.language in ("c", "cpp"):
+            loop_nodes = ["for_statement", "while_statement", "do_statement"]
+        else:  # java default
+            loop_nodes = [
+                "for_statement",
+                "while_statement",
+                "do_statement",
+                "enhanced_for_statement",
+            ]
         loop1 = sum(cnt1.get(n, 0) for n in loop_nodes)
         loop2 = sum(cnt2.get(n, 0) for n in loop_nodes)
         loop_diff = abs(loop1 - loop2)
 
         # conditions
-        cond_nodes = ["if_statement", "switch_statement", "ternary_expression"]
+        if self.language == "python":
+            cond_nodes = ["if_statement", "conditional_expression"]
+        elif self.language in ("c", "cpp"):
+            cond_nodes = ["if_statement", "switch_statement", "conditional_expression"]
+        else:  # java
+            cond_nodes = ["if_statement", "switch_statement", "ternary_expression"]
         cond1 = sum(cnt1.get(n, 0) for n in cond_nodes)
         cond2 = sum(cnt2.get(n, 0) for n in cond_nodes)
         cond_diff = abs(cond1 - cond2)
 
         # function calls
-        call1 = cnt1.get("method_invocation", 0)
-        call2 = cnt2.get("method_invocation", 0)
+        if self.language == "python":
+            call_node = "call"
+        elif self.language in ("c", "cpp"):
+            call_node = "call_expression"
+        else:  # java
+            call_node = "method_invocation"
+        call1 = cnt1.get(call_node, 0)
+        call2 = cnt2.get(call_node, 0)
         func_call_sim = min(call1, call2) / max(call1, call2) if max(call1, call2) > 0 else 1.0
 
         metrics = [lines_ratio, 0.0, float(loop_diff), float(cond_diff), func_call_sim]
