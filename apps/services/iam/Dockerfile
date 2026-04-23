@@ -8,11 +8,16 @@ WORKDIR /app
 
 RUN apk add --no-cache git ca-certificates
 
-COPY go.mod go.sum ./
+# Copy shared packages first to leverage cache
+COPY packages/go /app/packages/go
+
+# Copy service specific files
+COPY apps/services/iam/go.mod apps/services/iam/go.sum /app/apps/services/iam/
+WORKDIR /app/apps/services/iam
 RUN go mod download
 
-COPY cmd/ ./cmd/
-COPY internal/ ./internal/
+COPY apps/services/iam/cmd/ ./cmd/
+COPY apps/services/iam/internal/ ./internal/
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags="-s -w -buildid=" \
@@ -26,7 +31,7 @@ WORKDIR /app
 
 RUN apk add --no-cache ca-certificates
 
-COPY --from=builder /app/iam-service .
+COPY --from=builder /app/apps/services/iam/iam-service .
 
 EXPOSE 8081
 
@@ -38,7 +43,7 @@ RUN apk add --no-cache ca-certificates tzdata
 
 WORKDIR /app
 
-COPY --from=builder /app/iam-service .
+COPY --from=builder /app/apps/services/iam/iam-service .
 
 RUN addgroup -S gradeloop && adduser -S gradeloop -G gradeloop \
     && chown -R gradeloop:gradeloop /app
