@@ -481,7 +481,7 @@ jobs:
             echo "Disk space before git sync:"
             df -h /
             echo "Cleaning up unused images before git sync..."
-            $RUNTIME image prune -a -f --filter "until=24h"
+            $RUNTIME image prune -a -f --filter "until=1h"
 
             # Fetch latest changes
             echo "Fetching latest main branch..."
@@ -614,7 +614,7 @@ jobs:
             echo "Disk space before git sync:"
             df -h /
             echo "Cleaning up unused images before git sync..."
-            $RUNTIME image prune -a -f --filter "until=24h"
+            $RUNTIME image prune -a -f --filter "until=1h"
 
             git fetch origin main
             git reset --hard origin/main
