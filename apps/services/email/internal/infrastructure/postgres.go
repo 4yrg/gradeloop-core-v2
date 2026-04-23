@@ -21,8 +21,13 @@ func NewPostgresDB(cfg *config.Config) *gorm.DB {
 		cfg.DB.Host, cfg.DB.Port, cfg.DB.User, cfg.DB.Password, cfg.DB.Name, cfg.DB.SSLMode,
 	)
 
+	logMode := logger.Warn
+	if cfg.App.Env == "development" {
+		logMode = logger.Info
+	}
+
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger: logger.Default.LogMode(logMode),
 	})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)

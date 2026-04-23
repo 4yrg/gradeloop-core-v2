@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import type { AssignmentClusterRequest, SubmissionItem } from "@/types/cipas";
+import { generateId } from "@/lib/utils";
 
 const SUPPORTED_LANGUAGES = [
   "java",
@@ -25,7 +26,7 @@ interface Props {
 }
 
 const makeSubmission = (): SubmissionItem => ({
-  submission_id: `sub-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+  submission_id: `sub-${Date.now()}-${generateId(4)}`,
   student_id: "",
   source_code: "",
 });

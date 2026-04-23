@@ -191,7 +191,11 @@ export default function GroupsPage() {
                     <TableCell className="text-center">
                         <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
                             {/* Mocking student count for now */}
-                            {Math.floor(Math.random() * 50) + 10}
+                            {(() => {
+                                const arr = new Uint32Array(1);
+                                if (globalThis.window !== undefined) globalThis.crypto.getRandomValues(arr);
+                                return (arr[0] % 50) + 10;
+                            })()}
                         </span>
                     </TableCell>
                     <TableCell className="pr-6">

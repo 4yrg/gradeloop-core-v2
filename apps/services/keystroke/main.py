@@ -9,6 +9,7 @@ import os
 from datetime import datetime
 
 import pika
+from env_utils.env_utils import load_root_env
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from psycopg2 import extras
@@ -23,6 +24,9 @@ from db import get_db_client
 from feature_extraction import KeystrokeFeatureExtractor
 from redis_client import get_redis_client
 from typenet_inference import TypeNetAuthenticator
+
+# Load environment variables from project root
+load_root_env()
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -112,7 +116,7 @@ SESSION_TTL_SECONDS = int(os.getenv("SESSION_TTL_HOURS", "2")) * 3600
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
 RABBITMQ_PORT = int(os.getenv("RABBITMQ_PORT", "5672"))
 RABBITMQ_USER = os.getenv("RABBITMQ_USER", "guest")
-RABBITMQ_PASS = os.getenv("RABBITMQ_PASS", "guest")
+RABBITMQ_PASS = os.getenv("RABBITMQ_PASSWORD", "guest")
 RABBITMQ_EXCHANGE = "keystroke.exchange"
 RABBITMQ_ROUTING_KEY = "keystroke.auth.result"
 
@@ -1432,5 +1436,5 @@ async def websocket_monitor(websocket: WebSocket, user_id: str, session_id: str)
 if __name__ == "__main__":
     import uvicorn
 
-    port = int(os.getenv("PORT", 8103))
+    port = int(os.getenv("KEYSTROKE_SVC_PORT", 8103))
     uvicorn.run(app, host="0.0.0.0", port=port)

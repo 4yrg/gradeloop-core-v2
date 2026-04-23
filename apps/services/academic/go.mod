@@ -3,10 +3,10 @@ module github.com/4yrg/gradeloop-core-v2/apps/services/academic
 go 1.25.0
 
 require (
+	github.com/4yrg/gradeloop-core-v2/packages/go/env v1.0.0
 	github.com/gofiber/fiber/v3 v3.0.0-rc.1
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
-	github.com/joho/godotenv v1.5.1
 	github.com/stretchr/testify v1.11.1
 	github.com/swaggo/swag v1.16.6
 	go.uber.org/zap v1.26.0
@@ -24,6 +24,8 @@ replace github.com/4yrg/gradeloop-core-v2/packages/go/errors => ../../../package
 replace github.com/4yrg/gradeloop-core-v2/packages/go/secrets => ../../../packages/go/secrets
 
 replace github.com/4yrg/gradeloop-core-v2/packages/go/grpc => ../../../packages/go/grpc
+
+replace github.com/4yrg/gradeloop-core-v2/packages/go/env => ../../../packages/go/env
 
 require (
 	github.com/KyleBanks/depth v1.2.1 // indirect
@@ -46,6 +48,7 @@ require (
 	github.com/jackc/pgx/v5 v5.4.3 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
+	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/klauspost/compress v1.18.4 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect

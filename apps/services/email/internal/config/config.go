@@ -1,11 +1,10 @@
 package config
 
 import (
-	"log"
 	"os"
 	"strconv"
 
-	"github.com/joho/godotenv"
+	"github.com/4yrg/gradeloop-core-v2/packages/go/env"
 )
 
 type Config struct {
@@ -42,28 +41,20 @@ type SMTPConfig struct {
 }
 
 func LoadConfig() *Config {
-	// Only attempt to load a .env file in local/development mode.
-	// In Docker/production, environment variables are injected by the
-	// orchestrator, so godotenv.Load() will always fail and the warning
-	// is noise. APP_ENV=production is set in docker-compose.yaml.
-	if os.Getenv("APP_ENV") != "production" {
-		if err := godotenv.Load(); err != nil {
-			log.Println("No .env file found, using system environment variables")
-		}
-	}
+	env.Load()
 
 	return &Config{
 		App: AppConfig{
-			Port: getEnv("APP_PORT", "8082"),
+			Port: getEnv("EMAIL_SVC_PORT", "8082"),
 			Env:  getEnv("APP_ENV", "development"),
 		},
 		DB: DBConfig{
-			Host:     getEnv("DB_HOST", "localhost"),
-			Port:     getEnv("DB_PORT", "5432"),
-			User:     getEnv("DB_USER", "postgres"),
-			Password: getEnv("DB_PASSWORD", "postgres"),
-			Name:     getEnv("DB_NAME", "email-db"),
-			SSLMode:  getEnv("DB_SSLMODE", "disable"),
+			Host:     getEnv("GRA_DB_HOST", "localhost"),
+			Port:     getEnv("GRA_DB_PORT", "5432"),
+			User:     getEnv("GRA_DB_USER", "postgres"),
+			Password: getEnv("GRA_DB_PASSWORD", "postgres"),
+			Name:     getEnv("EMAIL_SVC_DB_NAME", "email-db"),
+			SSLMode:  getEnv("GRA_DB_SSLMODE", "disable"),
 		},
 		RabbitMQ: RabbitMQConfig{
 			URL: getEnv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"),

@@ -3,9 +3,10 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
-	"github.com/joho/godotenv"
+	"github.com/4yrg/gradeloop-core-v2/packages/go/env"
 )
 
 type Config struct {
@@ -31,8 +32,7 @@ type LLMConfig struct {
 
 // Load loads configuration from environment variables
 func Load() (*Config, error) {
-	// Load .env file if it exists
-	_ = godotenv.Load()
+	env.Load()
 
 	cfg := &Config{
 		Server: ServerConfig{
@@ -63,14 +63,17 @@ func Load() (*Config, error) {
 	}
 
 	// Override max tokens if provided
-	if maxTokens := getEnv("LLM_MAX_TOKENS", ""); maxTokens != "" {
-		// Parse would be done in validation
-		cfg.LLM.MaxTokens = 2048 // default fallback
+	if maxTokensStr := getEnv("LLM_MAX_TOKENS", ""); maxTokensStr != "" {
+		if val, err := strconv.Atoi(maxTokensStr); err == nil {
+			cfg.LLM.MaxTokens = val
+		}
 	}
 
 	// Override temperature if provided
-	if temp := getEnv("LLM_TEMPERATURE", ""); temp != "" {
-		cfg.LLM.Temperature = 0.7 // default fallback
+	if tempStr := getEnv("LLM_TEMPERATURE", ""); tempStr != "" {
+		if val, err := strconv.ParseFloat(tempStr, 64); err == nil {
+			cfg.LLM.Temperature = val
+		}
 	}
 
 	return cfg, cfg.Validate()

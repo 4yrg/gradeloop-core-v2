@@ -15,9 +15,12 @@ Features:
 """
 
 import asyncio
+import os
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import APIRouter, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -63,6 +66,28 @@ from schemas import (
     TokenizeResponse,
     UpdateAnnotationRequest,
 )
+
+
+def load_root_env():
+    """Find project root and load environment variables."""
+    path = Path(__file__).resolve()
+    root = None
+    for parent in path.parents:
+        if (parent / "turbo.json").exists() or (parent / "package.json").exists():
+            root = parent
+            break
+
+    if root:
+        app_env = os.getenv("APP_ENV", "development")
+        load_dotenv(root / f".env.{app_env}")
+        load_dotenv(root / ".env")
+    else:
+        # Fallback to local .env if root not found
+        load_dotenv()
+
+
+# Load environment variables from project root
+load_root_env()
 
 # Configure logging
 logger = setup_logging(__name__)

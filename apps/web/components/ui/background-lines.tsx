@@ -37,12 +37,23 @@ const pathVariants = {
 };
 
 // Pre-generate random values for lines to ensure purity during render
-const STATIC_RANDOM_VALUES = Array.from({ length: 21 }, () => ({
-  delay1: Math.floor(Math.random() * 10),
-  repeatDelay1: Math.floor(Math.random() * 10 + 2),
-  delay2: Math.floor(Math.random() * 10),
-  repeatDelay2: Math.floor(Math.random() * 10 + 2),
-}));
+const STATIC_RANDOM_VALUES = Array.from({ length: 21 }, () => {
+  const arr = new Uint32Array(4);
+  if (globalThis.window === undefined) {
+      arr[0] = Math.floor(Math.random() * 100);
+      arr[1] = Math.floor(Math.random() * 100);
+      arr[2] = Math.floor(Math.random() * 100);
+      arr[3] = Math.floor(Math.random() * 100);
+  } else {
+      globalThis.crypto.getRandomValues(arr);
+  }
+  return {
+    delay1: arr[0] % 10,
+    repeatDelay1: (arr[1] % 10) + 2,
+    delay2: arr[2] % 10,
+    repeatDelay2: (arr[3] % 10) + 2,
+  };
+});
 
 const SVG = ({
   svgOptions,

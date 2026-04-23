@@ -5,9 +5,10 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/joho/godotenv"
+	"github.com/4yrg/gradeloop-core-v2/packages/go/env"
 )
 
+// Config holds all configuration for the IAM service.
 type Config struct {
 	Server          ServerConfig
 	Database        DatabaseConfig
@@ -17,11 +18,13 @@ type Config struct {
 	EmailServiceURL string
 }
 
+// ServerConfig holds server-related configuration.
 type ServerConfig struct {
 	Port          string
 	EnablePrefork bool
 }
 
+// DatabaseConfig holds database connection configuration.
 type DatabaseConfig struct {
 	Host     string
 	Port     string
@@ -31,6 +34,7 @@ type DatabaseConfig struct {
 	SSLMode  string
 }
 
+// MinIOConfig holds MinIO connection configuration.
 type MinIOConfig struct {
 	Endpoint   string
 	AccessKey  string
@@ -40,6 +44,7 @@ type MinIOConfig struct {
 	PublicHost string // base URL used to build public object URLs
 }
 
+// JWTConfig holds JWT-related configuration.
 type JWTConfig struct {
 	SecretKey          string
 	AccessTokenExpiry  int64  // in minutes
@@ -48,27 +53,24 @@ type JWTConfig struct {
 	CookieSameSite     string // SameSite setting for cookies
 }
 
+// Load reads configuration from environment variables.
 func Load() (*Config, error) {
-	if err := godotenv.Load(); err != nil {
-		if !os.IsNotExist(err) {
-			return nil, fmt.Errorf("loading .env file: %w", err)
-		}
-	}
+	env.Load()
 
-	dbPort := getEnv("DB_PORT", "5432")
-	dbSSLMode := getEnv("DB_SSLMODE", "disable")
+	dbPort := getEnv("GRA_DB_PORT", "5432")
+	dbSSLMode := getEnv("GRA_DB_SSLMODE", "disable")
 
 	return &Config{
 		Server: ServerConfig{
-			Port:          getEnv("SERVER_PORT", "8081"),
+			Port:          getEnv("IAM_SVC_PORT", "8081"),
 			EnablePrefork: getEnvAsBool("ENABLE_PREFORK", false),
 		},
 		Database: DatabaseConfig{
-			Host:     getEnv("DB_HOST", "localhost"),
+			Host:     getEnv("GRA_DB_HOST", "localhost"),
 			Port:     dbPort,
-			User:     getEnv("DB_USER", "postgres"),
-			Password: getEnv("DB_PASSWORD", ""),
-			Name:     getEnv("DB_NAME", "iam_db"),
+			User:     getEnv("GRA_DB_USER", "postgres"),
+			Password: getEnv("GRA_DB_PASSWORD", ""),
+			Name:     getEnv("IAM_SVC_DB_NAME", "iam_db"),
 			SSLMode:  dbSSLMode,
 		},
 		JWT: JWTConfig{
@@ -91,6 +93,7 @@ func Load() (*Config, error) {
 	}, nil
 }
 
+// DSN returns the database connection string.
 func (c *Config) DSN() string {
 	return fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",

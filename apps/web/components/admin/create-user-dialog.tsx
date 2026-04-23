@@ -36,7 +36,7 @@ function validate(values: CreateUserRequest): FormErrors {
   if (!values.full_name.trim()) errors.full_name = 'Full Name is required';
   if (!values.email.trim()) {
     errors.email = 'Email is required';
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
+  } else if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(values.email)) {
     errors.email = 'Enter a valid email address';
   }
   if (!values.user_type) errors.user_type = 'User Type is required';

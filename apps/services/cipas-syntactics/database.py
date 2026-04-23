@@ -16,8 +16,14 @@ import asyncpg
 
 logger = logging.getLogger(__name__)
 
-# Database URL from environment
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/gradeloop")
+
+def get_database_url() -> str:
+    """Resolve database URL from environment at runtime."""
+    return os.getenv(
+        "CIPAS_SYN_DATABASE_URL",
+        os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/gradeloop"),
+    )
+
 
 # ── asyncpg runtime pool ────────────────────────────────────────────────────
 # Connection pool (initialized on startup)
@@ -67,9 +73,10 @@ async def init_db_pool() -> None:
     global _pool
     if _pool is None:
         logger.info("Initializing database connection pool...")
-        await _ensure_database_exists(DATABASE_URL)
+        db_url = get_database_url()
+        await _ensure_database_exists(db_url)
         _pool = await asyncpg.create_pool(
-            DATABASE_URL,
+            db_url,
             min_size=2,
             max_size=10,
             command_timeout=60,

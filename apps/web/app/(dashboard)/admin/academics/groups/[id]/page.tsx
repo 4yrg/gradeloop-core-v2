@@ -312,16 +312,22 @@ export default function GroupDetailPage() {
                                         const isAlreadyMember = members.some(m => m.user_id === student.id);
 
                                         return (
-                                            <div
+                                            <button
                                                 key={student.id}
                                                 className={cn(
-                                                    "flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer",
+                                                    "flex w-full items-center justify-between p-3 rounded-lg border transition-all cursor-pointer text-left",
                                                     isSelected
                                                         ? "bg-primary/5 border-primary shadow-sm"
                                                         : "bg-white dark:bg-zinc-950 border-zinc-100 dark:border-zinc-900 hover:border-zinc-300",
                                                     isAlreadyMember && "opacity-50 pointer-events-none grayscale"
                                                 )}
                                                 onClick={() => !isAlreadyMember && toggleStudentSelection(student.id)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        if (!isAlreadyMember) toggleStudentSelection(student.id);
+                                                    }
+                                                }}
                                             >
                                                 <div className="flex items-center gap-3">
                                                     <Avatar className="h-8 w-8">
@@ -344,7 +350,7 @@ export default function GroupDetailPage() {
                                                         <div className="h-5 w-5 border-2 border-zinc-200 rounded-full" />
                                                     )}
                                                 </div>
-                                            </div>
+                                            </button>
                                         );
                                     })
                                 ) : (

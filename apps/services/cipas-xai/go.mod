@@ -3,8 +3,8 @@ module github.com/4yrg/gradeloop-core-v2/apps/services/cipas/cipas-xai
 go 1.25.0
 
 require (
+	github.com/4yrg/gradeloop-core-v2/packages/go/env v1.0.0
 	github.com/gofiber/fiber/v3 v3.0.0-rc.1
-	github.com/joho/godotenv v1.5.1
 	go.uber.org/zap v1.26.0
 )
 
@@ -18,11 +18,14 @@ replace github.com/4yrg/gradeloop-core-v2/packages/go/secrets => ../../../packag
 
 replace github.com/4yrg/gradeloop-core-v2/packages/go/grpc => ../../../packages/go/grpc
 
+replace github.com/4yrg/gradeloop-core-v2/packages/go/env => ../../../packages/go/env
+
 require (
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/gofiber/schema v1.6.0 // indirect
 	github.com/gofiber/utils/v2 v2.0.0-rc.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
