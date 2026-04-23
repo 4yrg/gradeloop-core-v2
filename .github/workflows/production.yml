@@ -486,14 +486,26 @@ jobs:
             echo "Updating compose file with ghcr.io images..."
             $COMPOSE_CMD -f $COMPOSE_FILE config > /dev/null
 
+            echo "Disk space before deployment:"
+            df -h /
+
+            # Cleanup dangling images to free up space for new ones
+            echo "Cleaning up dangling images before pull..."
+            $RUNTIME image prune -f
+
             # Pre-flight image pull/check
             echo "Pre-flight image check..."
             images=$($COMPOSE_CMD -f $COMPOSE_FILE config 2>/dev/null | awk '/image:/ {print $2}' | sort -u)
             for img in $images; do
               echo "Checking image: $img"
               if ! $RUNTIME pull "$img"; then
-                echo "ERROR: Failed to pull image $img"
-                exit 1
+                echo "WARNING: Failed to pull image $img. Pruning all unused images and trying again..."
+                $RUNTIME image prune -a -f --filter "until=1h"
+                if ! $RUNTIME pull "$img"; then
+                  echo "ERROR: Failed to pull image $img even after cleanup."
+                  df -h /
+                  exit 1
+                fi
               fi
             done
 
@@ -597,13 +609,24 @@ jobs:
             git reset --hard origin/main
 
             # Pre-flight image pull/check
+            echo "Disk space check:"
+            df -h /
+
+            echo "Cleaning up dangling images..."
+            $RUNTIME image prune -f
+
             echo "Pre-flight image check..."
             images=$($COMPOSE_CMD -f $COMPOSE_FILE config 2>/dev/null | awk '/image:/ {print $2}' | sort -u)
             for img in $images; do
               echo "Checking image: $img"
               if ! $RUNTIME pull "$img"; then
-                echo "ERROR: Failed to pull image $img"
-                exit 1
+                echo "WARNING: Failed to pull image $img. Attempting cleanup and retry..."
+                $RUNTIME image prune -a -f --filter "until=1h"
+                if ! $RUNTIME pull "$img"; then
+                  echo "ERROR: Failed to pull image $img"
+                  df -h /
+                  exit 1
+                fi
               fi
             done
 
