@@ -26,7 +26,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 COPY requirements.txt ./
 
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip uninstall -y nvidia-nccl-cu12 nvidia-cuda-runtime-cu12 nvidia-cudnn-cu12 nvidia-cublas-cu12 \
+       nvidia-cuda-cupti-cu12 nvidia-cuda-nvrtc-cu12 nvidia-curand-cu12 nvidia-cusolver-cu12 \
+       nvidia-cusparse-cu12 nvidia-npp-cu12 nvidia-nvjitlink-cu12 nvidia-nvtx-cu12 || true \
+    && find /usr/local/lib/python3.11/site-packages -name "*.pyc" -delete \
+    && find /usr/local/lib/python3.11/site-packages -name "__pycache__" -delete
 
 COPY main.py routes.py schemas.py database.py ./
 COPY clone_detection/ ./clone_detection/
