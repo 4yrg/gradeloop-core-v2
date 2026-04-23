@@ -8,11 +8,16 @@ WORKDIR /app
 
 RUN apk add --no-cache git ca-certificates
 
-COPY go.mod go.sum ./
+# Copy shared packages first to leverage cache
+COPY packages/go /app/packages/go
+
+# Copy service specific files
+COPY apps/services/cipas-xai/go.mod apps/services/cipas-xai/go.sum /app/apps/services/cipas-xai/
+WORKDIR /app/apps/services/cipas-xai
 RUN go mod download
 
-COPY cmd/ ./cmd/
-COPY internal/ ./internal/
+COPY apps/services/cipas-xai/cmd/ ./cmd/
+COPY apps/services/cipas-xai/internal/ ./internal/
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags="-s -w -buildid=" \
@@ -25,7 +30,7 @@ WORKDIR /app
 
 RUN apk add --no-cache ca-certificates
 
-COPY --from=builder /app/cipas-xai .
+COPY --from=builder /app/apps/services/cipas-xai/cipas-xai .
 
 EXPOSE 8085
 
@@ -37,7 +42,7 @@ RUN apk add --no-cache ca-certificates
 
 WORKDIR /app
 
-COPY --from=builder /app/cipas-xai .
+COPY --from=builder /app/apps/services/cipas-xai/cipas-xai .
 
 RUN addgroup -S cipas-xai && adduser -S cipas-xai -G cipas-xai \
     && chown -R cipas-xai:cipas-xai /app

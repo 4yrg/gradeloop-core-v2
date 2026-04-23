@@ -8,12 +8,17 @@ WORKDIR /app
 
 RUN apk add --no-cache git ca-certificates
 
-COPY go.mod go.sum ./
+# Copy shared packages first to leverage cache
+COPY packages/go /app/packages/go
+
+# Copy service specific files
+COPY apps/services/email/go.mod apps/services/email/go.sum /app/apps/services/email/
+WORKDIR /app/apps/services/email
 RUN go mod download
 
-COPY cmd/ ./cmd/
-COPY internal/ ./internal/
-COPY docs/ ./docs/
+COPY apps/services/email/cmd/ ./cmd/
+COPY apps/services/email/internal/ ./internal/
+COPY apps/services/email/docs/ ./docs/
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags="-s -w -buildid=" \
@@ -27,7 +32,7 @@ WORKDIR /app
 
 RUN apk add --no-cache ca-certificates
 
-COPY --from=builder /app/email-service .
+COPY --from=builder /app/apps/services/email/email-service .
 
 EXPOSE 8082
 
@@ -39,7 +44,7 @@ RUN apk add --no-cache ca-certificates
 
 WORKDIR /app
 
-COPY --from=builder /app/email-service .
+COPY --from=builder /app/apps/services/email/email-service .
 
 RUN addgroup -S gradeloop && adduser -S gradeloop -G gradeloop \
     && chown -R gradeloop:gradeloop /app

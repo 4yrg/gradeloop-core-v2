@@ -8,11 +8,17 @@ WORKDIR /app
 
 RUN apk add --no-cache git ca-certificates
 
-COPY go.mod go.sum ./
+# Copy shared packages first to leverage cache
+COPY packages/go /app/packages/go
+
+# Copy service specific files
+COPY apps/services/academic/go.mod apps/services/academic/go.sum /app/apps/services/academic/
+WORKDIR /app/apps/services/academic
 RUN go mod download
 
-COPY cmd/ ./cmd/
-COPY internal/ ./internal/
+COPY apps/services/academic/cmd/ ./cmd/
+COPY apps/services/academic/internal/ ./internal/
+COPY apps/services/academic/docs/ ./docs/
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags="-s -w -buildid=" \
@@ -26,7 +32,7 @@ WORKDIR /app
 
 RUN apk add --no-cache ca-certificates
 
-COPY --from=builder /app/academic-service .
+COPY --from=builder /app/apps/services/academic/academic-service .
 
 EXPOSE 8083
 
@@ -38,7 +44,7 @@ RUN apk add --no-cache ca-certificates tzdata
 
 WORKDIR /app
 
-COPY --from=builder /app/academic-service .
+COPY --from=builder /app/apps/services/academic/academic-service .
 
 RUN addgroup -S gradeloop && adduser -S gradeloop -G gradeloop \
     && chown -R gradeloop:gradeloop /app
