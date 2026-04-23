@@ -477,10 +477,20 @@ jobs:
               echo "$GHCR_TOKEN" | $RUNTIME login ghcr.io -u "$GHCR_USER" --password-stdin || { echo "WARNING: Login to ghcr.io failed"; }
             fi
 
-            # Fetch latest changes
+            # Free up space before syncing repository updates
+            echo "Disk space before git sync:"
+            df -h /
+            echo "Cleaning up unused images before git sync..."
+            $RUNTIME image prune -a -f
+
+            # Fetch latest changes (continue with current checkout if sync fails)
             echo "Fetching latest main branch..."
-            git fetch origin main
-            git reset --hard origin/main
+            if git fetch origin main && git reset --hard origin/main; then
+              echo "Repository synced to origin/main"
+            else
+              echo "WARNING: Failed to sync repository. Continuing with existing checkout."
+              df -h /
+            fi
 
             # Build compose file with ghcr.io images
             echo "Updating compose file with ghcr.io images..."
@@ -605,8 +615,17 @@ jobs:
               COMPOSE_CMD="podman compose"
             fi
 
-            git fetch origin main
-            git reset --hard origin/main
+            echo "Disk space before git sync:"
+            df -h /
+            echo "Cleaning up unused images before git sync..."
+            $RUNTIME image prune -a -f
+
+            if git fetch origin main && git reset --hard origin/main; then
+              echo "Repository synced to origin/main"
+            else
+              echo "WARNING: Failed to sync repository. Continuing with existing checkout."
+              df -h /
+            fi
 
             # Pre-flight image pull/check
             echo "Disk space check:"
