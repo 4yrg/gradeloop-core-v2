@@ -21,6 +21,6 @@ def load_root_env():
         load_dotenv(root / ".env")
         return root
     else:
-        # Fallback to local .env if root not found
+        # Fallback to local .env if root not found (e.g. in container)
         load_dotenv()
-        return None
+        return Path.cwd()
