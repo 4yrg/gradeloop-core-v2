@@ -3,16 +3,6 @@ name: CD - Build, Push & Deploy
 on:
   push:
     branches: [main]
-  workflow_dispatch:
-    inputs:
-      runtime:
-        description: "Container Runtime"
-        required: true
-        default: docker
-        type: choice
-        options:
-          - docker
-          - podman
 
 env:
   REGISTRY: ghcr.io
@@ -275,48 +265,6 @@ jobs:
           sbom: true
 
   # --------------------------------------------------------------------------
-  # Build web frontend
-  # --------------------------------------------------------------------------
-  build-web:
-    name: Build Web Frontend
-    runs-on: ubuntu-latest
-    needs: [login-ghcr, go-checks, node-checks, python-checks]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Generate image tags
-        id: meta
-        run: |
-          ghcr_prefix="${{ needs.login-ghcr.outputs.ghcr_prefix }}"
-          short_sha=$(echo "${{ github.sha }}" | cut -c1-7)
-          full_tag="ghcr.io/${ghcr_prefix}/gradeloop-web"
-          echo "full_tag=$full_tag"
-          echo "full_tag=$full_tag" >> $GITHUB_OUTPUT
-          echo "tags=${full_tag}:latest,${full_tag}:sha-${short_sha}" >> $GITHUB_OUTPUT
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and push web
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/web/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          cache-from: type=gha,scope=web
-          cache-to: type=gha,mode=max,scope=web
-          provenance: true
-          sbom: true
-
-  # --------------------------------------------------------------------------
   # Build Kong gateway image
   # --------------------------------------------------------------------------
   build-gateway:
@@ -367,7 +315,7 @@ jobs:
   build-complete:
     name: Build Complete
     runs-on: ubuntu-latest
-    needs: [login-ghcr, build-go-services, build-python-services, build-web, build-gateway]
+    needs: [login-ghcr, build-go-services, build-python-services, build-gateway]
     steps:
       - name: Summary
         run: |
@@ -388,7 +336,6 @@ jobs:
           echo "| cipas-ai | ghcr.io/${{ needs.login-ghcr.outputs.ghcr_prefix }}/gradeloop-cipas-ai |" >> $GITHUB_STEP_SUMMARY
           echo "| cipas-semantics | ghcr.io/${{ needs.login-ghcr.outputs.ghcr_prefix }}/gradeloop-cipas-semantics |" >> $GITHUB_STEP_SUMMARY
           echo "| cipas-syntactics | ghcr.io/${{ needs.login-ghcr.outputs.ghcr_prefix }}/gradeloop-cipas-syntactics |" >> $GITHUB_STEP_SUMMARY
-          echo "| web | ghcr.io/${{ needs.login-ghcr.outputs.ghcr_prefix }}/gradeloop-web |" >> $GITHUB_STEP_SUMMARY
           echo "| kong | ghcr.io/${{ needs.login-ghcr.outputs.ghcr_prefix }}/gradeloop-kong |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Tags: \`latest\`, \`sha-${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
@@ -399,7 +346,7 @@ jobs:
   deploy:
     name: Deploy to Hetzner
     runs-on: ubuntu-latest
-    needs: [build-complete, build-go-services, build-python-services, build-web, build-gateway]
+    needs: [build-complete, build-go-services, build-python-services, build-gateway]
     if: github.event_name != 'workflow_dispatch' || github.event.inputs.runtime == 'docker'
     environment:
       name: production
@@ -452,12 +399,29 @@ jobs:
             fi
             echo "Using: $COMPOSE_CMD"
 
-            # Navigate to project directory (clone if missing)
-            if [ -d "$HOME/gradeloop-core-v2" ]; then
-              cd "$HOME/gradeloop-core-v2"
-            elif [ -d "/opt/gradeloop-core-v2" ]; then
-              cd "/opt/gradeloop-core-v2"
-            else
+            # Debug: Show environment info
+            echo "=== Environment Debug ==="
+            echo "HOME=$HOME"
+            echo "User=$(whoami)"
+            echo "==========================="
+
+            # Test network connectivity
+            echo "Testing network connectivity..."
+            curl -sI https://github.com -o /dev/null && echo "✓ GitHub accessible" || echo "✗ GitHub inaccessible"
+            curl -sI https://ghcr.io -o /dev/null && echo "✓ GHCR accessible" || echo "✗ GHCR inaccessible"
+
+            # Show available directories
+            echo "Checking repo locations..."
+            for dir in "$HOME/gradeloop-core-v2" "/home/gradeloop/gradeloop-core-v2" "/opt/gradeloop-core-v2"; do
+              if [ -d "$dir" ]; then
+                echo "Found: $dir"
+                cd "$dir"
+                break
+              fi
+            done
+
+            # If not found, try to clone
+            if [ "$(pwd)" = "/home/gradeloop" ] || [ "$(pwd)" = "/opt" ] || [ ! -d "gradeloop-core-v2" ] && [ ! -d "../gradeloop-core-v2" ]; then
               echo "Project directory not found. Attempting to clone..."
               git clone --depth 1 https://github.com/4yrg/gradeloop-core-v2.git "$HOME/gradeloop-core-v2" || true
               if [ -d "$HOME/gradeloop-core-v2" ]; then
@@ -465,7 +429,10 @@ jobs:
               else
                 echo "ERROR: Unable to locate or clone repository."
                 ls -la ~/
+                ls -la /home/ 2>/dev/null || true
                 ls -la /opt/ 2>/dev/null || true
+                echo "Disk usage:"
+                df -h /
                 exit 1
               fi
             fi
@@ -474,8 +441,14 @@ jobs:
             # Authenticate to GHCR
             if [ -n "$GHCR_TOKEN" ] && [ -n "$GHCR_USER" ]; then
               echo "Logging in to ghcr.io..."
-              echo "$GHCR_TOKEN" | $RUNTIME login ghcr.io -u "$GHCR_USER" --password-stdin || { echo "WARNING: Login to ghcr.io failed"; }
+              echo "$GHCR_TOKEN" | $RUNTIME login ghcr.io -u "$GHCR_USER" --password-stdin || { echo "ERROR: Login to ghcr.io failed - token may be invalid or expired"; df -h /; exit 1; }
             fi
+
+            # Free up space before syncing repository updates
+            echo "Disk space before git sync:"
+            df -h /
+            echo "Cleaning up unused images before git sync..."
+            $RUNTIME image prune -a -f --filter "until=1h"
 
             # Fetch latest changes
             echo "Fetching latest main branch..."
@@ -540,7 +513,7 @@ jobs:
   deploy-podman:
     name: Deploy to Hetzner (Podman)
     runs-on: ubuntu-latest
-    needs: [build-complete, build-go-services, build-python-services, build-web, build-gateway]
+    needs: [build-complete, build-go-services, build-python-services, build-gateway]
     if: github.event.inputs.runtime == 'podman'
     environment:
       name: production
@@ -604,6 +577,11 @@ jobs:
             else
               COMPOSE_CMD="podman compose"
             fi
+
+            echo "Disk space before git sync:"
+            df -h /
+            echo "Cleaning up unused images before git sync..."
+            $RUNTIME image prune -a -f --filter "until=1h"
 
             git fetch origin main
             git reset --hard origin/main

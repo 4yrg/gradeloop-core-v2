@@ -89,18 +89,40 @@ jobs:
             fi
             echo "Using: $COMPOSE_CMD"
 
-            # Navigate to project directory
-            if [ -d "$HOME/gradeloop-core-v2" ]; then
-              cd "$HOME/gradeloop-core-v2"
-            elif [ -d "/opt/gradeloop-core-v2" ]; then
-              cd "/opt/gradeloop-core-v2"
-            else
+            # Debug: Show environment info
+            echo "=== Environment Debug ==="
+            echo "HOME=$HOME"
+            echo "User=$(whoami)"
+            echo "==========================="
+
+            # Test network connectivity
+            echo "Testing network connectivity..."
+            curl -sI https://github.com -o /dev/null && echo "✓ GitHub accessible" || echo "✗ GitHub inaccessible"
+            curl -sI https://ghcr.io -o /dev/null && echo "✓ GHCR accessible" || echo "✗ GHCR inaccessible"
+
+            # Show available directories
+            echo "Checking repo locations..."
+            for dir in "$HOME/gradeloop-core-v2" "/home/gradeloop/gradeloop-core-v2" "/opt/gradeloop-core-v2"; do
+              if [ -d "$dir" ]; then
+                echo "Found: $dir"
+                cd "$dir"
+                break
+              fi
+            done
+
+            # If not found, try to clone
+            if [ "$(pwd)" = "/home/gradeloop" ] || [ "$(pwd)" = "/opt" ] || [ ! -d "gradeloop-core-v2" ] && [ ! -d "../gradeloop-core-v2" ]; then
               echo "Project directory not found. Attempting to clone..."
               git clone --depth 1 https://github.com/4yrg/gradeloop-core-v2.git "$HOME/gradeloop-core-v2" || true
               if [ -d "$HOME/gradeloop-core-v2" ]; then
                 cd "$HOME/gradeloop-core-v2"
               else
                 echo "ERROR: Unable to locate or clone repository."
+                ls -la ~/
+                ls -la /home/ 2>/dev/null || true
+                ls -la /opt/ 2>/dev/null || true
+                echo "Disk usage:"
+                df -h /
                 exit 1
               fi
             fi

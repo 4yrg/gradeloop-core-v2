@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -81,8 +82,11 @@ func Load() (*Config, error) {
 
 // Validate validates the configuration
 func (c *Config) Validate() error {
-	if c.LLM.APIKey == "" {
-		return fmt.Errorf("LLM_API_KEY is required")
+	// Allow startup with dummy key (for health check / non-production)
+	if c.LLM.APIKey == "" || c.LLM.APIKey == "dummy-key-for-startup" {
+		// Log warning but don't fail - allows service to start for health checks
+		log.Println("WARNING: Using dummy LLM_API_KEY - XAI features will be limited")
+		return nil
 	}
 
 	if c.LLM.Model == "" {

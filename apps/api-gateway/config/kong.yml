@@ -86,6 +86,10 @@ services:
       - http://localhost:80
       - http://localhost:8080
       - http://localhost:443
+      - https://gradeloop-core-v2-web.vercel.app
+      - https://api.gradeloop.space
+      - https://app.gradeloop.space
+      - https://gradeloop.space
       methods:
       - GET
       - POST
@@ -130,6 +134,10 @@ services:
       - http://localhost:80
       - http://localhost:8080
       - http://localhost:443
+      - https://gradeloop-core-v2-web.vercel.app
+      - https://api.gradeloop.space
+      - https://app.gradeloop.space
+      - https://gradeloop.space
       methods:
       - GET
       - POST
@@ -202,6 +210,10 @@ services:
       - http://localhost:80
       - http://localhost:8080
       - http://localhost:443
+      - https://gradeloop-core-v2-web.vercel.app
+      - https://api.gradeloop.space
+      - https://app.gradeloop.space
+      - https://gradeloop.space
       methods:
       - GET
       - POST
@@ -245,6 +257,10 @@ services:
       - http://localhost:80
       - http://localhost:8080
       - http://localhost:443
+      - https://gradeloop-core-v2-web.vercel.app
+      - https://api.gradeloop.space
+      - https://app.gradeloop.space
+      - https://gradeloop.space
       methods:
       - GET
       - POST
@@ -287,6 +303,10 @@ services:
       - http://localhost:80
       - http://localhost:8080
       - http://localhost:443
+      - https://gradeloop-core-v2-web.vercel.app
+      - https://api.gradeloop.space
+      - https://app.gradeloop.space
+      - https://gradeloop.space
       methods:
       - GET
       - POST
@@ -329,6 +349,10 @@ services:
       - http://localhost:80
       - http://localhost:8080
       - http://localhost:443
+      - https://gradeloop-core-v2-web.vercel.app
+      - https://api.gradeloop.space
+      - https://app.gradeloop.space
+      - https://gradeloop.space
       methods:
       - GET
       - POST
@@ -371,6 +395,10 @@ services:
       - http://localhost:80
       - http://localhost:8080
       - http://localhost:443
+      - https://gradeloop-core-v2-web.vercel.app
+      - https://api.gradeloop.space
+      - https://app.gradeloop.space
+      - https://gradeloop.space
       methods:
       - GET
       - POST
@@ -413,6 +441,10 @@ services:
       - http://localhost:80
       - http://localhost:8080
       - http://localhost:443
+      - https://gradeloop-core-v2-web.vercel.app
+      - https://api.gradeloop.space
+      - https://app.gradeloop.space
+      - https://gradeloop.space
       - http://localhost:8101
       - http://localhost:8102
       - http://localhost:8103
@@ -477,6 +509,10 @@ services:
       - http://localhost:80
       - http://localhost:8080
       - http://localhost:443
+      - https://gradeloop-core-v2-web.vercel.app
+      - https://api.gradeloop.space
+      - https://app.gradeloop.space
+      - https://gradeloop.space
       methods:
       - GET
       - POST
@@ -516,6 +552,10 @@ services:
       - http://localhost:80
       - http://localhost:8080
       - http://localhost:443
+      - https://gradeloop-core-v2-web.vercel.app
+      - https://api.gradeloop.space
+      - https://app.gradeloop.space
+      - https://gradeloop.space
       methods:
       - GET
       - POST
@@ -559,6 +599,10 @@ services:
       - http://localhost:80
       - http://localhost:8080
       - http://localhost:443
+      - https://gradeloop-core-v2-web.vercel.app
+      - https://api.gradeloop.space
+      - https://app.gradeloop.space
+      - https://gradeloop.space
       methods:
       - GET
       - POST
@@ -606,6 +650,10 @@ services:
       - http://localhost:80
       - http://localhost:8080
       - http://localhost:443
+      - https://gradeloop-core-v2-web.vercel.app
+      - https://api.gradeloop.space
+      - https://app.gradeloop.space
+      - https://gradeloop.space
       methods:
       - GET
       - POST

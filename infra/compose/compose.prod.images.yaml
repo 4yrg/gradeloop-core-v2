@@ -10,13 +10,6 @@
 # Environment Variables:
 #   GHCR_PACKAGE_PREFIX  GitHub package prefix (e.g., 4yrg)
 
-x-shared-environment: &shared_env
-  GRA_DB_USER: ${GRA_DB_USER:-postgres}
-  GRA_DB_PASSWORD: ${GRA_DB_PASSWORD:-postgres}
-  GRA_DB_HOST: postgres
-  GRA_DB_PORT: 5432
-  GRA_DB_SSLMODE: ${GRA_DB_SSLMODE:-disable}
-
 x-ghcr-image: &ghcr_image
   pull_policy: always
 
@@ -25,7 +18,7 @@ services:
   # Infrastructure (Production)
   # =============================================================================
   postgres:
-    image: postgres:16.2-alpine
+    image: postgres:16-alpine
     <<: *ghcr_image
     container_name: gradeloop-postgres
     restart: unless-stopped
@@ -54,7 +47,7 @@ services:
           memory: 2G
 
   postgres-keystroke:
-    image: postgres:16.2-alpine
+    image: postgres:16-alpine
     <<: *ghcr_image
     container_name: gradeloop-postgres-keystroke
     restart: unless-stopped
@@ -82,7 +75,7 @@ services:
           memory: 1G
 
   rabbitmq:
-    image: rabbitmq:3.13.9-management-alpine
+    image: rabbitmq:4.2-management-alpine
     <<: *ghcr_image
     container_name: gradeloop-rabbitmq
     restart: unless-stopped
@@ -110,7 +103,7 @@ services:
           memory: 1G
 
   redis:
-    image: redis:7.2.4-alpine
+    image: redis:7-alpine
     <<: *ghcr_image
     container_name: gradeloop-redis
     restart: unless-stopped
@@ -142,14 +135,15 @@ services:
     environment:
       - WEEAD_IDENTITY=seaweedfs
     ports:
-      - "9333:9333"   # S3 API
+      - "9333:9333"   # Master
       - "9320:9320"   # Console
       - "8080:8080"   # Volume server
+      - "8333:8333"   # S3 API
     volumes:
       - seaweed-data:/data
     networks:
       - gradeloop-network
-    command: server -s3 -identity=seaweedfs -s3Port=9333 -consolePort=9320
+    command: server -s3
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9320/health"]
       interval: 10s
@@ -194,16 +188,14 @@ services:
     restart: unless-stopped
     command: kong start
     environment:
-      - KONG_DATABASE=postgres
-      - KONG_PG_HOST=kong-database
-      - KONG_PG_PORT=5432
-      - KONG_PG_USER=kong
-      - KONG_PG_PASSWORD=${KONG_DB_PASSWORD:-kong_pass}
-      - KONG_PG_DB=kong
+      - KONG_DATABASE=off
       - KONG_DECLARATIVE_CONFIG=/usr/local/kong/declarative/kong.yml
       - KONG_PROXY_ACCESS_LOG=/dev/stdout
       - KONG_ADMIN_ACCESS_LOG=/dev/stdout
       - KONG_LOG_LEVEL=info
+      - KONG_SSL_CERT=/etc/kong/ssl/kong.crt
+      - KONG_SSL_CERT_KEY=/etc/kong/ssl/kong.key
+      - KONG_LISTEN=0.0.0.0:8000,0.0.0.0:8443ssl
     ports:
       - "8000:8000"
       - "8443:8443"
@@ -211,14 +203,12 @@ services:
       - "8444:8444"
     volumes:
       - ../../apps/api-gateway/config:/usr/local/kong/declarative:ro
-    depends_on:
-      kong-migrations:
-        condition: service_completed_successfully
+      - /home/gradeloop/ssl:/etc/kong/ssl:ro
     networks:
       - gradeloop-network
 
   kong-database:
-    image: postgres:16.2-alpine
+    image: postgres:16-alpine
     <<: *ghcr_image
     container_name: gradeloop-kong-db
     restart: unless-stopped
@@ -255,17 +245,17 @@ services:
     restart: unless-stopped
     environment:
       - SERVER_PORT=8081
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=${GRA_DB_USER:-postgres}
-      - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
+      - GRA_DB_HOST=postgres
+      - GRA_DB_PORT=5432
+      - GRA_DB_USER=${GRA_DB_USER:-postgres}
+      - GRA_DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
+      - GRA_DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
       - DB_NAME=${IAM_SVC_DB_NAME:-iam_db}
-      - DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
       - EMAIL_SERVICE_URL=http://email:8082
-      - MINIO_ENDPOINT=seaweedfs:9333
-      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
-      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-seaweedfs:8333}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-n0vmKdZJ8Idsy3InTyYFzgvfcFT4okAKWX42aCFhYx0}
       - JWT_ACCESS_TOKEN_EXPIRY=${JWT_ACCESS_TOKEN_EXPIRY:-15}
       - JWT_REFRESH_TOKEN_EXPIRY=${JWT_REFRESH_TOKEN_EXPIRY:-10080}
     depends_on:
@@ -291,10 +281,11 @@ services:
     restart: unless-stopped
     environment:
       - SERVER_PORT=8083
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=${GRA_DB_USER:-postgres}
-      - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
+      - GRA_DB_HOST=postgres
+      - GRA_DB_PORT=5432
+      - GRA_DB_USER=${GRA_DB_USER:-postgres}
+      - GRA_DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
+      - GRA_DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
       - DB_NAME=${ACADEMIC_SVC_DB_NAME:-academic_db}
       - IAM_SERVICE_URL=http://iam:8081
     depends_on:
@@ -320,15 +311,22 @@ services:
     restart: unless-stopped
     environment:
       - SERVER_PORT=8084
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=${GRA_DB_USER:-postgres}
-      - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
+      - GRA_DB_HOST=postgres
+      - GRA_DB_PORT=5432
+      - GRA_DB_USER=${GRA_DB_USER:-postgres}
+      - GRA_DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
+      - GRA_DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
       - DB_NAME=${ASSESSMENT_SVC_DB_NAME:-assessment_db}
       - ACADEMIC_SERVICE_URL=http://academic:8083
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-seaweedfs:8333}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
     depends_on:
       postgres:
         condition: service_healthy
+      rabbitmq:
+        condition: service_started
     networks:
       - gradeloop-network
     deploy:
@@ -347,11 +345,13 @@ services:
     restart: unless-stopped
     environment:
       - SERVER_PORT=8082
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=${GRA_DB_USER:-postgres}
-      - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
-      - DB_NAME=${EMAIL_SVC_DB_NAME:-email_db}
+      - GRA_DB_HOST=postgres
+      - GRA_DB_PORT=5432
+      - GRA_DB_USER=${GRA_DB_USER:-postgres}
+      - GRA_DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
+      - GRA_DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
+      - GRA_DB_NAME=${EMAIL_SVC_DB_NAME:-email_db}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
     depends_on:
       postgres:
         condition: service_healthy
@@ -497,6 +497,10 @@ services:
     restart: unless-stopped
     environment:
       - SERVER_PORT=8085
+      - LLM_API_KEY=${LLM_API_KEY:-dummy-key-for-startup}
+      - LLM_PROVIDER=${LLM_PROVIDER:-openrouter}
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://openrouter.ai/api/v1}
+      - LLM_MODEL=${LLM_MODEL:-arcee-ai/trinity-large-preview:free}
     networks:
       - gradeloop-network
     deploy:
@@ -504,24 +508,6 @@ services:
         limits:
           cpus: '0.5'
           memory: 512M
-
-  # =============================================================================
-  # Frontend (Next.js - Production)
-  # =============================================================================
-  frontend:
-    image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-web:latest
-    <<: *ghcr_image
-    container_name: gradeloop-frontend
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    networks:
-      - gradeloop-network
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 2G
 
 networks:
   gradeloop-network:
