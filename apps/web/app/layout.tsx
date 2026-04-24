@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Montserrat } from "next/font/google";
+import { Inter, Red_Hat_Display } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
@@ -10,9 +10,9 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
-const montserrat = Montserrat({
+const redHatDisplay = Red_Hat_Display({
   subsets: ["latin"],
-  variable: "--font-montserrat",
+  variable: "--font-redhat",
 });
 
 export const metadata: Metadata = {
@@ -26,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${montserrat.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${redHatDisplay.variable}`} suppressHydrationWarning>
       <body
         className="antialiased"
         suppressHydrationWarning
