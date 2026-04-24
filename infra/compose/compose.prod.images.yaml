@@ -322,6 +322,9 @@ services:
       - GRA_DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
       - DB_NAME=${ASSESSMENT_SVC_DB_NAME:-assessment_db}
       - ACADEMIC_SERVICE_URL=http://academic:8083
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-seaweedfs:8333}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
     depends_on:
       postgres:
         condition: service_healthy
@@ -349,6 +352,7 @@ services:
       - GRA_DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
       - GRA_DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
       - GRA_DB_NAME=${EMAIL_SVC_DB_NAME:-email_db}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
     depends_on:
       postgres:
         condition: service_healthy
