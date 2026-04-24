@@ -143,7 +143,7 @@ services:
       - seaweed-data:/data
     networks:
       - gradeloop-network
-    command: server -s3 -s3.port=8333 -master.port=9333 -consolePort=9320 -volume.port=8080
+    command: server -s3
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9320/health"]
       interval: 10s
