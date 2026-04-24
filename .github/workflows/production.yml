@@ -262,7 +262,7 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
           provenance: true
-sbom: true
+          sbom: true
 
   # --------------------------------------------------------------------------
   # Build Kong gateway image
