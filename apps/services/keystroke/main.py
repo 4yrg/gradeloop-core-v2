@@ -9,7 +9,6 @@ import os
 from datetime import datetime
 
 import pika
-from env_utils.env_utils import load_root_env
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from psycopg2 import extras
@@ -25,8 +24,7 @@ from feature_extraction import KeystrokeFeatureExtractor
 from redis_client import get_redis_client
 from typenet_inference import TypeNetAuthenticator
 
-# Load environment variables from project root
-load_root_env()
+# Environment variables are loaded from docker-compose/.env
 
 # Initialize FastAPI app
 app = FastAPI(
