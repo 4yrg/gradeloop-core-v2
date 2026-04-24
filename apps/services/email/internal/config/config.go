@@ -49,7 +49,7 @@ func LoadConfig() *Config {
 			Env:  getEnv("APP_ENV", "development"),
 		},
 		DB: DBConfig{
-			Host:     getEnv("GRA_DB_HOST", "localhost"),
+			Host:     getEnv("DB_HOST", "localhost"),
 			Port:     getEnv("GRA_DB_PORT", "5432"),
 			User:     getEnv("GRA_DB_USER", "postgres"),
 			Password: getEnv("GRA_DB_PASSWORD", "postgres"),
