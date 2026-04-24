@@ -92,7 +92,7 @@ func Load() (*Config, error) {
 			EnablePrefork: getEnvAsBool("ENABLE_PREFORK", false),
 		},
 		Database: DatabaseConfig{
-			Host:     getEnv("DB_HOST", "localhost"),
+			Host:     getEnv("GRA_DB_HOST", "localhost"),
 			Port:     getEnv("GRA_DB_PORT", "5432"),
 			User:     getEnv("GRA_DB_USER", "postgres"),
 			Password: getEnv("GRA_DB_PASSWORD", ""),

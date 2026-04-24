@@ -248,12 +248,12 @@ services:
     restart: unless-stopped
     environment:
       - SERVER_PORT=8081
-      - DB_HOST=${DB_HOST:-postgres}
-      - DB_PORT=${DB_PORT:-5432}
-      - DB_USER=${DB_USER:-postgres}
-      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_HOST=postgres
+      - GRA_DB_USER=${GRA_DB_USER:-postgres}
+      - GRA_DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
+      - GRA_DB_PORT=5432
       - DB_NAME=${IAM_SVC_DB_NAME:-iam_db}
-      - DB_SSLMODE=${DB_SSLMODE:-disable}
+      - GRA_DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
       - EMAIL_SERVICE_URL=http://email:8082
       - MINIO_ENDPOINT=${MINIO_ENDPOINT:-seaweedfs:9333}
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
@@ -284,11 +284,12 @@ services:
     restart: unless-stopped
     environment:
       - SERVER_PORT=8083
-      - DB_HOST=${DB_HOST:-postgres}
-      - DB_PORT=${DB_PORT:-5432}
-      - DB_USER=${DB_USER:-postgres}
-      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - GRA_DB_HOST=postgres
+      - GRA_DB_PORT=5432
+      - GRA_DB_USER=${GRA_DB_USER:-postgres}
+      - GRA_DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
       - DB_NAME=${ACADEMIC_SVC_DB_NAME:-academic_db}
+      - GRA_DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
       - IAM_SERVICE_URL=http://iam:8081
     depends_on:
       postgres:
@@ -313,11 +314,12 @@ services:
     restart: unless-stopped
     environment:
       - SERVER_PORT=8084
-      - DB_HOST=${DB_HOST:-postgres}
-      - DB_PORT=${DB_PORT:-5432}
-      - DB_USER=${DB_USER:-postgres}
-      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - GRA_DB_HOST=postgres
+      - GRA_DB_PORT=5432
+      - GRA_DB_USER=${GRA_DB_USER:-postgres}
+      - GRA_DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
       - DB_NAME=${ASSESSMENT_SVC_DB_NAME:-assessment_db}
+      - GRA_DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
       - ACADEMIC_SERVICE_URL=http://academic:8083
     depends_on:
       postgres:
@@ -340,11 +342,12 @@ services:
     restart: unless-stopped
     environment:
       - SERVER_PORT=8082
-      - DB_HOST=${DB_HOST:-postgres}
-      - DB_PORT=${DB_PORT:-5432}
-      - DB_USER=${DB_USER:-postgres}
-      - DB_PASSWORD=${DB_PASSWORD:-postgres}
-      - DB_NAME=${EMAIL_SVC_DB_NAME:-email_db}
+      - GRA_DB_HOST=postgres
+      - GRA_DB_PORT=5432
+      - GRA_DB_USER=${GRA_DB_USER:-postgres}
+      - GRA_DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
+      - GRA_DB_NAME=${EMAIL_SVC_DB_NAME:-email_db}
+      - GRA_DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
     depends_on:
       postgres:
         condition: service_healthy
@@ -368,7 +371,7 @@ services:
     restart: unless-stopped
     environment:
       - API_PORT=8088
-      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@${DB_HOST:-postgres}:5432/${IVAS_SVC_DB_NAME:-ivas_db}
+      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${IVAS_SVC_DB_NAME:-ivas_db}
     depends_on:
       postgres:
         condition: service_healthy
@@ -390,7 +393,7 @@ services:
     restart: unless-stopped
     environment:
       - SERVER_PORT=8086
-      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@${DB_HOST:-postgres}:5432/${ACAFS_SVC_DB_NAME:-acafs_db}
+      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${ACAFS_SVC_DB_NAME:-acafs_db}
     depends_on:
       postgres:
         condition: service_healthy
@@ -429,7 +432,7 @@ services:
     restart: unless-stopped
     environment:
       - CIPAS_SYNTACTICS_PORT=8086
-      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@${DB_HOST:-postgres}:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
+      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
     depends_on:
       postgres:
         condition: service_healthy
@@ -451,7 +454,7 @@ services:
     restart: unless-stopped
     environment:
       - API_PORT=8087
-      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@${DB_HOST:-postgres}:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
+      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
     depends_on:
       postgres:
         condition: service_healthy
@@ -473,7 +476,7 @@ services:
     restart: unless-stopped
     environment:
       - CIPAS_AI_PORT=8104
-      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@${DB_HOST:-postgres}:5432/${CIPAS_AI_SVC_DB_NAME:-cipas_ai_db}
+      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${CIPAS_AI_SVC_DB_NAME:-cipas_ai_db}
     depends_on:
       postgres:
         condition: service_healthy
