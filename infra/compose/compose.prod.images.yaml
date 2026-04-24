@@ -135,14 +135,15 @@ services:
     environment:
       - WEEAD_IDENTITY=seaweedfs
     ports:
-      - "9333:9333"   # S3 API
+      - "9333:9333"   # Master
       - "9320:9320"   # Console
       - "8080:8080"   # Volume server
+      - "8333:8333"   # S3 API
     volumes:
       - seaweed-data:/data
     networks:
       - gradeloop-network
-    command: server -s3 -s3Port=9333 -consolePort=9320
+    command: server -s3 -s3.port=8333 -master.port=9333 -consolePort=9320 -volume.port=8080
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9320/health"]
       interval: 10s
@@ -255,7 +256,7 @@ services:
       - GRA_DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
       - DB_NAME=${IAM_SVC_DB_NAME:-iam_db}
       - EMAIL_SERVICE_URL=http://email:8082
-      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-seaweedfs:9333}
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-seaweedfs:8333}
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-n0vmKdZJ8Idsy3InTyYFzgvfcFT4okAKWX42aCFhYx0}
