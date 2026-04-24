@@ -10,14 +10,6 @@
 # Environment Variables:
 #   GHCR_PACKAGE_PREFIX  GitHub package prefix (e.g., 4yrg)
 
-x-shared-environment: &shared_env
-  DB_HOST: ${DB_HOST:-postgres}
-  DB_PORT: ${DB_PORT:-5432}
-  DB_USER: ${DB_USER:-postgres}
-  DB_PASSWORD: ${DB_PASSWORD:-postgres}
-  DB_SSLMODE: ${DB_SSLMODE:-disable}
-  JWT_SECRET_KEY: ${JWT_SECRET_KEY:-n0vmKdZJ8Idsy3InTyYFzgvfcFT4okAKWX42aCFhYx0}
-
 x-ghcr-image: &ghcr_image
   pull_policy: always
 
@@ -252,7 +244,6 @@ services:
   iam:
     image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-iam:latest
     <<: *ghcr_image
-    <<: *shared_env
     container_name: gradeloop-iam
     restart: unless-stopped
     environment:
@@ -289,7 +280,6 @@ services:
   academic:
     image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-academic:latest
     <<: *ghcr_image
-    <<: *shared_env
     container_name: gradeloop-academic
     restart: unless-stopped
     environment:
@@ -319,7 +309,6 @@ services:
   assessment:
     image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-assessment:latest
     <<: *ghcr_image
-    <<: *shared_env
     container_name: gradeloop-assessment
     restart: unless-stopped
     environment:
@@ -347,7 +336,6 @@ services:
   email:
     image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-email:latest
     <<: *ghcr_image
-    <<: *shared_env
     container_name: gradeloop-email
     restart: unless-stopped
     environment:
@@ -376,7 +364,6 @@ services:
   ivas:
     image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-ivas:latest
     <<: *ghcr_image
-    <<: *shared_env
     container_name: gradeloop-ivas
     restart: unless-stopped
     environment:
@@ -399,7 +386,6 @@ services:
   acafs:
     image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-acafs:latest
     <<: *ghcr_image
-    <<: *shared_env
     container_name: gradeloop-acafs
     restart: unless-stopped
     environment:
@@ -417,7 +403,6 @@ services:
   keystroke:
     image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-keystroke:latest
     <<: *ghcr_image
-    <<: *shared_env
     container_name: gradeloop-keystroke
     restart: unless-stopped
     environment:
@@ -440,7 +425,6 @@ services:
   cipas-syntactics:
     image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-cipas-syntactics:latest
     <<: *ghcr_image
-    <<: *shared_env
     container_name: gradeloop-cipas-syntactics
     restart: unless-stopped
     environment:
@@ -463,7 +447,6 @@ services:
   cipas-semantics:
     image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-cipas-semantics:latest
     <<: *ghcr_image
-    <<: *shared_env
     container_name: gradeloop-cipas-semantics
     restart: unless-stopped
     environment:
@@ -486,7 +469,6 @@ services:
   cipas-ai:
     image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-cipas-ai:latest
     <<: *ghcr_image
-    <<: *shared_env
     container_name: gradeloop-cipas-ai
     restart: unless-stopped
     environment:
@@ -504,7 +486,6 @@ services:
   cipas-xai:
     image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-cipas-xai:latest
     <<: *ghcr_image
-    <<: *shared_env
     container_name: gradeloop-cipas-xai
     restart: unless-stopped
     environment:
