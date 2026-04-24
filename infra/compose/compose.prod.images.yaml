@@ -193,8 +193,6 @@ services:
       - KONG_PROXY_ACCESS_LOG=/dev/stdout
       - KONG_ADMIN_ACCESS_LOG=/dev/stdout
       - KONG_LOG_LEVEL=info
-      - KONG_SSL_CERT=/etc/kong/ssl/kong.crt
-      - KONG_SSL_CERT_KEY=/etc/kong/ssl/kong.key
     ports:
       - "8000:8000"
       - "8443:8443"
@@ -202,7 +200,6 @@ services:
       - "8444:8444"
     volumes:
       - ../../apps/api-gateway/config:/usr/local/kong/declarative:ro
-      - /etc/kong/ssl:/etc/kong/ssl:ro
     networks:
       - gradeloop-network
 
