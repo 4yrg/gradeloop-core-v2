@@ -14,7 +14,8 @@ def get_root_path() -> Path:
     for parent in path.parents:
         if (parent / "turbo.json").exists() or (parent / "package.json").exists():
             return parent
-    return path.parents[3]  # Fallback to 3 levels up from app/config.py
+    # Fallback: return the first parent that looks like a service root or just /app
+    return Path("/app") if Path("/app").exists() else path.parents[1]
 
 
 class Settings(BaseSettings):
