@@ -11,9 +11,11 @@
 #   GHCR_PACKAGE_PREFIX  GitHub package prefix (e.g., 4yrg)
 
 x-shared-environment: &shared_env
-  env_file:
-    - ../../.env
   DB_HOST: ${DB_HOST:-postgres}
+  DB_PORT: ${DB_PORT:-5432}
+  DB_USER: ${DB_USER:-postgres}
+  DB_PASSWORD: ${DB_PASSWORD:-postgres}
+  DB_SSLMODE: ${DB_SSLMODE:-disable}
   JWT_SECRET_KEY: ${JWT_SECRET_KEY:-n0vmKdZJ8Idsy3InTyYFzgvfcFT4okAKWX42aCFhYx0}
 
 x-ghcr-image: &ghcr_image
@@ -379,7 +381,7 @@ services:
     restart: unless-stopped
     environment:
       - API_PORT=8088
-      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${IVAS_SVC_DB_NAME:-ivas_db}
+      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@${DB_HOST:-postgres}:5432/${IVAS_SVC_DB_NAME:-ivas_db}
     depends_on:
       postgres:
         condition: service_healthy
@@ -402,7 +404,7 @@ services:
     restart: unless-stopped
     environment:
       - SERVER_PORT=8086
-      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${ACAFS_SVC_DB_NAME:-acafs_db}
+      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@${DB_HOST:-postgres}:5432/${ACAFS_SVC_DB_NAME:-acafs_db}
     depends_on:
       postgres:
         condition: service_healthy
@@ -443,7 +445,7 @@ services:
     restart: unless-stopped
     environment:
       - CIPAS_SYNTACTICS_PORT=8086
-      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
+      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@${DB_HOST:-postgres}:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
     depends_on:
       postgres:
         condition: service_healthy
@@ -466,7 +468,7 @@ services:
     restart: unless-stopped
     environment:
       - API_PORT=8087
-      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
+      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@${DB_HOST:-postgres}:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
     depends_on:
       postgres:
         condition: service_healthy
@@ -489,7 +491,7 @@ services:
     restart: unless-stopped
     environment:
       - CIPAS_AI_PORT=8104
-      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${CIPAS_AI_SVC_DB_NAME:-cipas_ai_db}
+      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@${DB_HOST:-postgres}:5432/${CIPAS_AI_SVC_DB_NAME:-cipas_ai_db}
     depends_on:
       postgres:
         condition: service_healthy
