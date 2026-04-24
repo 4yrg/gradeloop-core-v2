@@ -317,9 +317,12 @@ services:
       - MINIO_ENDPOINT=${MINIO_ENDPOINT:-seaweedfs:8333}
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
     depends_on:
       postgres:
         condition: service_healthy
+      rabbitmq:
+        condition: service_started
     networks:
       - gradeloop-network
     deploy:
