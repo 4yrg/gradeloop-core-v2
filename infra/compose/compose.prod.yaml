@@ -524,27 +524,6 @@ services:
           cpus: '0.5'
           memory: 512M
 
-  # =============================================================================
-  # Frontend (Next.js - Production)
-  # =============================================================================
-  frontend:
-    build:
-      context: ../..
-      dockerfile: apps/web/Dockerfile
-      args:
-        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
-    container_name: gradeloop-frontend
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    networks:
-      - gradeloop-network
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 2G
-
 networks:
   gradeloop-network:
     driver: bridge

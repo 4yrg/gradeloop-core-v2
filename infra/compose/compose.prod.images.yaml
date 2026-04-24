@@ -502,24 +502,6 @@ services:
           cpus: '0.5'
           memory: 512M
 
-  # =============================================================================
-  # Frontend (Next.js - Production)
-  # =============================================================================
-  frontend:
-    image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-web:latest
-    <<: *ghcr_image
-    container_name: gradeloop-frontend
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    networks:
-      - gradeloop-network
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 2G
-
 networks:
   gradeloop-network:
     driver: bridge
