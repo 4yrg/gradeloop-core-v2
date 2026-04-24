@@ -14,7 +14,8 @@ def get_root_path() -> Path:
     for parent in path.parents:
         if (parent / "turbo.json").exists() or (parent / "package.json").exists():
             return parent
-    return path.parents[3]  # Fallback to 3 levels up from app/config.py
+    # Return current directory as fallback - don't try to access parents beyond project root
+    return path.parent
 
 
 class Settings(BaseSettings):
