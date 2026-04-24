@@ -159,7 +159,7 @@ services:
   # Kong Gateway (Production)
   # =============================================================================
   kong-migrations:
-    image: kong:3.4
+    image: kong:3.4-alpine
     pull_policy: missing
     container_name: gradeloop-kong-migrations
     restart: "no"
@@ -178,7 +178,7 @@ services:
       - gradeloop-network
 
   kong-gateway:
-    image: kong:3.4
+    image: kong:3.4-alpine
     pull_policy: missing
     container_name: gradeloop-kong-gateway
     restart: unless-stopped

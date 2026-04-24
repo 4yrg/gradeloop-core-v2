@@ -27,7 +27,7 @@ sync:
 	@docker run --rm --network gradeloop-core-v2_gradeloop-network \
 		-e KONG_DECLARATIVE_CONFIG=/usr/local/kong/declarative/kong.yml \
 		-v $$(pwd)/config:/usr/local/kong/declarative:ro \
-		kong:3.4 \
+		kong:3.4-alpine \
 		deck sync -s /usr/local/kong/declarative/kong.yml \
 		--kong-url http://kong-gateway:8001 \
 		--verify-ssl=false || echo "Using deck sync alternative"
@@ -43,7 +43,7 @@ sync-api:
 validate:
 	@echo "Validating kong.yml..."
 	@docker run --rm -v $$(pwd)/config:/usr/local/kong/declarative:ro \
-		kong:3.4 \
+		kong:3.4-alpine \
 		validate -c /usr/local/kong/declarative/kong.yml || echo "Validation failed"
 
 # View logs
