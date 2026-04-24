@@ -16,6 +16,7 @@ RUN if [ -f /etc/apt/sources.list ]; then \
     && apt-get install -y --no-install-recommends \
     git \
     libpq-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

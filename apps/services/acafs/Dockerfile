@@ -10,6 +10,7 @@ RUN apk add --no-cache \
     gcc \
     libpq-dev \
     g++ \
+    curl \
     && rm -rf /var/cache/apk/*
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
