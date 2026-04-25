@@ -21,6 +21,8 @@ type UserRepository interface {
 	GetProfilesByUserIDs(ctx context.Context, userIDs []uuid.UUID) (map[uuid.UUID]*domain.ProfileData, error)
 	CreateStudentProfile(ctx context.Context, profile *domain.UserProfileStudent) error
 	CreateInstructorProfile(ctx context.Context, profile *domain.UserProfileInstructor) error
+	CreateActivityLog(ctx context.Context, activity *domain.ActivityLog) error
+	GetUserActivity(ctx context.Context, userID uuid.UUID, offset, limit int) ([]*domain.ActivityLog, int64, error)
 }
 
 type userRepository struct {
@@ -202,4 +204,28 @@ func (r *userRepository) GetProfilesByUserIDs(ctx context.Context, userIDs []uui
 	}
 
 	return profiles, nil
+}
+
+func (r *userRepository) CreateActivityLog(ctx context.Context, activity *domain.ActivityLog) error {
+	return r.db.WithContext(ctx).Create(activity).Error
+}
+
+func (r *userRepository) GetUserActivity(ctx context.Context, userID uuid.UUID, offset, limit int) ([]*domain.ActivityLog, int64, error) {
+	var activities []*domain.ActivityLog
+	var count int64
+
+	db := r.db.WithContext(ctx).Model(&domain.ActivityLog{}).Where("user_id = ?", userID)
+
+	if err := db.Count(&count).Error; err != nil {
+		return nil, 0, err
+	}
+
+	if err := db.Order("created_at DESC").
+		Offset(offset).
+		Limit(limit).
+		Find(&activities).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return activities, count, nil
 }

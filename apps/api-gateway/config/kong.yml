@@ -496,6 +496,16 @@ services:
     - /api/v1/tokens
     strip_path: false
     preserve_host: false
+  - name: iam-roles
+    paths:
+    - /api/v1/roles
+    strip_path: false
+    preserve_host: false
+  - name: iam-permissions
+    paths:
+    - /api/v1/permissions
+    strip_path: false
+    preserve_host: false
   - name: iam-docs
     paths:
     - /docs/iam

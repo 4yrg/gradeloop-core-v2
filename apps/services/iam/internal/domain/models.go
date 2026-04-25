@@ -78,6 +78,21 @@ type PasswordResetToken struct {
 	CreatedAt time.Time  `json:"created_at"`
 }
 
+// ActivityLog represents a user audit log entry
+type ActivityLog struct {
+	ID          uuid.UUID      `gorm:"type:uuid;primarykey" json:"id"`
+	UserID      uuid.UUID      `gorm:"type:uuid;not null;index" json:"user_id"`
+	Action      string         `gorm:"not null;size:100" json:"action"`
+	Description string         `gorm:"not null;size:512" json:"description"`
+	EntityType  string         `gorm:"size:50" json:"entity_type,omitempty"`
+	EntityID    string         `gorm:"size:100" json:"entity_id,omitempty"`
+	Metadata    string         `gorm:"type:jsonb" json:"metadata,omitempty"` // stored as JSON string/JSONB
+	IPAddress   string         `gorm:"size:45" json:"ip_address,omitempty"`
+	UserAgent   string         `gorm:"size:512" json:"user_agent,omitempty"`
+	CreatedAt   time.Time      `json:"created_at"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
 // User helper methods
 
 // IsValidUserType checks if the given user type is valid
