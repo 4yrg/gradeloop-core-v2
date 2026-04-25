@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -30,6 +31,7 @@ type UserService interface {
 	GetUserByID(ctx context.Context, userID string) (*dto.UserResponse, error)
 	GetUsersByIDs(ctx context.Context, ids []string) (*dto.GetUsersResponse, error)
 	UpdateAvatar(ctx context.Context, userID string, avatarURL string) (*dto.UpdateAvatarResponse, error)
+	GetUserActivity(ctx context.Context, userID string, page, limit int) (*dto.GetUserActivityResponse, error)
 }
 
 type userService struct {
@@ -435,5 +437,53 @@ func (s *userService) UpdateAvatar(ctx context.Context, id string, avatarURL str
 	return &dto.UpdateAvatarResponse{
 		AvatarURL: user.AvatarURL,
 		Message:   "Avatar updated successfully",
+	}, nil
+}
+
+func (s *userService) GetUserActivity(ctx context.Context, userID string, page, limit int) (*dto.GetUserActivityResponse, error) {
+	id, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 10
+	}
+	offset := (page - 1) * limit
+
+	activities, total, err := s.userRepo.GetUserActivity(ctx, id, offset, limit)
+	if err != nil {
+		return nil, fmt.Errorf("fetching user activity: %w", err)
+	}
+
+	activityDTOs := make([]dto.UserActivityLog, 0, len(activities))
+	for _, a := range activities {
+		var metadata map[string]interface{}
+		if a.Metadata != "" {
+			json.Unmarshal([]byte(a.Metadata), &metadata)
+		}
+
+		activityDTOs = append(activityDTOs, dto.UserActivityLog{
+			ID:          a.ID.String(),
+			UserID:      a.UserID.String(),
+			Action:      a.Action,
+			Description: a.Description,
+			EntityType:  a.EntityType,
+			EntityID:    a.EntityID,
+			Metadata:    metadata,
+			IPAddress:   a.IPAddress,
+			UserAgent:   a.UserAgent,
+			CreatedAt:   a.CreatedAt.Format(time.RFC3339),
+		})
+	}
+
+	return &dto.GetUserActivityResponse{
+		Data:       activityDTOs,
+		TotalCount: total,
+		Page:       page,
+		Limit:      limit,
 	}, nil
 }

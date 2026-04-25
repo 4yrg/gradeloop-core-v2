@@ -35,6 +35,7 @@ func (m *Migrator) Run() error {
 		&domain.UserProfileInstructor{},
 		&domain.RefreshToken{},
 		&domain.PasswordResetToken{},
+		&domain.ActivityLog{},
 	)
 	if err != nil {
 		return fmt.Errorf("auto migration failed: %w", err)

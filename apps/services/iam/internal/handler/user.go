@@ -2,6 +2,7 @@ package handler
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/gofiber/fiber/v3"
 
@@ -206,7 +207,37 @@ func (h *UserHandler) GetUsersByIDs(c fiber.Ctx) error {
 	return c.JSON(response)
 }
 
+func (h *UserHandler) GetUserActivity(c fiber.Ctx) error {
+	id := c.Params("id")
+
+	page, err := strconv.Atoi(c.Query("page", "1"))
+	if err != nil {
+		page = 1
+	}
+
+	limit, err := strconv.Atoi(c.Query("limit", "10"))
+	if err != nil {
+		limit = 10
+	}
+
+	response, err := h.userService.GetUserActivity(c.RequestCtx(), id, page, limit)
+	if err != nil {
+		return handleUserError(err)
+	}
+
+	return c.JSON(response)
+}
+
 func handleUserError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	// Handle database unique constraint violations
+	if strings.Contains(err.Error(), "unique constraint") || strings.Contains(err.Error(), "23505") {
+		return fiber.NewError(fiber.StatusConflict, "Record already exists (duplicate key)")
+	}
+
 	switch err {
 	case service.ErrUnauthorized:
 		return fiber.NewError(fiber.StatusUnauthorized, "Unauthorized")

@@ -163,43 +163,6 @@ COMPOSE_DIR := $(ROOT)/infra/compose
 GO_SERVICES := iam email academic assessment cipas-xai
 PY_SERVICES := ivas acafs keystroke cipas-ai cipas-semantics cipas-syntactics
 
-dev-logs:
-	$(COMPOSE) -f $(COMPOSE_DIR)/compose.dev.yaml logs -f
-
-dev-down:
-	@echo "Stopping development environment..."
-	$(COMPOSE) -f $(COMPOSE_DIR)/compose.dev.yaml down
-	@echo "Development environment stopped."
-
-dev:
-	@echo "Starting development environment (all in Docker)..."
-	$(COMPOSE) -f $(COMPOSE_DIR)/compose.dev.yaml up -d
-	@echo ""
-	@echo "Development environment started!"
-	@echo ""
-	@echo "Services:"
-	@echo "  - Gateway:    http://localhost:8000"
-	@echo "  - RabbitMQ:   http://localhost:15672"
-	@echo "  - SeaweedFS:  http://localhost:9320"
-	@echo ""
-	@echo "Go Services (80xx):"
-	@echo "  - IAM:        http://localhost:8081"
-	@echo "  - Email:      http://localhost:8082"
-	@echo "  - Academic:   http://localhost:8083"
-	@echo "  - Assessment: http://localhost:8084"
-	@echo "  - CIPAS-XAI:  http://localhost:8085"
-	@echo ""
-	@echo "Python Services (81xx):"
-	@echo "  - IVAS:            http://localhost:8101"
-	@echo "  - ACAFS:           http://localhost:8102"
-	@echo "  - Keystroke:       http://localhost:8103"
-	@echo "  - CIPAS-AI:        http://localhost:8104"
-	@echo "  - CIPAS-Semantics: http://localhost:8105"
-	@echo "  - CIPAS-Syntactics: http://localhost:8106"
-	@echo ""
-	@echo "View logs: make dev-logs"
-	@echo "Stop services: make dev-down"
-
 # =============================================================================
 # Production Targets (Docker-based)
 # =============================================================================

@@ -49,7 +49,7 @@ func (h *AuthHandler) RegisterRoutes(app *fiber.App) {
 
 // RegisterAdminRoutes registers admin-only routes
 func (h *AuthHandler) RegisterAdminRoutes(router fiber.Router) {
-	router.Post("/admin/users/:id/revoke-sessions", h.RevokeUserSessions)
+	router.Post("/users/:id/revoke-sessions", h.RevokeUserSessions)
 }
 
 func (h *AuthHandler) Login(c fiber.Ctx) error {
