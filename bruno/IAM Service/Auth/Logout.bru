@@ -5,7 +5,26 @@ meta {
 }
 
 post {
-  url: {{AUTH_URL_V1}}/logout
-  body: none
-  auth: none
+  url: {{KEYCLOAK_AUTH_URL}}/realms/{{KEYCLOAK_REALM}}/protocol/openid-connect/logout
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "client_id": "{{KEYCLOAK_CLIENT_ID_LMS_WEB}}",
+    "refresh_token": "{{REFRESH_TOKEN}}"
+  }
+}
+
+script:post-response {
+  if (res.status === 200 || res.status === 204) {
+    bru.removeEnvVar("ACCESS_TOKEN");
+    bru.removeEnvVar("REFRESH_TOKEN");
+    bru.removeEnvVar("TENANT_ID");
+    bru.removeEnvVar("USER_ROLES");
+    console.log("✅ Logged out successfully");
+  } else {
+    console.log("❌ Logout failed:", res.status, res.body);
+  }
 }

@@ -5,15 +5,37 @@ meta {
 }
 
 post {
-  url: {{AUTH_URL_V1}}/refresh
-  body: none
-  auth: none
+  url: {{KEYCLOAK_AUTH_URL}}/realms/{{KEYCLOAK_REALM}}/protocol/openid-connect/token
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "grant_type": "refresh_token",
+    "client_id": "{{KEYCLOAK_CLIENT_ID_LMS_WEB}}",
+    "client_secret": "{{KEYCLOAK_CLIENT_SECRET}}",
+    "refresh_token": "{{REFRESH_TOKEN}}"
+  }
 }
 
 script:post-response {
   if (res.status === 200) {
     if (res.body.access_token) {
       bru.setEnvVar("ACCESS_TOKEN", res.body.access_token);
+      bru.setEnvVar("REFRESH_TOKEN", res.body.refresh_token);
+      console.log("✅ Token refreshed");
+      
+      // Decode JWT to show new payload
+      try {
+        const parts = res.body.access_token.split('.');
+        const payload = JSON.parse(atob(parts[1]));
+        console.log("New token payload:", JSON.stringify(payload, null, 2));
+      } catch (e) {
+        console.log("Could not decode token:", e.message);
+      }
     }
+  } else {
+    console.log("❌ Refresh failed:", res.status, res.body);
   }
 }

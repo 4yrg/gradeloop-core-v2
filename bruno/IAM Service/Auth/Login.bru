@@ -5,32 +5,43 @@ meta {
 }
 
 post {
-  url: {{AUTH_URL_V1}}/login
+  url: {{KEYCLOAK_AUTH_URL}}/realms/{{KEYCLOAK_REALM}}/protocol/openid-connect/token
   body: json
   auth: inherit
 }
 
 body:json {
   {
-    "email": "user@example.com",
+    "grant_type": "password",
+    "client_id": "{{KEYCLOAK_CLIENT_ID_LMS_WEB}}",
+    "client_secret": "{{KEYCLOAK_CLIENT_SECRET}}",
+    "username": "user@example.com",
     "password": "Password123!"
   }
 }
 
 script:post-response {
-  if (res.status === 200) {
+  if (res.status === 200 || res.status === 201) {
     if (res.body.access_token) {
       bru.setEnvVar("ACCESS_TOKEN", res.body.access_token);
-      console.log("✅ Access token saved to environment");
-  
-      // Decode JWT to show payload (for debugging)
+      bru.setEnvVar("REFRESH_TOKEN", res.body.refresh_token);
+      console.log("✅ Access token saved");
+      console.log("✅ Refresh token saved");
+      
+      // Decode JWT to show payload
       try {
-        const tokenParts = res.body.access_token.split('.');
-        const payload = JSON.parse(atob(tokenParts[1]));
+        const parts = res.body.access_token.split('.');
+        const payload = JSON.parse(atob(parts[1]));
         console.log("Token payload:", JSON.stringify(payload, null, 2));
+        
+        // Store claims for later use
+        bru.setEnvVar("TENANT_ID", payload.tenant_id || '');
+        bru.setEnvVar("USER_ROLES", JSON.stringify(payload['https://gradeloop.edu/claims/roles'] || []));
       } catch (e) {
         console.log("Could not decode token:", e.message);
       }
     }
+  } else {
+    console.log("❌ Login failed:", res.status, res.body);
   }
 }
