@@ -55,7 +55,7 @@ class Settings(BaseSettings):
         alias="IVAS_GEMINI_LIVE_MODEL",
     )
     gemini_grader_model: str = Field(
-        default="gemma-4-31b-it",
+        default="gemini-3.1-flash-lite-preview",
         alias="IVAS_GEMINI_GRADER_MODEL",
     )
 

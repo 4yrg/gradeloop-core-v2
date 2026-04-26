@@ -608,16 +608,19 @@ services:
   # =============================================================================
   ivas-service:
     build:
-      context: .
-      dockerfile: apps/services/ivas-service/Dockerfile
+      context: apps/services/ivas
+      dockerfile: Dockerfile
       target: production
     container_name: gradeloop-ivas-service
     restart: always
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     env_file:
       - .env
     environment:
       - SERVICE_NAME=ivas-service
-      - SERVICE_PORT=8088
+      - SERVICE_PORT=8101
       - SERVICE_HOST=0.0.0.0
       - LOG_LEVEL=INFO
       - ENVIRONMENT=production
@@ -630,10 +633,11 @@ services:
       - MINIO_USE_SSL=false
       - IVAS_GEMINI_API_KEY=${IVAS_GEMINI_API_KEY}
       - IVAS_GEMINI_LIVE_MODEL=${IVAS_GEMINI_LIVE_MODEL}
+      - IVAS_GEMINI_GRADER_MODEL=${IVAS_GEMINI_GRADER_MODEL}
       - VOICE_SIMILARITY_THRESHOLD=0.75
       - VOICE_ENROLLMENT_SAMPLES=3
     expose:
-      - "8088"
+      - "8101"
     depends_on:
       ivas-postgres:
         condition: service_healthy
@@ -642,7 +646,7 @@ services:
       minio:
         condition: service_started
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8088/api/v1/ivas/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8101/api/v1/ivas/health')"]
       interval: 30s
       timeout: 10s
       retries: 3

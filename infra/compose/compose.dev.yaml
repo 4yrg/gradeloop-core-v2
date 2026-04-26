@@ -333,6 +333,8 @@ services:
       - ../../apps/services/ivas:/app
     container_name: gradeloop-ivas
     restart: unless-stopped
+    env_file:
+      - ../../.env
     environment:
       - SERVICE_PORT=${IVAS_SVC_PORT:-8101}
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@gradeloop-postgres:5432/${IVAS_SVC_DB_NAME:-ivas_db}
