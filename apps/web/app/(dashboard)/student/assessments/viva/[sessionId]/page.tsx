@@ -46,6 +46,7 @@ export default function VivaSessionPage() {
 
     // Voice verification warnings
     const [voiceWarning, setVoiceWarning] = React.useState<{ similarity: number; confidence: string } | null>(null);
+    const voiceWarningTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Refs
     const wsRef = React.useRef<WebSocket | null>(null);
@@ -59,7 +60,7 @@ export default function VivaSessionPage() {
     const mediaStreamRef = React.useRef<MediaStream | null>(null);
     const processorRef = React.useRef<ScriptProcessorNode | null>(null);
     const transcriptEndRef = React.useRef<HTMLDivElement>(null);
-    const reconnectTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+    const reconnectTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Load session info
     React.useEffect(() => {
@@ -344,7 +345,10 @@ export default function VivaSessionPage() {
                             confidence: msg.confidence ?? "low",
                         });
                         // Auto-dismiss after 8 seconds
-                        setTimeout(() => setVoiceWarning(null), 8000);
+                        if (voiceWarningTimeoutRef.current) {
+                            clearTimeout(voiceWarningTimeoutRef.current);
+                        }
+                        voiceWarningTimeoutRef.current = setTimeout(() => setVoiceWarning(null), 8000);
                         break;
 
                     case "voice_status":
@@ -480,6 +484,7 @@ export default function VivaSessionPage() {
             if (mediaStreamRef.current) mediaStreamRef.current.getTracks().forEach(t => t.stop());
             if (wsRef.current) wsRef.current.close();
             if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+            if (voiceWarningTimeoutRef.current) clearTimeout(voiceWarningTimeoutRef.current);
             for (const src of playingSourcesRef.current) {
                 try { src.stop(); } catch { /* already stopped */ }
             }

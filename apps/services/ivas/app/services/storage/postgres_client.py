@@ -50,7 +50,10 @@ class PostgresClient:
                 )
                 if not exists:
                     logger.info(f"Database {db_name} does not exist, creating...")
-                    await conn.execute(f'CREATE DATABASE "{db_name}"')
+                    # asyncpg doesn't support parameterized identifiers, so we use
+                    # the connection's quote method to safely escape the name.
+                    safe_name = await conn.fetchval("SELECT quote_ident($1)", db_name)
+                    await conn.execute(f"CREATE DATABASE {safe_name}")
                     logger.info(f"Database {db_name} created successfully.")
             finally:
                 await conn.close()

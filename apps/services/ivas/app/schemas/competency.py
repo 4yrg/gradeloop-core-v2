@@ -93,5 +93,5 @@ class CreateCompetencyRequest(BaseModel):
 class OverrideScoreRequest(BaseModel):
     student_id: str
     competency_id: UUID
-    new_score: float = Field(ge=0)
+    new_score: float = Field(ge=0, le=100)
     override_by: str  # instructor user id/name

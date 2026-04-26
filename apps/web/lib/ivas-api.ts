@@ -138,8 +138,8 @@ export const ivasApi = {
         ),
     bulkUpdateQuestionStatus: (questionIds: string[], newStatus: string) =>
         ivasRequest<{ updated: number; status: string }>(
-            `/assignments/questions/bulk-status?new_status=${encodeURIComponent(newStatus)}`,
-            { method: "POST", body: JSON.stringify(questionIds) }
+            `/assignments/questions/bulk-status`,
+            { method: "POST", body: JSON.stringify({ question_ids: questionIds, new_status: newStatus }) }
         ),
 
     // --- Sessions ---

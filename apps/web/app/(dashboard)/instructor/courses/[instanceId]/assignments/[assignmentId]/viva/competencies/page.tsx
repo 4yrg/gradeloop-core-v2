@@ -95,6 +95,7 @@ export default function CompetenciesPage() {
     const [formMaxScore, setFormMaxScore] = React.useState(10);
     const [formWeight, setFormWeight] = React.useState(1.0);
     const [saving, setSaving] = React.useState(false);
+    const weightDebounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Delete
     const [deleteId, setDeleteId] = React.useState<string | null>(null);
@@ -414,7 +415,7 @@ export default function CompetenciesPage() {
                                             max={10}
                                             step={0.1}
                                             value={c.weight}
-                                            onChange={async (e) => {
+                                            onChange={(e) => {
                                                 const newWeight = parseFloat(e.target.value);
                                                 const updated = linkedCompetencies.map(lc =>
                                                     lc.competency_id === c.competency_id
@@ -422,9 +423,16 @@ export default function CompetenciesPage() {
                                                         : lc
                                                 );
                                                 setLinkedCompetencies(updated);
-                                                await ivasApi.setAssignmentCompetencies(assignmentId, {
-                                                    competencies: updated.map(lc => ({ competency_id: lc.competency_id, weight: lc.weight })),
-                                                });
+                                                if (weightDebounceRef.current) {
+                                                    clearTimeout(weightDebounceRef.current);
+                                                }
+                                                weightDebounceRef.current = setTimeout(() => {
+                                                    ivasApi.setAssignmentCompetencies(assignmentId, {
+                                                        competencies: updated.map(lc => ({ competency_id: lc.competency_id, weight: lc.weight })),
+                                                    }).catch((err: unknown) => {
+                                                        setError(err instanceof Error ? err.message : "Failed to update weight");
+                                                    });
+                                                }, 500);
                                             }}
                                             className="w-20 h-8 text-xs text-center"
                                         />

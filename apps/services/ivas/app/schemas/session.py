@@ -42,6 +42,14 @@ class SessionOut(BaseModel):
     difficulty_distribution: dict[int, int] | None = None
     metadata: dict = {}
 
+    @field_validator("difficulty_distribution", mode="before")
+    @classmethod
+    def _coerce_string_keys(cls, v: dict[int, int] | None) -> dict[int, int] | None:
+        """Coerce string keys from JSONB to integers."""
+        if v is None:
+            return v
+        return {int(k): int(val) for k, val in v.items()}
+
 
 class TranscriptOut(BaseModel):
     id: UUID

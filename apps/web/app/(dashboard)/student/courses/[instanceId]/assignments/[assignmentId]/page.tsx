@@ -182,7 +182,7 @@ export default function StudentAssignmentDetailPage() {
                 title: assignment.title,
                 description: assignment.description || "",
                 code: assignment.code,
-                programming_language: assignment.code.toLowerCase(),
+                programming_language: "",
             };
             const session = await ivasApi.createSession({
                 assignment_id: assignmentId,

@@ -31,6 +31,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { useToast } from "@/components/ui/toaster";
 import { ivasApi } from "@/lib/ivas-api";
 import type { SessionDetail, GradedQA, Transcript, CompetencyScoreOut, VoiceAuthEvent } from "@/types/ivas";
 
@@ -291,6 +292,7 @@ function VoiceVerificationSection({ events }: { events: VoiceAuthEvent[] }) {
 }
 
 function CompetencyScoresSection({ studentId, assignmentId }: { studentId: string; assignmentId: string }) {
+    const { addToast } = useToast();
     const [scores, setScores] = React.useState<CompetencyScoreOut[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [editingId, setEditingId] = React.useState<string | null>(null);
@@ -323,8 +325,15 @@ function CompetencyScoresSection({ studentId, assignmentId }: { studentId: strin
             ));
             setEditingId(null);
             setEditValue(null);
-        } catch {}
-        finally { setSaving(false); }
+        } catch (err) {
+            addToast({
+                title: "Override failed",
+                variant: "error",
+                description: err instanceof Error ? err.message : "Could not save score override.",
+            });
+        } finally {
+            setSaving(false);
+        }
     }
 
     const displayed = showAll ? scores : scores.slice(0, 5);
@@ -440,6 +449,7 @@ function StudentIdCell({ studentId }: { studentId: string }) {
 }
 
 export default function InstructorVivaReviewPage() {
+    const { addToast } = useToast();
     const params = useParams<{ sessionId: string; assignmentId: string; instanceId: string }>();
     const router = useRouter();
     const sessionId = params.sessionId;

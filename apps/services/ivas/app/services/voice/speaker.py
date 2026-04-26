@@ -102,7 +102,7 @@ def serialize_embedding(embedding: np.ndarray) -> bytes:
 def deserialize_embedding(data: bytes) -> np.ndarray:
     """Deserialize bytes back to numpy embedding."""
     buf = io.BytesIO(data)
-    return np.load(buf)
+    return np.load(buf, allow_pickle=False)
 
 
 def classify_confidence(similarity: float, threshold: float) -> str:

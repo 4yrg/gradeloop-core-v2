@@ -323,50 +323,53 @@ export default function VoiceEnrollmentPage() {
 async function convertToWav(blob: Blob): Promise<Blob> {
     const arrayBuffer = await blob.arrayBuffer();
     const audioContext = new AudioContext({ sampleRate: 16000 });
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    try {
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
-    const numChannels = 1;
-    const sampleRate = 16000;
-    const bitsPerSample = 16;
+        const numChannels = 1;
+        const sampleRate = 16000;
+        const bitsPerSample = 16;
 
-    // Resample to 16kHz mono
-    const offlineCtx = new OfflineAudioContext(numChannels, audioBuffer.duration * sampleRate, sampleRate);
-    const source = offlineCtx.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(offlineCtx.destination);
-    source.start();
-    const rendered = await offlineCtx.startRendering();
+        // Resample to 16kHz mono
+        const offlineCtx = new OfflineAudioContext(numChannels, audioBuffer.duration * sampleRate, sampleRate);
+        const source = offlineCtx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(offlineCtx.destination);
+        source.start();
+        const rendered = await offlineCtx.startRendering();
 
-    const channelData = rendered.getChannelData(0);
-    const dataLength = channelData.length * (bitsPerSample / 8);
-    const buffer = new ArrayBuffer(44 + dataLength);
-    const view = new DataView(buffer);
+        const channelData = rendered.getChannelData(0);
+        const dataLength = channelData.length * (bitsPerSample / 8);
+        const buffer = new ArrayBuffer(44 + dataLength);
+        const view = new DataView(buffer);
 
-    // WAV header
-    writeString(view, 0, "RIFF");
-    view.setUint32(4, 36 + dataLength, true);
-    writeString(view, 8, "WAVE");
-    writeString(view, 12, "fmt ");
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true); // PCM
-    view.setUint16(22, numChannels, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * numChannels * (bitsPerSample / 8), true);
-    view.setUint16(32, numChannels * (bitsPerSample / 8), true);
-    view.setUint16(34, bitsPerSample, true);
-    writeString(view, 36, "data");
-    view.setUint32(40, dataLength, true);
+        // WAV header
+        writeString(view, 0, "RIFF");
+        view.setUint32(4, 36 + dataLength, true);
+        writeString(view, 8, "WAVE");
+        writeString(view, 12, "fmt ");
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true); // PCM
+        view.setUint16(22, numChannels, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * numChannels * (bitsPerSample / 8), true);
+        view.setUint16(32, numChannels * (bitsPerSample / 8), true);
+        view.setUint16(34, bitsPerSample, true);
+        writeString(view, 36, "data");
+        view.setUint32(40, dataLength, true);
 
-    // Write PCM samples
-    let offset = 44;
-    for (let i = 0; i < channelData.length; i++) {
-        const s = Math.max(-1, Math.min(1, channelData[i]));
-        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-        offset += 2;
+        // Write PCM samples
+        let offset = 44;
+        for (let i = 0; i < channelData.length; i++) {
+            const s = Math.max(-1, Math.min(1, channelData[i]));
+            view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            offset += 2;
+        }
+
+        return new Blob([buffer], { type: "audio/wav" });
+    } finally {
+        await audioContext.close();
     }
-
-    await audioContext.close();
-    return new Blob([buffer], { type: "audio/wav" });
 }
 
 function writeString(view: DataView, offset: number, str: string) {

@@ -25,7 +25,7 @@ router = APIRouter(prefix="/voice", tags=["voice"])
 
 # In-memory staging for enrollment samples before they're averaged and stored.
 # Maps student_id -> list of numpy embeddings collected so far.
-_enrollment_staging: dict[str, list] = {}
+_enrollment_staging: dict[str, dict[int, object]] = {}
 
 
 def _get_db():

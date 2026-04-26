@@ -309,7 +309,7 @@ async def _bridge_gemini_live(
                     while not end.is_set():
                         try:
                             raw = await asyncio.wait_for(
-                                websocket.receive_text(), timeout=300,
+                                websocket.receive_text(), timeout=60,
                             )
                         except asyncio.TimeoutError:
                             continue
@@ -318,7 +318,8 @@ async def _bridge_gemini_live(
 
                         try:
                             msg = json.loads(raw)
-                        except json.JSONDecodeError:
+                        except json.JSONDecodeError as exc:
+                            logger.warning("malformed_ws_message", error=str(exc))
                             continue
 
                         if msg.get("type") == "audio" and msg.get("data"):

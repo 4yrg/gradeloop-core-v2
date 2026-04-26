@@ -148,52 +148,68 @@ class TestGradeVivaTranscript:
     @pytest.mark.asyncio
     async def test_transcript_with_no_questions(self):
         """Test grading transcript with no substantive questions."""
+        mock_response = AsyncMock()
+        mock_response.text = '{"items": []}'
+        mock_client = AsyncMock()
+        mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
+
         turns = [
             {"turn_number": 1, "role": "examiner", "content": "Hello!"},
             {"turn_number": 2, "role": "student", "content": "Hi!"},
         ]
-        result = await grade_viva_transcript(
-            gemini_api_key="test-key",
-            grader_model="gemini-2.0-flash",
-            turns=turns,
-            assignment_context=None,
-        )
+        with patch("google.genai.Client", return_value=mock_client):
+            result = await grade_viva_transcript(
+                gemini_api_key="test-key",
+                grader_model="gemini-2.0-flash",
+                turns=turns,
+                assignment_context=None,
+            )
         # May return empty if no substantive questions detected
         assert isinstance(result["items"], list)
 
     @pytest.mark.asyncio
     async def test_score_calculation(self):
         """Test that total score is sum of individual scores."""
-        # This would require mocking the API response
-        # For now, just verify the function doesn't crash
-        result = await grade_viva_transcript(
-            gemini_api_key="test-key",
-            grader_model="gemini-2.0-flash",
-            turns=[
-                {"turn_number": 1, "role": "examiner", "content": "What is X?"},
-                {"turn_number": 2, "role": "student", "content": "X is Y."},
-            ],
-            assignment_context={"title": "Test"},
-        )
+        mock_response = AsyncMock()
+        mock_response.text = '{"items": [{"sequence_num": 1, "question_text": "What is X?", "response_text": "X is Y.", "score": 7, "score_justification": "Good"}]}'
+        mock_client = AsyncMock()
+        mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
+
+        with patch("google.genai.Client", return_value=mock_client):
+            result = await grade_viva_transcript(
+                gemini_api_key="test-key",
+                grader_model="gemini-2.0-flash",
+                turns=[
+                    {"turn_number": 1, "role": "examiner", "content": "What is X?"},
+                    {"turn_number": 2, "role": "student", "content": "X is Y."},
+                ],
+                assignment_context={"title": "Test"},
+            )
         assert "items" in result
         assert "total_score" in result
         assert "max_possible" in result
+        assert result["total_score"] == 7.0
 
     @pytest.mark.asyncio
     async def test_max_possible_calculation(self):
         """Test that max_possible is calculated correctly."""
-        # The grader should sum per-item max_scores, not assume uniform
-        result = await grade_viva_transcript(
-            gemini_api_key="test-key",
-            grader_model="gemini-2.0-flash",
-            turns=[
-                {"turn_number": 1, "role": "examiner", "content": "Q1?"},
-                {"turn_number": 2, "role": "student", "content": "A1."},
-                {"turn_number": 3, "role": "examiner", "content": "Q2?"},
-                {"turn_number": 4, "role": "student", "content": "A2."},
-            ],
-            assignment_context={"title": "Test"},
-        )
+        mock_response = AsyncMock()
+        mock_response.text = '{"items": [{"sequence_num": 1, "question_text": "Q1?", "response_text": "A1.", "score": 5, "score_justification": "OK"}, {"sequence_num": 2, "question_text": "Q2?", "response_text": "A2.", "score": 8, "score_justification": "Great"}]}'
+        mock_client = AsyncMock()
+        mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
+
+        with patch("google.genai.Client", return_value=mock_client):
+            result = await grade_viva_transcript(
+                gemini_api_key="test-key",
+                grader_model="gemini-2.0-flash",
+                turns=[
+                    {"turn_number": 1, "role": "examiner", "content": "Q1?"},
+                    {"turn_number": 2, "role": "student", "content": "A1."},
+                    {"turn_number": 3, "role": "examiner", "content": "Q2?"},
+                    {"turn_number": 4, "role": "student", "content": "A2."},
+                ],
+                assignment_context={"title": "Test"},
+            )
         # max_possible should equal sum of item max_scores
         if result["items"]:
             expected_max = sum(item.get("max_score", 10) for item in result["items"])

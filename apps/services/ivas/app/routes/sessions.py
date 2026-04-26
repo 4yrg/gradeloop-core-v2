@@ -110,7 +110,7 @@ async def regrade_session(session_id: UUID) -> SessionOut:
     if not session:
         raise HTTPException(status_code=404, detail="Session not found.")
 
-    if session.get("status") in {"in_progress", "initializing", "grading"}:
+    if session.get("status") in {"in_progress", "initializing", "grading", "paused"}:
         raise HTTPException(
             status_code=409,
             detail="Session is still active or already being graded; wait for it to finish first.",

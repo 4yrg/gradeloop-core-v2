@@ -3,6 +3,7 @@
 import pytest
 from uuid import uuid4
 from app.schemas.session import SessionCreate
+from app.services.viva.grader import grade_viva_transcript
 
 
 class TestSessionCreateSchema:
@@ -139,16 +140,23 @@ class TestGradingIntegration:
     @pytest.mark.asyncio
     async def test_grade_single_question(self):
         """Test grading a single Q&A pair."""
+        from unittest.mock import AsyncMock, patch
+        mock_response = AsyncMock()
+        mock_response.text = '{"items": [{"sequence_num": 1, "question_text": "What is recursion?", "response_text": "Recursion is when a function calls itself.", "score": 8, "score_justification": "Good answer"}]}'
+        mock_client = AsyncMock()
+        mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
+
         turns = [
             {"turn_number": 1, "role": "examiner", "content": "What is recursion?"},
             {"turn_number": 2, "role": "student", "content": "Recursion is when a function calls itself."},
         ]
-        result = await grade_viva_transcript(
-            gemini_api_key="test-key",
-            grader_model="gemini-2.0-flash",
-            turns=turns,
-            assignment_context={"title": "Test"},
-        )
+        with patch("google.genai.Client", return_value=mock_client):
+            result = await grade_viva_transcript(
+                gemini_api_key="test-key",
+                grader_model="gemini-2.0-flash",
+                turns=turns,
+                assignment_context={"title": "Test"},
+            )
         assert len(result["items"]) >= 1
         assert "score" in result["items"][0]
 

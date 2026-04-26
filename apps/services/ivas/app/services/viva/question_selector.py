@@ -246,7 +246,7 @@ def select_questions_random(
     seq = 1
     for level, count in sorted(difficulty_distribution.items()):
         pool = by_difficulty.get(level, [])
-        # Shuffle and pick count (allow repeats if pool is smaller than count)
+        # Shuffle and pick count (if pool is smaller than count, returns all available)
         shuffled = random.sample(pool, k=min(count, len(pool)))
         for comp in shuffled:
             questions.append({
