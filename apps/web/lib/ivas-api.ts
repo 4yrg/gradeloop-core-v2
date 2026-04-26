@@ -18,6 +18,7 @@ import type {
     VoiceEnrollmentOut,
     VoiceProfileStatus,
     VoiceVerifyOut,
+    VoiceAuthEvent,
     HealthResponse,
     ReadyResponse,
     CompetencyOut,
@@ -197,6 +198,12 @@ export const ivasApi = {
         formData.append("audio", audioFile);
         return ivasFormRequest<VoiceVerifyOut>("/voice/verify", formData);
     },
+
+    // --- Voice Auth Events ---
+    listVoiceAuthEvents: (sessionId: string) =>
+        ivasRequest<VoiceAuthEvent[]>(
+            `/voice/auth-events/${encodeURIComponent(sessionId)}`
+        ),
 
     // --- WebSocket URL helper ---
     getVivaWebSocketUrl: (sessionId: string) =>

@@ -160,6 +160,47 @@ class PostgresClient:
             return result == "DELETE 1"
 
     # =========================================================================
+    # Voice Auth Events
+    # =========================================================================
+
+    async def insert_voice_auth_event(
+        self,
+        session_id,
+        similarity_score: float | None,
+        is_match: bool | None,
+        confidence: str | None,
+        question_instance_id=None,
+        audio_ref: str | None = None,
+    ) -> dict:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO voice_auth_events
+                    (session_id, question_instance_id, similarity_score,
+                     is_match, confidence, audio_ref)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                RETURNING *
+                """,
+                session_id, question_instance_id, similarity_score,
+                is_match, confidence, audio_ref,
+            )
+            return dict(row) if row else {}
+
+    async def list_voice_auth_events(self, session_id) -> list[dict]:
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT id, session_id, question_instance_id, similarity_score,
+                       is_match, confidence, audio_ref, checked_at
+                FROM voice_auth_events
+                WHERE session_id = $1
+                ORDER BY checked_at ASC
+                """,
+                session_id,
+            )
+            return [dict(r) for r in rows]
+
+    # =========================================================================
     # Sessions CRUD
     # =========================================================================
 

@@ -181,6 +181,9 @@ async def _bridge_gemini_live(
     settings,
     assignment_context: dict | None = None,
     selected_questions: list[dict] | None = None,
+    session_id: str | None = None,
+    student_id: str | None = None,
+    voice_verifier=None,
 ) -> list[dict]:
     """Bridge a browser WebSocket to a Gemini Live session.
 
@@ -214,6 +217,9 @@ async def _bridge_gemini_live(
     )
 
     logger.info("gemini_connecting", model=settings.gemini_live_model)
+
+    # Session ID as string for voice verification buffer lookup
+    session_id_str = session_id
 
     # In-memory transcript accumulator, shared between the receiver task and
     # the outer finally block so it can be persisted after the session ends.
@@ -322,6 +328,11 @@ async def _bridge_gemini_live(
                                     data=audio, mime_type="audio/pcm;rate=16000",
                                 ),
                             )
+                            # Voice verification: accumulate chunk for periodic check
+                            if voice_verifier and student_id and session_id_str:
+                                await voice_verifier.accumulate_chunk(
+                                    session_id_str, student_id, audio, websocket,
+                                )
                         elif msg.get("type") == "end_session":
                             break
 
@@ -805,6 +816,22 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
     settings = get_settings()
     selected_questions: list[dict] = []
 
+    # Voice verification setup
+    student_id = session.get("student_id", "")
+    from app.services.voice.verifier import VoiceVerificationManager
+    voice_verifier = VoiceVerificationManager(db, settings)
+
+    # Check if student has enrolled a voice profile
+    voice_profile = await db.get_voice_profile(student_id)
+    if not voice_profile:
+        logger.warning("voice_no_profile", session_id=session_id, student_id=student_id)
+        with suppress(Exception):
+            await websocket.send_json({
+                "type": "voice_warning",
+                "confidence": "none",
+                "message": "No voice profile enrolled — voice verification disabled.",
+            })
+
     logger.info(
         "loading_competencies",
         session_id=session_id,
@@ -905,12 +932,17 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
             settings,
             assignment_context=assignment_context,
             selected_questions=selected_questions if selected_questions else None,
+            session_id=session_id,
+            student_id=student_id,
+            voice_verifier=voice_verifier,
         ) or []
     except Exception as exc:
         logger.error("session_ws_error", error=str(exc), partial_turns=len(transcript_turns))
         with suppress(Exception):
             await websocket.send_json({"type": "error", "data": str(exc)})
     finally:
+        # Clean up voice verification buffer for this session
+        voice_verifier.flush(session_id)
         # Notify the client the live side has ended BEFORE running grading —
         # the browser shouldn't wait on the Gemini grading round-trip.
         with suppress(Exception):

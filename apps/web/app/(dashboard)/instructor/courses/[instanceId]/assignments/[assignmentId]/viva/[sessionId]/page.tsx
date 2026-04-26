@@ -24,6 +24,7 @@ import {
     X,
     Loader2,
     RefreshCw,
+    ShieldCheck,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,7 +32,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { ivasApi } from "@/lib/ivas-api";
-import type { SessionDetail, GradedQA, Transcript, CompetencyScoreOut } from "@/types/ivas";
+import type { SessionDetail, GradedQA, Transcript, CompetencyScoreOut, VoiceAuthEvent } from "@/types/ivas";
 
 const TRANSCRIPT_COLLAPSE_THRESHOLD = 30;
 
@@ -224,6 +225,69 @@ function DifficultyBadge({ difficulty }: { difficulty: number }) {
         return <Badge variant="outline" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0 text-xs">Intermediate</Badge>;
     }
     return <Badge variant="outline" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-xs">Beginner</Badge>;
+}
+
+function VoiceVerificationSection({ events }: { events: VoiceAuthEvent[] }) {
+    if (events.length === 0) return null;
+    const avgSimilarity = events.reduce((sum, e) => sum + (e.similarity_score ?? 0), 0) / events.length;
+    const matchCount = events.filter(e => e.is_match).length;
+
+    return (
+        <Card>
+            <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4" />
+                    Voice Verification
+                    <span className="text-xs font-normal text-muted-foreground">
+                        ({events.length} checks)
+                    </span>
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+                {events.map((event, i) => {
+                    const sim = event.similarity_score;
+                    const confColor =
+                        event.confidence === "high"
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : event.confidence === "medium"
+                                ? "text-amber-600 dark:text-amber-400"
+                                : "text-red-600 dark:text-red-400";
+                    const badgeColor =
+                        event.is_match
+                            ? "border-emerald-200 text-emerald-700 dark:border-emerald-800 dark:text-emerald-400"
+                            : "border-red-200 text-red-700 dark:border-red-800 dark:text-red-400";
+                    const confBg =
+                        event.confidence === "high"
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                            : event.confidence === "medium"
+                                ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                                : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+                    return (
+                        <div key={event.id} className="flex items-center gap-3 py-2 border-b border-border/20 last:border-0">
+                            <span className="text-xs text-muted-foreground">Check {i + 1}</span>
+                            <span className={`text-sm font-semibold ${confColor}`}>
+                                {sim !== null ? sim.toFixed(4) : "—"}
+                            </span>
+                            <Badge variant="outline" className={badgeColor}>
+                                {event.is_match ? "Match" : "Mismatch"}
+                            </Badge>
+                            {event.confidence && (
+                                <Badge variant="outline" className={confBg}>
+                                    {event.confidence}
+                                </Badge>
+                            )}
+                            <span className="text-xs text-muted-foreground ml-auto">
+                                {format(new Date(event.checked_at), "HH:mm:ss")}
+                            </span>
+                        </div>
+                    );
+                })}
+                <div className="pt-2 text-xs text-muted-foreground">
+                    Average similarity: {avgSimilarity.toFixed(4)} | Matches: {matchCount}/{events.length}
+                </div>
+            </CardContent>
+        </Card>
+    );
 }
 
 function CompetencyScoresSection({ studentId, assignmentId }: { studentId: string; assignmentId: string }) {
@@ -614,6 +678,11 @@ export default function InstructorVivaReviewPage() {
                     studentId={session.student_id}
                     assignmentId={assignmentId}
                 />
+            )}
+
+            {/* Voice Verification */}
+            {details.voice_auth_events && details.voice_auth_events.length > 0 && (
+                <VoiceVerificationSection events={details.voice_auth_events} />
             )}
 
             {/* Code context */}

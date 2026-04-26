@@ -1,9 +1,12 @@
 """Voice enrollment and verification routes."""
 
+from uuid import UUID
+
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
 from app.config import get_settings
 from app.schemas.voice import (
+    VoiceAuthEventOut,
     VoiceEnrollmentOut,
     VoiceProfileOut,
     VoiceProfileStatus,
@@ -217,3 +220,20 @@ async def verify_voice(
         confidence=confidence,
         threshold=threshold,
     )
+
+
+# =============================================================================
+# Voice Auth Events (per-session verification history)
+# =============================================================================
+
+
+@router.get("/auth-events/{session_id}", response_model=list[VoiceAuthEventOut])
+async def list_voice_auth_events(session_id: UUID) -> list[VoiceAuthEventOut]:
+    """List voice authentication events for a viva session.
+
+    Used by the instructor dashboard to review per-answer voice
+    verification results.
+    """
+    db = _get_db()
+    rows = await db.list_voice_auth_events(session_id)
+    return [VoiceAuthEventOut(**r) for r in rows]

@@ -9,6 +9,7 @@ import {
     Loader2,
     AlertCircle,
     Wifi,
+    ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,6 +43,9 @@ export default function VivaSessionPage() {
     const reconnectAttemptsRef = React.useRef(0);
     const MAX_RECONNECT_ATTEMPTS = 3;
     const [showEndConfirm, setShowEndConfirm] = React.useState(false);
+
+    // Voice verification warnings
+    const [voiceWarning, setVoiceWarning] = React.useState<{ similarity: number; confidence: string } | null>(null);
 
     // Refs
     const wsRef = React.useRef<WebSocket | null>(null);
@@ -334,6 +338,19 @@ export default function VivaSessionPage() {
                         });
                         break;
 
+                    case "voice_warning":
+                        setVoiceWarning({
+                            similarity: msg.similarity ?? 0,
+                            confidence: msg.confidence ?? "low",
+                        });
+                        // Auto-dismiss after 8 seconds
+                        setTimeout(() => setVoiceWarning(null), 8000);
+                        break;
+
+                    case "voice_status":
+                        // Silent tracking — no UI action needed for medium/high confidence
+                        break;
+
                     case "pong":
                         break;
                 }
@@ -604,6 +621,22 @@ export default function VivaSessionPage() {
                     End viva
                 </Button>
             </div>
+
+            {/* Voice verification warning */}
+            {voiceWarning && (
+                <div className="mx-1 mb-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 flex items-start gap-2">
+                    <ShieldAlert className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                    <div>
+                        <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                            Voice verification warning
+                        </p>
+                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                            Your voice similarity is low ({voiceWarning.similarity.toFixed(2)}).
+                            Please ensure you are the enrolled speaker.
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* Transcript area */}
             <div className="flex-1 overflow-y-auto px-1 pt-2 pb-6 space-y-5">

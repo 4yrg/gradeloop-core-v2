@@ -5,6 +5,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.schemas.voice import VoiceAuthEventOut
+
 
 class SessionCreate(BaseModel):
     assignment_id: UUID
@@ -85,3 +87,4 @@ class SessionDetailOut(BaseModel):
     session: SessionOut
     transcripts: list[TranscriptOut] = []
     graded_qa: list[GradedQAOut] = []
+    voice_auth_events: list[VoiceAuthEventOut] = []

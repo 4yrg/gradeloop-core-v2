@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Mic2, BookOpen, Loader2, AlertCircle } from "lucide-react";
+import { Mic2, BookOpen, Loader2, AlertCircle, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,7 @@ import { useToast } from "@/components/ui/toaster";
 import { ivasApi } from "@/lib/ivas-api";
 import { handleApiError } from "@/lib/api/axios";
 import { useAuthStore } from "@/lib/stores/authStore";
-import type { IvasAssignment } from "@/types/ivas";
+import type { IvasAssignment, VoiceProfileStatus } from "@/types/ivas";
 import {
     Select,
     SelectContent,
@@ -30,6 +30,7 @@ export default function StartAssessmentPage() {
     const [starting, setStarting] = React.useState(false);
     const [competencyCount, setCompetencyCount] = React.useState<number | null>(null);
     const [competenciesLoading, setCompetenciesLoading] = React.useState(false);
+    const [voiceProfile, setVoiceProfile] = React.useState<VoiceProfileStatus | null>(null);
 
     React.useEffect(() => {
         let mounted = true;
@@ -80,6 +81,22 @@ export default function StartAssessmentPage() {
         loadCompetencies();
         return () => { mounted = false; };
     }, [selectedAssignment]);
+
+    // Check voice enrollment status
+    React.useEffect(() => {
+        if (!user?.id) return;
+        let mounted = true;
+        async function checkVoiceProfile() {
+            try {
+                const profile = await ivasApi.getVoiceProfile(user!.id);
+                if (mounted) setVoiceProfile(profile);
+            } catch {
+                // Profile doesn't exist yet — that's fine
+            }
+        }
+        checkVoiceProfile();
+        return () => { mounted = false; };
+    }, [user?.id]);
 
     const selectedData = assignments.find(a => a.id === selectedAssignment);
 
@@ -242,6 +259,19 @@ export default function StartAssessmentPage() {
                     <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-sm">
                         <AlertCircle className="h-4 w-4 shrink-0" />
                         <span>This assignment has no grading criteria configured. Contact your instructor to add competencies before starting the viva.</span>
+                    </div>
+                )}
+
+                {/* Voice enrollment warning */}
+                {voiceProfile && !voiceProfile.is_complete && (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-sm">
+                        <ShieldCheck className="h-4 w-4 shrink-0" />
+                        <span>
+                            Voice enrollment is recommended before starting a viva for identity verification.{" "}
+                            <a href="/student/assessments/voice-enrollment" className="underline font-medium">
+                                Enroll now
+                            </a>
+                        </span>
                     </div>
                 )}
 

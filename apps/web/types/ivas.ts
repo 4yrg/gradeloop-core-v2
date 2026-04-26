@@ -154,6 +154,21 @@ export interface VoiceVerifyOut {
 }
 
 // ============================================================
+// Voice Auth Events (per-answer verification during viva)
+// ============================================================
+
+export interface VoiceAuthEvent {
+    id: string;
+    session_id: string;
+    question_instance_id: string | null;
+    similarity_score: number | null;
+    is_match: boolean | null;
+    confidence: "high" | "medium" | "low" | null;
+    audio_ref: string | null;
+    checked_at: string;
+}
+
+// ============================================================
 // WebSocket Message Types
 // ============================================================
 
@@ -172,12 +187,18 @@ export interface WsMessageIncoming {
         | "session_started"
         | "session_ended"
         | "error"
-        | "pong";
+        | "pong"
+        | "voice_warning"
+        | "voice_status";
     data?: string;
     finished?: boolean;
     session_id?: string;
     status?: string;
     mime_type?: string;
+    similarity?: number;
+    confidence?: "high" | "medium" | "low" | "none";
+    message?: string;
+    is_match?: boolean;
 }
 
 // ============================================================
@@ -229,6 +250,7 @@ export interface SessionDetail {
     session: VivaSession;
     transcripts: Transcript[];
     graded_qa: GradedQA[];
+    voice_auth_events: VoiceAuthEvent[];
 }
 
 // ============================================================

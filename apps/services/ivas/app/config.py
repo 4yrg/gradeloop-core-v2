@@ -68,6 +68,10 @@ class Settings(BaseSettings):
         default=3,
         alias="VOICE_ENROLLMENT_SAMPLES",
     )
+    voice_verify_interval_seconds: float = Field(
+        default=3.0,
+        alias="VOICE_VERIFY_INTERVAL_SECONDS",
+    )
 
     @property
     def database_dsn(self) -> str:

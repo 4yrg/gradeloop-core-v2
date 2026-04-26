@@ -55,3 +55,19 @@ class VoiceVerifyOut(BaseModel):
     is_match: bool
     confidence: str = Field(pattern="^(high|medium|low)$")
     threshold: float
+
+
+# =============================================================================
+# Voice Auth Events (per-answer verification during viva)
+# =============================================================================
+
+
+class VoiceAuthEventOut(BaseModel):
+    id: UUID
+    session_id: UUID
+    question_instance_id: UUID | None = None
+    similarity_score: float | None = None
+    is_match: bool | None = None
+    confidence: str | None = None
+    audio_ref: str | None = None
+    checked_at: datetime

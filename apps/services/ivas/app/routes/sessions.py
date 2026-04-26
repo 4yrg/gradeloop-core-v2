@@ -12,6 +12,7 @@ from app.schemas.session import (
     SessionOut,
     TranscriptOut,
 )
+from app.schemas.voice import VoiceAuthEventOut
 
 logger = get_logger(__name__)
 
@@ -282,8 +283,13 @@ async def get_session_details(session_id: UUID) -> SessionDetailOut:
         for g in graded_rows
     ]
 
+    voice_events = await db.list_voice_auth_events(session_id)
+
     return SessionDetailOut(
         session=SessionOut(**row),
         transcripts=[TranscriptOut(**t) for t in transcripts],
         graded_qa=graded_out,
+        voice_auth_events=[
+            VoiceAuthEventOut(**v) for v in voice_events
+        ],
     )
