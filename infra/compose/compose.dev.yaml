@@ -363,17 +363,6 @@ services:
       target: development
     volumes:
       - ../../apps/services/ivas:/app
-    container_name: gradeloop-ivas
-    restart: unless-stopped
-    env_file:
-      - ../../.env
-    environment:
-      - SERVICE_PORT=${IVAS_SVC_PORT:-8101}
-      - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@gradeloop-postgres:5432/${IVAS_SVC_DB_NAME:-ivas_db}
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis_pass}@gradeloop-redis:6379/1
-      - PYTHONPATH=/app:/packages/python
-    volumes:
-      - ../../apps/services/ivas:/app
       - ../../packages/python:/packages/python
     expose:
       - "8101"
