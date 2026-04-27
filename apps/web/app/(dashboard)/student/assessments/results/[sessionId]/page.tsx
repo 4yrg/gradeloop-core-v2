@@ -18,6 +18,7 @@ import {
     ChevronUp,
     AlertCircle,
     Loader2,
+    Sliders,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,7 +26,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { ivasApi } from "@/lib/ivas-api";
-import type { SessionDetail, GradedQA, Transcript } from "@/types/ivas";
+import type { SessionDetail, GradedQA, Transcript, CompetencyScoreOut } from "@/types/ivas";
 
 const TRANSCRIPT_COLLAPSE_THRESHOLD = 30;
 
@@ -207,6 +208,81 @@ function QuestionCard({ item }: { item: GradedQA }) {
                 </div>
             )}
         </div>
+    );
+}
+
+function StudentCompetencyScores({ studentId, sessionId }: { studentId: string; sessionId: string }) {
+    const [scores, setScores] = React.useState<CompetencyScoreOut[]>([]);
+    const [loading, setLoading] = React.useState(true);
+
+    React.useEffect(() => {
+        let mounted = true;
+        ivasApi.listStudentCompetencyScores(studentId).then(data => {
+            if (mounted) setScores(data.filter(s => s.session_id === sessionId));
+        }).catch(() => {}).finally(() => {
+            if (mounted) setLoading(false);
+        });
+        return () => { mounted = false; };
+    }, [studentId, sessionId]);
+
+    if (loading) {
+        return (
+            <Card>
+                <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                        <Sliders className="h-4 w-4" />
+                        Competency Scores
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-10 rounded-lg" />)}</div>
+                </CardContent>
+            </Card>
+        );
+    }
+
+    if (scores.length === 0) return null;
+
+    return (
+        <Card>
+            <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                    <Sliders className="h-4 w-4" />
+                    Competency Scores
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+                {scores.map(s => {
+                    const pct = s.score !== null && s.max_score !== null && s.max_score > 0
+                        ? (s.score / s.max_score) * 100 : 0;
+                    const color = pct >= 80 ? "text-emerald-600" : pct >= 60 ? "text-amber-600" : "text-red-600";
+                    return (
+                        <div key={s.id} className="flex items-center gap-3 py-2 border-b border-border/20 last:border-0">
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <p className="text-sm font-medium">{s.competency_name ?? "—"}</p>
+                                    {s.is_override && (
+                                        <Badge variant="outline" className="text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0">Override</Badge>
+                                    )}
+                                </div>
+                                <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
+                                    <div
+                                        className={`h-full rounded-full transition-all ${pct >= 80 ? "bg-emerald-500" : pct >= 60 ? "bg-amber-500" : "bg-red-500"}`}
+                                        style={{ width: `${pct}%` }}
+                                    />
+                                </div>
+                            </div>
+                            <div className="shrink-0">
+                                <span className={`font-bold text-sm ${color}`}>
+                                    {s.score !== null ? Math.round(s.score) : "—"}
+                                    <span className="text-xs font-normal text-muted-foreground">/{s.max_score ?? 10}</span>
+                                </span>
+                            </div>
+                        </div>
+                    );
+                })}
+            </CardContent>
+        </Card>
     );
 }
 
@@ -403,6 +479,11 @@ export default function StudentResultsPage() {
                     </div>
                 )}
             </div>
+
+            {/* Competency Scores */}
+            {session.status === "completed" && (
+                <StudentCompetencyScores studentId={session.student_id} sessionId={sessionId} />
+            )}
 
             {/* Code context */}
             {(session.assignment_context?.code_context as string | undefined) && (
