@@ -232,6 +232,9 @@ function VoiceVerificationSection({ events }: { events: VoiceAuthEvent[] }) {
     if (events.length === 0) return null;
     const avgSimilarity = events.reduce((sum, e) => sum + (e.similarity_score ?? 0), 0) / events.length;
     const matchCount = events.filter(e => e.is_match).length;
+    const mismatchCount = events.length - matchCount;
+    const allPassed = mismatchCount === 0;
+    const pctMatch = Math.round((matchCount / events.length) * 100);
 
     return (
         <Card>
@@ -239,52 +242,78 @@ function VoiceVerificationSection({ events }: { events: VoiceAuthEvent[] }) {
                 <CardTitle className="text-base flex items-center gap-2">
                     <ShieldCheck className="h-4 w-4" />
                     Voice Verification
-                    <span className="text-xs font-normal text-muted-foreground">
-                        ({events.length} checks)
-                    </span>
                 </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-                {events.map((event, i) => {
-                    const sim = event.similarity_score;
-                    const confColor =
-                        event.confidence === "high"
-                            ? "text-emerald-600 dark:text-emerald-400"
-                            : event.confidence === "medium"
-                                ? "text-amber-600 dark:text-amber-400"
-                                : "text-red-600 dark:text-red-400";
-                    const badgeColor =
-                        event.is_match
-                            ? "border-emerald-200 text-emerald-700 dark:border-emerald-800 dark:text-emerald-400"
-                            : "border-red-200 text-red-700 dark:border-red-800 dark:text-red-400";
-                    const confBg =
-                        event.confidence === "high"
-                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                            : event.confidence === "medium"
-                                ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                                : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
-                    return (
-                        <div key={event.id} className="flex items-center gap-3 py-2 border-b border-border/20 last:border-0">
-                            <span className="text-xs text-muted-foreground">Check {i + 1}</span>
-                            <span className={`text-sm font-semibold ${confColor}`}>
-                                {sim !== null ? sim.toFixed(4) : "—"}
-                            </span>
-                            <Badge variant="outline" className={badgeColor}>
-                                {event.is_match ? "Match" : "Mismatch"}
-                            </Badge>
-                            {event.confidence && (
-                                <Badge variant="outline" className={confBg}>
-                                    {event.confidence}
+            <CardContent className="space-y-4">
+                {/* Summary badge */}
+                <div className={`flex items-center gap-3 p-3 rounded-lg border ${
+                    allPassed
+                        ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800"
+                        : "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"
+                }`}>
+                    <div className={`flex items-center justify-center h-10 w-10 rounded-full shrink-0 ${
+                        allPassed
+                            ? "bg-emerald-100 dark:bg-emerald-900/40"
+                            : "bg-red-100 dark:bg-red-900/40"
+                    }`}>
+                        <ShieldCheck className={`h-5 w-5 ${
+                            allPassed ? "text-emerald-600" : "text-red-600"
+                        }`} />
+                    </div>
+                    <div>
+                        <p className={`text-sm font-semibold ${
+                            allPassed ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400"
+                        }`}>
+                            {allPassed
+                                ? `Voice Verified — ${matchCount}/${events.length} checks passed`
+                                : `Voice Verification Concerns — ${mismatchCount} flagged out of ${events.length} checks`}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                            Average similarity: {(avgSimilarity * 100).toFixed(1)}% · Match rate: {pctMatch}%
+                        </p>
+                    </div>
+                </div>
+
+                {/* Per-check details */}
+                <div className="space-y-0">
+                    {events.map((event, i) => {
+                        const sim = event.similarity_score;
+                        const confColor =
+                            event.confidence === "high"
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : event.confidence === "medium"
+                                    ? "text-amber-600 dark:text-amber-400"
+                                    : "text-red-600 dark:text-red-400";
+                        const badgeColor =
+                            event.is_match
+                                ? "border-emerald-200 text-emerald-700 dark:border-emerald-800 dark:text-emerald-400"
+                                : "border-red-200 text-red-700 dark:border-red-800 dark:text-red-400";
+                        const confBg =
+                            event.confidence === "high"
+                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                                : event.confidence === "medium"
+                                    ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                                    : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+                        return (
+                            <div key={event.id} className="flex items-center gap-3 py-2 border-b border-border/20 last:border-0">
+                                <span className="text-xs text-muted-foreground">Check {i + 1}</span>
+                                <span className={`text-sm font-semibold ${confColor}`}>
+                                    {sim !== null ? (sim * 100).toFixed(1) + "%" : "—"}
+                                </span>
+                                <Badge variant="outline" className={badgeColor}>
+                                    {event.is_match ? "Match" : "Mismatch"}
                                 </Badge>
-                            )}
-                            <span className="text-xs text-muted-foreground ml-auto">
-                                {format(new Date(event.checked_at), "HH:mm:ss")}
-                            </span>
-                        </div>
-                    );
-                })}
-                <div className="pt-2 text-xs text-muted-foreground">
-                    Average similarity: {avgSimilarity.toFixed(4)} | Matches: {matchCount}/{events.length}
+                                {event.confidence && (
+                                    <Badge variant="outline" className={confBg}>
+                                        {event.confidence}
+                                    </Badge>
+                                )}
+                                <span className="text-xs text-muted-foreground ml-auto">
+                                    {format(new Date(event.checked_at), "HH:mm:ss")}
+                                </span>
+                            </div>
+                        );
+                    })}
                 </div>
             </CardContent>
         </Card>

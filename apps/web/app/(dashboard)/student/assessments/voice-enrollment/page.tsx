@@ -19,6 +19,19 @@ import { useAuthStore } from "@/lib/stores/authStore";
 import type { VoiceProfileStatus } from "@/types/ivas";
 import { cn } from "@/lib/utils";
 
+const ENROLLMENT_SENTENCES = [
+    "The function iterates through the array and returns the first element that matches the given condition.",
+    "Recursion is a technique where a function calls itself to solve smaller instances of the same problem.",
+    "In object-oriented programming, encapsulation hides the internal state of an object from the outside world.",
+    "A linked list is a linear data structure where each element points to the next node in the sequence.",
+    "Unit tests verify that individual components of a program work correctly in isolation.",
+    "Inheritance allows a class to derive properties and methods from a parent class.",
+    "The time complexity of binary search is O of log n because it halves the search space each step.",
+    "Polymorphism enables objects of different types to be treated through a common interface.",
+    "A stack is a last-in first-out data structure that supports push and pop operations.",
+    "Abstraction simplifies complex systems by modeling only the relevant details for the current context.",
+];
+
 export default function VoiceEnrollmentPage() {
     const { addToast } = useToast();
     const user = useAuthStore((s) => s.user);
@@ -36,6 +49,8 @@ export default function VoiceEnrollmentPage() {
     const timerRef = React.useRef<NodeJS.Timeout | null>(null);
 
     const studentId = user?.id || "";
+
+    const enrollmentSentence = ENROLLMENT_SENTENCES[(currentSample - 1) % ENROLLMENT_SENTENCES.length];
 
     // Load voice profile status
     React.useEffect(() => {
@@ -256,6 +271,16 @@ export default function VoiceEnrollmentPage() {
                         </Button>
                     ) : (
                         <div className="space-y-4">
+                            {/* Guided sentence to read */}
+                            <div className="p-4 rounded-xl bg-muted/60 border border-border/50 text-center">
+                                <p className="text-xs text-muted-foreground mb-2 font-medium uppercase tracking-wide">
+                                    {recording ? "Read this sentence aloud:" : "You will be asked to read:"}
+                                </p>
+                                <p className="text-base leading-relaxed font-medium">
+                                    &ldquo;{enrollmentSentence}&rdquo;
+                                </p>
+                            </div>
+
                             {/* Recording controls */}
                             <div className="flex flex-col items-center gap-4">
                                 {recording ? (
@@ -274,7 +299,7 @@ export default function VoiceEnrollmentPage() {
                                             </span>
                                         </div>
                                         <p className="text-sm text-muted-foreground">
-                                            Speak naturally for at least 5 seconds, then click to stop.
+                                            Read the sentence above, then click to stop.
                                         </p>
                                     </>
                                 ) : uploading ? (
