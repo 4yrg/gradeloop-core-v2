@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Mic2, BookOpen, BarChart3 } from "lucide-react";
+import { Mic2, BookOpen, BarChart3, Fingerprint } from "lucide-react";
 import { instructorAssessmentsApi } from "@/lib/api/assessments";
 import { useUIStore } from "@/lib/stores/uiStore";
 import { cn } from "@/lib/utils";
@@ -56,6 +56,7 @@ export default function VivaLayout({
                 { name: "Viva Sessions", href: vivaBasePath },
                 { name: "Competencies", href: `${vivaBasePath}/competencies` },
                 { name: "Analytics", href: `${vivaBasePath}/analytics` },
+                { name: "Voice Profiles", href: `${vivaBasePath}/voice-profiles` },
             ],
         });
         return () => {
@@ -76,6 +77,7 @@ export default function VivaLayout({
                 { name: "Viva Sessions", href: vivaBasePath },
                 { name: "Competencies", href: `${vivaBasePath}/competencies` },
                 { name: "Analytics", href: `${vivaBasePath}/analytics` },
+                { name: "Voice Profiles", href: `${vivaBasePath}/voice-profiles` },
             ],
         });
     }, [assignmentTitle, assignmentPath, vivaBasePath, updateSidebarByBasePath]);
@@ -85,6 +87,7 @@ export default function VivaLayout({
         { name: "Sessions", href: vivaBasePath, icon: Mic2 },
         { name: "Competencies", href: `${vivaBasePath}/competencies`, icon: BookOpen },
         { name: "Analytics", href: `${vivaBasePath}/analytics`, icon: BarChart3 },
+        { name: "Voices", href: `${vivaBasePath}/voice-profiles`, icon: Fingerprint },
     ];
 
     return (

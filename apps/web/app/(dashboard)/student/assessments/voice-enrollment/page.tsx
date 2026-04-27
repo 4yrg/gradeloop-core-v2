@@ -8,7 +8,6 @@ import {
     Circle,
     Loader2,
     AlertCircle,
-    Trash2,
     ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -42,7 +41,7 @@ export default function VoiceEnrollmentPage() {
     const [uploading, setUploading] = React.useState(false);
     const [currentSample, setCurrentSample] = React.useState(1);
     const [recordingTime, setRecordingTime] = React.useState(0);
-    const [deleting, setDeleting] = React.useState(false);
+
 
     const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
     const chunksRef = React.useRef<Blob[]>([]);
@@ -151,20 +150,6 @@ export default function VoiceEnrollmentPage() {
         }
     };
 
-    const deleteProfile = async () => {
-        setDeleting(true);
-        try {
-            await ivasApi.deleteVoiceProfile(studentId);
-            setProfile({ student_id: studentId, enrolled: false, samples_count: 0, required_samples: 3, is_complete: false });
-            setCurrentSample(1);
-            addToast({ title: "Voice profile deleted", variant: "success", description: "You can re-enroll at any time." });
-        } catch (err) {
-            addToast({ title: "Delete failed", variant: "error", description: err instanceof Error ? err.message : "Unknown error" });
-        } finally {
-            setDeleting(false);
-        }
-    };
-
     // Cleanup
     React.useEffect(() => {
         return () => {
@@ -265,10 +250,17 @@ export default function VoiceEnrollmentPage() {
                     </div>
 
                     {isEnrolled ? (
-                        <Button variant="outline" size="sm" onClick={deleteProfile} disabled={deleting} className="gap-1 text-red-600 hover:text-red-700">
-                            {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                            Delete Voice Profile
-                        </Button>
+                        <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 p-3 flex items-start gap-2">
+                            <AlertCircle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                            <div className="text-left">
+                                <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                                    Voice profile enrolled
+                                </p>
+                                <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                                    To reset your voice profile, please ask your lecturer or an administrator.
+                                </p>
+                            </div>
+                        </div>
                     ) : (
                         <div className="space-y-4">
                             {/* Guided sentence to read */}
