@@ -814,6 +814,12 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
 
     await db.update_session_status(sid, "in_progress")
 
+    # Tell the client the session is live *before* we spend 5-15s selecting
+    # questions. The frontend uses this to show "connecting" state with a
+    # loading hint so the student isn't staring at a silent screen.
+    with suppress(Exception):
+        await websocket.send_json({"type": "viva_loading", "message": "Preparing your assessment…"})
+
     assignment_context = session.get("assignment_context") or {}
     raw_distribution = session.get("difficulty_distribution") or {}
     # JSON deserialisation from JSONB may produce string keys ("1", "2", "3")
@@ -829,16 +835,21 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
     from app.services.voice.verifier import VoiceVerificationManager
     voice_verifier = VoiceVerificationManager(db, settings)
 
-    # Check if student has enrolled a voice profile
+    # HARD BLOCK: student must have a voice profile before starting a viva.
+    # Without an enrolled voiceprint we cannot verify the speaker's identity,
+    # which undermines the integrity of the oral examination.
     voice_profile = await db.get_voice_profile(student_id)
     if not voice_profile:
-        logger.warning("voice_no_profile", session_id=session_id, student_id=student_id)
+        logger.warning("voice_no_profile_blocked", session_id=session_id, student_id=student_id)
+        await websocket.send_json({
+            "type": "error",
+            "data": "Voice enrollment required. Please enroll your voice before starting a viva.",
+        })
+        await websocket.close()
+        # Reset status back to initial so the student can retry after enrolling.
         with suppress(Exception):
-            await websocket.send_json({
-                "type": "voice_warning",
-                "confidence": "none",
-                "message": "No voice profile enrolled — voice verification disabled.",
-            })
+            await db.update_session_status(sid, "initializing")
+        return
 
     logger.info(
         "loading_competencies",
@@ -965,4 +976,15 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
                 db, settings, sid, transcript_turns, assignment_context,
                 selected_questions=selected_questions if selected_questions else None,
             )
+
+        # Safety net: if anything above failed silently (e.g. _bridge_gemini_live
+        # threw before Gemini connected, or _finalize_session raised and was
+        # suppressed), the session could be stuck in "in_progress" forever.
+        # Any terminal state is fine; "in_progress" at this point is a bug.
+        with suppress(Exception):
+            current = await db.get_session(sid)
+            if current and current.get("status") == "in_progress":
+                logger.warning("session_stuck_in_progress_safety_net", session_id=session_id)
+                await db.update_session_status(sid, "grading_failed")
+
         logger.info("session_ws_closed", session_id=session_id)

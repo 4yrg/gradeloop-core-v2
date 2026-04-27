@@ -80,6 +80,9 @@ class VoiceVerificationManager:
         self._locks: dict[str, asyncio.Lock] = {}
         # Track whether we've already sent a "no profile" warning
         self._no_profile_warned: set[str] = set()
+        # Cache voice profile per session so we don't hit the DB every 3s
+        # for a profile that never changes during a session.
+        self._profile_cache: dict[str, dict | None] = {}
 
     # ------------------------------------------------------------------
     # Public API
@@ -126,6 +129,7 @@ class VoiceVerificationManager:
         self._buffers.pop(session_id, None)
         self._locks.pop(session_id, None)
         self._no_profile_warned.discard(session_id)
+        self._profile_cache.pop(session_id, None)
 
     # ------------------------------------------------------------------
     # Internal
@@ -141,7 +145,11 @@ class VoiceVerificationManager:
         """Extract embedding, compare with stored voiceprint, persist, notify."""
         try:
             wav_bytes = _pcm16_to_wav(pcm16_data)
-            test_embedding = extract_embedding(wav_bytes)
+            # extract_embedding runs a neural network (~50-200ms). Run it in
+            # the default thread executor so it doesn't block the asyncio event
+            # loop (which would stall audio forwarding and cause choppy audio).
+            loop = asyncio.get_running_loop()
+            test_embedding = await loop.run_in_executor(None, extract_embedding, wav_bytes)
         except Exception as exc:
             logger.warning(
                 "voice_verify_embedding_failed",
@@ -150,8 +158,12 @@ class VoiceVerificationManager:
             )
             return
 
-        # Fetch the student's stored voiceprint
-        profile = await self._db.get_voice_profile(student_id)
+        # Fetch the student's stored voiceprint (cached per session)
+        if session_id in self._profile_cache:
+            profile = self._profile_cache[session_id]
+        else:
+            profile = await self._db.get_voice_profile(student_id)
+            self._profile_cache[session_id] = profile
         if profile is None:
             if session_id not in self._no_profile_warned:
                 self._no_profile_warned.add(session_id)

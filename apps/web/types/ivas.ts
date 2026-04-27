@@ -186,6 +186,7 @@ export interface WsMessageIncoming {
         | "turn_complete"
         | "session_started"
         | "session_ended"
+        | "viva_loading"
         | "error"
         | "pong"
         | "voice_warning"
