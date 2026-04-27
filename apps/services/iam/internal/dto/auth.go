@@ -19,6 +19,12 @@ type RefreshTokenResponse struct {
 	ExpiresIn    int64  `json:"expires_in"`
 }
 
+// KeycloakCallbackRequest - handle OAuth callback from Keycloak
+type KeycloakCallbackRequest struct {
+	Code  string `json:"code"`
+	State string `json:"state"`
+}
+
 type UserWithRole struct {
 	ID                      uuid.UUID
 	Email                   string

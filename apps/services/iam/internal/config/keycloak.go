@@ -3,30 +3,21 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
-
-	"github.com/4yrg/gradeloop-core-v2/packages/go/env"
 )
 
-// KeycloakConfig holds all Keycloak IAM configuration
 type KeycloakConfig struct {
-	// Environment: "local" or "production"
-	Environment string
-
-	// Keycloak Connection
-	BaseURL  string // http://localhost:8080 or https://auth.gradeloop.space
-	Realm   string // gradeloop-lms
-	ClientID string
-
-	// Security
+	Environment   string
+	BaseURL       string
+	Realm         string
+	ClientID      string
+	ClientSecret string
 	EnforceHTTPS bool
-
-	// JWKS
-	JWKSURL   string // auto-constructed
-	JWKSTTL time.Duration
-
-	// Tenant
-	DefaultTenant string // "dev-university" for local
+	JWKSURL       string
+	JWKSTTL       time.Duration
+	DefaultTenant string
+	RedirectURI  string
 }
 
 // LoadKeycloakConfig loads Keycloak configuration from environment
@@ -85,10 +76,12 @@ func LoadKeycloakConfig() (*KeycloakConfig, error) {
 		BaseURL:       keycloakBaseURL,
 		Realm:        keycloakRealm,
 		ClientID:      getEnvString("KEYCLOAK_CLIENT_ID", "lms-api"),
+		ClientSecret: getEnvString("KEYCLOAK_CLIENT_SECRET", ""),
 		EnforceHTTPS: enforceHTTPS,
 		JWKSURL:      jwksURL,
 		JWKSTTL:     jwksTTL,
 		DefaultTenant: defaultTenant,
+		RedirectURI:  getEnvString("KEYCLOAK_REDIRECT_URI", "http://localhost:8081/api/v1/auth/keycloak/callback"),
 	}, nil
 }
 

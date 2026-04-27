@@ -135,9 +135,13 @@ func run() error {
 		cfg.JWT.CookieSameSite,
 		cfg.JWT.RefreshTokenExpiry,
 	)
+	// Set Keycloak configuration if available
+	if cfg.Keycloak != nil {
+		authHandler.SetKeycloakConfig(cfg.Keycloak)
+	}
 	userHandler := handler.NewUserHandler(userService, minioStorage)
 	bulkImportHandler := handler.NewBulkImportHandler(bulkImportService)
-	rbacHandler := handler.NewRBACHandler()
+	// rbacHandler := handler.NewRBACHandler() // TODO: implement RBAC handler
 
 	app := fiber.New(fiber.Config{
 		AppName:      "iam-service",

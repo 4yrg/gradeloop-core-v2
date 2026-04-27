@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 
-import { authApi } from "@/lib/api/auth";
+import { authApi, getLoginURL, isKeycloakEnabled } from "@/lib/auth/keycloak";
 import { handleApiError } from "@/lib/api/axios";
 import { useAuthStore } from "@/lib/stores/authStore";
 
@@ -35,6 +35,16 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [keycloakEnabled, setKeycloakEnabled] = useState(false);
+
+  useEffect(() => {
+    setKeycloakEnabled(isKeycloakEnabled());
+  }, []);
+
+  const handleKeycloakLogin = () => {
+    const loginUrl = getLoginURL();
+    window.location.href = loginUrl;
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -162,12 +172,25 @@ export default function LoginPage() {
           </form>
         </CardContent>
 
-        <CardFooter className="pt-4 pb-10 px-6">
+        <CardFooter className="pt-4 pb-10 px-6 space-y-3">
+          {keycloakEnabled && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleKeycloakLogin}
+              className="w-full h-12 rounded-xl font-bold text-base border-2 hover:bg-accent transition-all"
+              disabled={isLoading}
+            >
+              <span className="flex items-center gap-2">
+                Sign in with SSO <ArrowRight className="h-4 w-4" />
+              </span>
+            </Button>
+          )}
           <Button
             type="submit"
             form="login-form"
             className="w-full h-12 rounded-xl font-bold text-base shadow-lg shadow-primary/25 hover:shadow-primary/35 transition-all active:scale-[0.98]"
-            disabled={isLoading}
+            disabled={isLoading || keycloakEnabled}
           >
             {isLoading ? (
               <span className="flex items-center gap-2">

@@ -10,12 +10,29 @@ import type {
   ActivateAccountRequest,
   ActivateAccountResponse,
 } from "@/types/auth.types";
+import { getLoginURL, isKeycloakEnabled } from "@/lib/auth/keycloak";
 
 export const authApi = {
   /**
-   * Login with username and password.
+   * Check if Keycloak is enabled for authentication
+   */
+  isKeycloakEnabled: (): boolean => {
+    return isKeycloakEnabled();
+  },
+
+  /**
+   * Get Keycloak login URL - redirects to Keycloak login page
+   */
+  getKeycloakLoginUrl: (): string => {
+    return getLoginURL();
+  },
+
+  /**
+   * Login with username and password (local IAM auth).
    * Returns only { access_token, expires_in }.
    * The refresh token is delivered via an HttpOnly cookie.
+   * 
+   * @deprecated Use getKeycloakLoginUrl() and handle OAuth callback instead
    */
   login: async (credentials: LoginRequest): Promise<LoginResponse> => {
     const { data } = await axiosInstance.post<LoginResponse>(

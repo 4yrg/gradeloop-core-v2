@@ -274,11 +274,17 @@ services:
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-gradeloop_secret_key_change_me}
       - JWT_ACCESS_TOKEN_EXPIRY=15
       - JWT_REFRESH_TOKEN_EXPIRY=10080
-      - KEYCLOAK_URL=http://keycloak:8080/auth
+      # Keycloak Configuration
+      - KEYCLOAK_BASE_URL=http://keycloak:8080/auth
       - KEYCLOAK_REALM=gradeloop-lms
       - KEYCLOAK_CLIENT_ID=lms-api
+      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET:-}
       - KEYCLOAK_JWKS_TTL=300
       - KEYCLOAK_DEFAULT_TENANT=dev-university
+      - KEYCLOAK_REDIRECT_URI=http://localhost:8081/api/v1/auth/keycloak/callback
+      - KEYCLOAK_ENABLED=${KEYCLOAK_ENABLED:-false}
+      - APP_ENV=local
+      # JWT Issuer
       - JWT_ISSUER=http://keycloak:8080/auth/realms/gradeloop-lms
       # Redis
       - REDIS_HOST=gradeloop-redis
@@ -310,8 +316,8 @@ services:
       - RATE_LIMIT_PER_MINUTE=100
       # Frontend
       - FRONTEND_URL=http://localhost:3000
-    expose:
-      - "8081"
+    ports:
+      - "8081:8081"
     depends_on:
       postgres:
         condition: service_healthy

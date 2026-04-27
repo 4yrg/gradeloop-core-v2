@@ -126,12 +126,12 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
 
         try {
+          // Check for Keycloak tokens first
           const { default: axiosBase } = await import("axios");
           const API_URL =
             process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
-          // The refresh token lives in an HttpOnly cookie set by the server.
-          // withCredentials ensures the browser sends it automatically.
+          // Try IAM refresh first (for local auth / migration period)
           const res = await axiosBase.post(
             `${API_URL}/auth/refresh`,
             {},
