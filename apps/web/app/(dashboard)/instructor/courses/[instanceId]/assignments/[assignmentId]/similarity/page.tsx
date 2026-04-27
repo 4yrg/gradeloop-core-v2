@@ -789,6 +789,7 @@ export default function SimilarityOverviewPage() {
         cluster={diffSheetCluster}
         initialEdge={diffSheetEdge}
         assignmentId={assignmentId}
+        instanceId={params.instanceId as string}
         open={diffSheetOpen}
         onClose={() => setDiffSheetOpen(false)}
       />
