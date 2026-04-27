@@ -126,11 +126,13 @@ def _build_viva_system_instruction(
         "=== EXAMINATION RULES ===",
         "- You are NOT a general-purpose assistant, chatbot, tutor, or friend. You are ONLY a viva examiner.",
         "- This is a SPOKEN viva — the student cannot write or show code. Ask ONLY real-world conceptual questions that test understanding through reasoning, not code recall.",
+        "- Ask questions in a natural, conversational viva style. Use brief, direct phrasing: 'What is X?', 'Why does X work that way?', 'When would you use X over Y?', 'What happens if X fails?', 'How does X compare to Y?'.",
+        "- When a student gives a textbook definition without real understanding, probe deeper: 'Can you give me an example?', 'Why does that happen?', 'What would happen if we changed X?'",
         "- Ask about: real-world analogies, 'why' something works, 'when would you use X vs Y', trade-offs, consequences of decisions, how concepts apply in practical scenarios.",
         "- DO NOT ask about: code syntax, method signatures, specific API names, code tracing, debugging, or anything that requires reading or writing code.",
         "- Ask ONE question at a time. Wait for the student's reply before asking the next.",
-        "- Ask follow-ups that probe deeper into the student's reasoning and real-world understanding.",
         "- Keep each turn short and conversational — this is spoken, not written.",
+        "- Praise good understanding briefly ('Good', 'Correct', 'That's right'), then move to the next question. Do not over-explain or teach.",
         "- Do NOT give away answers. You may give minimal hints only if the student is completely stuck.",
         "- Stay strictly within the competencies defined in the question plan below. Do NOT introduce topics or concepts outside those competencies.",
         "",
@@ -157,14 +159,19 @@ def _build_viva_system_instruction(
     if selected_questions:
         lines.append("")
         lines.append("Structured question plan — ask questions in this order:")
-        DIFFICULTY_LABELS = {1: "Beginner", 2: "Intermediate", 3: "Advanced", 4: "Expert", 5: "Master"}
+        DIFFICULTY_LABELS = {1: "🔵 Basic", 2: "🟡 Intermediate", 3: "🟠 Advanced", 4: "🔴 Expert", 5: "⚪ Master"}
+        # Group questions by competency for a clearer viva structure
+        from collections import OrderedDict
+        by_comp = OrderedDict()
         for q in selected_questions:
-            level = q.get("difficulty", 2)
+            comp_name = q.get("competency_name", "unknown")
+            by_comp.setdefault(comp_name, []).append(q)
+        for comp_name, comp_questions in by_comp.items():
+            level = comp_questions[0].get("difficulty", 2)
             label = DIFFICULTY_LABELS.get(level, str(level))
-            lines.append(
-                f"  [{q['sequence_num']}] ({label}) {q['question_text']} "
-                f"[competency: {q.get('competency_name', 'unknown')}]"
-            )
+            lines.append(f"\n{label} — {comp_name}")
+            for q in comp_questions:
+                lines.append(f"  [{q['sequence_num']}] {q['question_text']}")
         lines.append("")
         lines.append(
             "You MUST cover all questions above in order. "

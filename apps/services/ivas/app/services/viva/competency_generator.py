@@ -15,13 +15,13 @@ from app.schemas.competency import GeneratedCompetency
 
 logger = get_logger(__name__)
 
-# Difficulty labels used in the prompt
+# Difficulty labels with emoji markers for viva-voce style
 DIFFICULTY_LABELS = {
-    1: "Beginner",
-    2: "Intermediate",
-    3: "Advanced",
-    4: "Expert",
-    5: "Master",
+    1: "🔵 Basic",
+    2: "🟡 Intermediate",
+    3: "🟠 Advanced",
+    4: "🔴 Expert",
+    5: "⚪ Master",
 }
 
 
@@ -36,6 +36,7 @@ def _build_generation_prompt(
 Given the assignment below, suggest 6–10 reusable conceptual competencies that a student should demonstrate when completing it. Each competency is a course-wide concept (e.g. "Loops", "Recursion", "Data Structures") NOT tied to a specific assignment.
 
 Rules:
+- Prefer specific, well-scoped competencies (e.g. "On-policy vs Off-policy Learning") over vague ones (e.g. "Reinforcement Learning"). Specific competencies produce better viva questions.
 - Each competency should be something that can appear across multiple assignments in the same course.
 - Difficulty levels: 1=Beginner, 2=Intermediate, 3=Advanced, 4=Expert, 5=Master.
 - Suggest a realistic mix: mostly Beginner/Intermediate with some Advanced. Avoid too many high-difficulty items.

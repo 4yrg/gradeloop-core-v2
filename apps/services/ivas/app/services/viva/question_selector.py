@@ -20,13 +20,13 @@ from app.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-# Difficulty labels matching the DB schema
+# Difficulty labels with emoji markers for viva-voce style
 DIFFICULTY_LABELS = {
-    1: "Beginner",
-    2: "Intermediate",
-    3: "Advanced",
-    4: "Expert",
-    5: "Master",
+    1: "🔵 Basic",
+    2: "🟡 Intermediate",
+    3: "🟠 Advanced",
+    4: "🔴 Expert",
+    5: "⚪ Master",
 }
 
 
@@ -111,17 +111,22 @@ async def select_questions_ai(
             assignment_block_parts.append(f"- {label}: {val[:500]}")
     assignment_block = "\n".join(assignment_block_parts) or "(no assignment context)"
 
-    prompt = f"""You are an oral examination (viva voce) question writer.
+    prompt = f"""You are an oral examination (viva voce) question writer for a university defense.
 
 Given the assignment and competency pool below, generate exactly {total_questions} viva questions.
 Generate exactly the number of questions specified for each difficulty level below.
 
-Rules:
-- Questions must be open-ended conceptual questions suitable for a live spoken viva.
-- They must test understanding (not just recall) — push the student to explain, justify, compare, or trace.
-- Do NOT ask about syntax errors, typos, or trivial details.
-- Assign each question to ONE competency from the pool that best fits it.
-- Return ONLY a valid JSON object. No markdown, no prose.
+STYLE — write questions like a real examiner in a viva defense:
+- Questions must be short, direct, and conversational — the way an examiner would actually ask them aloud.
+- Use natural phrasing: "What is X?", "Why does X work that way?", "When would you use X over Y?", "What happens if X fails?", "How does X compare to Y?"
+- Questions should be answerable in 2-3 sentences by someone who truly understands the concept.
+- Test UNDERSTANDING, not recall. A student who memorized a definition should not be able to pass without real comprehension.
+- Include "why" and "how" questions, comparison questions, and scenario-based questions.
+- Do NOT ask about syntax errors, typos, code tracing, or trivial details.
+- Group your thinking by competency — each question should clearly belong to one competency.
+
+Assign each question to ONE competency from the pool that best fits it.
+Return ONLY a valid JSON object. No markdown, no prose.
 
 JSON schema:
 {{
@@ -242,6 +247,15 @@ def select_questions_random(
         level = max(1, min(5, level))
         by_difficulty[level].append(comp)
 
+    # Viva-style fallback question templates by difficulty level
+    _fallback_templates = {
+        1: "What is {name}?",
+        2: "How does {name} work?",
+        3: "Why would you use {name} over an alternative?",
+        4: "What are the trade-offs involved in {name}?",
+        5: "Critically evaluate {name} — when does it fail?",
+    }
+
     questions: list[dict] = []
     seq = 1
     for level, count in sorted(difficulty_distribution.items()):
@@ -249,8 +263,9 @@ def select_questions_random(
         # Shuffle and pick count (if pool is smaller than count, returns all available)
         shuffled = random.sample(pool, k=min(count, len(pool)))
         for comp in shuffled:
+            template = _fallback_templates.get(level, "What is {name}?")
             questions.append({
-                "question_text": "",  # Caller must fill in
+                "question_text": template.format(name=comp["name"]),
                 "competency_id": comp["id"],
                 "competency_name": comp["name"],
                 "difficulty": level,
