@@ -5,11 +5,16 @@ meta {
 }
 
 get {
-  url: {{AUTH_URL_V1}}/profile
-  body: none
+  url: {{authUrlV1}}/profile
   auth: bearer
 }
 
 auth:bearer {
-  token: {{STUDENT_TOKEN}}
+  token: {{student_token}}
+}
+
+tests {
+  test("Should return 200", function() {
+    expect(res.status).to.equal(200);
+  });
 }

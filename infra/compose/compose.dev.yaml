@@ -127,8 +127,24 @@ services:
       start_period: 30s
 
   # =============================================================================
-  # Kong Gateway
+# Keycloak (Identity Provider)
+# =============================================================================
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    pull_policy: missing
+    container_name: gradeloop-keycloak
+    restart: unless-stopped
+    command: start-dev --http-relative-path=/auth --hostname-strict=false --hostname=localhost
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+    ports:
+      - "8080:8080"
+    networks:
+      - gradeloop-network
+
   # =============================================================================
+  # Kong Gateway
   kong-database:
     image: docker.io/postgres:16-alpine
     pull_policy: missing
@@ -201,7 +217,7 @@ services:
   # =============================================================================
   iam:
     build:
-      context: ../..
+      context: ../../
       dockerfile: apps/services/iam/Dockerfile
       target: dev
     container_name: gradeloop-iam
@@ -219,12 +235,53 @@ services:
       - MINIO_ENDPOINT=gradeloop-seaweed:8333
       - MINIO_ACCESS_KEY=root
       - MINIO_SECRET_KEY=root
+      # JWT / Keycloak
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-gradeloop_secret_key_change_me}
+      - JWT_ACCESS_TOKEN_EXPIRY=15
+      - JWT_REFRESH_TOKEN_EXPIRY=10080
+      - KEYCLOAK_URL=http://keycloak:8080/auth
+      - KEYCLOAK_REALM=gradeloop-lms
+      - KEYCLOAK_CLIENT_ID=lms-api
+      - KEYCLOAK_JWKS_TTL=300
+      - KEYCLOAK_DEFAULT_TENANT=dev-university
+      - JWT_ISSUER=http://keycloak:8080/auth/realms/gradeloop-lms
+      # Redis
+      - REDIS_HOST=gradeloop-redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-redis_pass}
+      # Security modes (development - permissive)
+      - AUTHZ_MODE=permissive
+      - SSO_MODE=mock
+      - SSO_JIT_ENABLED=true
+      - SSO_DEFAULT_ROLE=student
+      - SSO_ALLOW_LOCAL=true
+      # LTI (mock mode)
+      - LTI_MODE=mock
+      - LTI_NRPS_ENABLED=true
+      - LTI_AGS_ENABLED=true
+      - LTI_DEEP_LINKING_ENABLED=true
+      - LTI_1_1_ENABLED=true
+      - LTI_NONCE_TTL=300
+      # Zero Trust (relaxed)
+      - ZERO_TRUST_MODE=relaxed
+      - ZERO_TRUST_ENABLED=false
+      - DEVICE_TRUST_MODE=relaxed
+      - DEVICE_FINGERPRINT_REQUIRED=false
+      - MAX_SESSION_AGE_HOURS=24
+      - SESSION_VALIDATION_INTERVAL_SEC=300
+      - MTLS_ENABLED=false
+      # Rate limiting
+      - RATE_LIMIT_ENABLED=true
+      - RATE_LIMIT_PER_MINUTE=100
+      # Frontend
+      - FRONTEND_URL=http://localhost:3000
     expose:
       - "8081"
     depends_on:
       postgres:
         condition: service_healthy
+      keycloak:
+        condition: service_started
       seaweed:
         condition: service_healthy
     networks:
@@ -241,7 +298,7 @@ services:
   # =============================================================================
   academic:
     build:
-      context: ../..
+      context: ../../
       dockerfile: apps/services/academic/Dockerfile
       target: dev
     container_name: gradeloop-academic
@@ -275,7 +332,7 @@ services:
   # =============================================================================
   assessment:
     build:
-      context: ../..
+      context: ../../
       dockerfile: apps/services/assessment/Dockerfile
       target: dev
     container_name: gradeloop-assessment
@@ -316,7 +373,7 @@ services:
   # =============================================================================
   email:
     build:
-      context: ../..
+      context: ../../
       dockerfile: apps/services/email/Dockerfile
       target: dev
     container_name: gradeloop-email
@@ -540,7 +597,7 @@ services:
   # =============================================================================
   cipas-xai:
     build:
-      context: ../..
+      context: ../../
       dockerfile: apps/services/cipas-xai/Dockerfile
       target: dev
     container_name: gradeloop-cipas-xai

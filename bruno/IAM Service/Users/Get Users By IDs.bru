@@ -5,17 +5,19 @@ meta {
 }
 
 post {
-  url: {{USERS_URL_V1}}/bulk
+  url: {{usersUrlV1}}/bulk
   body: json
   auth: bearer
 }
 
 auth:bearer {
-  token: {{ACCESS_TOKEN}}
+  token: {{jwtToken}}
 }
 
 body:json {
   {
-    "ids": ["uuid-1", "uuid-2"]
+    "ids": ["{{user_id}}"]
   }
+}
+}}"]
 }

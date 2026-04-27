@@ -1,0 +1,24 @@
+meta {
+  name: AGS List Line Items
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/lti/ags/lineitems
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwtToken}}
+}
+
+tests {
+  test("Should return 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  
+  test("Should contain lineItems array", function() {
+    expect(res.body.lineItems).to.not.be.null;
+  });
+}

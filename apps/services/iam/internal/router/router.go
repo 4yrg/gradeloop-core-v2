@@ -1,44 +1,56 @@
 package router
 
 import (
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/config"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/handler"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/middleware"
 	"github.com/gofiber/fiber/v3"
 )
 
 type Config struct {
-	HealthHandler     *handler.HealthHandler
+	HealthHandler      *handler.HealthHandler
 	AuthHandler       *handler.AuthHandler
-	UserHandler       *handler.UserHandler
+	UserHandler      *handler.UserHandler
 	BulkImportHandler *handler.BulkImportHandler
-	RBACHandler       *handler.RBACHandler
-	JWTSecretKey      []byte
+	SSOHandler       *handler.SSOHandler
+	JWTSecretKey     []byte
+	ZeroTrustConfig  *config.ZeroTrustConfig
 }
 
 func SetupRoutes(app *fiber.App, cfg Config) {
 	cfg.HealthHandler.RegisterRoutes(app)
 
-	// API v1 group
 	api := app.Group("/api/v1")
 
-	// Public auth routes
-	auth := api.Group("/auth")
-	auth.Post("/login", cfg.AuthHandler.Login)
-	auth.Post("/refresh", cfg.AuthHandler.RefreshToken)
-	auth.Post("/logout", cfg.AuthHandler.Logout)
-	auth.Post("/forgot-password", cfg.AuthHandler.ForgotPassword)
-	auth.Post("/reset-password", cfg.AuthHandler.ResetPassword)
+	publicAuth := api.Group("/auth")
+	publicAuth.Post("/login", cfg.AuthHandler.Login)
+	publicAuth.Post("/refresh", cfg.AuthHandler.RefreshToken)
+	publicAuth.Post("/logout", cfg.AuthHandler.Logout)
+	publicAuth.Post("/forgot-password", cfg.AuthHandler.ForgotPassword)
+	publicAuth.Post("/reset-password", cfg.AuthHandler.ResetPassword)
 
-	// Protected auth routes (require authentication)
-	authProtected := api.Group("/auth", middleware.AuthMiddleware(cfg.JWTSecretKey))
+	if cfg.SSOHandler != nil {
+		sso := publicAuth.Group("/sso")
+		sso.Get("/", cfg.SSOHandler.HandleListProviders)
+		sso.Get("/:provider", cfg.SSOHandler.HandleSSOInitiate)
+		sso.Get("/:provider/callback", cfg.SSOHandler.HandleSSOCallback)
+		ssoProtected := sso.Group("", middleware.AuthMiddleware(cfg.JWTSecretKey))
+		ssoProtected.Get("/userinfo", cfg.SSOHandler.HandleUserInfo)
+	}
+
+	authMiddleware := []fiber.Handler{middleware.AuthMiddleware(cfg.JWTSecretKey)}
+
+	if cfg.ZeroTrustConfig != nil && cfg.ZeroTrustConfig.IsStrictMode() {
+		ztMiddleware := middleware.NewZeroTrustMiddleware(cfg.ZeroTrustConfig)
+		authMiddleware = append(authMiddleware, ztMiddleware.Handle)
+	}
+
+	authProtected := api.Group("/auth", authMiddleware...)
 	authProtected.Post("/change-password", cfg.AuthHandler.ChangePassword)
 	authProtected.Get("/profile", cfg.UserHandler.GetProfile)
 	authProtected.Patch("/profile/avatar", cfg.UserHandler.UpdateAvatar)
 
-	// User routes with authentication middleware (admin-only operations)
-	users := api.Group("/users", middleware.AuthMiddleware(cfg.JWTSecretKey))
-	// Static sub-paths must be registered BEFORE /:id to prevent Fiber matching
-	// them as UUID parameters.
+	users := api.Group("/users", authMiddleware...)
 	users.Get("/students", middleware.RequireInstructor(), cfg.UserHandler.GetStudents)
 	users.Get("/", middleware.RequireAdmin(), cfg.UserHandler.GetUsers)
 	users.Post("/bulk", cfg.UserHandler.GetUsersByIDs)
@@ -49,13 +61,11 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	users.Delete("/:id", middleware.RequireSuperAdmin(), cfg.UserHandler.DeleteUser)
 	users.Post("/:id/restore", middleware.RequireAdmin(), cfg.UserHandler.RestoreUser)
 
-	// Bulk import routes
 	users.Get("/import/template", middleware.RequireAdmin(), cfg.BulkImportHandler.DownloadTemplate)
 	users.Post("/import/preview", middleware.RequireAdmin(), cfg.BulkImportHandler.PreviewImport)
 	users.Post("/import/execute", middleware.RequireAdmin(), cfg.BulkImportHandler.ExecuteImport)
 
-	// Admin routes with authentication middleware
-	adminProtected := api.Group("/admin", middleware.AuthMiddleware(cfg.JWTSecretKey))
+	adminProtected := api.Group("", authMiddleware...)
 	cfg.AuthHandler.RegisterAdminRoutes(adminProtected)
 	adminProtected.Get("/users/:id/activity", cfg.UserHandler.GetUserActivity)
 

@@ -254,9 +254,52 @@ services:
       - MINIO_ENDPOINT=seaweed:9333
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      # JWT / Keycloak (production)
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - JWT_ACCESS_TOKEN_EXPIRY=${JWT_ACCESS_TOKEN_EXPIRY:-15}
       - JWT_REFRESH_TOKEN_EXPIRY=${JWT_REFRESH_TOKEN_EXPIRY:-10080}
+      - JWT_COOKIE_SECURE=true
+      - JWT_COOKIE_SAMESITE=Strict
+      - KEYCLOAK_URL=${KEYCLOAK_URL}
+      - KEYCLOAK_REALM=${KEYCLOAK_REALM:-gradeloop-lms}
+      - KEYCLOAK_CLIENT_ID=lms-api
+      - KEYCLOAK_JWKS_TTL=86400
+      - KEYCLOAK_DEFAULT_TENANT=
+      - JWT_ISSUER=${KEYCLOAK_ISSUER}
+      # Redis
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      # Security modes (strict for production)
+      - AUTHZ_MODE=strict
+      - AUTHZ_AUDIT_ENABLED=true
+      - AUTHZ_AUDIT_RETENTION_DAYS=365
+      - SSO_MODE=real
+      - SSO_JIT_ENABLED=true
+      - SSO_DEFAULT_ROLE=student
+      # LTI (strict mode)
+      - LTI_MODE=strict
+      - LTI_NRPS_ENABLED=true
+      - LTI_AGS_ENABLED=true
+      - LTI_DEEP_LINKING_ENABLED=true
+      - LTI_1_1_ENABLED=false
+      - LTI_NONCE_TTL=300
+      # Zero Trust (strict)
+      - ZERO_TRUST_MODE=strict
+      - ZERO_TRUST_ENABLED=true
+      - DEVICE_TRUST_MODE=strict
+      - DEVICE_FINGERPRINT_REQUIRED=true
+      - MAX_SESSION_AGE_HOURS=8
+      - SESSION_VALIDATION_INTERVAL_SEC=300
+      - REQUIRE_MFA=${REQUIRE_MFA:-false}
+      - MTLS_ENABLED=true
+      # IP reputation
+      - IP_REPUTATION_ENABLED=false
+      # Rate limiting
+      - RATE_LIMIT_ENABLED=true
+      - RATE_LIMIT_PER_MINUTE=100
+      # Frontend
+      - FRONTEND_URL=${FRONTEND_URL}
     depends_on:
       postgres:
         condition: service_healthy

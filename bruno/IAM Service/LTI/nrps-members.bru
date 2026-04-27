@@ -1,0 +1,24 @@
+meta {
+  name: NRPS Members
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/lti/nrps/{{context_id}}/members
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwtToken}}
+}
+
+tests {
+  test("Should return 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  
+  test("Should contain members array", function() {
+    expect(res.body.members).to.not.be.null;
+  });
+}

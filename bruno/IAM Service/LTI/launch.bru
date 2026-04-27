@@ -1,0 +1,26 @@
+meta {
+  name: LTI Launch (Mock)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/lti/launch
+  body: form-urlencoded
+  auth: none
+}
+
+form-urlencoded {
+  id_token: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtb2NrLXVzZXItMDAxIiwiYXVkIjoiZGV2LWNsaWVudCIsIm5vbmNlIjoibW9jay1ub25jZS0wMDEiLCJleHAiOjk5OTk5OTk5OTksImlhdCI6MTcwMDAwMDAwMCwiZGVwbG95bWVudF9pZCI6ImRldi1kZXBsb3ltZW50IiwiaHR0cHM6Ly9wdXJscGltc2dsb2JhbC5vcmcvc3BlYy9sdGkvY2xhaW0vY29udGV4dCI6eyJpZCI6IkNTMTAxIiwidGl0bGUiOiJJbnRyb8OgbyBQcm9ncmFtbWluZyJ9LCJyb2xlcyI6WyJodHRwOi8vcHVybHBpbXNnbG9iYWwub3JnL3ZvYWIvbHRpL3YxL3JvbGUjSW5zdHJ1Y3RvciJdLCJlbWFpbCI6Imluc3RydWN0b3JAZGV2LmxvY2FsIn0.mock-signature
+  state: mock-state-001
+}
+
+headers {
+  X-Tenant-ID: {{tenantId}}
+}
+
+tests {
+  test("Should redirect or return success in mock mode", function() {
+    expect(res.status).to.be.oneOf([200, 302, 303]);
+  });
+}

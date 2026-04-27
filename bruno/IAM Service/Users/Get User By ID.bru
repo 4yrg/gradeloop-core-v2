@@ -5,15 +5,11 @@ meta {
 }
 
 get {
-  url: {{USERS_URL_V1}}/:id
+  url: {{usersUrlV1}}/{{user_id}}
   body: none
   auth: bearer
 }
 
-params:path {
-  id: uuid-goes-here
-}
-
 auth:bearer {
-  token: {{ACCESS_TOKEN}}
+  token: {{jwtToken}}
 }

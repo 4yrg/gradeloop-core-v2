@@ -5,11 +5,20 @@ meta {
 }
 
 get {
-  url: {{AUTH_URL_V1}}/profile
-  body: none
+  url: {{baseUrl}}/api/v1/auth/profile
   auth: bearer
 }
 
 auth:bearer {
-  token: {{ACCESS_TOKEN}}
+  token: {{jwtToken}}
+}
+
+tests {
+  test("Should return 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  
+  test("Should contain user info", function() {
+    expect(res.body.email).to.not.be.null;
+  });
 }
