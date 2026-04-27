@@ -126,9 +126,34 @@ services:
       retries: 5
       start_period: 30s
 
-  # =============================================================================
-# Keycloak (Identity Provider)
 # =============================================================================
+  # Keycloak Database
+  # =============================================================================
+  keycloak-db:
+    image: docker.io/postgres:16-alpine
+    pull_policy: missing
+    container_name: gradeloop-keycloak-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=keycloak
+      - POSTGRES_PASSWORD=keycloak
+      - POSTGRES_DB=keycloak
+    ports:
+      - "5431:5432"
+    volumes:
+      - keycloak-db-data:/var/lib/postgresql/data
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: "pg_isready -U keycloak -d keycloak"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # =============================================================================
+  # Keycloak (Identity Provider)
+  # =============================================================================
   keycloak:
     image: quay.io/keycloak/keycloak:24.0
     pull_policy: missing
@@ -138,10 +163,20 @@ services:
     environment:
       - KEYCLOAK_ADMIN=admin
       - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://keycloak-db:5432/keycloak
+      - KC_DB_USERNAME=keycloak
+      - KC_DB_PASSWORD=keycloak
+      - KC_HOSTNAME_STRICT=false
+      - KC_HTTP_ENABLED=true
+      - KC_HOSTNAME=localhost
     ports:
       - "8080:8080"
     networks:
       - gradeloop-network
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
 
   # =============================================================================
   # Kong Gateway
@@ -633,3 +668,5 @@ volumes:
     name: gradeloop-seaweed-data
   kong-database-data:
     name: gradeloop-kong-db-data
+  keycloak-db-data:
+    name: gradeloop-keycloak-db-data
