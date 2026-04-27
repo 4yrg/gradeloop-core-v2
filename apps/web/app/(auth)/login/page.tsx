@@ -24,8 +24,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 
-import { authApi, getLoginURL, isKeycloakEnabled } from "@/lib/auth/keycloak";
+import { getLoginURL, isKeycloakEnabled } from "@/lib/auth/keycloak";
 import { handleApiError } from "@/lib/api/axios";
+import { authApi } from "@/lib/api/auth";
 import { useAuthStore } from "@/lib/stores/authStore";
 
 export default function LoginPage() {
