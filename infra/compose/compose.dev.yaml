@@ -318,8 +318,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      iam:
-        condition: service_healthy
     networks:
       - gradeloop-network
     healthcheck:

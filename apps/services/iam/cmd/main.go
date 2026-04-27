@@ -137,6 +137,7 @@ func run() error {
 	)
 	userHandler := handler.NewUserHandler(userService, minioStorage)
 	bulkImportHandler := handler.NewBulkImportHandler(bulkImportService)
+	rbacHandler := handler.NewRBACHandler()
 
 	app := fiber.New(fiber.Config{
 		AppName:      "iam-service",

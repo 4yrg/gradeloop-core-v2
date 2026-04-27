@@ -55,6 +55,7 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	users.Get("/", middleware.RequireAdmin(), cfg.UserHandler.GetUsers)
 	users.Post("/bulk", cfg.UserHandler.GetUsersByIDs)
 	users.Get("/:id", cfg.UserHandler.GetUserByID)
+	users.Get("/:id/activity", middleware.RequireAdmin(), cfg.UserHandler.GetUserActivity)
 	users.Post("/", middleware.RequireAdmin(), cfg.UserHandler.CreateUser)
 	users.Put("/:id", middleware.RequireAdmin(), cfg.UserHandler.UpdateUser)
 	users.Delete("/:id", middleware.RequireSuperAdmin(), cfg.UserHandler.DeleteUser)
@@ -66,6 +67,11 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 
 	adminProtected := api.Group("", authMiddleware...)
 	cfg.AuthHandler.RegisterAdminRoutes(adminProtected)
+	adminProtected.Get("/users/:id/activity", cfg.UserHandler.GetUserActivity)
+
+	// RBAC stub routes
+	api.Get("/roles", middleware.AuthMiddleware(cfg.JWTSecretKey), cfg.RBACHandler.GetRoles)
+	api.Get("/permissions", middleware.AuthMiddleware(cfg.JWTSecretKey), cfg.RBACHandler.GetPermissions)
 
 	app.Get("/", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{
