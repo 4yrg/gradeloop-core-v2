@@ -1,0 +1,19 @@
+meta {
+  name: Restore User
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{USERS_URL_V1}}/:id/restore
+  body: none
+  auth: bearer
+}
+
+params:path {
+  id: uuid-goes-here
+}
+
+auth:bearer {
+  token: {{ADMIN_TOKEN}}
+}

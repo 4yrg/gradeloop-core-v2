@@ -114,148 +114,92 @@ export function SemanticSimilarityScore({
 }: SemanticSimilarityScoreProps) {
   const scheme = getScoreScheme(score);
   const semanticLabel = label || getSemanticLabel(score);
-
   const sizeClasses = {
-    sm: {
-      score: "text-lg",
-      change: "text-xs",
-      label: "text-[10px]",
-      padding: "px-2 py-1",
-      gap: "gap-1",
-    },
-    md: {
-      score: "text-2xl",
-      change: "text-sm",
-      label: "text-xs",
-      padding: "px-3 py-1.5",
-      gap: "gap-2",
-    },
-    lg: {
-      score: "text-4xl",
-      change: "text-base",
-      label: "text-sm",
-      padding: "px-4 py-2",
-      gap: "gap-3",
+    sm: { score: "text-lg", change: "text-xs", label: "text-[10px]", padding: "px-2 py-1", gap: "gap-1" },
+    md: { score: "text-2xl", change: "text-sm", label: "text-xs", padding: "px-3 py-1.5", gap: "gap-2" },
+    lg: { score: "text-4xl", change: "text-base", label: "text-sm", padding: "px-4 py-2", gap: "gap-3" },
+  };
+  const currentSize = sizeClasses[size];
+
+  const commonProps = {
+    onClick,
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        onClick();
+      }
     },
   };
 
-  const currentSize = sizeClasses[size];
-
-  // Badge-only mode (minimal display)
-  if (badgeOnly) {
+  const renderTrend = (value: number | undefined, className: string) => {
+    if (value === undefined || !showTrend) return null;
     return (
-      <div
+      <span className={cn("flex items-center font-bold", className, value >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>
+        {value >= 0 ? "↑" : "↓"}{Math.abs(value)}%
+      </span>
+    );
+  };
+
+  if (badgeOnly) {
+    const Wrapper = onClick ? 'button' : 'div';
+    return (
+      <Wrapper
+        {...commonProps}
         className={cn(
           "inline-flex items-center gap-1.5 rounded-full font-bold",
-          scheme.bg,
-          scheme.text,
-          currentSize.padding,
+          scheme.bg, scheme.text, currentSize.padding,
           onClick && "cursor-pointer hover:opacity-80 transition-opacity",
           className,
         )}
-        onClick={onClick}
       >
         <span className={cn("font-bold", currentSize.score)}>{score}%</span>
-        {change !== undefined && showTrend && (
-          <span
-            className={cn(
-              "flex items-center font-bold",
-              currentSize.change,
-              change >= 0
-                ? "text-emerald-600 dark:text-emerald-400"
-                : "text-red-600 dark:text-red-400",
-            )}
-          >
-            {change >= 0 ? "↑" : "↓"}
-            {Math.abs(change)}%
-          </span>
-        )}
-      </div>
+        {renderTrend(change, currentSize.change)}
+      </Wrapper>
     );
   }
 
-  // Card mode (with background)
   if (showCard) {
+    const Wrapper = onClick ? 'button' : 'div';
     return (
-      <div
+      <Wrapper
+        {...commonProps}
         className={cn(
           "flex flex-col gap-1 rounded-xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm",
-          onClick && "cursor-pointer hover:shadow-md transition-shadow",
+          onClick && "cursor-pointer hover:shadow-md transition-shadow text-left w-full",
           className,
         )}
-        onClick={onClick}
       >
-        <p
-          className={cn(
-            "text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider",
-            currentSize.label,
-          )}
-        >
+        <p className={cn("text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider", currentSize.label)}>
           {semanticLabel}
         </p>
         <div className={cn("flex items-baseline gap-2", currentSize.gap)}>
-          <p className={cn("font-bold", scheme.text, currentSize.score)}>
-            {score}%
-          </p>
-          {change !== undefined && showTrend && (
-            <p
-              className={cn(
-                "font-bold flex items-center gap-0.5",
-                currentSize.change,
-                change >= 0
-                  ? "text-emerald-600 dark:text-emerald-400"
-                  : "text-red-600 dark:text-red-400",
-              )}
-            >
-              {change >= 0 ? "↑" : "↓"}
-              {Math.abs(change)}%
-            </p>
-          )}
+          <p className={cn("font-bold", scheme.text, currentSize.score)}>{score}%</p>
+          {renderTrend(change, currentSize.change)}
         </div>
-      </div>
+      </Wrapper>
     );
   }
 
-  // Default inline mode
+  const Wrapper = onClick ? 'button' : 'div';
   return (
-    <div
+    <Wrapper
+      {...commonProps}
       className={cn(
         "inline-flex items-center gap-2",
-        onClick && "cursor-pointer hover:opacity-80 transition-opacity",
+        onClick && "cursor-pointer hover:opacity-80 transition-opacity text-left",
         className,
       )}
-      onClick={onClick}
     >
       <div className={cn("flex items-baseline gap-2", currentSize.gap)}>
-        <span className={cn("font-bold", scheme.text, currentSize.score)}>
-          {score}%
-        </span>
-        {change !== undefined && showTrend && (
-          <span
-            className={cn(
-              "flex items-center font-bold",
-              currentSize.change,
-              change >= 0
-                ? "text-emerald-600 dark:text-emerald-400"
-                : "text-red-600 dark:text-red-400",
-            )}
-          >
-            {change >= 0 ? "↑" : "↓"}
-            {Math.abs(change)}%
-          </span>
-        )}
+        <span className={cn("font-bold", scheme.text, currentSize.score)}>{score}%</span>
+        {renderTrend(change, currentSize.change)}
       </div>
       {!compact && (
-        <span
-          className={cn(
-            "text-xs font-medium text-slate-500 dark:text-slate-400",
-            currentSize.label,
-          )}
-        >
+        <span className={cn("text-xs font-medium text-slate-500 dark:text-slate-400", currentSize.label)}>
           {semanticLabel}
         </span>
       )}
-    </div>
+    </Wrapper>
   );
 }
 

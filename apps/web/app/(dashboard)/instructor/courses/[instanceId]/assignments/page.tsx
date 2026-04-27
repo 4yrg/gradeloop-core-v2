@@ -57,7 +57,7 @@ export default function InstructorAssignmentsPage() {
         return assignments.filter((a) => deriveStatus(a).toLowerCase() === statusFilter);
     }, [assignments, statusFilter]);
 
-    const columns: ColumnDef<AssignmentResponse, any>[] = [
+    const columns: ColumnDef<AssignmentResponse, unknown>[] = [
         {
             accessorKey: "title",
             header: "Title",

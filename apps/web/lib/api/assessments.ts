@@ -255,8 +255,9 @@ export const acafsApi = {
                 `/acafs/grades/${submissionId}`,
             );
             return data;
-        } catch (err: any) {
-            if (err?.response?.status === 404) throw new Error('GRADING_PENDING');
+        } catch (err: unknown) {
+            const error = err as { response?: { status: number } };
+            if (error.response?.status === 404) throw new Error('GRADING_PENDING');
             throw err;
         }
     },
@@ -277,10 +278,11 @@ export const acafsApi = {
                 body,
             );
             return data;
-        } catch (err: any) {
-            const detail = err?.response?.data?.detail;
+        } catch (err: unknown) {
+            const error = err as { response?: { data?: { detail?: string }; status?: number } };
+            const detail = error.response?.data?.detail;
             throw new Error(
-                detail ?? `Override failed with status ${err?.response?.status ?? 'unknown'}`,
+                detail ?? `Override failed with status ${error.response?.status ?? 'unknown'}`,
             );
         }
     },

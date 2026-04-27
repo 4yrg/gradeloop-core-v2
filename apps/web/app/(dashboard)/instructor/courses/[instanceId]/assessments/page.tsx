@@ -67,7 +67,7 @@ export default function CourseInstanceAssessmentsPage() {
 
             try {
                 setIsLoading(true);
-                
+
                 // Fetch assignments for this course instance
                 const [myAssignments, myCourses] = await Promise.all([
                     instructorAssessmentsApi.listMyAssignments(instanceId),
@@ -124,7 +124,7 @@ export default function CourseInstanceAssessmentsPage() {
         }
     };
 
-    const courseName = courseInfo 
+    const courseName = courseInfo
         ? `${courseInfo.course_code} - ${courseInfo.course_title}`
         : instanceId;
 

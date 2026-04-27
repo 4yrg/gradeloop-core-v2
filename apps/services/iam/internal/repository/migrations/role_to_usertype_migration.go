@@ -34,9 +34,9 @@ func MigrateRoleToUserType(db *gorm.DB) error {
 		log.Printf("Migrating users with role '%s' to user_type '%s'...", roleName, userType)
 
 		result := db.Exec(`
-			UPDATE users 
-			SET user_type = ? 
-			WHERE role_id IS NOT NULL 
+			UPDATE users
+			SET user_type = ?
+			WHERE role_id IS NOT NULL
 			AND role_id IN (
 				SELECT id FROM roles WHERE LOWER(name) = LOWER(?)
 			)
@@ -55,7 +55,7 @@ func MigrateRoleToUserType(db *gorm.DB) error {
 
 	// Set students based on user_profile_students
 	result := db.Exec(`
-		UPDATE users 
+		UPDATE users
 		SET user_type = 'student'
 		WHERE (user_type = '' OR user_type IS NULL)
 		AND id IN (SELECT user_id FROM user_profile_students)
@@ -67,7 +67,7 @@ func MigrateRoleToUserType(db *gorm.DB) error {
 
 	// Set instructors based on user_profile_instructors (or legacy user_profile_employees)
 	result = db.Exec(`
-		UPDATE users 
+		UPDATE users
 		SET user_type = 'instructor'
 		WHERE (user_type = '' OR user_type IS NULL)
 		AND (
@@ -82,7 +82,7 @@ func MigrateRoleToUserType(db *gorm.DB) error {
 
 	// Set default user_type for remaining users (fallback to 'student')
 	result = db.Exec(`
-		UPDATE users 
+		UPDATE users
 		SET user_type = 'student'
 		WHERE user_type = '' OR user_type IS NULL
 	`)

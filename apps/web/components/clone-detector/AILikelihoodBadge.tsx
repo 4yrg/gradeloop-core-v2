@@ -1,8 +1,5 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
-import type { AIDetectionResponse } from "@/types/cipas";
-
 interface AILikelihoodBadgeProps {
   aiLikelihood: number;
   humanLikelihood: number;

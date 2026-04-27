@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Mic2, Loader2, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
+import { Mic2, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";

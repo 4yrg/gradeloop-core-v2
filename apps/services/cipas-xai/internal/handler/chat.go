@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/gofiber/fiber/v3"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/cipas/cipas-xai/internal/dto"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/cipas/cipas-xai/internal/service"
+	"github.com/gofiber/fiber/v3"
 	"go.uber.org/zap"
 )
 

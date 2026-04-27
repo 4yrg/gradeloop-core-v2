@@ -35,6 +35,8 @@ interface SubmissionWithMeta extends SubmissionResponse {
     studentId?: string;
 }
 
+type FilterTab = "all" | "pending" | "graded" | "late" | "missing";
+
 export default function AssignmentSubmissionsPage({
     params,
 }: {
@@ -50,7 +52,7 @@ export default function AssignmentSubmissionsPage({
     const [isCodeLoading, setIsCodeLoading] = React.useState(false);
     const [submissionGrade, setSubmissionGrade] = React.useState<SubmissionGrade | null>(null);
     const [isGradeLoading, setIsGradeLoading] = React.useState(false);
-    const [filter, setFilter] = React.useState<"all" | "pending" | "graded" | "late" | "missing">("all");
+    const [filter, setFilter] = React.useState<FilterTab>("all");
     const [isAnalyzingSheet, setIsAnalyzingSheet] = React.useState(false);
     const [sheetArchive, setSheetArchive] = React.useState<ArchiveLookupResult | null>(null);
 
@@ -214,7 +216,7 @@ export default function AssignmentSubmissionsPage({
         }
     }, [assignmentId]);
 
-    const columns: ColumnDef<SubmissionWithMeta, any>[] = [
+    const columns: ColumnDef<SubmissionWithMeta, unknown>[] = [
         {
             accessorKey: "studentName",
             header: "Student",
@@ -352,7 +354,7 @@ export default function AssignmentSubmissionsPage({
             {!isLoading && submissions.length > 0 && (
                 <div className="flex items-center gap-3">
                     <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <Tabs value={filter} onValueChange={(v) => setFilter(v as any)} className="w-full max-w-md">
+                    <Tabs value={filter} onValueChange={(v) => setFilter(v as FilterTab)} className="w-full max-w-md">
                         <TabsList className="grid grid-cols-5 gap-1">
                             <TabsTrigger value="all">All</TabsTrigger>
                             <TabsTrigger value="pending">Pending</TabsTrigger>

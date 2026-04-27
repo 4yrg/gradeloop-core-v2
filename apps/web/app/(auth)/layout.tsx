@@ -17,7 +17,6 @@ import { GraduationCap } from "lucide-react";
 import { useAuthStore } from "@/lib/stores/authStore";
 import { BackgroundGradientAnimation } from "@/components/ui/background-gradient-animation";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 export default function AuthLayout({
   children,

@@ -1,5 +1,5 @@
 meta {
-  name: Refresh
+  name: Refresh Token
   type: http
   seq: 2
 }
@@ -7,7 +7,7 @@ meta {
 post {
   url: {{AUTH_URL_V1}}/refresh
   body: none
-  auth: inherit
+  auth: none
 }
 
 script:post-response {
@@ -16,9 +16,4 @@ script:post-response {
       bru.setEnvVar("ACCESS_TOKEN", res.body.access_token);
     }
   }
-}
-
-settings {
-  encodeUrl: true
-  timeout: 0
 }

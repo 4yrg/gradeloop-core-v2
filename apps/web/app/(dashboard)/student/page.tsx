@@ -21,7 +21,7 @@ import { studentAssessmentsApi } from "@/lib/api/assessments";
 import type { StudentCourseEnrollment } from "@/types/academics.types";
 import type { AssignmentResponse } from "@/types/assessments.types";
 import { handleApiError } from "@/lib/api/axios";
-import { format, formatDistanceToNow, isPast, isToday, isTomorrow } from "date-fns";
+import { format, isPast, isToday, isTomorrow } from "date-fns";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

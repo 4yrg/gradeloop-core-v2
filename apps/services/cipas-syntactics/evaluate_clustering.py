@@ -83,9 +83,7 @@ logger = setup_logging(__name__)
 # Paths
 # ---------------------------------------------------------------------------
 
-CODENET_ROOT = Path(
-    "/home/iamdasun/Projects/4yrg/gradeloop-core-v2/datasets/project-codenet"
-)
+CODENET_ROOT = Path("/home/iamdasun/Projects/4yrg/gradeloop-core-v2/datasets/project-codenet")
 CODENET_DATA = CODENET_ROOT / "data"
 CODENET_META = CODENET_ROOT / "metadata"
 
@@ -288,9 +286,7 @@ def compute_brute_force_ground_truth(
         try:
             if phase1_only:
                 # Use only Phase 1 (NiCAD-style normalizer) — fast, no tree-sitter tokenizer
-                result = pipeline._phase_one_nicad(
-                    sub_a.source_code, sub_b.source_code, language
-                )
+                result = pipeline._phase_one_nicad(sub_a.source_code, sub_b.source_code, language)
                 if result.clone_type in ("Type-1", "Type-2"):
                     gt_pairs.add(_pair_key(sub_a.submission_id, sub_b.submission_id))
             else:
@@ -385,16 +381,12 @@ def run_clustering_pipeline(
                     )
                 )
             except Exception as exc:
-                logger.warning(
-                    "LSH-only indexing failed for %s: %s", sub.submission_id, exc
-                )
+                logger.warning("LSH-only indexing failed for %s: %s", sub.submission_id, exc)
 
         # Collect candidate pairs: query each fragment against the index.
         # We use the internal MinHash store to skip re-building hashes.
         frag_to_sub: dict[str, str] = {
-            fid: frag.submission_id
-            for fid, frag in db._fragments.items()
-            if frag.submission_id
+            fid: frag.submission_id for fid, frag in db._fragments.items() if frag.submission_id
         }
         candidate_pairs: set[tuple[str, str]] = set()
         # Only query once per unique (sub_a, fragment) to avoid O(F²) scanning
@@ -461,9 +453,7 @@ def run_clustering_pipeline(
     # Reconstruct submission-level candidate pairs using stored MinHash hashes
     # directly (avoids re-building hashes for every fragment).
     frag_to_sub: dict[str, str] = {
-        fid: frag.submission_id
-        for fid, frag in db._fragments.items()
-        if frag.submission_id
+        fid: frag.submission_id for fid, frag in db._fragments.items() if frag.submission_id
     }
 
     for fid, sub_a in frag_to_sub.items():
@@ -514,12 +504,8 @@ def compute_lsh_metrics(
     true_positives_hit = candidate_pairs & gt_clone_pairs
     return {
         "lsh_candidate_recall": _safe_div(len(true_positives_hit), len(gt_clone_pairs)),
-        "lsh_candidate_precision": _safe_div(
-            len(true_positives_hit), len(candidate_pairs)
-        ),
-        "workload_reduction": _safe_div(
-            n_total_pairs - len(candidate_pairs), n_total_pairs
-        ),
+        "lsh_candidate_precision": _safe_div(len(true_positives_hit), len(candidate_pairs)),
+        "workload_reduction": _safe_div(n_total_pairs - len(candidate_pairs), n_total_pairs),
         "n_lsh_candidates": len(candidate_pairs),
         "n_lsh_tp_covered": len(true_positives_hit),
     }
@@ -664,9 +650,7 @@ def evaluate_problem(
     n_total_pairs = n * (n - 1) // 2
     sub_ids = [s.submission_id for s in submissions]
 
-    logger.debug(
-        "%s/%s: %d submissions → %d total pairs", problem_id, language, n, n_total_pairs
-    )
+    logger.debug("%s/%s: %d submissions → %d total pairs", problem_id, language, n, n_total_pairs)
 
     # ── Brute-force ground truth ──────────────────────────────────────────
     gt_clone_pairs: set[tuple[str, str]] = set()
@@ -825,9 +809,7 @@ def evaluate(
                 pbar.update(1)
 
     if not all_results:
-        logger.error(
-            "No problems produced results — check dataset path and language selection."
-        )
+        logger.error("No problems produced results — check dataset path and language selection.")
         return {}
 
     # ── Aggregate ─────────────────────────────────────────────────────────
@@ -845,15 +827,9 @@ def evaluate(
         "total_candidates": sum(r.n_lsh_candidates for r in all_results),
         "total_detected": sum(r.n_detected_clone_pairs for r in all_results),
         # LSH Phase 2
-        "mean_lsh_candidate_recall": _mean(
-            [r.lsh_candidate_recall for r in all_results]
-        ),
-        "median_lsh_candidate_recall": _median(
-            [r.lsh_candidate_recall for r in all_results]
-        ),
-        "mean_lsh_candidate_precision": _mean(
-            [r.lsh_candidate_precision for r in all_results]
-        ),
+        "mean_lsh_candidate_recall": _mean([r.lsh_candidate_recall for r in all_results]),
+        "median_lsh_candidate_recall": _median([r.lsh_candidate_recall for r in all_results]),
+        "mean_lsh_candidate_precision": _mean([r.lsh_candidate_precision for r in all_results]),
         "mean_workload_reduction": _mean([r.workload_reduction for r in all_results]),
         # End-to-end Phase 3-4
         "mean_e2e_recall": _mean([r.e2e_recall for r in all_results]),
@@ -864,9 +840,7 @@ def evaluate(
         "mean_adjusted_rand_index": _mean([r.adjusted_rand_index for r in all_results]),
         # Efficiency
         "total_elapsed_pipeline_s": sum(r.elapsed_pipeline_s for r in all_results),
-        "total_elapsed_brute_force_s": sum(
-            r.elapsed_brute_force_s for r in all_results
-        ),
+        "total_elapsed_brute_force_s": sum(r.elapsed_brute_force_s for r in all_results),
     }
 
     # ── Print report ───────────────────────────────────────────────────────
@@ -884,12 +858,8 @@ def evaluate(
     logger.info(
         f"  Mean candidate recall      : {summary['mean_lsh_candidate_recall']:.4f}   (target ≥ 0.90)"
     )
-    logger.info(
-        f"  Median candidate recall    : {summary['median_lsh_candidate_recall']:.4f}"
-    )
-    logger.info(
-        f"  Mean candidate precision   : {summary['mean_lsh_candidate_precision']:.4f}"
-    )
+    logger.info(f"  Median candidate recall    : {summary['median_lsh_candidate_recall']:.4f}")
+    logger.info(f"  Mean candidate precision   : {summary['mean_lsh_candidate_precision']:.4f}")
     logger.info(
         f"  Mean workload reduction    : {summary['mean_workload_reduction']:.4f}   (target ≥ 0.90)"
     )
@@ -901,21 +871,15 @@ def evaluate(
 
     logger.info("\nPhase 4 — Cluster Quality")
     logger.info(f"  Mean cluster purity       : {summary['mean_cluster_purity']:.4f}")
-    logger.info(
-        f"  Mean Adjusted Rand Index  : {summary['mean_adjusted_rand_index']:.4f}"
-    )
+    logger.info(f"  Mean Adjusted Rand Index  : {summary['mean_adjusted_rand_index']:.4f}")
 
     logger.info("\nEfficiency")
-    logger.info(
-        f"  Pipeline elapsed          : {summary['total_elapsed_pipeline_s']:.1f}s"
-    )
+    logger.info(f"  Pipeline elapsed          : {summary['total_elapsed_pipeline_s']:.1f}s")
     if not skip_brute_force:
         speedup = _safe_div(
             summary["total_elapsed_brute_force_s"], summary["total_elapsed_pipeline_s"]
         )
-        logger.info(
-            f"  Brute-force elapsed       : {summary['total_elapsed_brute_force_s']:.1f}s"
-        )
+        logger.info(f"  Brute-force elapsed       : {summary['total_elapsed_brute_force_s']:.1f}s")
         logger.info(f"  Speed-up factor           : {speedup:.1f}×")
 
     # Per-problem breakdown (show every problem if n ≤ 20, else sample)

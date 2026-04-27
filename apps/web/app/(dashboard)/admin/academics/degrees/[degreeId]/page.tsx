@@ -15,14 +15,11 @@ import {
   AlertTriangle,
   ChevronRight,
   CalendarDays,
-  CheckCircle2,
-  XCircle,
   GraduationCap,
   Building2,
   Layers,
   Settings,
   Save,
-  ShieldAlert,
   Loader2,
   BookOpen,
 } from "lucide-react";
@@ -34,7 +31,6 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils/cn";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -205,7 +201,7 @@ export default function DegreeDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [params.degreeId]);
+  }, [params.degreeId, setPageTitle]);
 
   React.useEffect(() => {
     load();

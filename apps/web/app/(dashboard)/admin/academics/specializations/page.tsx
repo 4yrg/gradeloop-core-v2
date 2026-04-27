@@ -4,7 +4,6 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Plus,
   RefreshCw,
   Layers,
   MoreHorizontal,
@@ -265,8 +264,8 @@ export default function SpecializationsPage() {
             </TableHeader>
             <TableBody>
               {filtered.map((spec) => (
-                <TableRow 
-                  key={spec.id} 
+                <TableRow
+                  key={spec.id}
                   className="cursor-pointer hover:bg-muted/30 transition-colors"
                   onClick={() => router.push(`/admin/academics/specializations/${spec.id}`)}
                 >

@@ -3,11 +3,18 @@ TypeNet Inference Module
 Loads the pre-trained TypeNet model and provides embedding generation for authentication
 """
 
+import pickle
+
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-from typing import Dict, List
-import pickle
+
+try:
+    import numpy._core.multiarray as _scalar
+
+    torch.serialization.add_safe_globals([_scalar])
+except Exception:
+    pass
 
 
 class TypeNet(nn.Module):
@@ -24,7 +31,7 @@ class TypeNet(nn.Module):
         dropout_rate=0.5,
         sequence_length=70,
     ):
-        super(TypeNet, self).__init__()
+        super().__init__()
 
         self.sequence_length = sequence_length
 
@@ -90,9 +97,9 @@ class TypeNetAuthenticator:
         self.device = torch.device(device if torch.cuda.is_available() else "cpu")
 
         # Initialize TypeNet model
-        self.model = TypeNet(
-            input_size=5, hidden_size=128, output_size=128, dropout_rate=0.5
-        ).to(self.device)
+        self.model = TypeNet(input_size=5, hidden_size=128, output_size=128, dropout_rate=0.5).to(
+            self.device
+        )
 
         # Load pre-trained weights if provided
         if model_path:
@@ -104,7 +111,7 @@ class TypeNetAuthenticator:
     def load_model(self, model_path: str):
         """Load pre-trained TypeNet weights"""
         try:
-            state_dict = torch.load(model_path, map_location=self.device)
+            state_dict = torch.load(model_path, map_location=self.device, weights_only=True)
             self.model.load_state_dict(state_dict)
             self.model.eval()
             print(f"✅ TypeNet model loaded from {model_path}")
@@ -134,7 +141,7 @@ class TypeNetAuthenticator:
 
             return embedding.cpu().numpy()[0]
 
-    def enroll_user(self, user_id: str, keystroke_sequences: List[np.ndarray]) -> Dict:
+    def enroll_user(self, user_id: str, keystroke_sequences: list[np.ndarray]) -> dict:
         """
         Enroll a user by creating a biometric template
 
@@ -152,9 +159,7 @@ class TypeNetAuthenticator:
         for sequence in keystroke_sequences:
             # Validate shape
             if sequence.shape[0] != 70 or sequence.shape[1] != 5:
-                print(
-                    f"⚠️ Warning: Sequence has shape {sequence.shape}, expected (70, 5)"
-                )
+                print(f"⚠️ Warning: Sequence has shape {sequence.shape}, expected (70, 5)")
                 continue
 
             embedding = self.get_embedding(sequence)
@@ -185,7 +190,7 @@ class TypeNetAuthenticator:
 
     def verify_user(
         self, user_id: str, keystroke_sequence: np.ndarray, threshold: float = 0.7
-    ) -> Dict:
+    ) -> dict:
         """
         Verify if keystroke pattern matches enrolled user
 
@@ -232,7 +237,7 @@ class TypeNetAuthenticator:
             "message": "Authenticated" if authenticated else "Authentication failed",
         }
 
-    def identify_user(self, keystroke_sequence: np.ndarray, top_k: int = 3) -> Dict:
+    def identify_user(self, keystroke_sequence: np.ndarray, top_k: int = 3) -> dict:
         """
         Identify user by comparing against all enrolled users
 
@@ -302,8 +307,8 @@ class TypeNetAuthenticator:
         }
 
     def continuous_authentication(
-        self, user_id: str, sequences: List[np.ndarray], threshold: float = 0.7
-    ) -> Dict:
+        self, user_id: str, sequences: list[np.ndarray], threshold: float = 0.7
+    ) -> dict:
         """
         Continuous authentication across multiple recent sequences
         Implements stress-robust multi-phase verification
@@ -411,14 +416,13 @@ class TypeNetAuthenticator:
 # Example usage
 if __name__ == "__main__":
     # Initialize with pre-trained model
-    auth = TypeNetAuthenticator(
-        model_path="models/typenet_pretrained.pth", device="cpu"
-    )
+    auth = TypeNetAuthenticator(model_path="models/typenet_pretrained.pth", device="cpu")
 
     # Example: Enroll a user with 5 sequences
     user_id = "student_001"
     enrollment_sequences = [
-        np.random.randn(70, 5) for _ in range(5)  # Replace with real data
+        np.random.randn(70, 5)
+        for _ in range(5)  # Replace with real data
     ]
 
     result = auth.enroll_user(user_id, enrollment_sequences)

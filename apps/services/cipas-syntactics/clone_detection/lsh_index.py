@@ -35,7 +35,7 @@ Usage
 from __future__ import annotations
 
 import pickle
-from typing import Iterable, Optional
+from collections.abc import Iterable
 
 from datasketch import MinHash, MinHashLSH
 
@@ -51,7 +51,7 @@ logger = setup_logging(__name__)
 DEFAULT_NUM_PERM: int = 128  # signature length (hash count)
 DEFAULT_THRESHOLD: float = 0.3  # minimum Jaccard for bucket sharing
 # low enough to catch Type-3; ~95 % reduction
-DEFAULT_BANDS: Optional[int] = None  # let datasketch choose b/r split
+DEFAULT_BANDS: int | None = None  # let datasketch choose b/r split
 
 
 # ────────────────────────────────────────────────────────────────────────────

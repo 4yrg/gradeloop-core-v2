@@ -1,0 +1,19 @@
+meta {
+  name: Delete User
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{USERS_URL_V1}}/:id
+  body: none
+  auth: bearer
+}
+
+params:path {
+  id: uuid-goes-here
+}
+
+auth:bearer {
+  token: {{SUPER_ADMIN_TOKEN}}
+}

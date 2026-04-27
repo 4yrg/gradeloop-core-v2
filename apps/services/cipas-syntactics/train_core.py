@@ -8,7 +8,6 @@ This module contains the actual training implementation, separated from CLI hand
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -42,7 +41,7 @@ def _load_code(func_id: str, id2code_dir: Path) -> str | None:
     code_file = id2code_dir / f"{func_id}.java"
     if code_file.exists():
         try:
-            with open(code_file, "r", encoding="utf-8", errors="ignore") as fh:
+            with open(code_file, encoding="utf-8", errors="ignore") as fh:
                 return fh.read().strip() or None
         except Exception:
             return None
@@ -70,9 +69,7 @@ def load_toma_dataset(
             logger.warning(f"CSV not found: {csv_path} — skipping")
             continue
 
-        logger.info(
-            f"Loading {csv_name} (label={binary_label}, target={target_count:,}) …"
-        )
+        logger.info(f"Loading {csv_name} (label={binary_label}, target={target_count:,}) …")
 
         if csv_name == "nonclone.csv":
             df = pd.read_csv(csv_path)
@@ -90,9 +87,7 @@ def load_toma_dataset(
             )
 
         if len(df) > target_count:
-            logger.info(
-                f"  Sampling {target_count:,} / {len(df):,} rows from {csv_name}"
-            )
+            logger.info(f"  Sampling {target_count:,} / {len(df):,} rows from {csv_name}")
             df = df.sample(n=target_count, random_state=42)
 
         loaded = 0
@@ -119,9 +114,7 @@ def extract_features(
     include_node_types: bool = True,
 ) -> tuple[np.ndarray, list[str]]:
     """Extract hybrid String + AST + Structural Density features."""
-    extractor = SyntacticFeatureExtractor(
-        language=language, include_node_types=include_node_types
-    )
+    extractor = SyntacticFeatureExtractor(language=language, include_node_types=include_node_types)
     features: list[np.ndarray] = []
     failed = 0
 
@@ -214,8 +207,7 @@ def save_training_artifacts(
     metrics_payload = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "metrics": {
-            k: (round(float(v), 6) if isinstance(v, float) else v)
-            for k, v in metrics.items()
+            k: (round(float(v), 6) if isinstance(v, float) else v) for k, v in metrics.items()
         },
         "threshold_sweep": sweep,
         "top_20_features": top_features,
@@ -341,9 +333,7 @@ def save_training_artifacts(
                     ax.text(rec + 0.01, i, f"{rec:.3f}", va="center", fontsize=9)
                 ax.set_xlabel("Recall")
                 ax.set_title("Per-Source Recall (Training — Test Split)")
-                ax.axvline(
-                    x=0.5, color="gray", linestyle="--", alpha=0.5, label="0.5 line"
-                )
+                ax.axvline(x=0.5, color="gray", linestyle="--", alpha=0.5, label="0.5 line")
                 ax.set_xlim(0, 1.1)
                 ax.legend()
                 ax.grid(axis="x", alpha=0.3)
@@ -361,7 +351,7 @@ def save_training_artifacts(
 
 def train(
     model_name: str = "clone_detector_xgb.pkl",
-    sample_size: Optional[int] = None,
+    sample_size: int | None = None,
     test_size: float = 0.2,
     n_estimators: int = 500,
     max_depth: int = 8,
@@ -375,8 +365,8 @@ def train(
     include_node_types: bool = True,
     use_gpu: bool = False,
     output_dir: Path | None = None,
-    dataset_config: Optional[list[tuple[str, int, int, float]]] = None,
-    toma_path: Optional[str] = None,
+    dataset_config: list[tuple[str, int, int, float]] | None = None,
+    toma_path: str | None = None,
     visualize: bool = True,
 ) -> dict:
     """
@@ -400,17 +390,13 @@ def train(
             (csv_name, label, max(1, int(target * ratio)), weight)
             for csv_name, label, target, weight in config_to_use
         ]
-        logger.info(
-            f"Applying sample_size={sample_size} (Scaling targets by {ratio:.4f})"
-        )
+        logger.info(f"Applying sample_size={sample_size} (Scaling targets by {ratio:.4f})")
 
     # Determine TOMA path
     toma_dir = (
         Path(toma_path)
         if toma_path
-        else Path(
-            "/home/iamdasun/Projects/4yrg/gradeloop-core-v2/datasets/toma-dataset"
-        )
+        else Path("/home/iamdasun/Projects/4yrg/gradeloop-core-v2/datasets/toma-dataset")
     )
 
     logger.info(f"Dataset: {toma_dir}")
@@ -427,24 +413,22 @@ def train(
     total = len(labels)
     n_pos = sum(labels)
     n_neg = total - n_pos
-    logger.info(
-        f"\nDataset: {total:,} pairs | Clones: {n_pos:,} | NonClones: {n_neg:,}"
-    )
+    logger.info(f"\nDataset: {total:,} pairs | Clones: {n_pos:,} | NonClones: {n_neg:,}")
 
     # Feature extraction
     logger.info("\nExtracting hybrid String + AST + Structural Density features …")
-    X, feature_names = extract_features(
+    x_data, feature_names = extract_features(
         code1_list, code2_list, language="java", include_node_types=include_node_types
     )
     y = np.array(labels)
     s = np.array(sources)
     w = np.array(row_weights)
 
-    logger.info(f"Feature matrix: {X.shape} ({len(feature_names)} features)")
+    logger.info(f"Feature matrix: {x_data.shape} ({len(feature_names)} features)")
 
     # Train/test split
-    X_train, X_test, y_train, y_test, s_train, s_test, w_train, w_test = (
-        train_test_split(X, y, s, w, test_size=test_size, random_state=42, stratify=y)
+    x_train, x_test, y_train, y_test, s_train, s_test, w_train, w_test = train_test_split(
+        x_data, y, s, w, test_size=test_size, random_state=42, stratify=y
     )
 
     logger.info(f"\nTrain / test split: {1 - test_size:.0%} / {test_size:.0%}")
@@ -472,12 +456,12 @@ def train(
     )
 
     # Scale features
-    X_train_scaled = classifier.scaler.fit_transform(X_train)
-    X_test_scaled = classifier.scaler.transform(X_test)
+    x_train_scaled = classifier.scaler.fit_transform(x_train)
+    x_test_scaled = classifier.scaler.transform(x_test)
 
     # Train with feature selection
     logger.info("\nTraining XGBoost model...")
-    classifier.model.fit(X_train_scaled, y_train, sample_weight=w_train)
+    classifier.model.fit(x_train_scaled, y_train, sample_weight=w_train)
 
     # Feature selection (keep >= 1% importance)
     importances = classifier.model.feature_importances_
@@ -493,11 +477,11 @@ def train(
     kept_indices = np.array(sorted(kept_indices))
     if len(kept_indices) < len(feature_names):
         logger.info(f"Keeping {len(kept_indices)} / {len(feature_names)} features")
-        X_train = X_train[:, kept_indices]
-        X_test = X_test[:, kept_indices]
+        x_train = x_train[:, kept_indices]
+        x_test = x_test[:, kept_indices]
         classifier.feature_names = [feature_names[i] for i in kept_indices]
-        X_train_scaled = classifier.scaler.fit_transform(X_train)
-        X_test_scaled = classifier.scaler.transform(X_test)
+        x_train_scaled = classifier.scaler.fit_transform(x_train)
+        x_test_scaled = classifier.scaler.transform(x_test)
 
     # Hyperparameter optimization
     logger.info("\nRunning hyperparameter optimization...")
@@ -524,24 +508,24 @@ def train(
         random_state=42,
         n_jobs=-1,
     )
-    random_search.fit(X_train_scaled, y_train, sample_weight=w_train)
+    random_search.fit(x_train_scaled, y_train, sample_weight=w_train)
     classifier.model.set_params(**random_search.best_params_)
     logger.info(f"Best params: {random_search.best_params_}")
 
     # Final training with early stopping
     classifier.model.set_params(early_stopping_rounds=30)
     classifier.model.fit(
-        X_train_scaled,
+        x_train_scaled,
         y_train,
         sample_weight=w_train,
-        eval_set=[(X_test_scaled, y_test)],
+        eval_set=[(x_test_scaled, y_test)],
         verbose=False,
     )
     classifier.is_trained = True
 
     # Threshold sweep
     logger.info("\nRunning threshold sweep...")
-    y_proba_test = classifier.predict_proba(X_test)[:, 1]
+    y_proba_test = classifier.predict_proba(x_test)[:, 1]
     sweep = threshold_sweep(y_test, y_proba_test)
     best = select_best_threshold(sweep)
 

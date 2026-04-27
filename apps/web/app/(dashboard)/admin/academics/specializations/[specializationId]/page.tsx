@@ -23,14 +23,14 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { specializationsApi, degreesApi, coursesApi } from '@/lib/api/academics';
+import { specializationsApi, degreesApi } from '@/lib/api/academics';
 import { useUIStore } from '@/lib/stores/uiStore';
 import { handleApiError } from '@/lib/api/axios';
 import { useAcademicsAccess } from '@/lib/hooks/useAcademicsAccess';
 import { toast } from '@/lib/hooks/use-toast';
 import { AcademicsDetailLayout } from '@/components/admin/academics/AcademicsDetailLayout';
 import { DangerZone } from '@/components/admin/academics/DangerZone';
-import type { Specialization, Degree, Course, UpdateSpecializationRequest } from '@/types/academics.types';
+import type { Specialization, Degree, UpdateSpecializationRequest } from '@/types/academics.types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -66,13 +66,12 @@ function HeaderSkeleton() {
 export default function SpecializationDetailPage() {
   const router = useRouter();
   const params = useParams<{ specializationId: string }>();
-  const { canAccess, canWrite } = useAcademicsAccess();
+  const { canAccess } = useAcademicsAccess();
 
   const setPageTitle = useUIStore((s) => s.setPageTitle);
 
   const [specialization, setSpecialization] = React.useState<Specialization | null>(null);
   const [degree, setDegree] = React.useState<Degree | null>(null);
-  const [courses, setCourses] = React.useState<Course[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -94,28 +93,17 @@ export default function SpecializationDetailPage() {
       setSpecialization(spec);
       setPageTitle(spec.name);
       setEditValues({ name: spec.name, code: spec.code });
-      
+
       // Lazily fetch degree info
       if (spec.degree_id) {
         degreesApi.get(spec.degree_id).then(setDegree).catch(() => {});
-      }
-      
-      // Try to fetch courses (may not be supported)
-      try {
-        const allCourses = await coursesApi.list();
-        // Filter courses that might be associated with this specialization
-        // Since there's no direct endpoint, we'll show all courses for now
-        setCourses(allCourses);
-      } catch (err) {
-        // Course fetching is optional
-        console.warn('Could not fetch courses:', err);
       }
     } catch (err) {
       setError(handleApiError(err));
     } finally {
       setLoading(false);
     }
-  }, [params.specializationId]);
+  }, [params.specializationId, setPageTitle]);
 
   React.useEffect(() => { load(); }, [load]);
 
@@ -343,7 +331,7 @@ export default function SpecializationDetailPage() {
                   <BookMarked className="h-10 w-10 text-muted-foreground/30 mb-3" />
                   <p className="font-medium text-muted-foreground text-sm mb-2">Course association coming soon</p>
                   <p className="text-xs text-muted-foreground max-w-md">
-                    The academic service API does not currently expose courses filtered by specialization. 
+                    The academic service API does not currently expose courses filtered by specialization.
                     This feature will be available when the endpoint is implemented.
                   </p>
                 </div>

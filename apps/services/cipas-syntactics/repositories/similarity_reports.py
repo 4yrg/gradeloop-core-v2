@@ -6,7 +6,6 @@ Handles CRUD operations for cached assignment cluster reports.
 
 import json
 import logging
-from typing import Optional
 from uuid import UUID
 
 from database import get_db_connection
@@ -23,7 +22,7 @@ class SimilarityReportRepository:
         report: AssignmentClusterResponse,
         lsh_threshold: float = 0.3,
         min_confidence: float = 0.0,
-        processing_time: Optional[float] = None,
+        processing_time: float | None = None,
     ) -> UUID:
         """
         Save or update a similarity report for an assignment.
@@ -45,7 +44,7 @@ class SimilarityReportRepository:
                 failed_count, total_clone_pairs, report_data,
                 lsh_threshold, min_confidence, processing_time_seconds
             ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10)
-            ON CONFLICT (assignment_id) 
+            ON CONFLICT (assignment_id)
             DO UPDATE SET
                 language = EXCLUDED.language,
                 submission_count = EXCLUDED.submission_count,
@@ -76,13 +75,12 @@ class SimilarityReportRepository:
             )
 
         logger.info(
-            f"Saved similarity report for assignment {report.assignment_id} "
-            f"(report_id={report_id})"
+            f"Saved similarity report for assignment {report.assignment_id} (report_id={report_id})"
         )
         return report_id
 
     @staticmethod
-    async def get_report(assignment_id: str) -> Optional[AssignmentClusterResponse]:
+    async def get_report(assignment_id: str) -> AssignmentClusterResponse | None:
         """
         Retrieve a cached similarity report for an assignment.
 
@@ -110,8 +108,7 @@ class SimilarityReportRepository:
         if isinstance(report_data, str):
             report_data = json.loads(report_data)
         logger.info(
-            f"Retrieved cached report for assignment {assignment_id} "
-            f"(updated: {row['updated_at']})"
+            f"Retrieved cached report for assignment {assignment_id} (updated: {row['updated_at']})"
         )
 
         return AssignmentClusterResponse.model_validate(report_data)
@@ -138,7 +135,7 @@ class SimilarityReportRepository:
         return deleted
 
     @staticmethod
-    async def get_report_metadata(assignment_id: str) -> Optional[dict]:
+    async def get_report_metadata(assignment_id: str) -> dict | None:
         """
         Get metadata about a cached report without loading full data.
 
@@ -149,7 +146,7 @@ class SimilarityReportRepository:
             Dictionary with metadata or None if not found
         """
         query = """
-            SELECT 
+            SELECT
                 id, assignment_id, language, submission_count,
                 processed_count, failed_count, total_clone_pairs,
                 lsh_threshold, min_confidence, processing_time_seconds,
@@ -187,7 +184,7 @@ class SimilarityReportRepository:
             List of report metadata dictionaries
         """
         query = """
-            SELECT 
+            SELECT
                 id, assignment_id, language, submission_count,
                 total_clone_pairs, created_at, updated_at
             FROM similarity_reports

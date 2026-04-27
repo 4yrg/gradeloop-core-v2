@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import axios from "axios";
 import { ProfileCard } from "@/components/profile/profile-card";
 import { profileApi } from "@/lib/api/profile";
 import { useAuthStore } from "@/lib/stores/authStore";
@@ -22,10 +23,15 @@ export default function ProfilePage() {
                 const data = await profileApi.getProfile();
                 setProfile(data);
                 setError(null);
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            } catch (err: any) {
+
+            } catch (err: unknown) {
                 console.error("Failed to fetch profile:", err);
-                setError(err.response?.data?.message || "Failed to load profile data. Please try again later.");
+                const message = axios.isAxiosError(err)
+                    ? err.response?.data?.message
+                    : err instanceof Error
+                        ? err.message
+                        : String(err);
+                setError(message || "Failed to load profile data. Please try again later.");
             } finally {
                 setIsLoading(false);
             }

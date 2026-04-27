@@ -26,7 +26,7 @@ package main
 import (
     "context"
     "log"
-    
+
     "github.com/gradeloop/gradeloop-core-v2/shared/libs/go/secrets"
 )
 
@@ -37,15 +37,15 @@ func main() {
         log.Fatal(err)
     }
     defer client.Close()
-    
+
     ctx := context.Background()
-    
+
     // Get a single secret value
     apiKey, err := client.GetSecret(ctx, "api-keys/openai", "api_key")
     if err != nil {
         log.Fatal(err)
     }
-    
+
     log.Printf("Retrieved API key: %s...", apiKey[:10])
 }
 ```
@@ -141,13 +141,13 @@ func main() {
         log.Fatalf("Failed to initialize secrets client: %v", err)
     }
     defer secretsClient.Close()
-    
+
     // Get database configuration
     dbConfig, err := secretsClient.GetDatabaseConfig(context.Background())
     if err != nil {
         log.Fatalf("Failed to get database config: %v", err)
     }
-    
+
     // Use the configuration
     db, err := sql.Open("postgres", dbConfig.ConnectionString())
     // ... rest of your application

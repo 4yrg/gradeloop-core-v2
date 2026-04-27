@@ -61,8 +61,9 @@ Usage
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Optional, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from .collusion_graph import CollusionGraph
 from .lsh_index import MinHashIndexer, generate_candidate_pairs
@@ -81,9 +82,9 @@ logger = setup_logging(__name__)
 @runtime_checkable
 class CIPASDatabase(Protocol):
     def save_fragment(self, fragment: Fragment) -> str: ...
-    def get_fragment(self, fragment_id: str) -> Optional[Fragment]: ...
+    def get_fragment(self, fragment_id: str) -> Fragment | None: ...
     def get_fragments_by_ids(self, ids: list[str]) -> list[Fragment]: ...
-    def save_clone_match(self, match: "CloneMatch") -> str: ...
+    def save_clone_match(self, match: CloneMatch) -> str: ...
     def get_assignment_templates(self, assignment_id: str) -> list[frozenset[str]]: ...
     def get_all_fragment_signatures(
         self,
@@ -100,7 +101,7 @@ class CIPASDatabase(Protocol):
 class CloneMatch:
     """Persisted result of the cascade for a candidate fragment pair."""
 
-    id: Optional[str] = None
+    id: str | None = None
     frag_a_id: str = ""
     frag_b_id: str = ""
     student_a: str = ""
@@ -108,9 +109,9 @@ class CloneMatch:
     clone_type: str = "Non-Syntactic"
     confidence: float = 0.0
     is_clone: bool = False
-    features: Optional[dict] = None  # serialised syntactic features
-    normalized_code_a: Optional[str] = None
-    normalized_code_b: Optional[str] = None
+    features: dict | None = None  # serialised syntactic features
+    normalized_code_a: str | None = None
+    normalized_code_b: str | None = None
 
 
 @dataclass
@@ -150,7 +151,7 @@ class InMemoryDB:
         self._fragments[fid] = fragment
         return fid
 
-    def get_fragment(self, fragment_id: str) -> Optional[Fragment]:
+    def get_fragment(self, fragment_id: str) -> Fragment | None:
         return self._fragments.get(fragment_id)
 
     def get_fragments_by_ids(self, ids: list[str]) -> list[Fragment]:
@@ -215,14 +216,14 @@ class CascadeWorker:
         db: CIPASDatabase,
         indexer: MinHashIndexer,
         graph: CollusionGraph,
-        pipeline: Optional[TieredPipeline] = None,
-        tpl_filter: Optional[TemplateFilter] = None,
+        pipeline: TieredPipeline | None = None,
+        tpl_filter: TemplateFilter | None = None,
     ) -> None:
         self._db = db
         self._indexer = indexer
         self._graph = graph
         self._pipeline = pipeline or TieredPipeline()
-        self._tpl_filter: Optional[TemplateFilter] = tpl_filter
+        self._tpl_filter: TemplateFilter | None = tpl_filter
 
     # ── Public API ──────────────────────────────────────────────────────────
 
@@ -336,7 +337,7 @@ class CascadeWorker:
 
     def build_collusion_report(
         self,
-        assignment_id: Optional[str] = None,
+        assignment_id: str | None = None,
         min_confidence: float = 0.0,
     ) -> list[dict]:
         """
@@ -345,9 +346,7 @@ class CascadeWorker:
         ``assignment_id`` filtering must be done at the DB/graph layer;
         this method assumes the graph already contains only relevant edges.
         """
-        groups = self._graph.connected_components(
-            min_group_size=2, min_confidence=min_confidence
-        )
+        groups = self._graph.connected_components(min_group_size=2, min_confidence=min_confidence)
         return [g.summary() for g in groups]
 
     # ── Private helpers ─────────────────────────────────────────────────────
@@ -368,7 +367,7 @@ class CascadeWorker:
         self,
         frag_a_id: str,
         frag_b_id: str,
-    ) -> Optional[CloneMatch]:
+    ) -> CloneMatch | None:
         """
         Fetch both fragments and run the TieredPipeline.
 
@@ -399,7 +398,7 @@ class CascadeWorker:
             return None
 
         # Serialise syntactic features for evidence view
-        features_dict: Optional[dict] = None
+        features_dict: dict | None = None
         if detection.syntactic_features is not None:
             feats = detection.syntactic_features
             feature_names = [
@@ -411,9 +410,7 @@ class CascadeWorker:
                 "jaro_winkler",
             ]
             features_dict = {
-                name: float(feats[i])
-                for i, name in enumerate(feature_names)
-                if i < len(feats)
+                name: float(feats[i]) for i, name in enumerate(feature_names) if i < len(feats)
             }
             # Add edge weight (confidence) as named field
             features_dict["confidence"] = detection.confidence

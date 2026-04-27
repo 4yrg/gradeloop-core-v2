@@ -28,7 +28,6 @@ Grading-mode routing:
 
 # fmt: off
 
-import asyncio
 import json
 from typing import Any
 

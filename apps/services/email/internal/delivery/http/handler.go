@@ -1,9 +1,9 @@
 package http
 
 import (
+	"github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/domain"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
-	"github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/domain"
 )
 
 type Handler struct {

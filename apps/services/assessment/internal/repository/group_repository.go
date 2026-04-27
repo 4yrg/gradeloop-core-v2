@@ -3,8 +3,8 @@ package repository
 import (
 	"errors"
 
-	"github.com/google/uuid"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/domain"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 

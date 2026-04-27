@@ -14,7 +14,6 @@ Features:
 import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 import tree_sitter_c as tsc
 import tree_sitter_java as tsjava
@@ -37,8 +36,8 @@ class NormalizationResult:
     normalized_code: str
     token_stream: list[str]
     level: NormalizationLevel
-    jaccard_similarity: Optional[float] = None
-    levenshtein_ratio: Optional[float] = None
+    jaccard_similarity: float | None = None
+    levenshtein_ratio: float | None = None
 
 
 class StructuralNormalizer:
@@ -173,18 +172,14 @@ class StructuralNormalizer:
         if node.child_count == 0:
             # Leaf node
             if node.type not in skip_types:
-                text = code_bytes[node.start_byte : node.end_byte].decode(
-                    "utf-8", errors="ignore"
-                )
+                text = code_bytes[node.start_byte : node.end_byte].decode("utf-8", errors="ignore")
                 if text.strip():
                     statements.append(text.strip())
         else:
             # Internal node - check if it's a statement type
             if node.type in statement_types:
                 # Extract the full statement text
-                text = code_bytes[node.start_byte : node.end_byte].decode(
-                    "utf-8", errors="ignore"
-                )
+                text = code_bytes[node.start_byte : node.end_byte].decode("utf-8", errors="ignore")
                 # Remove inline comments
                 text = self._remove_inline_comments(text, language)
                 if text.strip():
@@ -193,9 +188,7 @@ class StructuralNormalizer:
                 # Process children
                 for child in node.children:
                     if child.type not in skip_types:
-                        statements.extend(
-                            self._extract_statements(child, code_bytes, language)
-                        )
+                        statements.extend(self._extract_statements(child, code_bytes, language))
 
         return statements
 
@@ -221,10 +214,11 @@ class StructuralNormalizer:
 
         # Remove annotations/decorators (metadata)
         if language == "python":
-            text = re.sub(r"@\w+(?:\([^)]*\))?\s*", "", text)
+            # Match @decorator or @decorator(...) but avoid nested parens issues
+            text = re.sub(r"@\w+(\([^)]*\))?\s*", "", text)
         else:
             # Java annotations
-            text = re.sub(r"@\w+(?:\([^)]*\))?(\s|$)", r"\1", text)
+            text = re.sub(r"@\w+(\([^)]*\))?(\s|$)", r"\2", text)
 
         return text.strip()
 
@@ -443,10 +437,8 @@ class StructuralNormalizer:
             "...",
         }
 
-        # Split into tokens
-        tokens = re.findall(
-            r'"[^"]*"|\'[^\']*\'|\b\w+\b|[+\-*/%=<>!&|^~?:;,\[\]{}().]+', text
-        )
+        # Split into tokens: strings, words, or sequences of operators
+        tokens = re.findall(r'"[^"]*"|\'[^\']*\'|\b\w+\b|[^\w\s"\']+', text)
 
         blinded_tokens = []
         for token in tokens:

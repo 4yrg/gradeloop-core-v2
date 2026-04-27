@@ -58,7 +58,7 @@ export default function StartAssessmentPage() {
         }
         loadAssignments();
         return () => { mounted = false; };
-    }, [addToast]);
+    }, [addToast, selectedAssignment]);
 
     // Fetch competency count when the selected assignment changes
     React.useEffect(() => {

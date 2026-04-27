@@ -63,7 +63,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/model ./model
 
-RUN addgroup -S cipas-ai && adduser -S cipas-ai -G cipas-ai \
+RUN groupadd -r cipas-ai && useradd -r -g cipas-ai cipas-ai \
     && chown -R cipas-ai:cipas-ai /app
 
 USER cipas-ai

@@ -220,7 +220,7 @@ export function KeystrokeAuthTestDialog({ open, onClose }: Props) {
                 }
             });
         },
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+
         [runIdentify]
     );
 

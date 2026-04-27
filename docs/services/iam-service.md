@@ -1462,7 +1462,7 @@ This section documents how the Next.js frontend (`apps/web`) integrates with the
 | `access_token` (JWT) | **In-memory** only — Zustand `auth-store` | 15 min (configurable) | `Authorization: Bearer <token>` header, attached by the Axios request interceptor |
 | `refresh_token` (opaque string) | **HttpOnly Secure cookie** set by the backend | 7 days (configurable) | Sent automatically by the browser on every `withCredentials: true` request to the same origin |
 
-> **Why in-memory for the access token?**  
+> **Why in-memory for the access token?**
 > Storing JWTs in `localStorage` exposes them to XSS attacks. Keeping them only in JavaScript memory means they are never accessible to third-party scripts and are automatically discarded on tab close.
 
 ---

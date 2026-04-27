@@ -138,8 +138,8 @@ func (m *Migrator) migrateUsersToUserType() error {
 
 		for _, update := range updateQueries {
 			result := m.db.Exec(`
-				UPDATE users 
-				SET user_type = ? 
+				UPDATE users
+				SET user_type = ?
 				WHERE role_id IN (
 					SELECT id FROM roles WHERE LOWER(name) = LOWER(?)
 				) AND (user_type IS NULL OR user_type = '')
@@ -169,7 +169,7 @@ func (m *Migrator) migrateUsersToUserType() error {
 	}
 	if studentsTableExists {
 		result := m.db.Exec(`
-			UPDATE users 
+			UPDATE users
 			SET user_type = 'student'
 			WHERE (user_type IS NULL OR user_type = '')
 			AND id IN (SELECT user_id FROM user_profile_students)
@@ -192,7 +192,7 @@ func (m *Migrator) migrateUsersToUserType() error {
 	}
 	if instructorsTableExists {
 		result := m.db.Exec(`
-			UPDATE users 
+			UPDATE users
 			SET user_type = 'instructor'
 			WHERE (user_type IS NULL OR user_type = '')
 			AND id IN (SELECT user_id FROM user_profile_instructors)

@@ -113,13 +113,13 @@ export function ForceDirectedGraph({
         }
       })
       .on("mouseover", function () {
-        d3.select(this).attr("stroke-opacity", 1).attr("stroke-width", (d: any) =>
-          Math.max(2, d.edge.confidence * 6),
+        d3.select(this).attr("stroke-opacity", 1).attr("stroke-width", (d) =>
+          Math.max(2, (d as GraphLink).edge.confidence * 6),
         );
       })
       .on("mouseout", function () {
-        d3.select(this).attr("stroke-opacity", 0.6).attr("stroke-width", (d: any) =>
-          Math.max(1, d.edge.confidence * 5),
+        d3.select(this).attr("stroke-opacity", 0.6).attr("stroke-width", (d) =>
+          Math.max(1, (d as GraphLink).edge.confidence * 5),
         );
       });
 
@@ -137,7 +137,7 @@ export function ForceDirectedGraph({
     // Draw nodes
     const node = g
       .append("g")
-      .selectAll("circle")
+      .selectAll<SVGCircleElement, GraphNode>("circle")
       .data(nodes)
       .join("circle")
       .attr("r", 20)
@@ -161,7 +161,7 @@ export function ForceDirectedGraph({
             if (!event.active) simulation.alphaTarget(0);
             d.fx = null;
             d.fy = null;
-          }) as any,
+          }),
       )
       .on("click", (event, d) => {
         if (onNodeClick) {

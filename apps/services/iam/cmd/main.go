@@ -8,8 +8,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gofiber/fiber/v3"
-	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/client"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/config"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/handler"
@@ -21,6 +19,8 @@ import (
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/service"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/storage"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/utils"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/cors"
 	"go.uber.org/zap"
 )
 

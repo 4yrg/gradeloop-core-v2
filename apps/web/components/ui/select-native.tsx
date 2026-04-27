@@ -1,8 +1,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils/cn';
 
-export interface SelectNativeProps
-  extends React.SelectHTMLAttributes<HTMLSelectElement> { }
+export type SelectNativeProps = React.SelectHTMLAttributes<HTMLSelectElement>;
 
 /**
  * Accessible native `<select>` styled to match the shadcn input family.

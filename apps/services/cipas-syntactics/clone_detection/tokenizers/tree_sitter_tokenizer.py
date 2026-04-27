@@ -128,9 +128,7 @@ class TreeSitterTokenizer:
         # Process the node
         if node.child_count == 0:
             # Leaf node - extract the text
-            text = code_bytes[node.start_byte : node.end_byte].decode(
-                "utf-8", errors="ignore"
-            )
+            text = code_bytes[node.start_byte : node.end_byte].decode("utf-8", errors="ignore")
 
             # Skip whitespace-only tokens
             if text.strip():
@@ -276,9 +274,7 @@ class TreeSitterTokenizer:
         }
 
         if node_type in control_types:
-            relationships["control_construct"] = (
-                relationships.get("control_construct", 0) + 1
-            )
+            relationships["control_construct"] = relationships.get("control_construct", 0) + 1
 
         # Count assignment after declaration (data dependency)
         if node_type in {
@@ -298,9 +294,7 @@ class TreeSitterTokenizer:
 
         # Count binary operations (data flow)
         if node_type in {"binary_expression", "assignment_expression"}:
-            relationships["binary_operation"] = (
-                relationships.get("binary_operation", 0) + 1
-            )
+            relationships["binary_operation"] = relationships.get("binary_operation", 0) + 1
 
         # Process children
         for child in node.children:

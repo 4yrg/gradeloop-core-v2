@@ -4,18 +4,18 @@
 # This file contains INFRASTRUCTURE SERVICES ONLY
 #
 # Usage:
-#   podman compose up -d                    # Start all infrastructure
-#   podman compose up -d postgres          # Start only postgres
+#   docker compose up -d                    # Start all infrastructure
+#   docker compose up -d postgres          # Start only postgres
 #
 # For local development:
-#   1. podman compose up -d                # Start infrastructure
+#   1. docker compose up -d                # Start infrastructure
 #   2. make dev SERVICE=<name>           # Run services locally
 #
 # For full stack in Docker:
-#   podman compose -f compose.dev.yaml up -d
+#   docker compose -f compose.dev.yaml up -d
 #
 # For production:
-#   podman compose -f compose.prod.yaml up -d
+#   docker compose -f compose.prod.yaml up -d
 
 services:
   # =============================================================================

@@ -124,7 +124,7 @@ export default function AssessmentSetupPage() {
             await ivasApi.deleteCriteria(id);
             setCriteria(prev => prev.filter(c => c.id !== id));
             addToast({ title: "Criteria deleted", variant: "success" });
-        } catch (err) {
+        } catch {
             addToast({ title: "Failed to delete", variant: "error" });
         }
     };
@@ -173,12 +173,20 @@ export default function AssessmentSetupPage() {
     // Toggle expanded
     const toggleCriteria = (id: string) => setExpandedCriteria(prev => {
         const next = new Set(prev);
-        next.has(id) ? next.delete(id) : next.add(id);
+        if (next.has(id)) {
+            next.delete(id);
+        } else {
+            next.add(id);
+        }
         return next;
     });
     const toggleQuestion = (id: string) => setExpandedQuestions(prev => {
         const next = new Set(prev);
-        next.has(id) ? next.delete(id) : next.add(id);
+        if (next.has(id)) {
+            next.delete(id);
+        } else {
+            next.add(id);
+        }
         return next;
     });
 
@@ -263,21 +271,25 @@ export default function AssessmentSetupPage() {
                     {criteria.length === 0 ? (
                         <p className="text-sm text-muted-foreground text-center py-6">No criteria yet. Add some to define your rubric.</p>
                     ) : criteria.map(c => (
-                        <div key={c.id} className="border border-border/60 rounded-lg">
-                            <div
-                                className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/30"
-                                onClick={() => toggleCriteria(c.id)}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <span className="font-medium text-sm">{c.competency}</span>
-                                    <DifficultyBadge level={c.difficulty} />
-                                    <span className="text-xs text-muted-foreground">max {c.max_score} pts, weight {c.weight}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-700" onClick={(e) => { e.stopPropagation(); handleDeleteCriteria(c.id); }}>
+                        <div key={c.id} className="border border-border/60 rounded-lg overflow-hidden">
+                            <div className="flex items-center">
+                                <button
+                                    className="flex-1 flex items-center justify-between px-4 py-3 hover:bg-muted/30 text-left transition-colors"
+                                    onClick={() => toggleCriteria(c.id)}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <span className="font-medium text-sm">{c.competency}</span>
+                                        <DifficultyBadge level={c.difficulty} />
+                                        <span className="text-xs text-muted-foreground">max {c.max_score} pts, weight {c.weight}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {expandedCriteria.has(c.id) ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                    </div>
+                                </button>
+                                <div className="pr-4">
+                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-700" onClick={() => handleDeleteCriteria(c.id)}>
                                         <Trash2 className="h-3.5 w-3.5" />
                                     </Button>
-                                    {expandedCriteria.has(c.id) ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                                 </div>
                             </div>
                             {expandedCriteria.has(c.id) && (
@@ -329,24 +341,29 @@ export default function AssessmentSetupPage() {
                     {questions.length === 0 ? (
                         <p className="text-sm text-muted-foreground text-center py-6">No questions yet. Add questions for the viva examiner to use.</p>
                     ) : questions.map(q => (
-                        <div key={q.id} className="border border-border/60 rounded-lg">
-                            <div
-                                className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/30"
-                                onClick={() => toggleQuestion(q.id)}
-                            >
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm truncate">{q.question_text}</p>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        {q.competency && <Badge variant="secondary" className="text-xs">{q.competency}</Badge>}
-                                        <DifficultyBadge level={q.difficulty} />
+                        <div key={q.id} className="border border-border/60 rounded-lg overflow-hidden">
+                            <div className="flex items-center">
+                                <button
+                                    className="flex-1 flex items-center justify-between px-4 py-3 hover:bg-muted/30 text-left transition-colors"
+                                    onClick={() => toggleQuestion(q.id)}
+                                >
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm truncate">{q.question_text}</p>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            {q.competency && <Badge variant="secondary" className="text-xs">{q.competency}</Badge>}
+                                            <DifficultyBadge level={q.difficulty} />
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0 ml-3">
+                                    <div className="shrink-0 ml-3">
+                                        {expandedQuestions.has(q.id) ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                    </div>
+                                </button>
+                                <div className="pr-4 flex items-center gap-2">
                                     <Button
                                         variant="ghost"
                                         size="sm"
                                         className={cn("h-7 text-xs px-2", q.status === "approved" ? "text-emerald-600" : "text-amber-600")}
-                                        onClick={(e) => { e.stopPropagation(); handleToggleQuestionStatus(q); }}
+                                        onClick={() => handleToggleQuestionStatus(q)}
                                     >
                                         {q.status === "approved" ? (
                                             <><CheckCircle2 className="h-3 w-3 mr-1" />Approved</>
@@ -354,10 +371,9 @@ export default function AssessmentSetupPage() {
                                             "Draft"
                                         )}
                                     </Button>
-                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-700" onClick={(e) => { e.stopPropagation(); handleDeleteQuestion(q.id); }}>
+                                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-700" onClick={() => handleDeleteQuestion(q.id)}>
                                         <Trash2 className="h-3.5 w-3.5" />
                                     </Button>
-                                    {expandedQuestions.has(q.id) ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                                 </div>
                             </div>
                             {expandedQuestions.has(q.id) && (

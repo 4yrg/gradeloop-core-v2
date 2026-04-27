@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/gofiber/fiber/v3"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/service"
+	"github.com/gofiber/fiber/v3"
 )
 
 type BulkImportHandler struct {

@@ -16,13 +16,13 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
+from sklearn.metrics import f1_score, precision_score, recall_score
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import precision_score, recall_score, f1_score
+from tqdm import tqdm
 
 from clone_detection.features.syntactic_features import SyntacticFeatureExtractor
 from clone_detection.models.classifiers import SyntacticClassifier
-from clone_detection.utils.common_setup import setup_logging, load_config
+from clone_detection.utils.common_setup import load_config, setup_logging
 
 logger = setup_logging(__name__)
 
@@ -30,9 +30,7 @@ logger = setup_logging(__name__)
 # Dataset paths
 # ---------------------------------------------------------------------------
 
-TOMA_DATASET_DIR = Path(
-    "/home/iamdasun/Projects/4yrg/gradeloop-core-v2/datasets/toma-dataset"
-)
+TOMA_DATASET_DIR = Path("/home/iamdasun/Projects/4yrg/gradeloop-core-v2/datasets/toma-dataset")
 
 # Output model name used by Stage 1 of the two-stage pipeline.
 DEFAULT_MODEL_NAME = "clone_detector_xgb.pkl"
@@ -105,7 +103,7 @@ def _load_code(func_id: str, id2code_dir: Path) -> str | None:
     code_file = id2code_dir / f"{func_id}.java"
     if code_file.exists():
         try:
-            with open(code_file, "r", encoding="utf-8", errors="ignore") as fh:
+            with open(code_file, encoding="utf-8", errors="ignore") as fh:
                 return fh.read().strip() or None
         except Exception:
             return None
@@ -151,9 +149,7 @@ def load_toma_dataset(
             logger.warning(f"CSV not found: {csv_path} — skipping")
             continue
 
-        logger.info(
-            f"Loading {csv_name}  (label={binary_label}, target={target_count:,}) …"
-        )
+        logger.info(f"Loading {csv_name}  (label={binary_label}, target={target_count:,}) …")
 
         # ---- Read CSV --------------------------------------------------------
         if csv_name == "nonclone.csv":
@@ -173,9 +169,7 @@ def load_toma_dataset(
 
         # Sample down to target count if needed
         if len(df) > target_count:
-            logger.info(
-                f"  Sampling {target_count:,} / {len(df):,} rows from {csv_name}"
-            )
+            logger.info(f"  Sampling {target_count:,} / {len(df):,} rows from {csv_name}")
             df = df.sample(n=target_count, random_state=42)
 
         # ---- Load code pairs ------------------------------------------------
@@ -217,9 +211,7 @@ def extract_features(
     Feature extraction is identical to what evaluate.py uses so that the
     trained model can be applied directly without re-processing.
     """
-    extractor = SyntacticFeatureExtractor(
-        language=language, include_node_types=include_node_types
-    )
+    extractor = SyntacticFeatureExtractor(language=language, include_node_types=include_node_types)
     features: list[np.ndarray] = []
     failed = 0
 
@@ -353,8 +345,7 @@ def save_training_artifacts(
     metrics_payload = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "metrics": {
-            k: (round(float(v), 6) if isinstance(v, float) else v)
-            for k, v in metrics.items()
+            k: (round(float(v), 6) if isinstance(v, float) else v) for k, v in metrics.items()
         },
         "threshold_sweep": sweep,
         "top_20_features": top_features,
@@ -545,9 +536,7 @@ def train(
     logger.info("Two-Stage Clone Detection — Stage 1: XGBoost Clone Detector")
     logger.info("=" * 80)
     logger.info("Training objective : Clone vs NonClone (Type-1 + 2 + 3 = positive)")
-    logger.info(
-        "Stage 2 (Type-3 Filter) will be applied at inference time in evaluate.py"
-    )
+    logger.info("Stage 2 (Type-3 Filter) will be applied at inference time in evaluate.py")
     logger.info(f"n_estimators      : {n_estimators}")
     logger.info(f"max_depth         : {max_depth}")
     logger.info(f"learning_rate     : {learning_rate}")
@@ -560,9 +549,7 @@ def train(
     logger.info("Precision floor   : 0.80 (Type-3 Filter adds extra precision)")
     logger.info("")
     for csv_name, label, target, weight in DATASET_CONFIG:
-        logger.info(
-            f"  {csv_name:<16s}  label={label}  target={target:>6,}  weight={weight}×"
-        )
+        logger.info(f"  {csv_name:<16s}  label={label}  target={target:>6,}  weight={weight}×")
     logger.info("=" * 80)
 
     # ---- Handle sample_size ----------------------------------------------
@@ -574,9 +561,7 @@ def train(
             (csv_name, label, max(1, int(target * ratio)), weight)
             for csv_name, label, target, weight in DATASET_CONFIG
         ]
-        logger.info(
-            f"Applying sample_size={sample_size} (Scaling targets by {ratio:.4f})"
-        )
+        logger.info(f"Applying sample_size={sample_size} (Scaling targets by {ratio:.4f})")
         for csv_name, label, target, weight in config_to_use:
             logger.info(f"  {csv_name:<16s}  Target: {target:>6,}")
         logger.info("=" * 80)
@@ -590,9 +575,7 @@ def train(
     total = len(labels)
     n_pos = sum(labels)
     n_neg = total - n_pos
-    logger.info(
-        f"\nDataset: {total:,} pairs  |  Clones: {n_pos:,}  |  NonClones: {n_neg:,}"
-    )
+    logger.info(f"\nDataset: {total:,} pairs  |  Clones: {n_pos:,}  |  NonClones: {n_neg:,}")
 
     # Log per-source breakdown
     import collections
@@ -604,21 +587,21 @@ def train(
 
     # ---- Feature extraction -----------------------------------------------
     logger.info("\nExtracting hybrid String + AST + Structural Density features …")
-    X, feature_names = extract_features(
+    x_data, feature_names = extract_features(
         code1_list, code2_list, language="java", include_node_types=include_node_types
     )
     y = np.array(labels)
     s = np.array(sources)
     w = np.array(row_weights)
 
-    logger.info(f"Feature matrix: {X.shape}  ({len(feature_names)} features)")
+    logger.info(f"Feature matrix: {x_data.shape}  ({len(feature_names)} features)")
     logger.info("  String features      : 6")
     logger.info("  AST core features    : 7  (incl. structural_density ×3)")
     logger.info(f"  Node-type dists      : {len(feature_names) - 13}")
 
     # ---- Train/test split ------------------------------------------------
-    X_train, X_test, y_train, y_test, s_train, s_test, w_train, w_test = (
-        train_test_split(X, y, s, w, test_size=test_size, random_state=42, stratify=y)
+    x_train, x_test, y_train, y_test, s_train, s_test, w_train, w_test = train_test_split(
+        x_data, y, s, w, test_size=test_size, random_state=42, stratify=y
     )
 
     logger.info(f"\nTrain / test split  {1 - test_size:.0%} / {test_size:.0%}:")
@@ -627,12 +610,10 @@ def train(
 
     # ---- Dynamically compute scale_pos_weight ---------------------------
     # Using negative_samples / positive_samples
-    computed_scale_pos_weight = float(np.sum(y_train == 0)) / max(
-        1, np.sum(y_train == 1)
-    )
+    computed_scale_pos_weight = float(np.sum(y_train == 0)) / max(1, np.sum(y_train == 1))
     scale_pos_weight = computed_scale_pos_weight
     logger.info(
-        f"\nComputed scale_pos_weight = {scale_pos_weight:.4f} (neg={np.sum(y_train==0)} / pos={np.sum(y_train==1)})"
+        f"\nComputed scale_pos_weight = {scale_pos_weight:.4f} (neg={np.sum(y_train == 0)} / pos={np.sum(y_train == 1)})"
     )
 
     # ---- Per-row sample weight distribution (train) ----------------------
@@ -659,16 +640,16 @@ def train(
 
     classifier.model.set_params(scale_pos_weight=scale_pos_weight)
 
-    X_train_final = X_train
-    X_test_final = X_test
+    x_train_final = x_train
+    x_test_final = x_test
 
     logger.info("\nScaling features with StandardScaler...")
-    X_train_scaled = classifier.scaler.fit_transform(X_train_final)
-    X_test_scaled = classifier.scaler.transform(X_test_final)
+    x_train_scaled = classifier.scaler.fit_transform(x_train_final)
+    x_test_scaled = classifier.scaler.transform(x_test_final)
 
     # --- Feature Selection (importance >= 1%) ---
     logger.info("\nRunning preliminary training for Feature Selection...")
-    classifier.model.fit(X_train_scaled, y_train, sample_weight=w_train)
+    classifier.model.fit(x_train_scaled, y_train, sample_weight=w_train)
 
     importances = classifier.model.feature_importances_
     # features >= 1% importance
@@ -687,13 +668,13 @@ def train(
     if dropped_count > 0 and len(kept_indices) > 0:
         logger.info(f"Dropping {dropped_count} features with < 1% importance.")
         new_feature_names = [feature_names[i] for i in kept_indices]
-        X_train_final = X_train[:, kept_indices]
-        X_test_final = X_test[:, kept_indices]
+        x_train_final = x_train[:, kept_indices]
+        x_test_final = x_test[:, kept_indices]
 
         # update classifier features and fit scaler again on filtered features
         classifier.feature_names = new_feature_names
-        X_train_scaled = classifier.scaler.fit_transform(X_train_final)
-        X_test_scaled = classifier.scaler.transform(X_test_final)
+        x_train_scaled = classifier.scaler.fit_transform(x_train_final)
+        x_test_scaled = classifier.scaler.transform(x_test_final)
     else:
         logger.info("Keeping all features (none < 1% or all dropped).")
 
@@ -723,7 +704,7 @@ def train(
         n_jobs=-1,
     )
     # Fit random search (don't use early stopping/eval set here as CV handles it)
-    random_search.fit(X_train_scaled, y_train, sample_weight=w_train)
+    random_search.fit(x_train_scaled, y_train, sample_weight=w_train)
 
     best_params = random_search.best_params_
     logger.info(f"Best hyperparameters found for F1: {best_params}")
@@ -736,10 +717,10 @@ def train(
     logger.info("\nTraining Final XGBoost Clone Detector with Early Stopping …")
 
     classifier.model.fit(
-        X_train_scaled,
+        x_train_scaled,
         y_train,
         sample_weight=w_train,
-        eval_set=[(X_test_scaled, y_test)],
+        eval_set=[(x_test_scaled, y_test)],
         verbose=False,
     )
     classifier.is_trained = True
@@ -747,13 +728,11 @@ def train(
     # ---- Threshold sweep -------------------------------------------------
     logger.info("\nRunning threshold sweep (0.30 → 0.80) to maximize F1 …")
     # predict_proba expects unscaled features, it scales them automatically inside
-    y_proba_test = classifier.predict_proba(X_test_final)[:, 1]
+    y_proba_test = classifier.predict_proba(x_test_final)[:, 1]
     sweep = threshold_sweep(y_test, y_proba_test)
 
-    logger.info(
-        f"\n  {'Thresh':>7} | {'Precision':>9} | {'Recall':>7} | {'F1':>7} | Floor?"
-    )
-    logger.info(f"  {'-'*7}-+-{'-'*9}-+-{'-'*7}-+-{'-'*7}-+-{'-'*6}")
+    logger.info(f"\n  {'Thresh':>7} | {'Precision':>9} | {'Recall':>7} | {'F1':>7} | Floor?")
+    logger.info(f"  {'-' * 7}-+-{'-' * 9}-+-{'-' * 7}-+-{'-' * 7}-+-{'-' * 6}")
     for row in sweep:
         flag = "✓" if row["meets_floor"] else "✗"
         logger.info(
@@ -766,11 +745,11 @@ def train(
 
     from sklearn.metrics import (
         accuracy_score,
+        confusion_matrix,
+        f1_score,
         precision_score,
         recall_score,
-        f1_score,
         roc_auc_score,
-        confusion_matrix,
     )
 
     y_pred_best = (y_proba_test >= best["threshold"]).astype(int)
@@ -801,7 +780,7 @@ def train(
     y_pred_best = (y_proba_test >= best["threshold"]).astype(int)
     logger.info("\nPer-Source Metrics at Selected Clone Detector Threshold:")
     logger.info(f"  {'Source':<18} | {'Metric':<7} | Value")
-    logger.info(f"  {'-'*18}-+-{'-'*7}-+-{'-'*6}")
+    logger.info(f"  {'-' * 18}-+-{'-' * 7}-+-{'-' * 6}")
     for src in sorted(np.unique(s_test)):
         mask = s_test == src
         yt = y_test[mask]
@@ -819,7 +798,7 @@ def train(
     # ---- Feature importance ----------------------------------------------
     logger.info("\nTop-20 Feature Importances:")
     logger.info(f"  {'Feature':<50} | Importance")
-    logger.info(f"  {'-'*50}-+-{'-'*10}")
+    logger.info(f"  {'-' * 50}-+-{'-' * 10}")
     for feat_name, imp in classifier.get_feature_importance_sorted()[:20]:
         logger.info(f"  {feat_name:<50s} | {imp:.4f}")
 
@@ -849,12 +828,10 @@ def train(
         output_dir=output_dir,
     )
 
-    logger.info(f"\n{'='*80}")
+    logger.info(f"\n{'=' * 80}")
     logger.info(f"Model saved → {saved_path}")
     logger.info(f"Clone detector threshold: {best['threshold']:.2f}")
-    logger.info(
-        "Next step: run evaluate.py to measure Type-3 recall via the Type-3 Filter"
-    )
+    logger.info("Next step: run evaluate.py to measure Type-3 recall via the Type-3 Filter")
     logger.info(f"  poetry run python evaluate.py --threshold {best['threshold']:.2f}")
     logger.info("  or sweep thresholds for the best Type-3 F1:")
     logger.info("  for t in 0.10 0.15 0.20 0.25 0.30; do")
@@ -943,26 +920,21 @@ if __name__ == "__main__":
 
     # Build parameters (CLI overrides config)
     params = {
-        "model_name": args.model_name
-        or model_config.get("name", "clone_detector_xgb.pkl"),
+        "model_name": args.model_name or model_config.get("name", "clone_detector_xgb.pkl"),
         "sample_size": args.sample_size or training_config.get("sample_size"),
         "n_estimators": args.n_estimators or xgboost_config.get("n_estimators", 500),
         "max_depth": args.max_depth or xgboost_config.get("max_depth", 8),
-        "learning_rate": args.learning_rate
-        or xgboost_config.get("learning_rate", 0.05),
+        "learning_rate": args.learning_rate or xgboost_config.get("learning_rate", 0.05),
         "subsample": xgboost_config.get("subsample", 0.9),
         "colsample_bytree": xgboost_config.get("colsample_bytree", 0.8),
         "min_child_weight": xgboost_config.get("min_child_weight", 2),
         "gamma": xgboost_config.get("gamma", 0.1),
         "reg_lambda": xgboost_config.get("reg_lambda", 1.0),
-        "scale_pos_weight": (
-            args.scale_pos_weight or xgboost_config.get("scale_pos_weight", 2.0)
-        ),
+        "scale_pos_weight": (args.scale_pos_weight or xgboost_config.get("scale_pos_weight", 2.0)),
         "include_node_types": not args.no_node_types
         and features_config.get("include_node_types", True),
         "use_gpu": args.use_gpu or xgboost_config.get("use_gpu", False),
-        "output_dir": args.output_dir
-        or Path(model_config.get("output_dir", "./results/train")),
+        "output_dir": args.output_dir or Path(model_config.get("output_dir", "./results/train")),
         "test_size": training_config.get("test_size", 0.2),
         "dataset_config": training_config.get("dataset_config"),
         "toma_path": config.get("datasets", {}).get("toma", {}).get("path"),

@@ -10,6 +10,13 @@ import torch
 import torch.nn as nn
 from transformers import AutoModel
 
+try:
+    import numpy._core.multiarray as _scalar
+
+    torch.serialization.add_safe_globals([_scalar])
+except Exception:
+    pass
+
 
 class SemanticCloneModel(nn.Module):
     """
@@ -115,7 +122,7 @@ def load_model(
     )
 
     # Load checkpoint
-    checkpoint = torch.load(model_path, map_location=device, weights_only=False)
+    checkpoint = torch.load(model_path, map_location=device, weights_only=True)
 
     # Handle different checkpoint formats
     if "model_state_dict" in checkpoint:

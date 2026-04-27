@@ -3,10 +3,10 @@ package handler
 import (
 	"time"
 
-	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/dto"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/service"
+	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 type AuthHandler struct {

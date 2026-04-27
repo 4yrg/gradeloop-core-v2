@@ -8,12 +8,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gofiber/fiber/v3"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/cipas/cipas-xai/internal/client"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/cipas/cipas-xai/internal/config"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/cipas/cipas-xai/internal/handler"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/cipas/cipas-xai/internal/router"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/cipas/cipas-xai/internal/service"
+	"github.com/gofiber/fiber/v3"
 	"go.uber.org/zap"
 )
 

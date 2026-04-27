@@ -1,0 +1,218 @@
+# =============================================================================
+# GradeLoop Core v2 - Infrastructure Compose
+# =============================================================================
+# Separate infrastructure stack for production deployment.
+# This file should be deployed BEFORE application services.
+#
+# Usage:
+#   docker compose -p infra -f infra/compose/compose.infra.yaml up -d
+#
+# Important:
+#   - Uses explicit project name "-p infra" to avoid collisions
+#   - Healthchecks enabled for all services
+#   - Versions pinned for production stability
+# =============================================================================
+
+x-shared-environment: &shared_env
+  GRA_DB_USER: ${GRA_DB_USER:-postgres}
+  GRA_DB_PASSWORD: ${GRA_DB_PASSWORD:-postgres}
+  GRA_DB_HOST: postgres
+  GRA_DB_PORT: 5432
+  GRA_DB_SSLMODE: ${GRA_DB_SSLMODE:-disable}
+
+services:
+  # =============================================================================
+  # Main PostgreSQL Database
+  # =============================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: gradeloop-infra-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${GRA_DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${GRA_DB_PASSWORD:-postgres}
+      - POSTGRES_DB=${IAM_SVC_DB_NAME:-iam_db}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - gradeloop-infra-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${GRA_DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+
+  # =============================================================================
+  # Keystroke Dedicated PostgreSQL Database
+  # =============================================================================
+  postgres-keystroke:
+    image: postgres:16-alpine
+    container_name: gradeloop-infra-postgres-keystroke
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=keystroke_user
+      - POSTGRES_PASSWORD=${KEYSTROKE_DB_PASSWORD:-keystroke_pass}
+      - POSTGRES_DB=keystroke-db
+    volumes:
+      - postgres-keystroke-data:/var/lib/postgresql/data
+    networks:
+      - gradeloop-infra-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keystroke_user -d keystroke-db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+
+  # =============================================================================
+  # RabbitMQ (Message Queue)
+  # =============================================================================
+  rabbitmq:
+    image: rabbitmq:4.2-management-alpine
+    container_name: gradeloop-infra-rabbitmq
+    restart: unless-stopped
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-guest}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    networks:
+      - gradeloop-infra-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+
+  # =============================================================================
+  # Redis (Cache)
+  # =============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: gradeloop-infra-redis
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    networks:
+      - gradeloop-infra-network
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_pass}
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+
+  # =============================================================================
+  # SeaweedFS (File Storage)
+  # =============================================================================
+  seaweedfs:
+    image: chrislusf/seaweedfs:3.71
+    container_name: gradeloop-infra-seaweedfs
+    restart: unless-stopped
+    environment:
+      - WEEAD_IDENTITY=seaweedfs
+    ports:
+      - "9333:9333"   # S3 API
+      - "9320:9320"   # Console
+      - "8080:8080"   # Volume server
+    volumes:
+      - seaweed-data:/data
+    networks:
+      - gradeloop-infra-network
+    command: server -s3 -identity=seaweedfs -s3Port=9333 -consolePort=9320
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9320/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+
+  # =============================================================================
+  # Kong Database (Gateway Configuration)
+  # =============================================================================
+  kong-database:
+    image: postgres:16-alpine
+    container_name: gradeloop-infra-kong-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=kong
+      - POSTGRES_PASSWORD=${KONG_DB_PASSWORD:-kong_pass}
+      - POSTGRES_DB=kong
+    volumes:
+      - kong-database-data:/var/lib/postgresql/data
+    networks:
+      - gradeloop-infra-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kong -d kong"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+
+networks:
+  gradeloop-infra-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  postgres-keystroke-data:
+  rabbitmq-data:
+    name: gradeloop-infra-rabbitmq-data
+  rabbitmq-config:
+    name: gradeloop-infra-rabbitmq-config
+  redis-data:
+  seaweed-data:
+  kong-database-data:

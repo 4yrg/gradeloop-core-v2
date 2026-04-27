@@ -9,16 +9,13 @@ via _run_column_migrations(), which is safe to call repeatedly.
 """
 
 from sqlalchemy import (
-    Boolean,
     Column,
     DateTime,
-    Float,
     ForeignKey,
     Index,
     Integer,
     Numeric,
     Text,
-    UniqueConstraint,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -79,9 +76,7 @@ class SubmissionGrade(Base):
 
 class SubmissionCriterionScore(Base):
     __tablename__ = "submission_criteria_scores"
-    __table_args__ = (
-        Index("idx_criteria_submission_id", "submission_id"),
-    )
+    __table_args__ = (Index("idx_criteria_submission_id", "submission_id"),)
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     submission_id = Column(
@@ -130,9 +125,7 @@ class ChatSession(Base):
 
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
-    __table_args__ = (
-        Index("idx_chat_messages_session_id", "session_id"),
-    )
+    __table_args__ = (Index("idx_chat_messages_session_id", "session_id"),)
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     session_id = Column(

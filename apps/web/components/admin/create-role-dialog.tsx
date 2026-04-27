@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { Copy } from "lucide-react";
 import {
     SideDialog,
     SideDialogContent,
@@ -34,7 +33,6 @@ export function CreateRoleDialog({
     open,
     onOpenChange,
     roles,
-    permissions,
     groupedPermissions,
     onSuccess,
 }: Props) {

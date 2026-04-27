@@ -505,6 +505,7 @@ async def _bridge_gemini_live(
 # Endpoints
 # =============================================================================
 
+
 @router.websocket("/ws/ivas/viva")
 async def gemini_voice_chat(websocket: WebSocket) -> None:
     """Standalone Gemini voice chat — no DB, no session."""
@@ -774,6 +775,7 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
     logger.info("session_ws_accepted", session_id=session_id)
 
     from app.main import postgres_client as db
+
     if db is None:
         await websocket.send_json({"type": "error", "data": "Service not ready."})
         await websocket.close()

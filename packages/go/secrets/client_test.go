@@ -26,7 +26,7 @@ func TestDefaultConfig(t *testing.T) {
 func TestDefaultConfigFromEnv(t *testing.T) {
 	// Set environment variables
 	os.Setenv("VAULT_ADDR", "https://vault.example.com:8200")
-	os.Setenv("VAULT_TOKEN", "test-token")
+	os.Setenv("VAULT_TOKEN", "DUMMY_TOKEN_FOR_TESTING")
 	os.Setenv("VAULT_NAMESPACE", "test-namespace")
 	os.Setenv("VAULT_MOUNT_PATH", "custom-secret")
 	defer func() {
@@ -40,7 +40,7 @@ func TestDefaultConfigFromEnv(t *testing.T) {
 	if cfg.Address != "https://vault.example.com:8200" {
 		t.Errorf("Expected address from env, got %s", cfg.Address)
 	}
-	if cfg.Token != "test-token" {
+	if cfg.Token != "DUMMY_TOKEN_FOR_TESTING" {
 		t.Errorf("Expected token from env, got %s", cfg.Token)
 	}
 	if cfg.Namespace != "test-namespace" {
@@ -56,13 +56,13 @@ func TestConnectionString(t *testing.T) {
 		Host:     "localhost",
 		Port:     "5432",
 		Username: "testuser",
-		Password: "testpass",
+		Password: "DUMMY_PASSWORD",
 		Database: "testdb",
 		SSLMode:  "disable",
 	}
 
 	connStr := dbConfig.ConnectionString()
-	expected := "host=localhost port=5432 user=testuser password=testpass dbname=testdb sslmode=disable"
+	expected := "host=localhost port=5432 user=testuser password=DUMMY_PASSWORD dbname=testdb sslmode=disable"
 
 	if connStr != expected {
 		t.Errorf("Expected connection string '%s', got '%s'", expected, connStr)
@@ -74,7 +74,7 @@ func TestDatabaseConfigConnectionStringWithSSL(t *testing.T) {
 		Host:     "db.example.com",
 		Port:     "5432",
 		Username: "prod_user",
-		Password: "secure_pass",
+		Password: "DUMMY_SECURE_PASS",
 		Database: "proddb",
 		SSLMode:  "require",
 	}
@@ -83,7 +83,7 @@ func TestDatabaseConfigConnectionStringWithSSL(t *testing.T) {
 	if connStr == "" {
 		t.Error("Connection string should not be empty")
 	}
-	
+
 	// Check if SSL mode is in the connection string
 	expected := "sslmode=require"
 	found := false
@@ -116,7 +116,7 @@ func TestRedisAddrRemote(t *testing.T) {
 	redisConfig := &RedisConfig{
 		Host:     "redis.example.com",
 		Port:     "6380",
-		Password: "redis_pass",
+		Password: "DUMMY_REDIS_PASS",
 		DB:       "1",
 	}
 
@@ -131,7 +131,7 @@ func TestRedisAddrRemote(t *testing.T) {
 func TestNewClientWithInvalidConfig(t *testing.T) {
 	cfg := &Config{
 		Address:    "",
-		Token:      "test-token",
+		Token:      "DUMMY_TOKEN",
 		Timeout:    5 * time.Second,
 		MaxRetries: 3,
 	}
@@ -145,7 +145,7 @@ func TestNewClientWithInvalidConfig(t *testing.T) {
 func TestNewClientWithNilConfig(t *testing.T) {
 	// Set env vars for default config
 	os.Setenv("VAULT_ADDR", "http://localhost:8200")
-	os.Setenv("VAULT_TOKEN", "test-token")
+	os.Setenv("VAULT_TOKEN", "DUMMY_TOKEN")
 	defer func() {
 		os.Unsetenv("VAULT_ADDR")
 		os.Unsetenv("VAULT_TOKEN")
@@ -158,7 +158,7 @@ func TestNewClientWithNilConfig(t *testing.T) {
 	if client == nil {
 		t.Error("Expected client to be created")
 	}
-	
+
 	if client != nil {
 		_ = client.Close()
 	}
@@ -167,7 +167,7 @@ func TestNewClientWithNilConfig(t *testing.T) {
 func TestNewClientWithValidConfig(t *testing.T) {
 	cfg := &Config{
 		Address:    "http://localhost:8200",
-		Token:      "test-token",
+		Token:      "DUMMY_TOKEN",
 		Namespace:  "test",
 		MountPath:  "secret",
 		Timeout:    30 * time.Second,
@@ -231,7 +231,7 @@ func TestGetEnvHelper(t *testing.T) {
 func TestGetSecretKeyNotFound(t *testing.T) {
 	cfg := &Config{
 		Address:   "http://localhost:8200",
-		Token:     "test-token",
+		Token:     "DUMMY_TOKEN",
 		MountPath: "secret",
 		Timeout:   5 * time.Second,
 	}
@@ -251,7 +251,7 @@ func TestGetSecretKeyNotFound(t *testing.T) {
 func TestGetDatabaseConfigStructure(t *testing.T) {
 	cfg := &Config{
 		Address:   "http://localhost:8200",
-		Token:     "test-token",
+		Token:     "DUMMY_TOKEN",
 		MountPath: "secret",
 		Timeout:   5 * time.Second,
 	}
@@ -274,7 +274,7 @@ func TestGetDatabaseConfigStructure(t *testing.T) {
 func TestGetJWTConfigStructure(t *testing.T) {
 	cfg := &Config{
 		Address:   "http://localhost:8200",
-		Token:     "test-token",
+		Token:     "DUMMY_TOKEN",
 		MountPath: "secret",
 		Timeout:   5 * time.Second,
 	}
@@ -297,7 +297,7 @@ func TestGetJWTConfigStructure(t *testing.T) {
 func TestGetRedisConfigStructure(t *testing.T) {
 	cfg := &Config{
 		Address:   "http://localhost:8200",
-		Token:     "test-token",
+		Token:     "DUMMY_TOKEN",
 		MountPath: "secret",
 		Timeout:   5 * time.Second,
 	}
@@ -320,7 +320,7 @@ func TestGetRedisConfigStructure(t *testing.T) {
 func TestGetSecretMapStructure(t *testing.T) {
 	cfg := &Config{
 		Address:   "http://localhost:8200",
-		Token:     "test-token",
+		Token:     "DUMMY_TOKEN",
 		MountPath: "secret",
 		Timeout:   5 * time.Second,
 	}
@@ -343,7 +343,7 @@ func TestGetSecretMapStructure(t *testing.T) {
 func TestConfigWithCustomTimeout(t *testing.T) {
 	cfg := &Config{
 		Address:    "http://localhost:8200",
-		Token:      "test-token",
+		Token:      "DUMMY_TOKEN",
 		Timeout:    60 * time.Second,
 		MaxRetries: 5,
 	}
@@ -359,7 +359,7 @@ func TestConfigWithCustomTimeout(t *testing.T) {
 func TestDatabaseConfigFields(t *testing.T) {
 	db := &DatabaseConfig{
 		Username: "user",
-		Password: "pass",
+		Password: "DUMMY_PASSWORD",
 		Host:     "host",
 		Port:     "5432",
 		Database: "db",
@@ -369,7 +369,7 @@ func TestDatabaseConfigFields(t *testing.T) {
 	if db.Username != "user" {
 		t.Error("Username mismatch")
 	}
-	if db.Password != "pass" {
+	if db.Password != "DUMMY_PASSWORD" {
 		t.Error("Password mismatch")
 	}
 	if db.Host != "host" {
@@ -388,13 +388,13 @@ func TestDatabaseConfigFields(t *testing.T) {
 
 func TestJWTConfigFields(t *testing.T) {
 	jwt := &JWTConfig{
-		Secret:        "secret",
+		Secret:        "DUMMY_JWT_SECRET",
 		Algorithm:     "HS256",
 		Expiry:        "24h",
 		RefreshExpiry: "168h",
 	}
 
-	if jwt.Secret != "secret" {
+	if jwt.Secret != "DUMMY_JWT_SECRET" {
 		t.Error("Secret mismatch")
 	}
 	if jwt.Algorithm != "HS256" {
@@ -412,7 +412,7 @@ func TestRedisConfigFields(t *testing.T) {
 	redis := &RedisConfig{
 		Host:     "localhost",
 		Port:     "6379",
-		Password: "pass",
+		Password: "DUMMY_REDIS_PASS",
 		DB:       "0",
 	}
 
@@ -422,7 +422,7 @@ func TestRedisConfigFields(t *testing.T) {
 	if redis.Port != "6379" {
 		t.Error("Port mismatch")
 	}
-	if redis.Password != "pass" {
+	if redis.Password != "DUMMY_REDIS_PASS" {
 		t.Error("Password mismatch")
 	}
 	if redis.DB != "0" {

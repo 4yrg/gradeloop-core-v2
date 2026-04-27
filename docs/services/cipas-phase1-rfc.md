@@ -1,12 +1,12 @@
 # CIPAS Phase 1 — Engineering RFC
 ## Code Integrity Analysis Service: Foundational Infrastructure, Multi-Language Parsing, Parallel Ingestion & Vector-Ready Storage
 
-**RFC Number:** CIPAS-001  
-**Status:** APPROVED  
-**Authors:** Platform Engineering  
-**Created:** 2025-07-18  
-**Target Service:** `apps/services/cipas-service`  
-**Supersedes:** N/A  
+**RFC Number:** CIPAS-001
+**Status:** APPROVED
+**Authors:** Platform Engineering
+**Created:** 2025-07-18
+**Target Service:** `apps/services/cipas-service`
+**Supersedes:** N/A
 
 ---
 
@@ -918,9 +918,9 @@ With 4 concurrent batches and 20 max connections, each batch has up to 5 connect
 - Files: average 200 LOC, mix of Java/Python/C
 - DB: PostgreSQL on same Docker network (< 1ms round-trip)
 
-**Per-file parse time:** ~8ms (measured tree-sitter parse + granule extraction for 200-LOC file)  
-**Per-batch time (200 files, 4 workers):** `ceil(200/4) × 8ms = 400ms` parsing  
-**DB insert time (200 files, ~600 granules):** ~50ms (bulk insert, single transaction)  
+**Per-file parse time:** ~8ms (measured tree-sitter parse + granule extraction for 200-LOC file)
+**Per-batch time (200 files, 4 workers):** `ceil(200/4) × 8ms = 400ms` parsing
+**DB insert time (200 files, ~600 granules):** ~50ms (bulk insert, single transaction)
 **Total per-batch:** ~500ms (well within 2s SLA)
 
 **Throughput at 4 concurrent batches:**

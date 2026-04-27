@@ -3,11 +3,11 @@ Redis Client Module
 High-speed session buffering with TTL for keystroke events
 """
 
-import os
 import json
-from typing import List, Dict, Optional
-import redis
+import os
 from datetime import datetime
+
+import redis
 
 
 class RedisSessionClient:
@@ -24,7 +24,7 @@ class RedisSessionClient:
             redis_url: Redis connection string (from env if not provided)
             session_ttl: Session TTL in seconds (default 2 hours)
         """
-        self.redis_url = redis_url or os.getenv("REDIS_URL", "redis://localhost:6379")
+        self.redis_url = redis_url or os.getenv("KEYSTROKE_REDIS_URL", "redis://localhost:6379")
         self.session_ttl = session_ttl
 
         try:
@@ -57,9 +57,7 @@ class RedisSessionClient:
 
     # ==================== Session Management ====================
 
-    def create_session(
-        self, user_id: str, session_id: str, metadata: Dict = None
-    ) -> bool:
+    def create_session(self, user_id: str, session_id: str, metadata: dict = None) -> bool:
         """
         Create new session with metadata
 
@@ -125,7 +123,7 @@ class RedisSessionClient:
         else:
             return session_key in self._memory_store
 
-    def get_session_metadata(self, user_id: str, session_id: str) -> Optional[Dict]:
+    def get_session_metadata(self, user_id: str, session_id: str) -> dict | None:
         """Get session metadata"""
         session_key = self._get_session_key(user_id, session_id)
 
@@ -155,9 +153,7 @@ class RedisSessionClient:
                 return {k: v for k, v in session.items() if k != "events"}
             return None
 
-    def update_session_metadata(
-        self, user_id: str, session_id: str, updates: Dict
-    ) -> bool:
+    def update_session_metadata(self, user_id: str, session_id: str, updates: dict) -> bool:
         """Update session metadata fields"""
         session_key = self._get_session_key(user_id, session_id)
 
@@ -208,7 +204,7 @@ class RedisSessionClient:
     # ==================== Event Buffering ====================
 
     def append_events(
-        self, user_id: str, session_id: str, events: List[Dict], max_buffer: int = 500
+        self, user_id: str, session_id: str, events: list[dict], max_buffer: int = 500
     ) -> int:
         """
         Append keystroke events to session buffer
@@ -267,15 +263,15 @@ class RedisSessionClient:
             self._memory_store[session_key]["events"].extend(events)
             # Circular buffer
             if len(self._memory_store[session_key]["events"]) > max_buffer:
-                self._memory_store[session_key]["events"] = self._memory_store[
-                    session_key
-                ]["events"][-max_buffer:]
+                self._memory_store[session_key]["events"] = self._memory_store[session_key][
+                    "events"
+                ][-max_buffer:]
 
             return len(self._memory_store[session_key]["events"])
 
     def get_events(
         self, user_id: str, session_id: str, count: int = None, start: int = 0
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Retrieve events from session buffer
 
@@ -296,9 +292,7 @@ class RedisSessionClient:
                 if count is None:
                     events_json = self.client.lrange(events_key, start, -1)
                 else:
-                    events_json = self.client.lrange(
-                        events_key, start, start + count - 1
-                    )
+                    events_json = self.client.lrange(events_key, start, start + count - 1)
 
                 return [json.loads(e) for e in events_json]
 
@@ -315,9 +309,7 @@ class RedisSessionClient:
                     return events[start : start + count]
             return []
 
-    def get_recent_events(
-        self, user_id: str, session_id: str, count: int = 100
-    ) -> List[Dict]:
+    def get_recent_events(self, user_id: str, session_id: str, count: int = 100) -> list[dict]:
         """Get most recent N events"""
         events_key = self._get_events_key(user_id, session_id)
 
@@ -352,9 +344,7 @@ class RedisSessionClient:
 
     # ==================== Session Session Start Time ====================
 
-    def get_session_start_time(
-        self, user_id: str, session_id: str
-    ) -> Optional[datetime]:
+    def get_session_start_time(self, user_id: str, session_id: str) -> datetime | None:
         """Get session creation timestamp"""
         metadata = self.get_session_metadata(user_id, session_id)
         if metadata and "created_at" in metadata:
@@ -366,7 +356,7 @@ class RedisSessionClient:
 
     # ==================== Utility ====================
 
-    def get_all_sessions(self) -> List[Dict]:
+    def get_all_sessions(self) -> list[dict]:
         """Get all active sessions (for monitoring/debugging)"""
         if self.enabled:
             try:

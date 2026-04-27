@@ -62,7 +62,7 @@ COPY requirements.txt schema.sql enrollment_tasks.json sample_session.json ./
 COPY models/ ./models/
 
 RUN mkdir -p /app/models \
-    && addgroup -S keystroke && adduser -S keystroke -G keystroke \
+    && groupadd -r keystroke && useradd -r -g keystroke keystroke \
     && chown -R keystroke:keystroke /app
 
 USER keystroke

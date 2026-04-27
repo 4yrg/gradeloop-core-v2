@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import type { AnalyticsData, BehavioralAnalysis } from "@/lib/api/keystroke";
+import type { AnalyticsData } from "@/lib/api/keystroke";
 import { ProcessScoreGauge } from "./ProcessScoreGauge";
 import { RiskTimelineChart } from "./RiskTimelineChart";
 import { CognitiveLoadChart } from "./CognitiveLoadChart";
@@ -121,7 +121,20 @@ export function BehaviorAnalyticsPanel({ data, onRetryAi }: BehaviorAnalyticsPan
             setRetrying(false);
         }
     }
-    if (!data.analysis_available || !data.behavioral_analysis) {
+    const ba = data.behavioral_analysis;
+    const llmError = ba?.llm_insights?.error;
+
+    // Log LLM error to console so it's visible in dev-tools / server logs
+    useEffect(() => {
+        if (llmError) {
+            console.error(
+                `[BehaviorAnalytics] Gemini AI analysis failed for session ${data.session_id}:`,
+                llmError,
+            );
+        }
+    }, [llmError, data.session_id]);
+
+    if (!data.analysis_available || !ba) {
         return (
             <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
                 <Info className="h-8 w-8 text-muted-foreground" />
@@ -134,7 +147,6 @@ export function BehaviorAnalyticsPanel({ data, onRetryAi }: BehaviorAnalyticsPan
         );
     }
 
-    const ba: BehavioralAnalysis = data.behavioral_analysis;
     const sm = ba.session_metrics;
     const ai = ba.authenticity_indicators;
     const ca = ba.cognitive_analysis;
@@ -149,15 +161,11 @@ export function BehaviorAnalyticsPanel({ data, onRetryAi }: BehaviorAnalyticsPan
         overallScore >= 75 ? "success" : overallScore >= 50 ? "warning" : "danger";
 
     // ── LLM / AI insights ─────────────────────────────────────────────────────
-    // ba.pedagogical_feedback is ALWAYS populated (rule-based fallback or LLM).
-    // ba.llm_insights is {} when no Gemini key; has llm_analysis when Gemini ran.
     const llm = ba.llm_insights ?? {};
     const llmAnalysis = llm.llm_analysis ?? {};
-    // Top-level pedagogical_feedback (always present — rule-based or LLM)
     const pedFeedback = ba.pedagogical_feedback ?? {};
 
     const narrativeText: string = pedFeedback.narrative ?? llmAnalysis.narrative_summary ?? "";
-    // Filter out null placeholders produced by the rule-based fallback
     const recommendations: string[] =
         (pedFeedback.recommendations ?? llmAnalysis.pedagogical_recommendations ?? [])
             .filter((r): r is string => typeof r === "string" && r.trim().length > 0);
@@ -168,25 +176,11 @@ export function BehaviorAnalyticsPanel({ data, onRetryAi }: BehaviorAnalyticsPan
     const cognitiveInsights: string = llmAnalysis.cognitive_insights ?? "";
     const authenticityAssessment: string = llmAnalysis.authenticity_assessment ?? "";
     const confidenceAssessment: string = llmAnalysis.confidence_assessment ?? "";
-    // Gemini produced rich analysis
     const hasGeminiAnalysis = !!(developmentalLogic || cognitiveInsights || authenticityAssessment || narrativeText);
-    // At least rule-based recommendations exist
     const hasBasicFeedback = recommendations.length > 0 || struggleConcepts.length > 0;
-    const llmError: string | undefined = llm.error;
-    // Filter the backend placeholder that appears when friction_points is empty
     const filteredFrictionConcepts = ca.high_friction_concepts.filter(
         (c) => c !== "See friction points for details",
-    );
-
-    // Log LLM error to console so it's visible in dev-tools / server logs
-    useEffect(() => {
-        if (llmError) {
-            console.error(
-                `[BehaviorAnalytics] Gemini AI analysis failed for session ${data.session_id}:`,
-                llmError,
-            );
-        }
-    }, [llmError, data.session_id]);
+    ) ?? [];
 
     return (
         <div className="space-y-6">
