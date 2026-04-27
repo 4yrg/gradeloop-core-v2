@@ -453,6 +453,7 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
                         {[
                           { title: "My Sessions", href: "/student/assessments/my-sessions" },
                           { title: "Voice Enrollment", href: "/student/assessments/voice-enrollment" },
+                          { title: "Competencies", href: "/student/assessments/competencies" },
                         ].map((subItem) => {
                           const isChildActive = pathname === subItem.href || pathname.startsWith(subItem.href + "/");
                           return (

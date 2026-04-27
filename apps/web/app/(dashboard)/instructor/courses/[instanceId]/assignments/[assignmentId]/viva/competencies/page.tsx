@@ -15,7 +15,23 @@ import {
     Loader2,
     Save,
     X,
+    BarChart3,
+    Users,
 } from "lucide-react";
+import {
+    Radar,
+    RadarChart,
+    PolarGrid,
+    PolarAngleAxis,
+    PolarRadiusAxis,
+    ResponsiveContainer,
+    Tooltip,
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+} from "recharts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,6 +48,7 @@ import type {
     CompetencyOut,
     CompetencyAssignmentLinkOut,
     GeneratedCompetency,
+    CompetencyScoreSummary,
 } from "@/types/ivas";
 
 function DifficultyBadge({ difficulty }: { difficulty: number }) {
@@ -67,12 +84,259 @@ interface EditableCompetency {
     isEditing?: boolean;
 }
 
+function CompetencyDashboard({
+    scores,
+    loading,
+    error,
+}: {
+    scores: CompetencyScoreSummary[];
+    loading: boolean;
+    error: string | null;
+}) {
+    const uniqueCompetencies = React.useMemo(() => {
+        const map = new Map<string, { id: string; name: string; maxScore: number }>();
+        for (const s of scores) {
+            if (!map.has(s.competency_id)) {
+                map.set(s.competency_id, { id: s.competency_id, name: s.competency_name, maxScore: s.max_score });
+            }
+        }
+        return [...map.values()];
+    }, [scores]);
+
+    const uniqueStudents = React.useMemo(() => [...new Set(scores.map(s => s.student_id))], [scores]);
+
+    const byStudent = React.useMemo(() => {
+        const map = new Map<string, CompetencyScoreSummary[]>();
+        for (const s of scores) {
+            if (!map.has(s.student_id)) map.set(s.student_id, []);
+            map.get(s.student_id)!.push(s);
+        }
+        return map;
+    }, [scores]);
+
+    const radarData = React.useMemo(() =>
+        uniqueCompetencies.map(c => {
+            const compScores = scores.filter(s => s.competency_id === c.id && s.avg_score !== null);
+            const avg = compScores.length > 0
+                ? compScores.reduce((sum, s) => sum + (s.avg_score ?? 0), 0) / compScores.length
+                : 0;
+            const max = c.maxScore > 0 ? c.maxScore : 10;
+            return {
+                competency: c.name.length > 16 ? c.name.slice(0, 13) + "..." : c.name,
+                score: Math.round((avg / max) * 100),
+                fullMark: 100,
+            };
+        }),
+        [uniqueCompetencies, scores]
+    );
+
+    const classAvg = React.useMemo(() => {
+        if (scores.length === 0) return 0;
+        const withScores = scores.filter(s => s.avg_score !== null);
+        if (withScores.length === 0) return 0;
+        return Math.round(withScores.reduce((sum, s) => sum + ((s.avg_score ?? 0) / (s.max_score || 10)) * 100, 0) / withScores.length);
+    }, [scores]);
+
+    const gapsCount = React.useMemo(() =>
+        scores.filter(s => s.avg_score !== null && s.max_score > 0 && ((s.avg_score ?? 0) / s.max_score) * 100 < 60).length,
+        [scores]
+    );
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex gap-3 p-4 rounded-xl border border-destructive/30 bg-destructive/5 text-destructive text-sm">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>{error}</span>
+            </div>
+        );
+    }
+
+    if (scores.length === 0) {
+        return (
+            <div className="rounded-xl border border-dashed border-border/60 p-12 text-center text-muted-foreground">
+                <BarChart3 className="h-8 w-8 mx-auto mb-3 opacity-40" />
+                <p className="text-sm">No competency scores available yet.</p>
+                <p className="text-xs mt-1">Scores appear after students complete viva sessions.</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            {/* Stats cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <Card>
+                    <CardContent className="pt-4 pb-4 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Class Average</p>
+                        <p className={`text-2xl font-black ${classAvg >= 80 ? "text-emerald-600" : classAvg >= 60 ? "text-amber-600" : "text-red-600"}`}>
+                            {classAvg}%
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardContent className="pt-4 pb-4 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Students</p>
+                        <p className="text-2xl font-black">{uniqueStudents.length}</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardContent className="pt-4 pb-4 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Competencies</p>
+                        <p className="text-2xl font-black">{uniqueCompetencies.length}</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardContent className="pt-4 pb-4 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Knowledge Gaps</p>
+                        <p className={`text-2xl font-black ${gapsCount > 0 ? "text-red-600" : "text-emerald-600"}`}>
+                            {gapsCount}
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Radar chart */}
+            {uniqueCompetencies.length >= 3 && (
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-base">Class Performance Overview</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <ResponsiveContainer width="100%" height={320}>
+                            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+                                <PolarGrid stroke="hsl(var(--border))" />
+                                <PolarAngleAxis
+                                    dataKey="competency"
+                                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                                />
+                                <PolarRadiusAxis
+                                    angle={90}
+                                    tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                                    domain={[0, 100]}
+                                />
+                                <Radar
+                                    name="Class Avg"
+                                    dataKey="score"
+                                    stroke="hsl(var(--primary))"
+                                    fill="hsl(var(--primary))"
+                                    fillOpacity={0.2}
+                                    strokeWidth={2}
+                                />
+                                <Tooltip formatter={(value) => [`${value}%`, "Avg"]} />
+                            </RadarChart>
+                        </ResponsiveContainer>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Per-competency bar chart */}
+            {uniqueCompetencies.length > 0 && (
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-base">Competency Averages</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <ResponsiveContainer width="100%" height={Math.max(200, uniqueCompetencies.length * 50)}>
+                            <BarChart layout="vertical" data={uniqueCompetencies.map(c => {
+                                const compScores = scores.filter(s => s.competency_id === c.id && s.avg_score !== null);
+                                const avg = compScores.length > 0
+                                    ? compScores.reduce((sum, s) => sum + (s.avg_score ?? 0), 0) / compScores.length
+                                    : 0;
+                                return { name: c.name, avg: Math.round(avg * 10) / 10, max: c.maxScore };
+                            })} margin={{ left: 20 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                                <XAxis type="number" domain={[0, 'auto']} tick={{ fontSize: 11 }} />
+                                <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 11 }} />
+                                <Tooltip formatter={(value) => [`${value}`, "Avg Score"]} />
+                                <Bar dataKey="avg" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} name="Avg Score" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Per-student breakdown */}
+            <Card>
+                <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        Student Breakdown
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {[...byStudent.entries()].map(([studentId, studentScores]) => {
+                        const totalPct = studentScores.reduce((sum, s) => {
+                            return sum + (s.max_score > 0 && s.avg_score !== null ? ((s.avg_score ?? 0) / s.max_score) * 100 : 0);
+                        }, 0);
+                        const avgPct = studentScores.length > 0 ? Math.round(totalPct / studentScores.length) : 0;
+
+                        return (
+                            <div key={studentId} className="border border-border/40 rounded-lg p-4 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <span className="font-mono font-semibold text-sm">{studentId}</span>
+                                    <span className={`text-sm font-bold ${avgPct >= 80 ? "text-emerald-600" : avgPct >= 60 ? "text-amber-600" : "text-red-600"}`}>
+                                        {avgPct}% avg
+                                    </span>
+                                </div>
+                                <div className="space-y-2">
+                                    {studentScores.map(s => {
+                                        const pct = s.avg_score !== null && s.max_score > 0 ? (s.avg_score / s.max_score) * 100 : 0;
+                                        const barColor = pct >= 80 ? "bg-emerald-500" : pct >= 60 ? "bg-amber-500" : "bg-red-500";
+                                        return (
+                                            <div key={s.competency_id} className="flex items-center gap-3">
+                                                <span className="text-xs font-medium text-muted-foreground w-32 truncate">{s.competency_name}</span>
+                                                <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
+                                                    <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+                                                </div>
+                                                <span className="text-xs font-semibold w-12 text-right">
+                                                    {s.avg_score !== null ? Math.round(s.avg_score) : "—"}
+                                                    <span className="text-muted-foreground">/{s.max_score}</span>
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
 export default function CompetenciesPage() {
     const params = useParams();
     const router = useRouter();
     const assignmentId = params.assignmentId as string;
     const instanceId = params.instanceId as string;
     const basePath = `/instructor/courses/${instanceId}/assignments/${assignmentId}`;
+
+    const [activeTab, setActiveTab] = React.useState<"setup" | "dashboard">("setup");
+
+    // Dashboard state
+    const [dashScores, setDashScores] = React.useState<CompetencyScoreSummary[]>([]);
+    const [dashLoading, setDashLoading] = React.useState(false);
+    const [dashError, setDashError] = React.useState<string | null>(null);
+
+    React.useEffect(() => {
+        if (activeTab !== "dashboard") return;
+        let mounted = true;
+        setDashLoading(true);
+        ivasApi.listCompetencyScoresForAssignment(assignmentId)
+            .then(data => { if (mounted) setDashScores(data); })
+            .catch(err => { if (mounted) setDashError(err instanceof Error ? err.message : "Failed to load scores"); })
+            .finally(() => { if (mounted) setDashLoading(false); });
+        return () => { mounted = false; };
+    }, [activeTab, assignmentId]);
 
     const [linkedCompetencies, setLinkedCompetencies] = React.useState<CompetencyAssignmentLinkOut[]>([]);
     const [allCompetencies, setAllCompetencies] = React.useState<CompetencyOut[]>([]);
@@ -309,7 +573,7 @@ export default function CompetenciesPage() {
     return (
         <div className="flex flex-col gap-6 pb-8">
             {/* Header */}
-            <div className="border-b border-border/40 pb-6">
+            <div className="border-b border-border/40 pb-4">
                 <div className="flex items-center gap-2 mb-4">
                     <Button variant="ghost" size="sm" asChild className="gap-1">
                         <Link href={`${basePath}/viva`}>
@@ -324,22 +588,56 @@ export default function CompetenciesPage() {
                             Competencies
                         </h1>
                         <p className="text-sm text-muted-foreground mt-1">
-                            Manage the conceptual rubric for this assignment&apos;s viva. Competencies are reusable course-wide concepts.
+                            {activeTab === "setup"
+                                ? "Manage the conceptual rubric for this assignment's viva. Competencies are reusable course-wide concepts."
+                                : "Track student performance across competencies for this assignment."}
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" onClick={() => setShowForm(true)} className="gap-1.5">
-                            <Plus className="h-4 w-4" />
-                            Add Competency
-                        </Button>
-                        <Button onClick={handleGenerate} disabled={generating} className="gap-1.5">
-                            {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-                            Generate with AI
-                        </Button>
-                    </div>
+                    {activeTab === "setup" && (
+                        <div className="flex items-center gap-2">
+                            <Button variant="outline" onClick={() => setShowForm(true)} className="gap-1.5">
+                                <Plus className="h-4 w-4" />
+                                Add Competency
+                            </Button>
+                            <Button onClick={handleGenerate} disabled={generating} className="gap-1.5">
+                                {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                                Generate with AI
+                            </Button>
+                        </div>
+                    )}
+                </div>
+                {/* Tab switcher */}
+                <div className="flex items-center gap-1 mt-4 border-b border-border/40 -mb-4">
+                    <button
+                        className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                            activeTab === "setup"
+                                ? "border-primary text-primary"
+                                : "border-transparent text-muted-foreground hover:text-foreground"
+                        }`}
+                        onClick={() => setActiveTab("setup")}
+                    >
+                        <BookOpen className="h-3.5 w-3.5 inline mr-1.5" />
+                        Setup
+                    </button>
+                    <button
+                        className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                            activeTab === "dashboard"
+                                ? "border-primary text-primary"
+                                : "border-transparent text-muted-foreground hover:text-foreground"
+                        }`}
+                        onClick={() => setActiveTab("dashboard")}
+                    >
+                        <BarChart3 className="h-3.5 w-3.5 inline mr-1.5" />
+                        Dashboard
+                    </button>
                 </div>
             </div>
 
+            {activeTab === "dashboard" ? (
+                /* ====== DASHBOARD TAB ====== */
+                <CompetencyDashboard scores={dashScores} loading={dashLoading} error={dashError} />
+            ) : (
+            <>
             {error && (
                 <div className="flex gap-3 p-4 rounded-xl border border-destructive/30 bg-destructive/5 text-destructive text-sm">
                     <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
@@ -680,6 +978,8 @@ export default function CompetenciesPage() {
                 onConfirm={handleDeleteGlobalCompetency}
                 isLoading={deletingGlobal}
             />
+            </>
+            )}
         </div>
     );
 }

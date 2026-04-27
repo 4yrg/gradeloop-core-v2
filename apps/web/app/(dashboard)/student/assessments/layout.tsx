@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Mic2, ShieldCheck } from "lucide-react";
+import { Mic2, ShieldCheck, BookOpen } from "lucide-react";
 import { useUIStore } from "@/lib/stores/uiStore";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +31,7 @@ export default function AssessmentsLayout({
             items: [
                 { name: "My Sessions", href: `${basePath}/my-sessions` },
                 { name: "Voice Enrollment", href: `${basePath}/voice-enrollment` },
+                { name: "Competencies", href: `${basePath}/competencies` },
             ],
         });
         return () => {
@@ -44,6 +45,7 @@ export default function AssessmentsLayout({
     const mobileTabs = [
         { name: "My Sessions", href: `${basePath}/my-sessions`, icon: Mic2 },
         { name: "Voice Enroll", href: `${basePath}/voice-enrollment`, icon: ShieldCheck },
+        { name: "Competencies", href: `${basePath}/competencies`, icon: BookOpen },
     ];
 
     return (
