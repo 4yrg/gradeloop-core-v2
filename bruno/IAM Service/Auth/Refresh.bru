@@ -5,37 +5,36 @@ meta {
 }
 
 post {
-  url: {{KEYCLOAK_AUTH_URL}}/realms/{{KEYCLOAK_REALM}}/protocol/openid-connect/token
+  url: {{baseUrl}}/api/v1/auth/refresh
   body: json
-  auth: inherit
+  auth: none
 }
 
 body:json {
   {
-    "grant_type": "refresh_token",
-    "client_id": "{{KEYCLOAK_CLIENT_ID_LMS_WEB}}",
-    "client_secret": "{{KEYCLOAK_CLIENT_SECRET}}",
-    "refresh_token": "{{REFRESH_TOKEN}}"
+    "refresh_token": "{{refreshToken}}"
   }
+}
+}}"
 }
 
 script:post-response {
   if (res.status === 200) {
     if (res.body.access_token) {
-      bru.setEnvVar("ACCESS_TOKEN", res.body.access_token);
-      bru.setEnvVar("REFRESH_TOKEN", res.body.refresh_token);
-      console.log("✅ Token refreshed");
-      
-      // Decode JWT to show new payload
-      try {
-        const parts = res.body.access_token.split('.');
-        const payload = JSON.parse(atob(parts[1]));
-        console.log("New token payload:", JSON.stringify(payload, null, 2));
-      } catch (e) {
-        console.log("Could not decode token:", e.message);
-      }
+      bru.setEnvVar("jwtToken", res.body.access_token);
     }
-  } else {
-    console.log("❌ Refresh failed:", res.status, res.body);
+    if (res.body.refresh_token) {
+      bru.setEnvVar("refreshToken", res.body.refresh_token);
+    }
   }
+}
+
+tests {
+  test("Should return 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  
+  test("Should return new access token", function() {
+    expect(res.body.access_token).to.not.be.null;
+  });
 }

@@ -1,16 +1,16 @@
 meta {
-  name: Get Profile
+  name: SSO Mock Login
   type: http
   seq: 1
 }
 
 get {
-  url: {{baseUrl}}/api/v1/auth/profile
-  auth: bearer
+  url: {{baseUrl}}/api/v1/auth/sso/mock/callback
+  auth: none
 }
 
-auth:bearer {
-  token: {{jwtToken}}
+query {
+  email: student@dev.local
 }
 
 tests {
@@ -19,6 +19,6 @@ tests {
   });
   
   test("Should contain user info", function() {
-    expect(res.body.email).to.not.be.null;
+    expect(res.body.user.email).to.equal("student@dev.local");
   });
 }

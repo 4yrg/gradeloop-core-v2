@@ -31,6 +31,8 @@ type User struct {
 	Faculty                 string         `gorm:"size:255" json:"faculty"`
 	Department              string         `gorm:"size:255" json:"department"`
 	PasswordHash            string         `gorm:"size:255" json:"-"`
+	KeycloakID              string         `gorm:"size:255" json:"keycloak_id,omitempty"`
+	TenantID                uuid.UUID      `gorm:"type:uuid" json:"tenant_id,omitempty"`
 	UserType                string         `gorm:"not null;size:20;index" json:"user_type"`
 	IsActive                bool           `gorm:"not null;default:true" json:"is_active"`
 	IsPasswordResetRequired bool           `gorm:"not null;default:false" json:"is_password_reset_required"`

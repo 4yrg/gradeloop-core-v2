@@ -117,30 +117,32 @@ func NewValidator(
 
 // ValidateLaunch validates an LTI launch JWT
 func (v *Validator) ValidateLaunch(ctx context.Context, jwtString string) (*LTIClaims, error) {
-	// Parse JWT without validation first to get header
+	if jwtString == "" {
+		return nil, fmt.Errorf("%w: empty JWT string", ErrInvalidJWT)
+	}
+
 	token, parts, err := jwt.NewParser().ParseUnverified(jwtString, &LTIClaims{})
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrInvalidJWT, err)
 	}
 
 	claims := token.Claims.(*LTIClaims)
+	if claims == nil {
+		return nil, fmt.Errorf("%w: nil claims", ErrInvalidJWT)
+	}
 
-	// Mock mode: skip most validations
 	if v.cfg.IsMockMode() {
 		return claims, v.validateMock(ctx, claims)
 	}
 
-	// Strict mode: full validation
 	if err := v.validateStandard(claims); err != nil {
 		return nil, err
 	}
 
-	// Validate nonce
 	if err := v.nonceStore.Validate(ctx, claims.Nonce); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrInvalidNonce, err)
 	}
 
-	// Validate signature
 	if err := v.validateSignature(ctx, jwtString, parts); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrInvalidSignature, err)
 	}
@@ -150,7 +152,10 @@ func (v *Validator) ValidateLaunch(ctx context.Context, jwtString string) (*LTIC
 
 // validateMock performs relaxed validation for mock mode
 func (v *Validator) validateMock(ctx context.Context, claims *LTIClaims) error {
-	// In mock mode, just store nonce without strict validation
+	if claims.Nonce == "" {
+		return fmt.Errorf("%w: missing nonce in mock mode", ErrMissingClaim)
+	}
+
 	return v.nonceStore.Use(ctx, claims.Nonce)
 }
 

@@ -1,0 +1,174 @@
+{
+  "name": "IAM Service",
+  "version": "2.0.0",
+  "environments": [
+    "dev",
+    "prod"
+  ],
+  "requests": [
+    {
+      "type": "http",
+      "name": "Health Check",
+      "method": "GET",
+      "url": "{{baseUrl}}/health"
+    },
+    {
+      "type": "http",
+      "name": "Service Info",
+      "method": "GET",
+      "url": "{{baseUrl}}/"
+    },
+    {
+      "type": "http",
+      "name": "Login",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/auth/login",
+      "body": {
+        "mode": "json",
+        "json": {
+          "email": "admin@dev.local",
+          "password": "admin123"
+        }
+      }
+    },
+    {
+      "type": "http",
+      "name": "Refresh Token",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/auth/refresh",
+      "body": {
+        "mode": "json",
+        "json": {
+          "refresh_token": "{{refreshToken}}"
+        }
+      }
+    },
+    {
+      "type": "http",
+      "name": "Logout",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/auth/logout"
+    },
+    {
+      "type": "http",
+      "name": "Get Profile",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/auth/profile"
+    },
+    {
+      "type": "http",
+      "name": "SSO List Providers",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/auth/sso/"
+    },
+    {
+      "type": "http",
+      "name": "SSO Mock Login",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/auth/sso/mock/callback",
+      "query": {
+        "email": "student@dev.local"
+      }
+    },
+    {
+      "type": "http",
+      "name": "LTI Login Init",
+      "method": "POST",
+      "url": "{{baseUrl}}/lti/login"
+    },
+    {
+      "type": "http",
+      "name": "LTI Launch",
+      "method": "POST",
+      "url": "{{baseUrl}}/lti/launch",
+      "body": {
+        "mode": "form-urlencoded"
+      }
+    },
+    {
+      "type": "http",
+      "name": "LTI Deep Link",
+      "method": "POST",
+      "url": "{{baseUrl}}/lti/deep-link",
+      "body": {
+        "mode": "form-urlencoded"
+      }
+    },
+    {
+      "type": "http",
+      "name": "LTI AGS List",
+      "method": "GET",
+      "url": "{{baseUrl}}/lti/ags/lineitems"
+    },
+    {
+      "type": "http",
+      "name": "LTI AGS Create",
+      "method": "POST",
+      "url": "{{baseUrl}}/lti/ags/lineitems"
+    },
+    {
+      "type": "http",
+      "name": "LTI NRPS Members",
+      "method": "GET",
+      "url": "{{baseUrl}}/lti/nrps/{{context_id}}/members"
+    },
+    {
+      "type": "http",
+      "name": "Authz Check",
+      "method": "POST",
+      "url": "{{baseUrl}}/authz/check",
+      "body": {
+        "mode": "json",
+        "json": {}
+      }
+    },
+    {
+      "type": "http",
+      "name": "List Users",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/users/"
+    },
+    {
+      "type": "http",
+      "name": "Create User",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/users/"
+    },
+    {
+      "type": "http",
+      "name": "Get User By ID",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/users/{{user_id}}"
+    },
+    {
+      "type": "http",
+      "name": "Update User",
+      "method": "PUT",
+      "url": "{{baseUrl}}/api/v1/users/{{user_id}}"
+    },
+    {
+      "type": "http",
+      "name": "Delete User",
+      "method": "DELETE",
+      "url": "{{baseUrl}}/api/v1/users/{{user_id}}"
+    },
+    {
+      "type": "http",
+      "name": "Restore User",
+      "method": "POST",
+      "url": "{{baseUrl}}/api/v1/users/{{user_id}}/restore"
+    },
+    {
+      "type": "http",
+      "name": "List Students",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/users/students"
+    },
+    {
+      "type": "http",
+      "name": "Get Bulk Template",
+      "method": "GET",
+      "url": "{{baseUrl}}/api/v1/users/import/template"
+    }
+  ]
+}

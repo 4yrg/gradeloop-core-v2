@@ -1,11 +1,11 @@
 meta {
-  name: Get Profile
+  name: AGS List Line Items
   type: http
   seq: 1
 }
 
 get {
-  url: {{baseUrl}}/api/v1/auth/profile
+  url: {{baseUrl}}/lti/ags/lineitems
   auth: bearer
 }
 
@@ -18,7 +18,7 @@ tests {
     expect(res.status).to.equal(200);
   });
   
-  test("Should contain user info", function() {
-    expect(res.body.email).to.not.be.null;
+  test("Should contain lineItems array", function() {
+    expect(res.body.lineItems).to.not.be.null;
   });
 }

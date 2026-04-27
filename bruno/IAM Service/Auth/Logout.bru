@@ -5,26 +5,32 @@ meta {
 }
 
 post {
-  url: {{KEYCLOAK_AUTH_URL}}/realms/{{KEYCLOAK_REALM}}/protocol/openid-connect/logout
+  url: {{baseUrl}}/api/v1/auth/logout
   body: json
-  auth: inherit
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwtToken}}
 }
 
 body:json {
   {
-    "client_id": "{{KEYCLOAK_CLIENT_ID_LMS_WEB}}",
-    "refresh_token": "{{REFRESH_TOKEN}}"
+    "refresh_token": "{{refreshToken}}"
   }
+}
+}}"
 }
 
 script:post-response {
-  if (res.status === 200 || res.status === 204) {
-    bru.removeEnvVar("ACCESS_TOKEN");
-    bru.removeEnvVar("REFRESH_TOKEN");
-    bru.removeEnvVar("TENANT_ID");
-    bru.removeEnvVar("USER_ROLES");
-    console.log("✅ Logged out successfully");
-  } else {
-    console.log("❌ Logout failed:", res.status, res.body);
+  if (res.status === 200) {
+    bru.setEnvVar("jwtToken", "");
+    bru.setEnvVar("refreshToken", "");
   }
+}
+
+tests {
+  test("Should return 200", function() {
+    expect(res.status).to.equal(200);
+  });
 }

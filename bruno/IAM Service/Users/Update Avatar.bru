@@ -5,15 +5,15 @@ meta {
 }
 
 patch {
-  url: {{AUTH_URL_V1}}/profile/avatar
+  url: {{authUrlV1}}/profile/avatar
   body: multipartForm
   auth: bearer
 }
 
 auth:bearer {
-  token: {{ACCESS_TOKEN}}
+  token: {{jwtToken}}
 }
 
 body:multipart-form {
-  avatar: @file(path/to/avatar.png)
+  "avatar": @file(path/to/avatar.png)
 }

@@ -5,11 +5,17 @@ meta {
 }
 
 get {
-  url: {{AUTH_URL_V1}}/profile
+  url: {{authUrlV1}}/profile
   body: none
   auth: bearer
 }
 
 auth:bearer {
   token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MTEyMjQwMDB9.invalid_signature
+}
+
+tests {
+  test("Should return 401", function() {
+    expect(res.status).to.equal(401);
+  });
 }

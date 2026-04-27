@@ -5,22 +5,19 @@ meta {
 }
 
 put {
-  url: {{USERS_URL_V1}}/:id
+  url: {{usersUrlV1}}/{{user_id}}
   body: json
   auth: bearer
 }
 
-params:path {
-  id: ecca57c6-58e9-4cf0-a263-73c0048e72b9
-}
-
 auth:bearer {
-  token: {{ADMIN_TOKEN}}
+  token: {{jwtToken}}
 }
 
 body:json {
   {
-    "user_type": "instructor",
-    "is_active": true
+    "userType": "instructor",
+    "isActive": true
   }
+}
 }
