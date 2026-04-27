@@ -192,11 +192,6 @@ export const ivasApi = {
             `/voice/profile/${encodeURIComponent(studentId)}`,
             { method: "DELETE" }
         ),
-    resetVoiceProfile: (studentId: string) =>
-        ivasRequest<void>(
-            `/voice/profile/${encodeURIComponent(studentId)}/reset`,
-            { method: "POST" }
-        ),
     verifyVoice: (studentId: string, audioFile: File) => {
         const formData = new FormData();
         formData.append("student_id", studentId);

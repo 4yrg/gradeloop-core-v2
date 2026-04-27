@@ -48,7 +48,7 @@ export default function VoiceProfilesPage() {
 
   const [students, setStudents] = React.useState<StudentVoiceStatus[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [resettingStudentId, setResettingStudentId] = React.useState<string | null>(
+  const [deletingStudentId, setDeletingStudentId] = React.useState<string | null>(
     null,
   );
   const [confirmStudent, setConfirmStudent] =
@@ -67,13 +67,13 @@ export default function VoiceProfilesPage() {
 
         for (const enrollment of enrollments) {
           try {
-            const profile = await ivasApi.getVoiceProfile(enrollment.student_id);
+            const profile = await ivasApi.getVoiceProfile(enrollment.user_id);
             statuses.push({ enrollment, profile });
           } catch {
             statuses.push({
               enrollment,
               profile: {
-                student_id: enrollment.student_id,
+                student_id: enrollment.user_id,
                 enrolled: false,
                 samples_count: 0,
                 required_samples: 3,
@@ -109,24 +109,23 @@ export default function VoiceProfilesPage() {
     };
   }, [instanceId, addToast]);
 
-  const handleReset = async (studentId: string) => {
-    setResettingStudentId(studentId);
+  const handleDelete = async (userId: string) => {
+    setDeletingStudentId(userId);
     setConfirmStudent(null);
     try {
-      await ivasApi.resetVoiceProfile(studentId);
+      await ivasApi.deleteVoiceProfile(userId);
       addToast({
-        title: "Voice profile reset",
+        title: "Voice profile deleted",
         variant: "success",
         description: "The student's voice profile has been cleared.",
       });
-      // Refresh
       setStudents((prev) =>
         prev.map((s) =>
-          s.enrollment.student_id === studentId
+          s.enrollment.user_id === userId
             ? {
                 ...s,
                 profile: {
-                  student_id: studentId,
+                  student_id: userId,
                   enrolled: false,
                   samples_count: 0,
                   required_samples: 3,
@@ -138,12 +137,12 @@ export default function VoiceProfilesPage() {
       );
     } catch {
       addToast({
-        title: "Reset failed",
+        title: "Delete failed",
         variant: "error",
-        description: "Could not reset the voice profile. Please try again.",
+        description: "Could not delete the voice profile. Please try again.",
       });
     } finally {
-      setResettingStudentId(null);
+      setDeletingStudentId(null);
     }
   };
 
@@ -180,7 +179,7 @@ export default function VoiceProfilesPage() {
           Voice Profiles
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Review and manage student voice enrollments. Reset a profile only
+          Review and manage student voice enrollments. Delete a profile only
           when the student needs to re-enroll under your supervision.
         </p>
       </div>
@@ -217,7 +216,7 @@ export default function VoiceProfilesPage() {
             const isEnrolled = student.profile?.is_complete ?? false;
             const samples = student.profile?.samples_count ?? 0;
             const required = student.profile?.required_samples ?? 3;
-            const isResetting = resettingStudentId === student.enrollment.student_id;
+            const isDeleting = deletingStudentId === student.enrollment.user_id;
 
             return (
               <div
@@ -257,16 +256,16 @@ export default function VoiceProfilesPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        disabled={isResetting}
+                        disabled={isDeleting}
                         onClick={() => setConfirmStudent(student)}
                         className="gap-1 text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950/30"
                       >
-                        {isResetting ? (
+                        {isDeleting ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : (
                           <RotateCcw className="h-3.5 w-3.5" />
                         )}
-                        <span className="hidden sm:inline">Reset</span>
+                        <span className="hidden sm:inline">Delete</span>
                       </Button>
                     </>
                   ) : (
@@ -285,8 +284,8 @@ export default function VoiceProfilesPage() {
       <div className="p-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 flex items-start gap-2">
         <AlertCircle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
         <p className="text-xs text-amber-700 dark:text-amber-400">
-          Only reset a voice profile when the student is physically present (e.g.,
-          in a lab session). After resetting, the student must re-enroll through
+          Only delete a voice profile when the student is physically present (e.g.,
+          in a lab session). After deleting, the student must re-enroll through
           their Voice Enrollment page before taking a viva.
         </p>
       </div>
@@ -295,7 +294,7 @@ export default function VoiceProfilesPage() {
       <Dialog open={!!confirmStudent} onOpenChange={(v) => !v && setConfirmStudent(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reset Voice Profile?</DialogTitle>
+            <DialogTitle>Delete Voice Profile?</DialogTitle>
             <DialogDescription>
               This will permanently delete the voice profile for{" "}
               <strong>{confirmStudent?.enrollment.full_name}</strong>. The student
@@ -313,11 +312,11 @@ export default function VoiceProfilesPage() {
               variant="destructive"
               onClick={() =>
                 confirmStudent &&
-                handleReset(confirmStudent.enrollment.student_id)
+                handleDelete(confirmStudent.enrollment.user_id)
               }
               disabled={!confirmStudent}
             >
-              Reset Profile
+              Delete Profile
             </Button>
           </DialogFooter>
         </DialogContent>
