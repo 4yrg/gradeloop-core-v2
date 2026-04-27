@@ -4,12 +4,19 @@ Buffers incoming PCM16 audio chunks from the WebSocket stream and
 dispatches periodic async verification checks against the student's
 enrolled voiceprint.  Results are persisted to voice_auth_events and
 optionally pushed to the frontend via WebSocket messages.
+
+Voice verification only runs when the buffered audio contains actual
+speech — silent or near-silent buffers are skipped to avoid false
+mismatch warnings caused by running speaker embedding on background
+noise.
 """
 
 import asyncio
 import struct
 from contextlib import suppress
 from uuid import UUID
+
+import numpy as np
 
 from app.logging_config import get_logger
 from app.services.voice.speaker import (
@@ -24,6 +31,19 @@ logger = get_logger(__name__)
 # PCM16 mono 16kHz = 2 bytes per sample
 _SAMPLE_RATE = 16000
 _BYTES_PER_SAMPLE = 2
+
+# Minimum RMS energy (relative to full-scale) for a buffer to be
+# considered speech.  Below this threshold the audio is silence or
+# faint noise — running Resemblyzer on it produces garbage embeddings
+# that trigger false mismatch warnings.
+#   Typical values:
+#     - Pure silence:          RMS ≈ 0.001–0.005
+#     - Faint background noise: RMS ≈ 0.005–0.015
+#     - Quiet speech:           RMS ≈ 0.02–0.05
+#     - Normal speech:          RMS ≈ 0.04–0.15
+#   Threshold chosen to let quiet speech through while rejecting
+#   silence and AC fan / keyboard-type noise.
+_SPEECH_RMS_THRESHOLD = 0.015
 
 
 def _pcm16_to_wav(pcm16_data: bytes, sample_rate: int = _SAMPLE_RATE) -> bytes:
@@ -50,6 +70,30 @@ def _pcm16_to_wav(pcm16_data: bytes, sample_rate: int = _SAMPLE_RATE) -> bytes:
         data_size,
     )
     return header + pcm16_data
+
+
+def _has_speech(pcm16_data: bytes, threshold: float = _SPEECH_RMS_THRESHOLD) -> bool:
+    """Check whether a PCM16 audio buffer contains speech-level energy.
+
+    Computes the root-mean-square of the signal and compares it to a
+    threshold.  This is intentionally simple and fast — the expensive
+    Resemblyzer embedding is only extracted when this check passes,
+    so we want to minimise both false negatives (quiet speech rejected)
+    and false positives (noise forwarded to embedding).
+
+    Args:
+        pcm16_data: Raw PCM16 mono bytes.
+        threshold: RMS threshold relative to full-scale (0.0–1.0).
+
+    Returns:
+        True if the buffer likely contains speech, False if it's silence
+        or near-silent noise.
+    """
+    if len(pcm16_data) < 3200:  # < 0.1s of audio — too short to evaluate
+        return False
+    samples = np.frombuffer(pcm16_data, dtype=np.int16).astype(np.float32)
+    rms = np.sqrt(np.mean(samples ** 2)) / 32768.0
+    return rms >= threshold
 
 
 class VoiceVerificationManager:
@@ -119,6 +163,18 @@ class VoiceVerificationManager:
             async with lock:
                 audio_data = bytes(self._buffers[session_id])
                 self._buffers[session_id] = bytearray()
+
+            # Skip verification if the audio buffer doesn't contain speech.
+            # Silence and background noise produce garbage embeddings that
+            # trigger false mismatch warnings — only verify when the student
+            # is actually speaking.
+            if not _has_speech(audio_data):
+                logger.debug(
+                    "voice_verify_skipped_silence",
+                    session_id=session_id,
+                    bytes=len(audio_data),
+                )
+                return
 
             asyncio.create_task(
                 self._verify(session_id, student_id, audio_data, websocket)
