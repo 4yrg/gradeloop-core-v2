@@ -69,10 +69,6 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	cfg.AuthHandler.RegisterAdminRoutes(adminProtected)
 	adminProtected.Get("/users/:id/activity", cfg.UserHandler.GetUserActivity)
 
-	// RBAC stub routes
-	api.Get("/roles", middleware.AuthMiddleware(cfg.JWTSecretKey), cfg.RBACHandler.GetRoles)
-	api.Get("/permissions", middleware.AuthMiddleware(cfg.JWTSecretKey), cfg.RBACHandler.GetPermissions)
-
 	app.Get("/", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"service": "iam-service",
