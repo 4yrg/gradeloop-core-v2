@@ -13,21 +13,21 @@ import (
 // Priority: JWT claim → Header override → Subdomain → Default
 type TenantResolver struct {
 	repo      repository.TenantRepository
-	keycloak *config.KeycloakConfig
+	appConfig *config.AppConfig
 }
 
 // NewTenantResolver creates a new tenant resolver
-func NewTenantResolver(repo repository.TenantRepository, keycloak *config.KeycloakConfig) *TenantResolver {
+func NewTenantResolver(repo repository.TenantRepository, appConfig *config.AppConfig) *TenantResolver {
 	return &TenantResolver{
 		repo:      repo,
-		keycloak: keycloak,
+		appConfig: appConfig,
 	}
 }
 
 // Resolve resolves the tenant ID from the request
 // Returns error if tenant cannot be resolved in production mode
 func (t *TenantResolver) Resolve(c fiber.Ctx, claims *KeycloakClaims) (string, error) {
-	env := t.keycloak.Environment
+	env := t.appConfig.Environment
 
 	// 1. Try: JWT claim (primary - works in both envs)
 	if claims.TenantID != "" {
@@ -92,7 +92,7 @@ func (t *TenantResolver) ResolveFromSubdomain(host string) (string, error) {
 
 // ResolveFromHeader resolves tenant from header (local only)
 func (t *TenantResolver) ResolveFromHeader(header string) (string, error) {
-	if t.keycloak.Environment != "local" {
+	if t.appConfig.Environment != "local" {
 		return "", fmt.Errorf("header tenant override not allowed in production")
 	}
 
@@ -124,7 +124,7 @@ func (t *TenantResolver) ResolveFromJWT(claims *KeycloakClaims) (string, error) 
 
 // ResolveDefaultTenant returns the default tenant ID for local mode
 func (t *TenantResolver) ResolveDefaultTenant() (string, error) {
-	if t.keycloak.Environment != "local" {
+	if t.appConfig.Environment != "local" {
 		return "", fmt.Errorf("default tenant only available in local mode")
 	}
 
@@ -186,7 +186,7 @@ func TenantMiddleware(resolver *TenantResolver) fiber.Handler {
 		tenantID, err := resolver.Resolve(c, claims)
 		if err != nil {
 			// Local mode: allow request with default tenant
-			if resolver.keycloak.Environment == "local" {
+			if resolver.appConfig.Environment == "local" {
 				c.Locals("tenant_id", "dev-university")
 				return c.Next()
 			}

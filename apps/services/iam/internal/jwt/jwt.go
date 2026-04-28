@@ -27,10 +27,12 @@ var (
 )
 
 type Claims struct {
-	UserID   uuid.UUID `json:"user_id"`
-	Email    string    `json:"email"`
-	UserType string    `json:"user_type"`
-	FullName string    `json:"full_name"`
+	UserID     uuid.UUID  `json:"user_id"`
+	Email      string     `json:"email"`
+	UserType   string     `json:"user_type"`
+	FullName   string     `json:"full_name"`
+	TenantID   *uuid.UUID `json:"tenant_id,omitempty"`
+	TenantSlug string     `json:"tenant_slug,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -188,6 +190,10 @@ func NewJWTWithKeycloak(secretKey string, accessTokenExpiryMinutes, refreshToken
 }
 
 func GenerateAccessToken(userID uuid.UUID, email, fullName, userType string, secretKey []byte, expiry time.Duration) (string, time.Time, error) {
+	return GenerateAccessTokenWithTenant(userID, email, fullName, userType, nil, "", secretKey, expiry)
+}
+
+func GenerateAccessTokenWithTenant(userID uuid.UUID, email, fullName, userType string, tenantID *uuid.UUID, tenantSlug string, secretKey []byte, expiry time.Duration) (string, time.Time, error) {
 	if len(secretKey) == 0 {
 		return "", time.Time{}, errors.New("secret key cannot be empty")
 	}
@@ -195,10 +201,12 @@ func GenerateAccessToken(userID uuid.UUID, email, fullName, userType string, sec
 	expiresAt := time.Now().Add(expiry)
 
 	claims := Claims{
-		UserID:   userID,
-		Email:    email,
-		FullName: fullName,
-		UserType: userType,
+		UserID:     userID,
+		Email:      email,
+		FullName:   fullName,
+		UserType:   userType,
+		TenantID:   tenantID,
+		TenantSlug: tenantSlug,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

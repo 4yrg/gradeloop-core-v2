@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
-import { Red_Hat_Display } from "next/font/google";
+import { Red_Hat_Text, Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Toaster, ToastProvider } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
-const redHatDisplay = Red_Hat_Display({
+const inter = Inter({subsets:['latin'],variable:'--font-sans'});
+
+const redHatText = Red_Hat_Text({
   subsets: ["latin"],
   variable: "--font-redhat",
 });
@@ -21,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${redHatDisplay.variable}`} suppressHydrationWarning>
+    <html lang="en" className={cn(redHatText.variable, "font-sans", inter.variable)} suppressHydrationWarning>
       <body
         className="antialiased"
         suppressHydrationWarning
@@ -32,10 +36,12 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <ToastProvider>
-            <AuthProvider>{children}</AuthProvider>
-            <Toaster />
-          </ToastProvider>
+          <TooltipProvider>
+            <ToastProvider>
+              <AuthProvider>{children}</AuthProvider>
+              <Toaster />
+            </ToastProvider>
+          </TooltipProvider>
         </ThemeProvider>
       </body>
     </html>

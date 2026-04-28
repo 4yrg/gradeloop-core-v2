@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -9,13 +10,16 @@ import (
 
 // TenantRow represents a tenant row from database
 type TenantRow struct {
-	ID         uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
-	Name       string   `gorm:"size:255;not null" json:"name"`
-	Slug       string   `gorm:"uniqueIndex;size:50;not null" json:"slug"`
-	Domain     string   `gorm:"size:255" json:"domain"`
-	KeycloakID string   `gorm:"size:255" json:"keycloak_id"`
-	IsActive   bool     `gorm:"default:true" json:"is_active"`
-	Settings  string   `gorm:"type:text" json:"settings"`
+	ID         uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
+	Name       string        `gorm:"size:255;not null" json:"name"`
+	Slug       string        `gorm:"uniqueIndex;size:50;not null" json:"slug"`
+	Domain     string        `gorm:"size:255" json:"domain"`
+	KeycloakID string        `gorm:"size:255" json:"keycloak_id"`
+	IsActive   bool          `gorm:"default:true" json:"is_active"`
+	Settings   string        `gorm:"type:text" json:"settings"`
+	CreatedAt  time.Time     `json:"created_at"`
+	UpdatedAt  time.Time     `json:"updated_at"`
+	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 // TableName specifies the table name
@@ -34,6 +38,7 @@ type TenantRepository interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context, offset, limit int) ([]*TenantRow, int64, error)
 	GetDefault(ctx context.Context) (*TenantRow, error)
+	Search(ctx context.Context, query string, offset, limit int) ([]*TenantRow, int64, error)
 }
 
 type tenantRepository struct {
@@ -151,4 +156,28 @@ func (r *tenantRepository) GetDefault(ctx context.Context) (*TenantRow, error) {
 	}
 
 	return &tenant, nil
+}
+
+func (r *tenantRepository) Search(ctx context.Context, query string, offset, limit int) ([]*TenantRow, int64, error) {
+	var tenants []*TenantRow
+	var total int64
+
+	searchPattern := "%" + query + "%"
+
+	queryBuilder := r.db.WithContext(ctx).Model(&TenantRow{}).
+		Where("deleted_at IS NULL").
+		Where("name ILIKE ? OR slug ILIKE ? OR domain ILIKE ?", searchPattern, searchPattern, searchPattern)
+
+	err := queryBuilder.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	err = queryBuilder.
+		Offset(offset).
+		Limit(limit).
+		Order("created_at DESC").
+		Find(&tenants).Error
+
+	return tenants, total, err
 }

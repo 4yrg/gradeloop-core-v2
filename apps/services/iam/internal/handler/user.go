@@ -180,6 +180,9 @@ func (h *UserHandler) UpdateAvatar(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "Avatar file too large (max 5 MB)")
 	}
 
+	if h.minioStorage == nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, "Avatar upload not available")
+	}
 	avatarURL, err := h.minioStorage.UploadAvatar(c.RequestCtx(), userID, file)
 	if err != nil {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, err.Error())

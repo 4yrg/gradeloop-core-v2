@@ -15,11 +15,39 @@ type Config struct {
 	JWT           JWTConfig
 	MinIO         MinIOConfig
 	ZeroTrust     *ZeroTrustConfig
-	Keycloak     *KeycloakConfig
 	LTI          *LTIConfig
 	SSO          *SSOConfig
 	FrontendURL    string
 	EmailServiceURL string
+	AppEnv         string
+	DefaultTenant  string
+}
+
+// AppConfig holds app-level configuration for middleware
+type AppConfig struct {
+	Environment   string
+	DefaultTenant string
+	EnforceHTTPS  bool
+}
+
+// LoadAppConfig loads app-level configuration
+func LoadAppConfig() *AppConfig {
+	env := getEnvString("APP_ENV", "local")
+
+	defaultTenant := getEnvString("DEFAULT_TENANT", "")
+	if defaultTenant == "" {
+		if env == "production" {
+			defaultTenant = ""
+		} else {
+			defaultTenant = "dev-university"
+		}
+	}
+
+	return &AppConfig{
+		Environment:   env,
+		DefaultTenant: defaultTenant,
+		EnforceHTTPS:  env == "production",
+	}
 }
 
 // ServerConfig holds server-related configuration.
@@ -64,8 +92,7 @@ func Load() (*Config, error) {
 	dbPort := getEnv("GRA_DB_PORT", "5432")
 	dbSSLMode := getEnv("GRA_DB_SSLMODE", "disable")
 
-	ztConfig := LoadZeroTrustConfig()
-	kcConfig, _ := LoadKeycloakConfig()
+ztConfig := LoadZeroTrustConfig()
 	ltiConfig := LoadLTIConfig()
 	ssoConfig := LoadSSOConfig()
 
@@ -85,7 +112,7 @@ func Load() (*Config, error) {
 		JWT: JWTConfig{
 			SecretKey:          getEnv("JWT_SECRET_KEY", ""),
 			AccessTokenExpiry:  getEnvAsInt64("JWT_ACCESS_TOKEN_EXPIRY", 15),
-			RefreshTokenExpiry:  getEnvAsInt64("JWT_REFRESH_TOKEN_EXPIRY", 7),
+			RefreshTokenExpiry: getEnvAsInt64("JWT_REFRESH_TOKEN_EXPIRY", 7),
 			CookieSecure:      getEnvAsBool("JWT_COOKIE_SECURE", false),
 			CookieSameSite:     getEnv("JWT_COOKIE_SAMESITE", "Lax"),
 		},
@@ -98,7 +125,6 @@ func Load() (*Config, error) {
 			PublicHost: getEnv("MINIO_PUBLIC_HOST", "http://localhost:9000"),
 		},
 		ZeroTrust:   ztConfig,
-		Keycloak:   kcConfig,
 		LTI:       ltiConfig,
 		SSO:       ssoConfig,
 		FrontendURL:    getEnv("FRONTEND_URL", "http://localhost:3000"),
@@ -120,6 +146,13 @@ func (c *Config) DSN() string {
 }
 
 func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+func getEnvString(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
 	}

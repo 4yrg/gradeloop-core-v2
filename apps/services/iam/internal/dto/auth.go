@@ -11,6 +11,16 @@ type LoginResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token,omitempty"`
 	ExpiresIn    int64  `json:"expires_in"`
+	User         *UserInfoResponse `json:"user,omitempty"`
+}
+
+type UserInfoResponse struct {
+	ID         uuid.UUID  `json:"id"`
+	Email      string     `json:"email"`
+	FullName   string     `json:"full_name"`
+	UserType   string     `json:"user_type"`
+	TenantID   *uuid.UUID `json:"tenant_id,omitempty"`
+	TenantSlug string     `json:"tenant_slug,omitempty"`
 }
 
 type RefreshTokenResponse struct {
@@ -19,18 +29,13 @@ type RefreshTokenResponse struct {
 	ExpiresIn    int64  `json:"expires_in"`
 }
 
-// KeycloakCallbackRequest - handle OAuth callback from Keycloak
-type KeycloakCallbackRequest struct {
-	Code  string `json:"code"`
-	State string `json:"state"`
-}
-
 type UserWithRole struct {
 	ID                      uuid.UUID
 	Email                   string
 	FullName                string
 	PasswordHash            string
 	UserType                string
+	TenantID                *uuid.UUID
 	IsActive                bool
 	IsPasswordResetRequired bool
 }

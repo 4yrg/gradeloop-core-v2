@@ -24,6 +24,10 @@ interface AuthState {
   // Persisted for UX continuity; re-validated on mount via hydrateSession
   user: User | null;
 
+  // Tenant context
+  tenantId: string | null;
+  tenantSlug: string | null;
+
   isAuthenticated: boolean;
   isLoading: boolean;
   /** True once the initial hydration attempt has completed */
@@ -46,6 +50,9 @@ interface AuthState {
    */
   hydrateSession: () => Promise<void>;
 
+  // ---- Tenant context ---------------------------------------------------
+  setTenantContext: (tenantId: string | null, tenantSlug: string) => void;
+
   // ---- RBAC helpers ------------------------------------------------------
   hasUserType: (userType: string) => boolean;
   hasAdminAccess: () => boolean;
@@ -65,6 +72,8 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       accessToken: null,
       user: null,
+      tenantId: null,
+      tenantSlug: null,
       isAuthenticated: false,
       isLoading: false,
       isHydrated: false,
@@ -79,8 +88,16 @@ export const useAuthStore = create<AuthState>()(
           email: claims.email,
           full_name: claims.full_name,
           user_type: claims.user_type ?? "student",
+          tenant_id: claims.tenant_id,
+          tenant_slug: claims.tenant_slug,
         };
-        set({ accessToken: token, user, isAuthenticated: true });
+        set({ 
+          accessToken: token, 
+          user, 
+          isAuthenticated: true,
+          tenantId: claims.tenant_id ?? null,
+          tenantSlug: claims.tenant_slug ?? null,
+        });
       },
 
       // ------------------------------------------------------------------ //
@@ -95,13 +112,22 @@ export const useAuthStore = create<AuthState>()(
           email: claims.email,
           full_name: claims.full_name,
           user_type: claims.user_type ?? "student",
+          tenant_id: claims.tenant_id,
+          tenant_slug: claims.tenant_slug,
         };
         set({
           accessToken: token,
           user,
           isAuthenticated: true,
           isLoading: false,
+          tenantId: claims.tenant_id ?? null,
+          tenantSlug: claims.tenant_slug ?? null,
         });
+      },
+
+      // ------------------------------------------------------------------ //
+      setTenantContext: (tenantId, tenantSlug) => {
+        set({ tenantId, tenantSlug });
       },
 
       // ------------------------------------------------------------------ //
@@ -109,6 +135,8 @@ export const useAuthStore = create<AuthState>()(
         set({
           accessToken: null,
           user: null,
+          tenantId: null,
+          tenantSlug: null,
           isAuthenticated: false,
           isLoading: false,
         }),

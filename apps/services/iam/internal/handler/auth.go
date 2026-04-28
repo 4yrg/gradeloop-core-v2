@@ -3,7 +3,6 @@ package handler
 import (
 	"time"
 
-	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/config"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/dto"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/service"
 	"github.com/gofiber/fiber/v3"
@@ -17,7 +16,6 @@ type AuthHandler struct {
 	cookieSecure       bool
 	cookieSameSite     string
 	refreshTokenExpiry time.Duration
-	keycloakConfig    *config.KeycloakConfig
 }
 
 func NewAuthHandler(
@@ -38,16 +36,10 @@ func NewAuthHandler(
 	}
 }
 
-func (h *AuthHandler) SetKeycloakConfig(cfg *config.KeycloakConfig) {
-	h.keycloakConfig = cfg
-}
-
 func (h *AuthHandler) RegisterRoutes(app *fiber.App) {
 	auth := app.Group("/auth")
 
 	auth.Post("/login", h.Login)
-	auth.Post("/keycloak/login", h.KeycloakLogin)
-	auth.Post("/keycloak/callback", h.KeycloakCallback)
 	auth.Post("/refresh", h.RefreshToken)
 	auth.Post("/logout", h.Logout)
 	auth.Post("/forgot-password", h.ForgotPassword)
@@ -224,59 +216,6 @@ func (h *AuthHandler) RevokeUserSessions(c fiber.Ctx) error {
 	}
 
 	return c.JSON(response)
-}
-
-// KeycloakLogin redirects to Keycloak authorization URL
-func (h *AuthHandler) KeycloakLogin(c fiber.Ctx) error {
-	if h.keycloakConfig == nil {
-		return fiber.NewError(fiber.StatusNotImplemented, "Keycloak is not configured")
-	}
-
-	authURL := buildKeycloakAuthURL(h.keycloakConfig)
-	return c.Redirect().To(authURL, fiber.StatusTemporaryRedirect)
-}
-
-// KeycloakCallback handles the OAuth callback from Keycloak
-func (h *AuthHandler) KeycloakCallback(c fiber.Ctx) error {
-	var req dto.KeycloakCallbackRequest
-
-	if err := c.Bind().Body(&req); err != nil {
-		return fiber.ErrBadRequest
-	}
-
-	if req.Code == "" {
-		return fiber.NewError(fiber.StatusBadRequest, "Authorization code required")
-	}
-
-	response, err := h.authService.LoginWithKeycloak(c.RequestCtx(), req.Code, h.keycloakConfig)
-	if err != nil {
-		return handleAuthError(err)
-	}
-
-	// Set refresh token in httpOnly cookie
-	cookie := new(fiber.Cookie)
-	cookie.Name = "refresh_token"
-	cookie.Value = response.RefreshToken
-	cookie.Path = "/"
-	cookie.Expires = time.Now().Add(h.refreshTokenExpiry)
-	cookie.HTTPOnly = true
-	cookie.Secure = h.cookieSecure
-	cookie.SameSite = h.cookieSameSite
-
-	c.Cookie(cookie)
-
-	// Clear refresh token from body
-	response.RefreshToken = ""
-
-	return c.JSON(response)
-}
-
-func buildKeycloakAuthURL(cfg *config.KeycloakConfig) string {
-	return cfg.BaseURL + "/auth/realms/" + cfg.Realm + "/protocol/openid-connect/auth?" +
-		"client_id=" + cfg.ClientID +
-		"&redirect_uri=" + cfg.BaseURL+"/api/v1/auth/keycloak/callback" +
-		"&response_type=code" +
-		"&scope=openid+profile+email"
 }
 
 func handleAuthError(err error) error {

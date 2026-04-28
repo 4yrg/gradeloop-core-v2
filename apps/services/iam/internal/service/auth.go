@@ -36,6 +36,7 @@ type AuthService interface {
 type authService struct {
 	db                 *gorm.DB
 	authRepo           repository.AuthRepository
+	tenantRepo         repository.TenantRepository
 	jwt                *jwt.JWT
 	secretKey          []byte
 	refreshTokenExpiry time.Duration
@@ -44,6 +45,7 @@ type authService struct {
 func NewAuthService(
 	db *gorm.DB,
 	authRepo repository.AuthRepository,
+	tenantRepo repository.TenantRepository,
 	jwtConfig *jwt.JWT,
 	secretKey string,
 	refreshTokenExpiryDays int64,
@@ -51,6 +53,7 @@ func NewAuthService(
 	return &authService{
 		db:                 db,
 		authRepo:           authRepo,
+		tenantRepo:         tenantRepo,
 		jwt:                jwtConfig,
 		secretKey:          []byte(secretKey),
 		refreshTokenExpiry: time.Duration(refreshTokenExpiryDays) * 24 * time.Hour,
@@ -84,12 +87,23 @@ func (s *authService) Login(ctx context.Context, email, password string) (*dto.L
 		return nil, ErrInvalidCredentials
 	}
 
-	// Generate token pair
-	accessToken, _, err := jwt.GenerateAccessToken(
+	// Get tenant info
+	var tenantSlug string
+	if user.TenantID != nil {
+		tenant, err := s.tenantRepo.GetByID(ctx, *user.TenantID)
+		if err == nil && tenant != nil {
+			tenantSlug = tenant.Slug
+		}
+	}
+
+	// Generate token pair with tenant info
+	accessToken, _, err := jwt.GenerateAccessTokenWithTenant(
 		user.ID,
 		user.Email,
 		user.FullName,
 		user.UserType,
+		user.TenantID,
+		tenantSlug,
 		s.secretKey,
 		15*time.Minute,
 	)
@@ -127,6 +141,14 @@ func (s *authService) Login(ctx context.Context, email, password string) (*dto.L
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		ExpiresIn:    int64(15 * time.Minute / time.Second),
+		User: &dto.UserInfoResponse{
+			ID:         user.ID,
+			Email:      user.Email,
+			FullName:   user.FullName,
+			UserType:   user.UserType,
+			TenantID:   user.TenantID,
+			TenantSlug: tenantSlug,
+		},
 	}, nil
 }
 

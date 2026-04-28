@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -24,7 +24,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 
-import { getLoginURL, isKeycloakEnabled } from "@/lib/auth/keycloak";
 import { handleApiError } from "@/lib/api/axios";
 import { authApi } from "@/lib/api/auth";
 import { useAuthStore } from "@/lib/stores/authStore";
@@ -36,16 +35,6 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [keycloakEnabled, setKeycloakEnabled] = useState(false);
-
-  useEffect(() => {
-    setKeycloakEnabled(isKeycloakEnabled());
-  }, []);
-
-  const handleKeycloakLogin = () => {
-    const loginUrl = getLoginURL();
-    window.location.href = loginUrl;
-  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -63,6 +52,16 @@ export default function LoginPage() {
       });
 
       setSession(response.access_token);
+      
+      // Store user info with tenant context
+      if (response.user) {
+        const authStore = useAuthStore.getState();
+        authStore.setTenantContext(
+          response.user.tenant_id ?? null,
+          response.user.tenant_slug ?? ""
+        );
+      }
+      
       const path = useAuthStore.getState().getRedirectPath();
       router.push(path);
     } catch (err) {
@@ -95,7 +94,7 @@ export default function LoginPage() {
 
               <div className="space-y-1.5">
                 <Label htmlFor="email" className="text-sm font-semibold ml-1">
-                  Email or Username
+                  Email
                 </Label>
                 <div className="relative group">
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors">
@@ -105,7 +104,7 @@ export default function LoginPage() {
                     id="email"
                     name="email"
                     type="email"
-                    placeholder="student@gradeloop.edu"
+                    placeholder="you@example.com"
                     required
                     disabled={isLoading}
                     className="pl-10 h-11 bg-muted/40 border-muted-foreground/10 focus:bg-background transition-all rounded-xl"
@@ -173,25 +172,12 @@ export default function LoginPage() {
           </form>
         </CardContent>
 
-        <CardFooter className="pt-4 pb-10 px-6 space-y-3">
-          {keycloakEnabled && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleKeycloakLogin}
-              className="w-full h-12 rounded-xl font-bold text-base border-2 hover:bg-accent transition-all"
-              disabled={isLoading}
-            >
-              <span className="flex items-center gap-2">
-                Sign in with SSO <ArrowRight className="h-4 w-4" />
-              </span>
-            </Button>
-          )}
+        <CardFooter className="pt-4 pb-10 px-6">
           <Button
             type="submit"
             form="login-form"
             className="w-full h-12 rounded-xl font-bold text-base shadow-lg shadow-primary/25 hover:shadow-primary/35 transition-all active:scale-[0.98]"
-            disabled={isLoading || keycloakEnabled}
+            disabled={isLoading}
           >
             {isLoading ? (
               <span className="flex items-center gap-2">

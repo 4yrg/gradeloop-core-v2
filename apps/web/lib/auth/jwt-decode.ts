@@ -13,6 +13,9 @@ export interface IamTokenClaims {
   /** User type: 'student', 'instructor', 'admin', or 'super_admin' */
   user_type: string;
   full_name: string;
+  /** Tenant information */
+  tenant_id?: string | null;
+  tenant_slug?: string;
   /** Expiry unix timestamp */
   exp: number;
   iat: number;

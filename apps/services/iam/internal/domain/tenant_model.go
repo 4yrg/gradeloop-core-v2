@@ -9,15 +9,16 @@ import (
 
 // Tenant represents an organization (university) in the LMS
 type Tenant struct {
-	ID uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"` // primary key
-	Name string `gorm:"size:255;not null" json:"name"`   // tenant name
-	Slug string `gorm:"uniqueIndex;size:50;not null" json:"slug"` // e.g., "stanford"
-	Domain string `gorm:"size:255" json:"domain"`            // e.g., "stanford.edu"
-	KeycloakID string `gorm:"size:255" json:"keycloak_id"`       // Keycloak client/realm ID
-	IsActive bool `gorm:"default:true" json:"is_active"`      // is active
-	Settings string `gorm:"type:text" json:"settings,omitempty"`  // JSON tenant settings
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
+	Name      string         `gorm:"size:255;not null" json:"name"`
+	Slug      string         `gorm:"uniqueIndex;size:50;not null" json:"slug"`
+	Domain    string         `gorm:"size:255" json:"domain"`
+	KeycloakID string        `gorm:"size:255" json:"keycloak_id"`
+	IsActive  bool           `gorm:"default:true" json:"is_active"`
+	Settings  string         `gorm:"type:text" json:"settings,omitempty"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 // TableName specifies the table name

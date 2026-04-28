@@ -10,6 +10,8 @@ export interface User {
   email: string;
   full_name: string;
   user_type: string; // 'student', 'instructor', 'admin', or 'super_admin'
+  tenant_id?: string | null;
+  tenant_slug?: string;
 }
 
 // ── User type constants ───────────────────────────────────────────────────────
@@ -39,7 +41,16 @@ export interface LoginRequest {
  */
 export interface LoginResponse {
   access_token: string;
+  refresh_token?: string;
   expires_in: number;
+  user?: {
+    id: string;
+    email: string;
+    full_name: string;
+    user_type: string;
+    tenant_id?: string | null;
+    tenant_slug?: string;
+  };
 }
 
 export interface ForgotPasswordRequest {

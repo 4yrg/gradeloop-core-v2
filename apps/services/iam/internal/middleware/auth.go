@@ -15,14 +15,14 @@ import (
 // IAMConfig holds all IAM middleware configuration
 type IAMConfig struct {
 	JWKSProvider *jwks.Provider
-	Config      *config.KeycloakConfig
-	Redis       *redis.Client
+	AppConfig    *config.AppConfig
+	Redis        *redis.Client
 }
 
 // NewIAMMiddleware creates the unified IAM middleware for dual-environment support
 func NewIAMMiddleware(cfg *IAMConfig) fiber.Handler {
 	return func(c fiber.Ctx) error {
-		env := cfg.Config.Environment
+		env := cfg.AppConfig.Environment
 
 		// Store environment in context for debugging
 		c.Locals("app_env", env)
@@ -73,7 +73,7 @@ func NewIAMMiddleware(cfg *IAMConfig) fiber.Handler {
 
 		// LOCAL: Use default tenant if still missing
 		if tenantID == "" && env == "local" {
-			tenantID = cfg.Config.DefaultTenant
+			tenantID = cfg.AppConfig.DefaultTenant
 		}
 
 		// PRODUCTION: Require tenant_id in JWT
@@ -276,7 +276,23 @@ func AuthMiddleware(secretKey []byte) fiber.Handler {
 		c.Locals("email", claims.Email)
 		c.Locals("user_type", claims.UserType)
 		c.Locals("full_name", claims.FullName)
-		c.Locals("tenant_id", "legacy") // Default tenant for legacy auth
+		c.Locals("tenant_id", "legacy")
+
+		// Build identity.Context for RBAC middleware compatibility
+		roles := []string{claims.UserType}
+		if claims.RoleName != "" {
+			roles = append(roles, claims.RoleName)
+		}
+		identityCtx := &identity.Context{
+			UserID:       claims.UserID,
+			Email:        claims.Email,
+			Name:        claims.FullName,
+			Roles:       roles,
+			Permissions: claims.Permissions,
+			TenantID:    "legacy",
+			Environment: "local",
+		}
+		c.Locals("identity", identityCtx)
 
 		return c.Next()
 	}

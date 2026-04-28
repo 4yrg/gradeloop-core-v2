@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/domain"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/dto"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -23,6 +24,7 @@ type UserRepository interface {
 	CreateInstructorProfile(ctx context.Context, profile *domain.UserProfileInstructor) error
 	CreateActivityLog(ctx context.Context, activity *domain.ActivityLog) error
 	GetUserActivity(ctx context.Context, userID uuid.UUID, offset, limit int) ([]*domain.ActivityLog, int64, error)
+	GetTenantUserStats(ctx context.Context, tenantID uuid.UUID) (*dto.TenantStatsResponse, error)
 }
 
 type userRepository struct {
@@ -228,4 +230,37 @@ func (r *userRepository) GetUserActivity(ctx context.Context, userID uuid.UUID, 
 	}
 
 	return activities, count, nil
+}
+
+func (r *userRepository) GetTenantUserStats(ctx context.Context, tenantID uuid.UUID) (*dto.TenantStatsResponse, error) {
+	stats := &dto.TenantStatsResponse{}
+
+	db := r.db.WithContext(ctx).Model(&domain.User{}).Where("tenant_id = ? AND deleted_at IS NULL", tenantID)
+
+	if err := db.Count(&stats.TotalUsers).Error; err != nil {
+		return nil, err
+	}
+
+	if err := db.Where("is_active = ?", true).Count(&stats.ActiveUsers).Error; err != nil {
+		return nil, err
+	}
+	stats.InactiveUsers = stats.TotalUsers - stats.ActiveUsers
+
+	if err := db.Where("user_type = ?", "student").Count(&stats.StudentCount).Error; err != nil {
+		return nil, err
+	}
+
+	if err := db.Where("user_type = ?", "instructor").Count(&stats.InstructorCount).Error; err != nil {
+		return nil, err
+	}
+
+	if err := db.Where("user_type = ?", "admin").Count(&stats.AdminCount).Error; err != nil {
+		return nil, err
+	}
+
+	if err := db.Where("user_type = ?", "super_admin").Count(&stats.SuperAdminCount).Error; err != nil {
+		return nil, err
+	}
+
+	return stats, nil
 }

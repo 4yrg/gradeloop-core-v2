@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	ErrTenantNotFound = errors.New("tenant not found")
+	ErrTenantMapperNotFound = errors.New("tenant not found")
 )
 
 // TenantMapper resolves tenant from SSO identity
@@ -67,10 +67,10 @@ func (m *TenantMapper) ResolveTenant(ctx context.Context, identity *domain.SSOId
 
 	// Production: require explicit tenant
 	if m.ssoConfig.IsRealMode() {
-		return "", ErrTenantNotFound
+		return "", ErrTenantMapperNotFound
 	}
 
-	return "", ErrTenantNotFound
+	return "", ErrTenantMapperNotFound
 }
 
 // resolveFromProvider handles provider-specific tenant resolution
@@ -112,7 +112,7 @@ func (m *TenantMapper) resolveFromProvider(ctx context.Context, identity *domain
 		return "dev-university", nil
 	}
 
-	return "", ErrTenantNotFound
+	return "", ErrTenantMapperNotFound
 }
 
 // extractEmailDomain extracts domain from email address

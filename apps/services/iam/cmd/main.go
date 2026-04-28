@@ -66,6 +66,7 @@ func run() error {
 
 	authRepo := repository.NewAuthRepository(db.DB)
 	userRepo := repository.NewUserRepository(db.DB)
+	tenantRepo := repository.NewTenantRepository(db.DB)
 
 	baseService := service.NewBaseService(db.DB)
 	defer baseService.Close()
@@ -82,6 +83,7 @@ func run() error {
 	authService := service.NewAuthService(
 		db.DB,
 		authRepo,
+		tenantRepo,
 		jwtInstance,
 		cfg.JWT.SecretKey,
 		cfg.JWT.RefreshTokenExpiry,
@@ -113,7 +115,10 @@ func run() error {
 		userService,
 	)
 
-	minioStorage, err := storage.NewMinIOStorage(
+	tenantService := service.NewTenantService(tenantRepo, userRepo)
+
+	var minioStorage *storage.MinIOStorage
+	minioStorage, err = storage.NewMinIOStorage(
 		cfg.MinIO.Endpoint,
 		cfg.MinIO.AccessKey,
 		cfg.MinIO.SecretKey,
@@ -123,7 +128,8 @@ func run() error {
 		logger,
 	)
 	if err != nil {
-		return fmt.Errorf("connecting to minio: %w", err)
+		logger.Warn("minio not available, avatar uploads disabled", zap.Error(err))
+		minioStorage = nil
 	}
 
 	healthHandler := handler.NewHealthHandler()
@@ -135,12 +141,9 @@ func run() error {
 		cfg.JWT.CookieSameSite,
 		cfg.JWT.RefreshTokenExpiry,
 	)
-	// Set Keycloak configuration if available
-	if cfg.Keycloak != nil {
-		authHandler.SetKeycloakConfig(cfg.Keycloak)
-	}
 	userHandler := handler.NewUserHandler(userService, minioStorage)
 	bulkImportHandler := handler.NewBulkImportHandler(bulkImportService)
+	tenantHandler := handler.NewTenantHandler(tenantService)
 	// rbacHandler := handler.NewRBACHandler() // TODO: implement RBAC handler
 
 	app := fiber.New(fiber.Config{
@@ -160,10 +163,11 @@ func run() error {
 	router.SetupRoutes(app, router.Config{
 		HealthHandler:      healthHandler,
 		AuthHandler:       authHandler,
-		UserHandler:      userHandler,
+		UserHandler:       userHandler,
 		BulkImportHandler: bulkImportHandler,
-		JWTSecretKey:     []byte(cfg.JWT.SecretKey),
-		ZeroTrustConfig:  cfg.ZeroTrust,
+		TenantHandler:     tenantHandler,
+		JWTSecretKey:      []byte(cfg.JWT.SecretKey),
+		ZeroTrustConfig:   cfg.ZeroTrust,
 	})
 
 	sigChan := make(chan os.Signal, 1)
