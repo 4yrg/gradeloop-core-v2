@@ -109,8 +109,8 @@ func (s *tenantService) ListTenants(ctx context.Context, page, limit int, search
 func (s *tenantService) GetTenantStats(ctx context.Context, tenantID uuid.UUID) (map[string]interface{}, error) {
 	return map[string]interface{}{
 		"tenant_id": tenantID.String(),
-		"users":    0,
-		"courses":  0,
+		"users":     0,
+		"courses":   0,
 	}, nil
 }
 

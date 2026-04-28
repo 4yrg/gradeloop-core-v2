@@ -7,11 +7,11 @@ import (
 // Context represents the unified identity model for both environments
 type Context struct {
 	// Identity
-	UserID      string
-	Email       string
-	Name        string
-	GivenName   string
-	FamilyName  string
+	UserID     string
+	Email      string
+	Name       string
+	GivenName  string
+	FamilyName string
 	Username   string
 
 	// Tenant (critical for multi-tenancy)
@@ -22,11 +22,11 @@ type Context struct {
 	Permissions []string
 
 	// Token metadata
-	Issuer     string
-	SessionID  string
-	TokenID    string
-	ExpiresAt  time.Time
-	IssuedAt   time.Time
+	Issuer    string
+	SessionID string
+	TokenID   string
+	ExpiresAt time.Time
+	IssuedAt  time.Time
 
 	// Environment
 	Environment string // "local" or "production"
@@ -35,18 +35,18 @@ type Context struct {
 // ToMap converts identity to map for handlers
 func (i *Context) ToMap() map[string]interface{} {
 	return map[string]interface{}{
-		"user_id":        i.UserID,
-		"email":          i.Email,
-		"name":          i.Name,
-		"given_name":    i.GivenName,
-		"family_name":   i.FamilyName,
-		"username":      i.Username,
-		"tenant_id":     i.TenantID,
-		"roles":         i.Roles,
-		"permissions":  i.Permissions,
-		"issuer":       i.Issuer,
-		"session_id":   i.SessionID,
-		"environment":  i.Environment,
+		"user_id":     i.UserID,
+		"email":       i.Email,
+		"name":        i.Name,
+		"given_name":  i.GivenName,
+		"family_name": i.FamilyName,
+		"username":    i.Username,
+		"tenant_id":   i.TenantID,
+		"roles":       i.Roles,
+		"permissions": i.Permissions,
+		"issuer":      i.Issuer,
+		"session_id":  i.SessionID,
+		"environment": i.Environment,
 	}
 }
 

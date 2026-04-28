@@ -10,12 +10,12 @@ import (
 )
 
 type Config struct {
-	Server       ServerConfig
-	Database     DatabaseConfig
-	JWT          JWTConfig
-	RabbitMQ     RabbitMQConfig
-	Redis        RedisConfig
-	FrontendURL  string
+	Server        ServerConfig
+	Database      DatabaseConfig
+	JWT           JWTConfig
+	RabbitMQ      RabbitMQConfig
+	Redis         RedisConfig
+	FrontendURL   string
 	IAMServiceURL string
 }
 

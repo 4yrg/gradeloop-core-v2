@@ -12,11 +12,11 @@ import (
 )
 
 var (
-	ErrInvitationNotFound   = errors.New("invitation not found")
-	ErrInvitationExpired    = errors.New("invitation expired")
+	ErrInvitationNotFound  = errors.New("invitation not found")
+	ErrInvitationExpired   = errors.New("invitation expired")
 	ErrInvitationCancelled = errors.New("invitation cancelled")
-	ErrInvitationUsed     = errors.New("invitation already used")
-	ErrInvalidCode        = errors.New("invalid invitation code")
+	ErrInvitationUsed      = errors.New("invitation already used")
+	ErrInvalidCode         = errors.New("invalid invitation code")
 )
 
 type InvitationService interface {
@@ -38,7 +38,7 @@ type invitationService struct {
 func NewInvitationService(db *gorm.DB, repo repository.InvitationRepository) InvitationService {
 	return &invitationService{
 		BaseService: NewBaseService(db),
-		repo:      repo,
+		repo:        repo,
 	}
 }
 
@@ -49,15 +49,15 @@ func (s *invitationService) Create(
 	invitedBy uuid.UUID,
 ) (*domain.Invitation, error) {
 	invitation := &domain.Invitation{
-		TenantID:    tenantID,
+		TenantID:   tenantID,
 		Email:      email,
 		Role:       role,
 		FullName:   fullName,
 		Department: department,
-		Batch:     batch,
+		Batch:      batch,
 		InvitedBy:  invitedBy,
-		Status:    domain.InvitationStatusPending,
-		ExpiresAt: time.Now().Add(7 * 24 * time.Hour), // 7 days expiry
+		Status:     domain.InvitationStatusPending,
+		ExpiresAt:  time.Now().Add(7 * 24 * time.Hour), // 7 days expiry
 	}
 
 	// Check for existing pending invitation

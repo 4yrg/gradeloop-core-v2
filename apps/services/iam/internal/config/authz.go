@@ -16,7 +16,7 @@ type AuthzConfig struct {
 	RLSEnabled bool
 
 	// Audit logging
-	AuditEnabled bool
+	AuditEnabled   bool
 	AuditRetention time.Duration
 
 	// Cache settings
@@ -36,11 +36,11 @@ func LoadAuthzConfig() *AuthzConfig {
 	}
 
 	return &AuthzConfig{
-		Mode:        mode,
-		RLSEnabled: mode == "strict",
-		AuditEnabled: getAuthzBool("AUTHZ_AUDIT_ENABLED", true),
-		AuditRetention: time.Duration(getAuthzInt("AUTHZ_AUDIT_RETENTION_DAYS", 90)) * 24 * time.Hour,
-		PolicyCacheTTL: time.Duration(getAuthzInt("AUTHZ_POLICY_CACHE_MINUTES", 5)) * time.Minute,
+		Mode:             mode,
+		RLSEnabled:       mode == "strict",
+		AuditEnabled:     getAuthzBool("AUTHZ_AUDIT_ENABLED", true),
+		AuditRetention:   time.Duration(getAuthzInt("AUTHZ_AUDIT_RETENTION_DAYS", 90)) * 24 * time.Hour,
+		PolicyCacheTTL:   time.Duration(getAuthzInt("AUTHZ_POLICY_CACHE_MINUTES", 5)) * time.Minute,
 		TimeAwareEnabled: getAuthzBool("AUTHZ_TIME_AWARE", false),
 	}
 }

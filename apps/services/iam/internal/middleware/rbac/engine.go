@@ -200,7 +200,7 @@ func RequirePermission(engine *RBACEngine, resource, action string) func(c inter
 		if !ok {
 			return fmt.Errorf("invalid context type")
 		}
-		
+
 		id, ok := ctx.Locals("identity").(*identity.Context)
 		if !ok || id == nil {
 			return fmt.Errorf("identity not found in context")
@@ -226,7 +226,7 @@ func RequireRole(roles ...string) func(c interface{}) error {
 		if !ok {
 			return fmt.Errorf("invalid context type")
 		}
-		
+
 		id, ok := ctx.Locals("identity").(*identity.Context)
 		if !ok || id == nil {
 			return fmt.Errorf("identity not found in context")

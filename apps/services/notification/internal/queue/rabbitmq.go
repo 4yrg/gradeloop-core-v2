@@ -14,9 +14,9 @@ const (
 	NotificationQueue      = "notification.process"
 	NotificationRoutingKey = "notification.created"
 
-	dlxName           = "notifications.dlx"
-	deadQueueName     = "notification.process.dead"
-	reconnectDelay    = 5 * time.Second
+	dlxName              = "notifications.dlx"
+	deadQueueName        = "notification.process.dead"
+	reconnectDelay       = 5 * time.Second
 	maxReconnectAttempts = 10
 )
 

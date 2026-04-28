@@ -216,7 +216,6 @@ async def delete_question(question_id: UUID) -> None:
         raise HTTPException(status_code=404, detail="Question not found.")
 
 
-
 class _BulkStatusRequest(BaseModel):
     question_ids: list[UUID]
     new_status: str = Field(..., pattern="^(draft|approved|rejected)$")

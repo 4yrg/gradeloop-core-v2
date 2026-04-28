@@ -21,20 +21,20 @@ type Provider struct {
 	mu        sync.RWMutex
 	keys      map[string]*rsa.PublicKey
 	lastFetch time.Time
-	ttl      time.Duration
-	url      string
-	redis    *redis.Client
-	env      string // "local" or "production"
+	ttl       time.Duration
+	url       string
+	redis     *redis.Client
+	env       string // "local" or "production"
 }
 
 // NewProvider creates a new JWKS provider
 func NewProvider(url string, redisClient *redis.Client, env string, ttl time.Duration) *Provider {
 	return &Provider{
-		keys: make(map[string]*rsa.PublicKey),
-		url:  url,
+		keys:  make(map[string]*rsa.PublicKey),
+		url:   url,
 		redis: redisClient,
-		env:  env,
-		ttl:  ttl,
+		env:   env,
+		ttl:   ttl,
 	}
 }
 

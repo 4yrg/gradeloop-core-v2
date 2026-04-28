@@ -34,7 +34,7 @@ func (m *ZeroTrustMiddleware) Handle(c fiber.Ctx) error {
 	idCtx, ok := c.Locals("identity").(*identity.Context)
 	if !ok || idCtx == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "access_denied",
+			"error":  "access_denied",
 			"reason": "no_identity",
 		})
 	}
@@ -42,7 +42,7 @@ func (m *ZeroTrustMiddleware) Handle(c fiber.Ctx) error {
 	// Validate tenant isolation
 	if err := m.validateTenant(c, idCtx); err != nil {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "access_denied",
+			"error":  "access_denied",
 			"reason": err.Error(),
 		})
 	}
@@ -86,7 +86,7 @@ func ExtractDeviceContext(c fiber.Ctx) *domain.DeviceContext {
 	fingerprint := GenerateDeviceFingerprint(ip, ua, acceptLang)
 
 	return &domain.DeviceContext{
-		DeviceID:     fingerprint,
+		DeviceID:    fingerprint,
 		Fingerprint: fingerprint,
 		IPAddress:   ip,
 		UserAgent:   ua,

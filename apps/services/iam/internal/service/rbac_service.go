@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	ErrRoleNotFound      = errors.New("role not found")
-	ErrRoleExists       = errors.New("role already exists")
+	ErrRoleNotFound       = errors.New("role not found")
+	ErrRoleExists         = errors.New("role already exists")
 	ErrPermissionNotFound = errors.New("permission not found")
 )
 
@@ -56,7 +56,7 @@ func (s *rbacService) CreateRole(ctx context.Context, tenantID uuid.UUID, name, 
 
 	role := &domain.Role{
 		TenantID:    tenantID,
-		Name:       name,
+		Name:        name,
 		Description: description,
 	}
 
@@ -117,10 +117,10 @@ func (s *rbacService) ListPermissions(ctx context.Context, category string) ([]*
 
 func (s *rbacService) AssignRole(ctx context.Context, userID, roleID, tenantID uuid.UUID, assignedBy uuid.UUID) error {
 	userRole := &domain.UserRole{
-		UserID:    userID,
-		RoleID:   roleID,
-		TenantID: tenantID,
-		IsPrimary: true,
+		UserID:     userID,
+		RoleID:     roleID,
+		TenantID:   tenantID,
+		IsPrimary:  true,
 		AssignedBy: assignedBy,
 	}
 	return s.repo.AssignRole(ctx, userRole)

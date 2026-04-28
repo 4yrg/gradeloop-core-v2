@@ -21,15 +21,15 @@ func NewAuthzHandler(cfg *config.AuthzConfig) *AuthzHandler {
 // HandleCheck handles authorization check
 func (h *AuthzHandler) HandleCheck(c fiber.Ctx) error {
 	var req struct {
-		UserID string `json:"user_id"`
-		Action string `json:"action"`
-		ResourceID string `json:"resource_id"`
+		UserID       string `json:"user_id"`
+		Action       string `json:"action"`
+		ResourceID   string `json:"resource_id"`
 		ResourceType string `json:"resource_type"`
 	}
 
 	if err := json.Unmarshal(c.Body(), &req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid_request",
+			"error":             "invalid_request",
 			"error_description": err.Error(),
 		})
 	}

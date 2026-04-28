@@ -15,14 +15,14 @@ type KeycloakConfig struct {
 
 	// Keycloak Connection
 	BaseURL  string // http://localhost:8080 or https://auth.gradeloop.space
-	Realm   string // gradeloop-lms
+	Realm    string // gradeloop-lms
 	ClientID string
 
 	// Security
 	EnforceHTTPS bool
 
 	// JWKS
-	JWKSURL   string // auto-constructed
+	JWKSURL string // auto-constructed
 	JWKSTTL time.Duration
 
 	// Tenant
@@ -83,11 +83,11 @@ func LoadKeycloakConfig() (*KeycloakConfig, error) {
 	return &KeycloakConfig{
 		Environment:   appEnv,
 		BaseURL:       keycloakBaseURL,
-		Realm:        keycloakRealm,
+		Realm:         keycloakRealm,
 		ClientID:      getEnvString("KEYCLOAK_CLIENT_ID", "lms-api"),
-		EnforceHTTPS: enforceHTTPS,
-		JWKSURL:      jwksURL,
-		JWKSTTL:     jwksTTL,
+		EnforceHTTPS:  enforceHTTPS,
+		JWKSURL:       jwksURL,
+		JWKSTTL:       jwksTTL,
 		DefaultTenant: defaultTenant,
 	}, nil
 }

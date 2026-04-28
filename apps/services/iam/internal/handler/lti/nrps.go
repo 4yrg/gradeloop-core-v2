@@ -22,30 +22,30 @@ func (h *NRPSHandler) HandleGetMembers(c fiber.Ctx) error {
 	// Mock mode: return mock roster
 	if h.cfg.IsMockMode() {
 		return c.JSON(fiber.Map{
-			"id":       contextID + "/members",
-			"context":   fiber.Map{"id": contextID},
+			"id":      contextID + "/members",
+			"context": fiber.Map{"id": contextID},
 			"members": []fiber.Map{
 				{
-					"status": "Active",
-					"name":  fiber.Map{"full_name": "Dev Instructor"},
-					"email": "instructor@dev.local",
+					"status":  "Active",
+					"name":    fiber.Map{"full_name": "Dev Instructor"},
+					"email":   "instructor@dev.local",
 					"user_id": "dev-instructor-001",
-					"roles": []string{"http://purl.imsglobal.org/vocab/lti/v1/role#Instructor"},
+					"roles":   []string{"http://purl.imsglobal.org/vocab/lti/v1/role#Instructor"},
 				},
 				{
-					"status": "Active",
-					"name":  fiber.Map{"full_name": "Dev Student"},
-					"email": "student@dev.local",
+					"status":  "Active",
+					"name":    fiber.Map{"full_name": "Dev Student"},
+					"email":   "student@dev.local",
 					"user_id": "dev-student-001",
-					"roles": []string{"http://purl.imsglobal.org/vocab/lti/v1/role#Learner"},
+					"roles":   []string{"http://purl.imsglobal.org/vocab/lti/v1/role#Learner"},
 				},
 			},
 		})
 	}
 
 	return c.JSON(fiber.Map{
-		"id":       contextID + "/members",
-		"context":   fiber.Map{"id": contextID},
+		"id":      contextID + "/members",
+		"context": fiber.Map{"id": contextID},
 		"members": []fiber.Map{},
 	})
 }

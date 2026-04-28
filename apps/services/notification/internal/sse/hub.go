@@ -13,11 +13,11 @@ type Client struct {
 }
 
 type Hub struct {
-	mu      sync.RWMutex
-	clients map[string]map[*Client]struct{} // userID -> set of clients
-	register chan *Client
+	mu         sync.RWMutex
+	clients    map[string]map[*Client]struct{} // userID -> set of clients
+	register   chan *Client
 	unregister chan *Client
-	logger  *zap.Logger
+	logger     *zap.Logger
 }
 
 func NewHub(logger *zap.Logger) *Hub {

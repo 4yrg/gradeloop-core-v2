@@ -109,16 +109,16 @@ func (h *AGSHandler) HandleListLineItems(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"lineItems": []fiber.Map{
 				{
-					"id":          "mock-lineitem-1",
+					"id":           "mock-lineitem-1",
 					"scoreMaximum": 100.0,
-					"label":      "Quiz 1",
-					"resourceId": "quiz-1",
+					"label":        "Quiz 1",
+					"resourceId":   "quiz-1",
 				},
 				{
-					"id":          "mock-lineitem-2",
+					"id":           "mock-lineitem-2",
 					"scoreMaximum": 100.0,
-					"label":      "Assignment 1",
-					"resourceId": "assignment-1",
+					"label":        "Assignment 1",
+					"resourceId":   "assignment-1",
 				},
 			},
 		})
@@ -127,7 +127,7 @@ func (h *AGSHandler) HandleListLineItems(c fiber.Ctx) error {
 	lineItems, err := h.client.GetLineItems()
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
-			"error":   "grade_service_unavailable",
+			"error":  "grade_service_unavailable",
 			"reason": err.Error(),
 		})
 	}
@@ -175,16 +175,16 @@ func (h *AGSHandler) HandleScore(c fiber.Ctx) error {
 	}
 
 	scoreData := map[string]interface{}{
-		"userId": c.Params("userId"),
-		"scoreGiven": c.Locals("scoreGiven"),
-		"scoreMaximum": c.Locals("scoreMaximum"),
+		"userId":           c.Params("userId"),
+		"scoreGiven":       c.Locals("scoreGiven"),
+		"scoreMaximum":     c.Locals("scoreMaximum"),
 		"activityProgress": "Completed",
-		"gradingProgress": "FullyGraded",
+		"gradingProgress":  "FullyGraded",
 	}
 
 	if err := h.client.PostScore(lineItemID, scoreData); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":   "grade_submission_failed",
+			"error":  "grade_submission_failed",
 			"reason": err.Error(),
 		})
 	}
@@ -200,14 +200,14 @@ func (h *AGSHandler) HandleGetScores(c fiber.Ctx) error {
 	if h.cfg.IsMockMode() {
 		return c.JSON(fiber.Map{
 			"lineItem": lineItemID,
-			"scores": []fiber.Map{},
+			"scores":   []fiber.Map{},
 		})
 	}
 
 	scores, err := h.client.GetScores(lineItemID)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
-			"error":   "grade_retrieval_failed",
+			"error":  "grade_retrieval_failed",
 			"reason": err.Error(),
 		})
 	}

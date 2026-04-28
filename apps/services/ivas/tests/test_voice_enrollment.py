@@ -1,6 +1,5 @@
 """Tests for voice enrollment and verification."""
 
-import pytest
 from app.routes.voice import _enrollment_staging
 
 
@@ -27,7 +26,11 @@ class TestVoiceEnrollmentStaging:
             3: b"embedding_3",
         }
 
-        valid_samples = [_enrollment_staging[student_id][i] for i in range(1, 4) if i in _enrollment_staging[student_id]]
+        valid_samples = [
+            _enrollment_staging[student_id][i]
+            for i in range(1, 4)
+            if i in _enrollment_staging[student_id]
+        ]
         assert len(valid_samples) == 3
         assert valid_samples[0] == b"embedding_1"
         assert valid_samples[1] == b"embedding_2"
@@ -43,7 +46,11 @@ class TestVoiceEnrollmentStaging:
         _enrollment_staging[student_id][1] = b"embedding_1"
         _enrollment_staging[student_id][2] = b"embedding_2"
 
-        valid_samples = [_enrollment_staging[student_id][i] for i in range(1, 4) if i in _enrollment_staging[student_id]]
+        valid_samples = [
+            _enrollment_staging[student_id][i]
+            for i in range(1, 4)
+            if i in _enrollment_staging[student_id]
+        ]
         assert len(valid_samples) == 3
         # Order should be preserved when retrieving
         assert valid_samples[0] == b"embedding_1"
@@ -112,6 +119,7 @@ class TestVoiceVerification:
     def test_cosine_similarity_identical(self):
         """Test cosine similarity of identical vectors."""
         import numpy as np
+
         from app.services.voice.speaker import cosine_similarity
 
         vec = np.array([1.0, 0.0, 0.0])
@@ -121,6 +129,7 @@ class TestVoiceVerification:
     def test_cosine_similarity_orthogonal(self):
         """Test cosine similarity of orthogonal vectors."""
         import numpy as np
+
         from app.services.voice.speaker import cosine_similarity
 
         vec1 = np.array([1.0, 0.0, 0.0])

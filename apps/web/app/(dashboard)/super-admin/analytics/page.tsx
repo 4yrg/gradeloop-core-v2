@@ -91,17 +91,17 @@ const mockApiUsage = [
   { day: "Sun", requests: 98000 },
 ];
 
-function SimpleBarChart({
+function SimpleBarChart<TRecord extends Record<string, unknown>>({
   data,
   maxValue,
   getValue,
   getLabel,
   color,
 }: {
-  data: any[];
+  data: TRecord[];
   maxValue: number;
-  getValue: (item: any) => number;
-  getLabel: (item: any) => string;
+  getValue: (item: TRecord) => number;
+  getLabel: (item: TRecord) => string;
   color: string;
 }) {
   return (

@@ -48,10 +48,10 @@ func (s *auditService) Log(
 		Description: description,
 		EntityType:  entityType,
 		EntityID:    entityID,
-		Metadata:   string(metadataJSON),
-		IPAddress:  ipAddress,
-		UserAgent:  userAgent,
-		CreatedAt:  time.Now(),
+		Metadata:    string(metadataJSON),
+		IPAddress:   ipAddress,
+		UserAgent:   userAgent,
+		CreatedAt:   time.Now(),
 	}
 
 	return s.db.WithContext(ctx).Create(activityLog).Error

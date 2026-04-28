@@ -20,6 +20,7 @@ export function useNotifications() {
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const connectRef = useRef<() => void>(() => {});
 
   const connect = useCallback(() => {
     if (!accessToken || !isAuthenticated) return;
@@ -70,11 +71,15 @@ export function useNotifications() {
       }
       reconnectTimeoutRef.current = setTimeout(() => {
         if (isAuthenticated && accessToken) {
-          connect();
+          connectRef.current();
         }
       }, 5000);
     };
   }, [accessToken, isAuthenticated, setConnected, addNotification, setUnreadCount]);
+
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   useEffect(() => {
     if (isAuthenticated && accessToken) {

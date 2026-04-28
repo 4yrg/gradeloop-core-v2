@@ -15,8 +15,8 @@ import (
 // IAMConfig holds all IAM middleware configuration
 type IAMConfig struct {
 	JWKSProvider *jwks.Provider
-	Config      *config.KeycloakConfig
-	Redis       *redis.Client
+	Config       *config.KeycloakConfig
+	Redis        *redis.Client
 }
 
 // NewIAMMiddleware creates the unified IAM middleware for dual-environment support
@@ -284,11 +284,11 @@ func AuthMiddleware(secretKey []byte) fiber.Handler {
 
 // LegacyClaims represents claims from legacy JWT (for backward compatibility)
 type LegacyClaims struct {
-	UserID   string `json:"user_id"`
-	Email    string `json:"email"`
-	UserType string `json:"user_type"`
-	FullName string `json:"full_name"`
-	RoleName string `json:"role_name"`
+	UserID      string   `json:"user_id"`
+	Email       string   `json:"email"`
+	UserType    string   `json:"user_type"`
+	FullName    string   `json:"full_name"`
+	RoleName    string   `json:"role_name"`
 	Permissions []string `json:"permissions"`
 	jwt.RegisteredClaims
 }

@@ -17,7 +17,7 @@ var (
 // TenantMapper resolves tenant from SSO identity
 type TenantMapper struct {
 	tenantRepo repository.TenantRepository
-	ssoConfig *config.SSOConfig
+	ssoConfig  *config.SSOConfig
 }
 
 // NewTenantMapper creates a new tenant mapper
@@ -27,7 +27,7 @@ func NewTenantMapper(
 ) *TenantMapper {
 	return &TenantMapper{
 		tenantRepo: tenantRepo,
-		ssoConfig: ssoConfig,
+		ssoConfig:  ssoConfig,
 	}
 }
 
@@ -151,6 +151,6 @@ func rowToDomain(row *repository.TenantRow) *domain.Tenant {
 		Domain:     row.Domain,
 		KeycloakID: row.KeycloakID,
 		IsActive:   row.IsActive,
-		Settings:  row.Settings,
+		Settings:   row.Settings,
 	}
 }
