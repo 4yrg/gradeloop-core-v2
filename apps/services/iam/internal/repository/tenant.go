@@ -10,12 +10,12 @@ import (
 // TenantRow represents a tenant row from database
 type TenantRow struct {
 	ID         uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
-	Name       string   `gorm:"size:255;not null" json:"name"`
-	Slug       string   `gorm:"uniqueIndex;size:50;not null" json:"slug"`
-	Domain     string   `gorm:"size:255" json:"domain"`
-	KeycloakID string   `gorm:"size:255" json:"keycloak_id"`
-	IsActive   bool     `gorm:"default:true" json:"is_active"`
-	Settings  string   `gorm:"type:text" json:"settings"`
+	Name       string    `gorm:"size:255;not null" json:"name"`
+	Slug       string    `gorm:"uniqueIndex;size:50;not null" json:"slug"`
+	Domain     string    `gorm:"size:255" json:"domain"`
+	KeycloakID string    `gorm:"size:255" json:"keycloak_id"`
+	IsActive   bool      `gorm:"default:true" json:"is_active"`
+	Settings   string    `gorm:"type:text" json:"settings"`
 }
 
 // TableName specifies the table name
@@ -132,12 +132,12 @@ func (r *tenantRepository) GetDefault(ctx context.Context) (*TenantRow, error) {
 
 	if err == gorm.ErrRecordNotFound {
 		defaultTenant := &TenantRow{
-			ID:        uuid.MustParse("00000000-0000-0000-0000-000000000001"),
-			Name:      "Development Tenant",
-			Slug:      "dev-university",
-			Domain:    "localhost",
+			ID:         uuid.MustParse("00000000-0000-0000-0000-000000000001"),
+			Name:       "Development Tenant",
+			Slug:       "dev-university",
+			Domain:     "localhost",
 			KeycloakID: "gradeloop-lms",
-			IsActive:  true,
+			IsActive:   true,
 		}
 		err = r.db.WithContext(ctx).Create(defaultTenant).Error
 		if err != nil {

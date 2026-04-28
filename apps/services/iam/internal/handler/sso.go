@@ -11,7 +11,7 @@ import (
 )
 
 type SSOHandler struct {
-	ssoConfig     *config.SSOConfig
+	ssoConfig    *config.SSOConfig
 	jitService   *service.JITService
 	tenantMapper *service.TenantMapper
 	mockProvider *sso.MockProvider
@@ -24,7 +24,7 @@ func NewSSOHandler(
 	tenantMapper *service.TenantMapper,
 ) *SSOHandler {
 	return &SSOHandler{
-		ssoConfig:     ssoConfig,
+		ssoConfig:    ssoConfig,
 		jitService:   jitService,
 		tenantMapper: tenantMapper,
 		mockProvider: sso.NewMockProvider(),
@@ -53,7 +53,7 @@ func (h *SSOHandler) handleMockCallback(c fiber.Ctx) error {
 	identity, exists := h.mockProvider.ValidateCredentials(email)
 	if !exists {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Invalid mock credentials",
+			"error":           "Invalid mock credentials",
 			"available_users": h.listMockUsers(),
 		})
 	}
@@ -100,7 +100,7 @@ func (h *SSOHandler) HandleSSOInitiate(c fiber.Ctx) error {
 	// Mock mode - return available users
 	if h.ssoConfig.IsMockMode() && provider == "mock" {
 		return c.JSON(fiber.Map{
-			"message": "Mock SSO mode - use callback with email query param",
+			"message":         "Mock SSO mode - use callback with email query param",
 			"available_users": h.listMockUsers(),
 		})
 	}

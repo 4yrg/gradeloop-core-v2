@@ -16,7 +16,7 @@ import (
 type Engine struct {
 	cfg        *config.AuthzConfig
 	policyRepo repository.PolicyRepository
-	auditRepo repository.PolicyAuditRepository
+	auditRepo  repository.PolicyAuditRepository
 }
 
 // NewEngine creates a new authorization engine
@@ -28,7 +28,7 @@ func NewEngine(
 	return &Engine{
 		cfg:        cfg,
 		policyRepo: policyRepo,
-		auditRepo: auditRepo,
+		auditRepo:  auditRepo,
 	}
 }
 
@@ -75,14 +75,14 @@ func (e *Engine) evaluate(ctx context.Context, idCtx *identity.Context, action, 
 				}
 			}
 
-// Policy matched
-		if e.cfg.ShouldAudit() {
-			e.logAudit(ctx, policy, idCtx, action, resourceID)
-		}
+			// Policy matched
+			if e.cfg.ShouldAudit() {
+				e.logAudit(ctx, policy, idCtx, action, resourceID)
+			}
 
 			return &domain.AuthzDecision{
-				Allowed:   policy.IsAllowed(),
-				Reason:    "policy_matched",
+				Allowed:  policy.IsAllowed(),
+				Reason:   "policy_matched",
 				PolicyID: policy.ID,
 			}
 		}
@@ -142,13 +142,13 @@ func (e *Engine) deny(ctx context.Context, idCtx *identity.Context, action, reso
 		userID, _ := uuid.Parse(idCtx.UserID)
 
 		audit := &domain.PolicyAudit{
-			TenantID:    tenantID,
-			UserID:    userID,
-			Action:    action,
-			ResourceID: func() uuid.UUID { id, _ := uuid.Parse(resourceID); return id }(),
+			TenantID:     tenantID,
+			UserID:       userID,
+			Action:       action,
+			ResourceID:   func() uuid.UUID { id, _ := uuid.Parse(resourceID); return id }(),
 			ResourceType: resourceType,
-			Decision: "deny",
-			Reason:   reason,
+			Decision:     "deny",
+			Reason:       reason,
 		}
 		if err := e.auditRepo.Create(ctx, audit); err != nil {
 			// Log error but don't fail
@@ -168,18 +168,18 @@ func (e *Engine) logAudit(ctx context.Context, policy *domain.Policy, idCtx *ide
 
 	details, _ := json.Marshal(map[string]interface{}{
 		"tenant_id": idCtx.TenantID,
-		"roles":    idCtx.Roles,
+		"roles":     idCtx.Roles,
 	})
 
 	audit := &domain.PolicyAudit{
-		PolicyID:    policy.ID,
-		TenantID:    tenantID,
-		UserID:      userID,
-		Action:      action,
-		ResourceID:  resID,
-		Decision:    policy.Effect,
-		Reason:      "policy_matched",
-		Details:     details,
+		PolicyID:   policy.ID,
+		TenantID:   tenantID,
+		UserID:     userID,
+		Action:     action,
+		ResourceID: resID,
+		Decision:   policy.Effect,
+		Reason:     "policy_matched",
+		Details:    details,
 	}
 
 	e.auditRepo.Create(ctx, audit)

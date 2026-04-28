@@ -11,14 +11,14 @@ import (
 // Config holds all configuration for the IAM service.
 type Config struct {
 	Server          ServerConfig
-	Database      DatabaseConfig
-	JWT           JWTConfig
-	MinIO         MinIOConfig
-	ZeroTrust     *ZeroTrustConfig
-	Keycloak     *KeycloakConfig
-	LTI          *LTIConfig
-	SSO          *SSOConfig
-	FrontendURL    string
+	Database        DatabaseConfig
+	JWT             JWTConfig
+	MinIO           MinIOConfig
+	ZeroTrust       *ZeroTrustConfig
+	Keycloak        *KeycloakConfig
+	LTI             *LTIConfig
+	SSO             *SSOConfig
+	FrontendURL     string
 	EmailServiceURL string
 }
 
@@ -85,8 +85,8 @@ func Load() (*Config, error) {
 		JWT: JWTConfig{
 			SecretKey:          getEnv("JWT_SECRET_KEY", ""),
 			AccessTokenExpiry:  getEnvAsInt64("JWT_ACCESS_TOKEN_EXPIRY", 15),
-			RefreshTokenExpiry:  getEnvAsInt64("JWT_REFRESH_TOKEN_EXPIRY", 7),
-			CookieSecure:      getEnvAsBool("JWT_COOKIE_SECURE", false),
+			RefreshTokenExpiry: getEnvAsInt64("JWT_REFRESH_TOKEN_EXPIRY", 7),
+			CookieSecure:       getEnvAsBool("JWT_COOKIE_SECURE", false),
 			CookieSameSite:     getEnv("JWT_COOKIE_SAMESITE", "Lax"),
 		},
 		MinIO: MinIOConfig{
@@ -97,11 +97,11 @@ func Load() (*Config, error) {
 			UseSSL:     getEnvAsBool("MINIO_USE_SSL", false),
 			PublicHost: getEnv("MINIO_PUBLIC_HOST", "http://localhost:9000"),
 		},
-		ZeroTrust:   ztConfig,
-		Keycloak:   kcConfig,
-		LTI:       ltiConfig,
-		SSO:       ssoConfig,
-		FrontendURL:    getEnv("FRONTEND_URL", "http://localhost:3000"),
+		ZeroTrust:       ztConfig,
+		Keycloak:        kcConfig,
+		LTI:             ltiConfig,
+		SSO:             ssoConfig,
+		FrontendURL:     getEnv("FRONTEND_URL", "http://localhost:3000"),
 		EmailServiceURL: getEnv("EMAIL_SERVICE_URL", "http://localhost:8082"),
 	}, nil
 }

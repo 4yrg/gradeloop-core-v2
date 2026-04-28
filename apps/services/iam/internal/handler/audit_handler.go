@@ -3,8 +3,8 @@ package handler
 import (
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/domain"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/service"
-	"github.com/google/uuid"
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 	"strconv"
 )
 

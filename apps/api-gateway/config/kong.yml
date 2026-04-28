@@ -473,6 +473,76 @@ services:
       policy: local
       fault_tolerant: true
       hide_client_headers: false
+- name: notification-service
+  url: http://notification:8086
+  routes:
+  - name: notification-sse
+    paths:
+    - /api/v1/notifications/stream
+    strip_path: false
+    preserve_host: false
+  plugins:
+  - name: cors
+    config:
+      origins:
+      - http://localhost:3000
+      - http://localhost:80
+      - http://localhost:8080
+      - http://localhost:443
+      methods:
+      - GET
+      - OPTIONS
+      headers:
+      - Origin
+      - Content-Type
+      - Accept
+      - Authorization
+      - X-Request-ID
+      credentials: true
+      max_age: 3600
+  - name: rate-limiting
+    config:
+      minute: 120
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+- name: notification-service-rest
+  url: http://notification:8086
+  routes:
+  - name: notification-notifications
+    paths:
+    - /api/v1/notifications
+    strip_path: false
+    preserve_host: false
+  plugins:
+  - name: cors
+    config:
+      origins:
+      - http://localhost:3000
+      - http://localhost:80
+      - http://localhost:8080
+      - http://localhost:443
+      methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - PATCH
+      - OPTIONS
+      headers:
+      - Origin
+      - Content-Type
+      - Accept
+      - Authorization
+      - X-Request-ID
+      credentials: true
+      max_age: 3600
+  - name: rate-limiting
+    config:
+      minute: 500
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
 - name: iam-service
   url: http://iam:8081
   routes:

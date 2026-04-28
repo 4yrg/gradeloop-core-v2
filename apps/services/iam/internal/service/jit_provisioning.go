@@ -12,16 +12,16 @@ import (
 )
 
 var (
-	ErrSSODisabled      = errors.New("SSO is disabled")
+	ErrSSODisabled     = errors.New("SSO is disabled")
 	ErrInvalidIdentity = errors.New("invalid SSO identity")
-	ErrTenantRequired = errors.New("tenant is required in production")
+	ErrTenantRequired  = errors.New("tenant is required in production")
 )
 
 // JITService handles Just-in-Time user provisioning
 type JITService struct {
-	userRepo    repository.UserRepository
-	tenantRepo  repository.TenantRepository
-	ssoConfig   *config.SSOConfig
+	userRepo   repository.UserRepository
+	tenantRepo repository.TenantRepository
+	ssoConfig  *config.SSOConfig
 }
 
 // NewJITService creates a new JIT provisioning service
@@ -33,7 +33,7 @@ func NewJITService(
 	return &JITService{
 		userRepo:   userRepo,
 		tenantRepo: tenantRepo,
-		ssoConfig: ssoConfig,
+		ssoConfig:  ssoConfig,
 	}
 }
 

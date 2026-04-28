@@ -138,6 +138,24 @@ func run() error {
 	userHandler := handler.NewUserHandler(userService, minioStorage)
 	bulkImportHandler := handler.NewBulkImportHandler(bulkImportService)
 
+	tenantRepo := repository.NewTenantRepository(db.DB)
+	tenantSvc := service.NewTenantService(db.DB, tenantRepo)
+	tenantHandler := handler.NewTenantHandler(tenantSvc)
+
+	rbacRepo := repository.NewRBACRepository(db.DB)
+	rbacService := service.NewRBACService(rbacRepo)
+	rbacHandler := handler.NewRBACHandler(rbacService)
+
+	invitationRepo := repository.NewInvitationRepository(db.DB)
+	invitationSvc := service.NewInvitationService(db.DB, invitationRepo)
+	invitationHandler := handler.NewInvitationHandler(invitationSvc)
+
+	auditSvc := service.NewAuditService(db.DB)
+	auditHandler := handler.NewAuditHandler(auditSvc)
+
+	mfaSvc := service.NewMFAService(db.DB)
+	mfaHandler := handler.NewMFAHandler(mfaSvc)
+
 	app := fiber.New(fiber.Config{
 		AppName:      "iam-service",
 		ErrorHandler: utils.ErrorHandler,
@@ -153,16 +171,16 @@ func run() error {
 	}))
 
 	router.SetupRoutes(app, router.Config{
-		HealthHandler:       healthHandler,
-		AuthHandler:        authHandler,
-		UserHandler:        userHandler,
-		BulkImportHandler:  bulkImportHandler,
+		HealthHandler:     healthHandler,
+		AuthHandler:       authHandler,
+		UserHandler:       userHandler,
+		BulkImportHandler: bulkImportHandler,
 		TenantHandler:     tenantHandler,
-		RBACHandler:      rbacHandler,
+		RBACHandler:       rbacHandler,
 		InvitationHandler: invitationHandler,
-		AuditHandler:     auditHandler,
-		MFAHandler:       mfaHandler,
-		JWTSecretKey:     []byte(cfg.JWT.SecretKey),
+		AuditHandler:      auditHandler,
+		MFAHandler:        mfaHandler,
+		JWTSecretKey:      []byte(cfg.JWT.SecretKey),
 		ZeroTrustConfig:   cfg.ZeroTrust,
 	})
 

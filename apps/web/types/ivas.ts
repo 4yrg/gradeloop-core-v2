@@ -109,9 +109,10 @@ export interface VivaSession {
     assignment_id: string;
     assignment_context: Record<string, unknown>;
     student_id: string;
-    status: "initializing" | "in_progress" | "paused" | "completed" | "abandoned";
+    status: "initializing" | "in_progress" | "paused" | "grading" | "completed" | "abandoned" | "grading_failed";
     total_score: number | null;
     max_possible: number | null;
+    difficulty_distribution: Record<string, number> | null;
     started_at: string;
     completed_at: string | null;
     metadata: Record<string, unknown>;
@@ -121,6 +122,7 @@ export interface SessionCreate {
     assignment_id: string;
     student_id: string;
     assignment_context?: Record<string, unknown>;
+    difficulty_distribution?: Record<string, number>;
 }
 
 // ============================================================
@@ -152,6 +154,21 @@ export interface VoiceVerifyOut {
 }
 
 // ============================================================
+// Voice Auth Events (per-answer verification during viva)
+// ============================================================
+
+export interface VoiceAuthEvent {
+    id: string;
+    session_id: string;
+    question_instance_id: string | null;
+    similarity_score: number | null;
+    is_match: boolean | null;
+    confidence: "high" | "medium" | "low" | null;
+    audio_ref: string | null;
+    checked_at: string;
+}
+
+// ============================================================
 // WebSocket Message Types
 // ============================================================
 
@@ -161,11 +178,28 @@ export interface WsMessageOutgoing {
 }
 
 export interface WsMessageIncoming {
-    type: "audio" | "text" | "turn_complete" | "session_started" | "session_ended" | "error" | "pong";
+    type:
+        | "audio"
+        | "text"
+        | "user_transcript"
+        | "ai_transcript"
+        | "turn_complete"
+        | "session_started"
+        | "session_ended"
+        | "viva_loading"
+        | "error"
+        | "pong"
+        | "voice_warning"
+        | "voice_status";
     data?: string;
+    finished?: boolean;
     session_id?: string;
     status?: string;
     mime_type?: string;
+    similarity?: number;
+    confidence?: "high" | "medium" | "low" | "none";
+    message?: string;
+    is_match?: boolean;
 }
 
 // ============================================================
@@ -184,6 +218,123 @@ export interface ReadyResponse {
 }
 
 // ============================================================
+// Graded Q&A (from session details endpoint)
+// ============================================================
+
+export interface GradedQA {
+    sequence_num: number;
+    question_text: string;
+    response_text: string | null;
+    score: number | null;
+    max_score: number | null;
+    score_justification: string | null;
+}
+
+// ============================================================
+// Transcript turn (from session details endpoint)
+// ============================================================
+
+export interface Transcript {
+    id: string;
+    session_id: string;
+    turn_number: number;
+    role: "examiner" | "student";
+    content: string;
+    timestamp: string;
+}
+
+// ============================================================
+// Session detail (full picture for instructor review)
+// ============================================================
+
+export interface SessionDetail {
+    session: VivaSession;
+    transcripts: Transcript[];
+    graded_qa: GradedQA[];
+    voice_auth_events: VoiceAuthEvent[];
+}
+
+// ============================================================
+// Competency types (matches backend competency schemas)
+// ============================================================
+
+export interface CompetencyOut {
+    id: string;
+    name: string;
+    description: string | null;
+    difficulty: number;
+    max_score: number;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface CompetencyAssignmentLinkOut {
+    link_id: string;
+    competency_id: string;
+    name: string;
+    description: string | null;
+    difficulty: number;
+    max_score: number;
+    weight: number;
+}
+
+export interface CompetencyScoreOut {
+    id: string;
+    student_id: string;
+    competency_id: string;
+    competency_name: string | null;
+    difficulty: number | null;
+    max_score: number | null;
+    session_id: string | null;
+    score: number | null;
+    is_override: boolean;
+    override_by: string | null;
+    override_at: string | null;
+    created_at: string;
+}
+
+export interface CompetencyScoreSummary {
+    student_id: string;
+    competency_id: string;
+    competency_name: string;
+    difficulty: number;
+    max_score: number;
+    avg_score: number | null;
+    session_count: number;
+    has_override: boolean;
+}
+
+export interface SetCompetenciesRequest {
+    competencies: { competency_id: string; weight?: number }[];
+}
+
+export interface GenerateCompetenciesRequest {
+    assignment_id: string;
+    code_context?: string;
+    description?: string;
+    title?: string;
+}
+
+export interface GeneratedCompetency {
+    name: string;
+    description: string;
+    difficulty: number;
+    max_score: number;
+    weight: number;
+}
+
+export interface GenerateCompetenciesResponse {
+    competencies: GeneratedCompetency[];
+}
+
+export interface OverrideScoreRequest {
+    student_id: string;
+    competency_id: string;
+    new_score: number;
+    override_by: string;
+}
+
+// ============================================================
 // Chat Message (UI-only, for viva transcript display)
 // ============================================================
 
@@ -193,4 +344,6 @@ export interface ChatMessage {
     content: string;
     timestamp: Date;
     isAudio?: boolean;
+    /** True while transcript is still streaming for this message. */
+    streaming?: boolean;
 }

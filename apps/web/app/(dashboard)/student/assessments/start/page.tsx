@@ -2,14 +2,15 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Mic2, BookOpen, Loader2, AlertCircle } from "lucide-react";
+import { Mic2, BookOpen, Loader2, AlertCircle, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toaster";
 import { ivasApi } from "@/lib/ivas-api";
+import { handleApiError } from "@/lib/api/axios";
 import { useAuthStore } from "@/lib/stores/authStore";
-import type { IvasAssignment } from "@/types/ivas";
+import type { IvasAssignment, VoiceProfileStatus } from "@/types/ivas";
 import {
     Select,
     SelectContent,
@@ -27,6 +28,10 @@ export default function StartAssessmentPage() {
     const [selectedAssignment, setSelectedAssignment] = React.useState<string>("");
     const [loading, setLoading] = React.useState(true);
     const [starting, setStarting] = React.useState(false);
+    const [competencyCount, setCompetencyCount] = React.useState<number | null>(null);
+    const [competenciesLoading, setCompetenciesLoading] = React.useState(false);
+    const [voiceProfile, setVoiceProfile] = React.useState<VoiceProfileStatus | null>(null);
+    const [voiceProfileLoading, setVoiceProfileLoading] = React.useState(true);
 
     React.useEffect(() => {
         let mounted = true;
@@ -56,7 +61,53 @@ export default function StartAssessmentPage() {
         return () => { mounted = false; };
     }, [addToast, selectedAssignment]);
 
+    // Fetch competency count when the selected assignment changes
+    React.useEffect(() => {
+        if (!selectedAssignment) {
+            setCompetencyCount(null);
+            return;
+        }
+        let mounted = true;
+        async function loadCompetencies() {
+            try {
+                setCompetenciesLoading(true);
+                const comps = await ivasApi.listAssignmentCompetencies(selectedAssignment);
+                if (mounted) setCompetencyCount(comps.length);
+            } catch {
+                if (mounted) setCompetencyCount(null);
+            } finally {
+                if (mounted) setCompetenciesLoading(false);
+            }
+        }
+        loadCompetencies();
+        return () => { mounted = false; };
+    }, [selectedAssignment]);
+
+    // Check voice enrollment status
+    React.useEffect(() => {
+        if (!user?.id) {
+            setVoiceProfileLoading(false);
+            return;
+        }
+        let mounted = true;
+        async function checkVoiceProfile() {
+            try {
+                setVoiceProfileLoading(true);
+                const profile = await ivasApi.getVoiceProfile(user!.id);
+                if (mounted) setVoiceProfile(profile);
+            } catch {
+                // Profile doesn't exist yet — that's fine, voiceProfile stays null
+            } finally {
+                if (mounted) setVoiceProfileLoading(false);
+            }
+        }
+        checkVoiceProfile();
+        return () => { mounted = false; };
+    }, [user?.id]);
+
     const selectedData = assignments.find(a => a.id === selectedAssignment);
+
+    const voiceEnrolled = voiceProfile ? voiceProfile.is_complete : false;
 
     const handleStartAssessment = async () => {
         if (!selectedAssignment || !user?.id) {
@@ -107,7 +158,7 @@ export default function StartAssessmentPage() {
             addToast({
                 title: "Failed to start assessment",
                 variant: "error",
-                description: error instanceof Error ? error.message : "Please try again."
+                description: handleApiError(error)
             });
         } finally {
             setStarting(false);
@@ -212,6 +263,38 @@ export default function StartAssessmentPage() {
                     </CardContent>
                 </Card>
 
+                {/* No grading criteria warning */}
+                {competencyCount === 0 && (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-sm">
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                        <span>This assignment has no grading criteria configured. Contact your instructor to add competencies before starting the viva.</span>
+                    </div>
+                )}
+
+                {/* Voice enrollment required — hard block */}
+                {!voiceProfileLoading && !voiceEnrolled && (
+                    <Card className="border-red-200 dark:border-red-900 bg-red-50/50 dark:bg-red-950/20">
+                        <CardHeader className="pb-3">
+                            <CardTitle className="flex items-center gap-2 text-base text-red-700 dark:text-red-400">
+                                <ShieldCheck className="h-5 w-5" />
+                                Voice Enrollment Required
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            <p className="text-sm text-red-600 dark:text-red-400">
+                                You must enroll your voice identity before starting a viva. This ensures the person speaking during the examination is you.
+                            </p>
+                            <Button
+                                onClick={() => router.push("/student/assessments/voice-enrollment")}
+                                className="gap-2"
+                            >
+                                <Mic2 className="h-4 w-4" />
+                                Enroll Your Voice
+                            </Button>
+                        </CardContent>
+                    </Card>
+                )}
+
                 {/* Start Button */}
                 <div className="flex justify-end gap-3">
                     <Button
@@ -223,7 +306,7 @@ export default function StartAssessmentPage() {
                     </Button>
                     <Button
                         onClick={handleStartAssessment}
-                        disabled={starting || !selectedAssignment || assignments.length === 0}
+                        disabled={starting || !selectedAssignment || assignments.length === 0 || (competencyCount !== null && competencyCount === 0) || !voiceEnrolled}
                         className="gap-2"
                     >
                         {starting ? (

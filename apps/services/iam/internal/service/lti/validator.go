@@ -19,51 +19,51 @@ import (
 
 var (
 	ErrInvalidJWT        = errors.New("invalid JWT")
-	ErrInvalidNonce     = errors.New("invalid or used nonce")
-	ErrInvalidIssuer    = errors.New("invalid issuer")
-	ErrInvalidAudience  = errors.New("invalid audience")
+	ErrInvalidNonce      = errors.New("invalid or used nonce")
+	ErrInvalidIssuer     = errors.New("invalid issuer")
+	ErrInvalidAudience   = errors.New("invalid audience")
 	ErrInvalidDeployment = errors.New("invalid deployment_id")
-	ErrInvalidSignature = errors.New("invalid JWT signature")
-	ErrExpiredToken     = errors.New("token expired")
-	ErrMissingClaim     = errors.New("missing required claim")
-	ErrInvalidClaim     = errors.New("invalid claim value")
+	ErrInvalidSignature  = errors.New("invalid JWT signature")
+	ErrExpiredToken      = errors.New("token expired")
+	ErrMissingClaim      = errors.New("missing required claim")
+	ErrInvalidClaim      = errors.New("invalid claim value")
 )
 
 // LTI Claims namespaces
 const (
-	ClaimContext     = "https://purl.imsglobal.org/spec/lti/claim/context"
-	ClaimRoles      = "https://purl.imsglobal.org/spec/lti/claim/roles"
-	ClaimResourceLink = "https://purl.imsglobal.org/spec/lti/claim/resource_link"
+	ClaimContext            = "https://purl.imsglobal.org/spec/lti/claim/context"
+	ClaimRoles              = "https://purl.imsglobal.org/spec/lti/claim/roles"
+	ClaimResourceLink       = "https://purl.imsglobal.org/spec/lti/claim/resource_link"
 	ClaimLaunchPresentation = "https://purl.imsglobal.org/spec/lti/claim/launch_presentation"
-	ClaimAGS       = "https://purl.imsglobal.org/spec/lti-ags/claim/lineitems"
-	ClaimNRPS     = "https://purl.imsglobal.org/spec/lti-nrps/claim/namesroleservice"
+	ClaimAGS                = "https://purl.imsglobal.org/spec/lti-ags/claim/lineitems"
+	ClaimNRPS               = "https://purl.imsglobal.org/spec/lti-nrps/claim/namesroleservice"
 )
 
 // LTIClaims represents LTI 1.3 launch claims
 type LTIClaims struct {
 	// Standard JWT claims
-	Iss string `json:"iss"`
-	Sub string `json:"sub"`
+	Iss string      `json:"iss"`
+	Sub string      `json:"sub"`
 	Aud interface{} `json:"aud"` // Can be string or []string
-	Exp int64 `json:"exp"`
-	Iat int64 `json:"iat"`
-	Nbf int64 `json:"nbf"`
-	Jti string `json:"jti"`
+	Exp int64       `json:"exp"`
+	Iat int64       `json:"iat"`
+	Nbf int64       `json:"nbf"`
+	Jti string      `json:"jti"`
 
 	// LTI specific
-	Nonce          string          `json:"nonce"`
-	DeploymentID   string          `json:"deployment_id"`
-	TargetLinkURI  string          `json:"target_link_uri"`
-	Context       *ContextClaim   `json:"https://purl.imsglobal.org/spec/lti/claim/context,omitempty"`
-	Roles         []string        `json:"https://purl.imsglobal.org/spec/lti/claim/roles,omitempty"`
-	ResourceLink  *ResourceLink   `json:"https://purl.imsglobal.org/spec/lti/claim/resource_link,omitempty"`
+	Nonce              string              `json:"nonce"`
+	DeploymentID       string              `json:"deployment_id"`
+	TargetLinkURI      string              `json:"target_link_uri"`
+	Context            *ContextClaim       `json:"https://purl.imsglobal.org/spec/lti/claim/context,omitempty"`
+	Roles              []string            `json:"https://purl.imsglobal.org/spec/lti/claim/roles,omitempty"`
+	ResourceLink       *ResourceLink       `json:"https://purl.imsglobal.org/spec/lti/claim/resource_link,omitempty"`
 	LaunchPresentation *LaunchPresentation `json:"https://purl.imsglobal.org/spec/lti/claim/launch_presentation,omitempty"`
 
 	// Name/email
 	GivenName  string `json:"given_name,omitempty"`
 	FamilyName string `json:"family_name,omitempty"`
-	Email     string `json:"email,omitempty"`
-	Name      string `json:"name,omitempty"` // Full name
+	Email      string `json:"email,omitempty"`
+	Name       string `json:"name,omitempty"` // Full name
 
 	// Custom parameters
 	Custom map[string]string `json:"custom,omitempty"`
@@ -73,30 +73,30 @@ type LTIClaims struct {
 
 // ContextClaim represents LTI context claim
 type ContextClaim struct {
-	ID      string `json:"id"`
-	Label  string `json:"label,omitempty"`
-	Title  string `json:"title,omitempty"`
-	Type   []string `json:"type,omitempty"`
+	ID    string   `json:"id"`
+	Label string   `json:"label,omitempty"`
+	Title string   `json:"title,omitempty"`
+	Type  []string `json:"type,omitempty"`
 }
 
 // ResourceLink represents resource link claim
 type ResourceLink struct {
-	ID      string `json:"id,omitempty"`
-	Title  string `json:"title,omitempty"`
-	Url    string `json:"url,omitempty"`
+	ID    string `json:"id,omitempty"`
+	Title string `json:"title,omitempty"`
+	Url   string `json:"url,omitempty"`
 }
 
 // LaunchPresentation represents launch presentation claim
 type LaunchPresentation struct {
 	ReturnURL string `json:"return_url,omitempty"`
-	Locale  string `json:"locale,omitempty"`
+	Locale    string `json:"locale,omitempty"`
 }
 
 // Validator validates LTI 1.3 JWTs
 type Validator struct {
 	cfg          *config.LTIConfig
-	toolRepo    repository.LTIToolRepository
-	nonceStore  *NonceStore
+	toolRepo     repository.LTIToolRepository
+	nonceStore   *NonceStore
 	jwksProvider interface {
 		GetKey(ctx context.Context, kid string) (*rsa.PublicKey, error)
 	}
@@ -109,7 +109,7 @@ func NewValidator(
 	nonceStore *NonceStore,
 ) *Validator {
 	return &Validator{
-		cfg:         cfg,
+		cfg:        cfg,
 		toolRepo:   toolRepo,
 		nonceStore: nonceStore,
 	}

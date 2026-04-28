@@ -294,8 +294,8 @@ export default function InstructorAssignmentDetailsPage() {
                             </p>
                         </div>
                         <Button className="mt-2 w-full max-w-[200px]" asChild>
-                            <Link href={`/instructor/assessments/setup/${assignmentId}`}>
-                                Setup Viva
+                            <Link href={`/instructor/courses/${instanceId}/assignments/${assignmentId}/viva`}>
+                                Viva Sessions
                                 <ArrowRight className="ml-2 h-4 w-4" />
                             </Link>
                         </Button>

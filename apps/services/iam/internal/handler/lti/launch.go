@@ -10,7 +10,7 @@ import (
 
 // LoginInitiationHandler handles OIDC login initiation
 type LoginInitiationHandler struct {
-	cfg    *config.LTIConfig
+	cfg *config.LTIConfig
 }
 
 // NewLoginInitiationHandler creates login initiation handler
@@ -26,7 +26,7 @@ func (h *LoginInitiationHandler) HandleLoginInitiation(c fiber.Ctx) error {
 
 	if iss == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid_request",
+			"error":             "invalid_request",
 			"error_description": "Missing iss parameter",
 		})
 	}
@@ -34,9 +34,9 @@ func (h *LoginInitiationHandler) HandleLoginInitiation(c fiber.Ctx) error {
 	// Mock mode: simplified response
 	if h.cfg.IsMockMode() {
 		return c.JSON(fiber.Map{
-			"status":       "mock_mode",
-			"login_hint":   loginHint,
-			"target_uri":  targetLinkURI,
+			"status":     "mock_mode",
+			"login_hint": loginHint,
+			"target_uri": targetLinkURI,
 			"issuer":     iss,
 		})
 	}
@@ -46,7 +46,7 @@ func (h *LoginInitiationHandler) HandleLoginInitiation(c fiber.Ctx) error {
 	// Just return response, don't redirect
 	return c.JSON(fiber.Map{
 		"redirect_url": h.cfg.RedirectURI + "?state=" + state,
-		"state":     state,
+		"state":        state,
 	})
 }
 
@@ -68,12 +68,12 @@ func (h *LTILaunchHandler) HandleLaunch(c fiber.Ctx) error {
 		// LTI 1.1 fallback - just return mock response for now
 		if h.cfg.LTI11Enabled {
 			return c.JSON(fiber.Map{
-				"status":  "legacy_launch",
+				"status": "legacy_launch",
 				"mode":   "lti1.1",
 			})
 		}
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid_request",
+			"error":             "invalid_request",
 			"error_description": "Missing id_token",
 		})
 	}

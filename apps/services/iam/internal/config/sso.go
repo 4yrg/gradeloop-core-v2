@@ -13,22 +13,22 @@ type SSOConfig struct {
 	AllowLocal bool
 
 	// Google Workspace OIDC
-	GoogleEnabled       bool
+	GoogleEnabled      bool
 	GoogleClientID     string
 	GoogleClientSecret string
 
 	// Microsoft Entra ID (Azure AD)
-	MicrosoftEnabled       bool
+	MicrosoftEnabled      bool
 	MicrosoftClientID     string
 	MicrosoftClientSecret string
 
 	// SAML 2.0
-	SAMLEnabled      bool
+	SAMLEnabled     bool
 	SAMLMetadataURL string
 
 	// JIT Provisioning
-	JITEnabled    bool
-	DefaultRole  string
+	JITEnabled  bool
+	DefaultRole string
 }
 
 // LoadSSOConfig loads SSO configuration from environment
@@ -54,22 +54,22 @@ func LoadSSOConfig() *SSOConfig {
 		AllowLocal: allowLocal,
 
 		// Google Workspace
-		GoogleEnabled:       getEnvString("GOOGLE_CLIENT_ID", "") != "",
+		GoogleEnabled:      getEnvString("GOOGLE_CLIENT_ID", "") != "",
 		GoogleClientID:     getEnvString("GOOGLE_CLIENT_ID", ""),
 		GoogleClientSecret: getEnvString("GOOGLE_CLIENT_SECRET", ""),
 
 		// Microsoft Entra ID
-		MicrosoftEnabled:       getEnvString("MICROSOFT_CLIENT_ID", "") != "",
+		MicrosoftEnabled:      getEnvString("MICROSOFT_CLIENT_ID", "") != "",
 		MicrosoftClientID:     getEnvString("MICROSOFT_CLIENT_ID", ""),
 		MicrosoftClientSecret: getEnvString("MICROSOFT_CLIENT_SECRET", ""),
 
 		// SAML
-		SAMLEnabled:      getEnvString("SAML_IDP_METADATA_URL", "") != "",
+		SAMLEnabled:     getEnvString("SAML_IDP_METADATA_URL", "") != "",
 		SAMLMetadataURL: getEnvString("SAML_IDP_METADATA_URL", ""),
 
 		// JIT
-		JITEnabled:   getEnvString("SSO_JIT_ENABLED", "true") == "true",
-		DefaultRole:  getEnvString("SSO_DEFAULT_ROLE", "student"),
+		JITEnabled:  getEnvString("SSO_JIT_ENABLED", "true") == "true",
+		DefaultRole: getEnvString("SSO_DEFAULT_ROLE", "student"),
 	}
 }
 

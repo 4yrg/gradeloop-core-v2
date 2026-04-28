@@ -28,7 +28,7 @@ const (
 
 var (
 	ErrInvalidLTI11Signature = errors.New("invalid LTI 1.1 signature")
-	ErrInvalidLTI11Consumer = errors.New("invalid LTI 1.1 consumer")
+	ErrInvalidLTI11Consumer  = errors.New("invalid LTI 1.1 consumer")
 )
 
 // LTI1p1Adapter adapts LTI 1.1 launches to LTI 1.3 format
@@ -59,26 +59,26 @@ func NewLTI1p1Adapter(cfg *config.LTIConfig) *LTI1p1Adapter {
 type LTI1p1Form struct {
 	// Required LTI 1.1 parameters
 	OAuthConsumerKey string `form:"oauth_consumer_key"`
-	OAuthSignature string `form:"oauth_signature"`
-	OAuthTimestamp string `form:"oauth_timestamp"`
-	OAuthNonce   string `form:"oauth_nonce"`
-	ResourceLinkID string `form:"resource_link_id"`
-	UserID     string `form:"user_id"`
+	OAuthSignature   string `form:"oauth_signature"`
+	OAuthTimestamp   string `form:"oauth_timestamp"`
+	OAuthNonce       string `form:"oauth_nonce"`
+	ResourceLinkID   string `form:"resource_link_id"`
+	UserID           string `form:"user_id"`
 
 	// LTI parameters
-	ContextID      string `form:"context_id"`
-	ContextTitle  string `form:"context_title"`
-	ContextLabel  string `form:"context_label"`
+	ContextID    string `form:"context_id"`
+	ContextTitle string `form:"context_title"`
+	ContextLabel string `form:"context_label"`
 	Roles        string `form:"roles"`
 	RoleScope    string `form:"lis_person_sourcedid"`
 	UserEmail    string `form:"lis_person_contact_email_primary"`
-	UserName    string `form:"lis_person_name_full"`
+	UserName     string `form:"lis_person_name_full"`
 	GivenName    string `form:"lis_person_name_given"`
-	FamilyName  string `form:"lis_person_name_family"`
+	FamilyName   string `form:"lis_person_name_family"`
 
 	// Deployment
 	ToolConsumerInfoProductFamily string `form:"tool_consumer_info_product_family_code"`
-	ToolConsumerInfoVersion string `form:"tool_consumer_info_version"`
+	ToolConsumerInfoVersion       string `form:"tool_consumer_info_version"`
 
 	// Custom
 	Custom map[string]string
@@ -227,13 +227,13 @@ func (a *LTI1p1Adapter) ToClaims(ctx context.Context, form *LTI1p1Form, deployme
 
 	claims := &LTIClaims{
 		// Standard JWT
-		Iss:    a.cfg.PlatformURL,
-		Sub:    externalUserID,
-		Aud:    a.cfg.ClientID,
-		Exp:    now.Add(5 * time.Minute).Unix(),
-		Iat:    now.Unix(),
-		Nonce:  form.OAuthNonce,
-		Jti:    uuid.New().String(),
+		Iss:   a.cfg.PlatformURL,
+		Sub:   externalUserID,
+		Aud:   a.cfg.ClientID,
+		Exp:   now.Add(5 * time.Minute).Unix(),
+		Iat:   now.Unix(),
+		Nonce: form.OAuthNonce,
+		Jti:   uuid.New().String(),
 
 		// LTI
 		DeploymentID:  deploymentID,
@@ -241,10 +241,10 @@ func (a *LTI1p1Adapter) ToClaims(ctx context.Context, form *LTI1p1Form, deployme
 
 		// Context
 		Context: &ContextClaim{
-			ID:     form.ContextID,
-			Title:  form.ContextTitle,
-			Label:  form.ContextLabel,
-			Type:   []string{"http://purl.imsglobal.org/vocab/lti/v1/context#CourseOffering"},
+			ID:    form.ContextID,
+			Title: form.ContextTitle,
+			Label: form.ContextLabel,
+			Type:  []string{"http://purl.imsglobal.org/vocab/lti/v1/context#CourseOffering"},
 		},
 
 		// Role
@@ -252,14 +252,14 @@ func (a *LTI1p1Adapter) ToClaims(ctx context.Context, form *LTI1p1Form, deployme
 
 		// Resource Link
 		ResourceLink: &ResourceLink{
-			ID:    form.ResourceLinkID,
+			ID: form.ResourceLinkID,
 		},
 
 		// User
 		GivenName:  form.GivenName,
 		FamilyName: form.FamilyName,
-		Name:      name,
-		Email:     email,
+		Name:       name,
+		Email:      email,
 
 		// Custom
 		Custom: form.Custom,

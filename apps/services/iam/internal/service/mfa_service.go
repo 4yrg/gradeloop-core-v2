@@ -49,7 +49,7 @@ func (s *mfaService) GenerateSecret(ctx context.Context, userID uuid.UUID) (stri
 
 	// Create or update MFA config
 	mfa := &domain.MFAConfig{
-		UserID:  userID,
+		UserID: userID,
 		Secret: secret,
 		Status: domain.MFAStatusPending,
 	}

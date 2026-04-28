@@ -20,10 +20,10 @@ import (
 )
 
 var (
-	ErrInvalidToken = errors.New("invalid token")
-	ErrExpiredToken = errors.New("token has expired")
+	ErrInvalidToken     = errors.New("invalid token")
+	ErrExpiredToken     = errors.New("token has expired")
 	ErrInvalidAlgorithm = errors.New("invalid signing algorithm")
-	ErrInvalidKey = errors.New("invalid key for signing method")
+	ErrInvalidKey       = errors.New("invalid key for signing method")
 )
 
 type Claims struct {
@@ -45,17 +45,17 @@ type JWKSProvider interface {
 }
 
 type JWKS struct {
-	mu    sync.RWMutex
-	keys  map[string]*rsa.PublicKey
-	jwksURL string
-	client *http.Client
-	ttl    time.Duration
+	mu        sync.RWMutex
+	keys      map[string]*rsa.PublicKey
+	jwksURL   string
+	client    *http.Client
+	ttl       time.Duration
 	lastFetch time.Time
 }
 
 func NewJWKS(jwksURL string, ttl time.Duration) *JWKS {
 	return &JWKS{
-		keys:  make(map[string]*rsa.PublicKey),
+		keys:    make(map[string]*rsa.PublicKey),
 		jwksURL: jwksURL,
 		client: &http.Client{
 			Timeout: 10 * time.Second,
@@ -165,8 +165,8 @@ type JWT struct {
 	secretKey          []byte
 	accessTokenExpiry  time.Duration
 	refreshTokenExpiry time.Duration
-	useRS256          bool
-	jwks             JWKSProvider
+	useRS256           bool
+	jwks               JWKSProvider
 }
 
 func NewJWT(secretKey string, accessTokenExpiryMinutes, refreshTokenExpiryDays int64) *JWT {
@@ -182,8 +182,8 @@ func NewJWTWithKeycloak(secretKey string, accessTokenExpiryMinutes, refreshToken
 		secretKey:          []byte(secretKey),
 		accessTokenExpiry:  time.Duration(accessTokenExpiryMinutes) * time.Minute,
 		refreshTokenExpiry: time.Duration(refreshTokenExpiryDays) * 24 * time.Hour,
-		useRS256:          true,
-		jwks:             NewJWKS(jwksURL, 24*time.Hour),
+		useRS256:           true,
+		jwks:               NewJWKS(jwksURL, 24*time.Hour),
 	}
 }
 

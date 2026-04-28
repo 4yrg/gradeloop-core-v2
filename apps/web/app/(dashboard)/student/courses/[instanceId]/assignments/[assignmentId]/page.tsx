@@ -85,6 +85,7 @@ export default function StudentAssignmentDetailPage() {
     const [selectedGradeLoading, setSelectedGradeLoading] = React.useState(false);
     const [startingViva, setStartingViva] = React.useState(false);
     const [vivaError, setVivaError] = React.useState<string | null>(null);
+    const [hasCompetencies, setHasCompetencies] = React.useState<boolean | null>(null);
 
     React.useEffect(() => {
         let mounted = true;
@@ -92,14 +93,16 @@ export default function StudentAssignmentDetailPage() {
         async function fetchData() {
             try {
                 setIsLoading(true);
-                const [assignmentData, submissionsData] = await Promise.all([
+                const [assignmentData, submissionsData, competencyData] = await Promise.all([
                     studentAssessmentsApi.getAssignment(assignmentId),
                     studentAssessmentsApi.listMySubmissions(assignmentId),
+                    ivasApi.listAssignmentCompetencies(assignmentId).catch(() => null),
                 ]);
                 if (mounted) {
                     setAssignment(assignmentData);
                     setPageTitle(assignmentData.title);
                     setSubmissions(submissionsData.sort((a, b) => b.version - a.version));
+                    if (competencyData !== null) setHasCompetencies(competencyData.length > 0);
 
                     // Eagerly fetch grade for the latest submission (may be 404 if not graded yet).
                     const latestSub = submissionsData.find((s) => s.is_latest);
@@ -167,6 +170,10 @@ export default function StudentAssignmentDetailPage() {
 
     const handleStartViva = async () => {
         if (!user?.id) return;
+        if (hasCompetencies === false) {
+            setVivaError("Cannot start viva: no grading criteria configured for this assignment.");
+            return;
+        }
         try {
             setStartingViva(true);
             setVivaError(null);
@@ -175,7 +182,7 @@ export default function StudentAssignmentDetailPage() {
                 title: assignment.title,
                 description: assignment.description || "",
                 code: assignment.code,
-                programming_language: assignment.code.toLowerCase(),
+                programming_language: "",
             };
             const session = await ivasApi.createSession({
                 assignment_id: assignmentId,
@@ -184,7 +191,7 @@ export default function StudentAssignmentDetailPage() {
             });
             router.push(`/student/assessments/viva/${session.id}`);
         } catch (err) {
-            setVivaError(err instanceof Error ? err.message : "Failed to start viva.");
+            setVivaError(handleApiError(err));
             setStartingViva(false);
         }
     };
@@ -249,7 +256,7 @@ export default function StudentAssignmentDetailPage() {
                             <Button
                                 variant="outline"
                                 onClick={handleStartViva}
-                                disabled={startingViva}
+                                disabled={startingViva || hasCompetencies === false}
                             >
                                 {startingViva ? (
                                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -544,10 +551,16 @@ export default function StudentAssignmentDetailPage() {
                             {vivaError && (
                                 <p className="text-xs text-destructive">{vivaError}</p>
                             )}
+                            {hasCompetencies === false && (
+                                <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                    <AlertCircle className="h-3 w-3 shrink-0" />
+                                    No grading criteria configured. Contact your instructor to add competencies.
+                                </p>
+                            )}
                             <Button
                                 className="w-full"
                                 onClick={handleStartViva}
-                                disabled={startingViva}
+                                disabled={startingViva || hasCompetencies === false}
                             >
                                 {startingViva ? (
                                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />

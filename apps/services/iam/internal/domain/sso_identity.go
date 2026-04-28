@@ -7,7 +7,7 @@ import (
 // SSOIdentity represents identity from SSO provider
 type SSOIdentity struct {
 	// From IdP
-	Provider   string `json:"provider"`   // "google", "microsoft", "saml", "keycloak", "mock"
+	Provider   string `json:"provider"`    // "google", "microsoft", "saml", "keycloak", "mock"
 	ProviderID string `json:"provider_id"` // Unique ID from IdP
 	Email      string `json:"email"`
 	Name       string `json:"name"`
@@ -50,10 +50,10 @@ func (s *SSOIdentity) GetDisplayName() string {
 // ToUser creates a domain.User from SSOIdentity
 func (s *SSOIdentity) ToUser() *User {
 	return &User{
-		Email:        s.Email,
-		FullName:     s.GetDisplayName(),
-		AvatarURL:    s.AvatarURL,
-		UserType:     s.Role,
+		Email:         s.Email,
+		FullName:      s.GetDisplayName(),
+		AvatarURL:     s.AvatarURL,
+		UserType:      s.Role,
 		EmailVerified: true,
 	}
 }

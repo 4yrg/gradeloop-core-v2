@@ -1,3 +1,4 @@
+import { axiosInstance } from "@/lib/api/axios";
 import type {
     IvasAssignment,
     AssignmentCreate,
@@ -11,94 +12,50 @@ import type {
     QuestionUpdate,
     VivaSession,
     SessionCreate,
+    SessionDetail,
+    GradedQA,
+    Transcript,
     VoiceEnrollmentOut,
     VoiceProfileStatus,
     VoiceVerifyOut,
+    VoiceAuthEvent,
     HealthResponse,
     ReadyResponse,
+    CompetencyOut,
+    CompetencyAssignmentLinkOut,
+    CompetencyScoreOut,
+    CompetencyScoreSummary,
+    SetCompetenciesRequest,
+    GenerateCompetenciesRequest,
+    GenerateCompetenciesResponse,
+    OverrideScoreRequest,
 } from "@/types/ivas";
-
-const IVAS_BASE_URL =
-    process.env.NEXT_PUBLIC_IVAS_API_URL || "http://localhost:8000/api/v1/ivas";
 
 const IVAS_WS_URL =
     process.env.NEXT_PUBLIC_IVAS_WS_URL || "ws://localhost:8000";
 
-// Retry configuration
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000;
+async function ivasRequest<T>(path: string, options: { method?: string; body?: string } = {}): Promise<T> {
+    const url = `/ivas${path}`;
+    const method = options.method || "GET";
 
-async function retryableRequest<T>(
-    path: string,
-    options: RequestInit = {}
-): Promise<T> {
-    let lastError: Error | null = null;
+    const response = await axiosInstance.request<T>({
+        url,
+        method,
+        data: options.body ? JSON.parse(options.body) : undefined,
+    });
 
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-        try {
-            const url = `${IVAS_BASE_URL}${path}`;
-            const response = await fetch(url, {
-                ...options,
-                headers: {
-                    "Content-Type": "application/json",
-                    ...options.headers,
-                },
-            });
-
-            if (!response.ok) {
-                const error = await response
-                    .json()
-                    .catch(() => ({ detail: "Unknown error" }));
-                throw new Error(error.detail || response.statusText);
-            }
-
-            if (response.status === 204) return {} as T;
-            return response.json();
-        } catch (error) {
-            lastError = error instanceof Error ? error : new Error("Unknown error");
-
-            if (lastError.message.includes("4")) {
-                throw lastError;
-            }
-
-            if (attempt < MAX_RETRIES) {
-                await new Promise(resolve =>
-                    setTimeout(resolve, RETRY_DELAY * Math.pow(2, attempt - 1))
-                );
-            }
-        }
-    }
-
-    throw lastError || new Error("Request failed after retries");
-}
-
-async function ivasRequest<T>(
-    path: string,
-    options: RequestInit = {}
-): Promise<T> {
-    return retryableRequest<T>(path, options);
+    return response.data;
 }
 
 // Multipart form request (for voice enrollment)
-async function ivasFormRequest<T>(
-    path: string,
-    formData: FormData
-): Promise<T> {
-    const url = `${IVAS_BASE_URL}${path}`;
-    const response = await fetch(url, {
-        method: "POST",
-        body: formData,
-        // No Content-Type header — browser sets multipart boundary automatically
+async function ivasFormRequest<T>(path: string, formData: FormData): Promise<T> {
+    const url = `/ivas${path}`;
+    const response = await axiosInstance.post<T>(url, formData, {
+        headers: {
+            "Content-Type": "multipart/form-data",
+        },
     });
-
-    if (!response.ok) {
-        const error = await response
-            .json()
-            .catch(() => ({ detail: "Unknown error" }));
-        throw new Error(error.detail || response.statusText);
-    }
-
-    return response.json();
+    return response.data;
 }
 
 export const ivasApi = {
@@ -181,8 +138,8 @@ export const ivasApi = {
         ),
     bulkUpdateQuestionStatus: (questionIds: string[], newStatus: string) =>
         ivasRequest<{ updated: number; status: string }>(
-            `/assignments/questions/bulk-status?new_status=${encodeURIComponent(newStatus)}`,
-            { method: "POST", body: JSON.stringify(questionIds) }
+            `/assignments/questions/bulk-status`,
+            { method: "POST", body: JSON.stringify({ question_ids: questionIds, new_status: newStatus }) }
         ),
 
     // --- Sessions ---
@@ -202,6 +159,20 @@ export const ivasApi = {
     getSession: (sessionId: string) =>
         ivasRequest<VivaSession>(
             `/sessions/${encodeURIComponent(sessionId)}`
+        ),
+    getSessionDetails: (sessionId: string) =>
+        ivasRequest<SessionDetail>(
+            `/sessions/${encodeURIComponent(sessionId)}/details`
+        ),
+    deleteSession: (sessionId: string) =>
+        ivasRequest<void>(
+            `/sessions/${encodeURIComponent(sessionId)}`,
+            { method: "DELETE" }
+        ),
+    regradeSession: (sessionId: string) =>
+        ivasRequest<VivaSession>(
+            `/sessions/${encodeURIComponent(sessionId)}/regrade`,
+            { method: "POST" }
         ),
 
     // --- Voice Enrollment ---
@@ -228,7 +199,75 @@ export const ivasApi = {
         return ivasFormRequest<VoiceVerifyOut>("/voice/verify", formData);
     },
 
+    // --- Voice Auth Events ---
+    listVoiceAuthEvents: (sessionId: string) =>
+        ivasRequest<VoiceAuthEvent[]>(
+            `/voice/auth-events/${encodeURIComponent(sessionId)}`
+        ),
+
     // --- WebSocket URL helper ---
     getVivaWebSocketUrl: (sessionId: string) =>
         `${IVAS_WS_URL}/ws/ivas/session/${encodeURIComponent(sessionId)}`,
+
+    // --- Competencies (global) ---
+    listCompetencies: () =>
+        ivasRequest<CompetencyOut[]>("/competencies"),
+
+    createCompetency: (name: string, description?: string, difficulty?: number, maxScore?: number) =>
+        ivasRequest<CompetencyOut>("/competencies", {
+            method: "POST",
+            body: JSON.stringify({ name, description, difficulty, max_score: maxScore }),
+        }),
+
+    updateCompetency: (competencyId: string, name: string, description?: string, difficulty?: number, maxScore?: number) =>
+        ivasRequest<CompetencyOut>(`/competencies/${encodeURIComponent(competencyId)}`, {
+            method: "PUT",
+            body: JSON.stringify({ name, description, difficulty, max_score: maxScore }),
+        }),
+
+    deleteCompetency: (competencyId: string) =>
+        ivasRequest<void>(`/competencies/${encodeURIComponent(competencyId)}`, { method: "DELETE" }),
+
+    // --- Competency-Assignment linking ---
+    listAssignmentCompetencies: (assignmentId: string) =>
+        ivasRequest<CompetencyAssignmentLinkOut[]>(
+            `/competencies/assignment/${encodeURIComponent(assignmentId)}`
+        ),
+
+    setAssignmentCompetencies: (assignmentId: string, body: SetCompetenciesRequest) =>
+        ivasRequest<CompetencyAssignmentLinkOut[]>(
+            `/competencies/assignment/${encodeURIComponent(assignmentId)}/set`,
+            { method: "POST", body: JSON.stringify(body) }
+        ),
+
+    // --- AI Competency Generation ---
+    generateCompetencies: (body: GenerateCompetenciesRequest) =>
+        ivasRequest<GenerateCompetenciesResponse>("/competencies/generate", {
+            method: "POST",
+            body: JSON.stringify(body),
+        }),
+
+    // --- Competency Scores ---
+    listStudentCompetencyScores: (studentId: string) =>
+        ivasRequest<CompetencyScoreOut[]>(`/competencies/scores/student/${encodeURIComponent(studentId)}`),
+
+    listCompetencyScoresForAssignment: (assignmentId: string) =>
+        ivasRequest<CompetencyScoreSummary[]>(
+            `/competencies/scores/assignment/${encodeURIComponent(assignmentId)}`
+        ),
+
+    listStudentsByCompetency: (competencyId: string, assignmentId?: string) => {
+        const query = assignmentId
+            ? `?assignment_id=${encodeURIComponent(assignmentId)}`
+            : "";
+        return ivasRequest<Record<string, unknown>[]>(
+            `/competencies/scores/competency/${encodeURIComponent(competencyId)}${query}`
+        );
+    },
+
+    overrideCompetencyScore: (body: OverrideScoreRequest) =>
+        ivasRequest<CompetencyScoreOut>("/competencies/scores/override", {
+            method: "POST",
+            body: JSON.stringify(body),
+        }),
 };

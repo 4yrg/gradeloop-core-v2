@@ -16,24 +16,24 @@ type ZeroTrustConfig struct {
 	Mode string
 
 	// mTLS settings
-	MTLSEnabled bool
+	MTLSEnabled  bool
 	MTLSCertPath string
-	MTLSKeyPath string
+	MTLSKeyPath  string
 
 	// Device trust settings
-	DeviceTrustMode string // "relaxed" or "strict"
+	DeviceTrustMode           string // "relaxed" or "strict"
 	DeviceFingerprintRequired bool
 
 	// Session settings
 	SessionValidationInterval time.Duration
-	MaxSessionAge time.Duration
+	MaxSessionAge             time.Duration
 
 	// Security settings
-	RequireMFA bool
+	RequireMFA          bool
 	IPReputationEnabled bool
 
 	// Rate limiting
-	RateLimitEnabled bool
+	RateLimitEnabled   bool
 	RateLimitPerMinute int
 }
 
@@ -45,21 +45,21 @@ func LoadZeroTrustConfig() *ZeroTrustConfig {
 
 	return &ZeroTrustConfig{
 		Enabled:      getZTBool("ZERO_TRUST_ENABLED", mode == "strict"),
-		Mode:        mode,
-		MTLSEnabled: getZTBool("MTLS_ENABLED", mode == "strict"),
+		Mode:         mode,
+		MTLSEnabled:  getZTBool("MTLS_ENABLED", mode == "strict"),
 		MTLSCertPath: getZTString("MTLS_CERT_PATH", "/certs/service.crt"),
 		MTLSKeyPath:  getZTString("MTLS_KEY_PATH", "/certs/service.key"),
 
-		DeviceTrustMode:            getZTString("DEVICE_TRUST_MODE", "relaxed"),
+		DeviceTrustMode:           getZTString("DEVICE_TRUST_MODE", "relaxed"),
 		DeviceFingerprintRequired: getZTBool("DEVICE_FINGERPRINT_REQUIRED", mode == "strict"),
 
 		SessionValidationInterval: time.Duration(getZTInt("SESSION_VALIDATION_INTERVAL_SEC", 300)) * time.Second,
 		MaxSessionAge:             time.Duration(getZTInt("MAX_SESSION_AGE_HOURS", 24)) * time.Hour,
 
-		RequireMFA: getZTBool("REQUIRE_MFA", mode == "strict"),
+		RequireMFA:          getZTBool("REQUIRE_MFA", mode == "strict"),
 		IPReputationEnabled: getZTBool("IP_REPUTATION_ENABLED", false),
 
-		RateLimitEnabled: getZTBool("RATE_LIMIT_ENABLED", true),
+		RateLimitEnabled:   getZTBool("RATE_LIMIT_ENABLED", true),
 		RateLimitPerMinute: getZTInt("RATE_LIMIT_PER_MINUTE", 100),
 	}
 }

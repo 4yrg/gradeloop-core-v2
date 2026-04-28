@@ -12,14 +12,14 @@ import (
 // TenantResolver resolves tenant_id from requests
 // Priority: JWT claim → Header override → Subdomain → Default
 type TenantResolver struct {
-	repo      repository.TenantRepository
+	repo     repository.TenantRepository
 	keycloak *config.KeycloakConfig
 }
 
 // NewTenantResolver creates a new tenant resolver
 func NewTenantResolver(repo repository.TenantRepository, keycloak *config.KeycloakConfig) *TenantResolver {
 	return &TenantResolver{
-		repo:      repo,
+		repo:     repo,
 		keycloak: keycloak,
 	}
 }
@@ -141,7 +141,7 @@ func extractSubdomain(host, domain string) (string, bool) {
 	// Handle: "stanford.gradeloop.space" -> "stanford"
 	// Handle: "stanford.localhost" -> "stanford" (local dev)
 	// Handle: "localhost" -> "" (no subdomain)
-	
+
 	if host == domain || host == "www."+domain {
 		return "", false
 	}

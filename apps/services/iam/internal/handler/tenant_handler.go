@@ -4,8 +4,8 @@ import (
 	"strconv"
 
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/service"
-	"github.com/google/uuid"
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 type TenantHandler struct {
@@ -58,7 +58,7 @@ func (h *TenantHandler) CreateTenant(c fiber.Ctx) error {
 	}
 
 	var req struct {
-		Name      string `json:"name"`
+		Name     string `json:"name"`
 		Slug     string `json:"slug"`
 		Domain   string `json:"domain"`
 		Settings string `json:"settings,omitempty"`
@@ -102,7 +102,7 @@ func (h *TenantHandler) UpdateTenant(c fiber.Ctx) error {
 	}
 
 	var req struct {
-		Name      string `json:"name,omitempty"`
+		Name     string `json:"name,omitempty"`
 		Domain   string `json:"domain,omitempty"`
 		IsActive *bool  `json:"is_active,omitempty"`
 		Settings string `json:"settings,omitempty"`

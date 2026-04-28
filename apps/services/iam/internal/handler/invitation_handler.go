@@ -4,8 +4,8 @@ import (
 	"strconv"
 
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/service"
-	"github.com/google/uuid"
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 type InvitationHandler struct {
@@ -66,8 +66,8 @@ func (h *InvitationHandler) CreateInvitation(c fiber.Ctx) error {
 	}
 
 	var req struct {
-		Email       string `json:"email"`
-		Role        string `json:"role"`
+		Email      string `json:"email"`
+		Role       string `json:"role"`
 		FullName   string `json:"full_name"`
 		Department string `json:"department"`
 		Batch      string `json:"batch"`

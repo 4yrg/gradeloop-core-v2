@@ -23,7 +23,7 @@ func (h *DeepLinkHandler) HandleDeepLinkRequest(c fiber.Ctx) error {
 
 	if returnURL == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid_request",
+			"error":             "invalid_request",
 			"error_description": "Missing return_url",
 		})
 	}
@@ -31,7 +31,7 @@ func (h *DeepLinkHandler) HandleDeepLinkRequest(c fiber.Ctx) error {
 	if h.cfg.IsMockMode() {
 		return c.JSON(fiber.Map{
 			"deep_link_setting_id": "mock-setting-1",
-			"return_url":      returnURL,
+			"return_url":           returnURL,
 			"content": []fiber.Map{
 				{
 					"type":  "ltiResourceLink",
@@ -55,7 +55,7 @@ func (h *DeepLinkHandler) HandleDeepLinkResponse(c fiber.Ctx) error {
 
 	if err := json.Unmarshal(c.Body(), &req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid_request",
+			"error":             "invalid_request",
 			"error_description": "Invalid JSON",
 		})
 	}

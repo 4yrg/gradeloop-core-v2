@@ -7,19 +7,19 @@ import (
 
 // KeycloakClaims represents claims from Keycloak JWT token
 type KeycloakClaims struct {
-	Sub               string `json:"sub"`
-	Iss               string `json:"iss"`
-	Aud               any    `json:"aud"`
-	TenantID          string `json:"tenant_id"`
-	Email             string `json:"email"`
-	Name              string `json:"name"`
-	GivenName         string `json:"given_name"`
-	FamilyName        string `json:"family_name"`
-	PreferredUsername string `json:"preferred_username"`
-	EmailVerified    bool   `json:"email_verified"`
+	Sub               string   `json:"sub"`
+	Iss               string   `json:"iss"`
+	Aud               any      `json:"aud"`
+	TenantID          string   `json:"tenant_id"`
+	Email             string   `json:"email"`
+	Name              string   `json:"name"`
+	GivenName         string   `json:"given_name"`
+	FamilyName        string   `json:"family_name"`
+	PreferredUsername string   `json:"preferred_username"`
+	EmailVerified     bool     `json:"email_verified"`
 	Roles             []string `json:"https://gradeloop.edu/claims/roles"`
-	Permissions      []string `json:"https://gradeloop.edu/claims/permissions"`
-	SessionState     string `json:"session_state"`
+	Permissions       []string `json:"https://gradeloop.edu/claims/permissions"`
+	SessionState      string   `json:"session_state"`
 	jwt.RegisteredClaims
 }
 
@@ -38,19 +38,19 @@ func (kc *KeycloakClaims) ToIdentity(environment string) *identity.Context {
 	}
 
 	return &identity.Context{
-		UserID:       kc.Sub,
-		Email:        kc.Email,
+		UserID:      kc.Sub,
+		Email:       kc.Email,
 		Name:        kc.Name,
 		GivenName:   kc.GivenName,
 		FamilyName:  kc.FamilyName,
-		Username:   kc.PreferredUsername,
-		Roles:      roles,
+		Username:    kc.PreferredUsername,
+		Roles:       roles,
 		Permissions: perms,
-		Issuer:     kc.Issuer,
-		SessionID:  kc.SessionState,
-		TokenID:    kc.ID,
+		Issuer:      kc.Issuer,
+		SessionID:   kc.SessionState,
+		TokenID:     kc.ID,
 		Environment: environment,
-		ExpiresAt:  kc.ExpiresAt.Time,
-		IssuedAt:   kc.IssuedAt.Time,
+		ExpiresAt:   kc.ExpiresAt.Time,
+		IssuedAt:    kc.IssuedAt.Time,
 	}
 }

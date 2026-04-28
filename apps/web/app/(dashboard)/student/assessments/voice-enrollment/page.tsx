@@ -7,7 +7,6 @@ import {
     CheckCircle2,
     Loader2,
     AlertCircle,
-    Trash2,
     ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,6 +16,19 @@ import { ivasApi } from "@/lib/ivas-api";
 import { useAuthStore } from "@/lib/stores/authStore";
 import type { VoiceProfileStatus } from "@/types/ivas";
 import { cn } from "@/lib/utils";
+
+const ENROLLMENT_SENTENCES = [
+    "The function iterates through the array and returns the first element that matches the given condition.",
+    "Recursion is a technique where a function calls itself to solve smaller instances of the same problem.",
+    "In object-oriented programming, encapsulation hides the internal state of an object from the outside world.",
+    "A linked list is a linear data structure where each element points to the next node in the sequence.",
+    "Unit tests verify that individual components of a program work correctly in isolation.",
+    "Inheritance allows a class to derive properties and methods from a parent class.",
+    "The time complexity of binary search is O of log n because it halves the search space each step.",
+    "Polymorphism enables objects of different types to be treated through a common interface.",
+    "A stack is a last-in first-out data structure that supports push and pop operations.",
+    "Abstraction simplifies complex systems by modeling only the relevant details for the current context.",
+];
 
 export default function VoiceEnrollmentPage() {
     const { addToast } = useToast();
@@ -28,13 +40,15 @@ export default function VoiceEnrollmentPage() {
     const [uploading, setUploading] = React.useState(false);
     const [currentSample, setCurrentSample] = React.useState(1);
     const [recordingTime, setRecordingTime] = React.useState(0);
-    const [deleting, setDeleting] = React.useState(false);
+
 
     const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
     const chunksRef = React.useRef<Blob[]>([]);
     const timerRef = React.useRef<NodeJS.Timeout | null>(null);
 
     const studentId = user?.id || "";
+
+    const enrollmentSentence = ENROLLMENT_SENTENCES[(currentSample - 1) % ENROLLMENT_SENTENCES.length];
 
     // Load voice profile status
     React.useEffect(() => {
@@ -132,20 +146,6 @@ export default function VoiceEnrollmentPage() {
         if (timerRef.current) {
             clearInterval(timerRef.current);
             timerRef.current = null;
-        }
-    };
-
-    const deleteProfile = async () => {
-        setDeleting(true);
-        try {
-            await ivasApi.deleteVoiceProfile(studentId);
-            setProfile({ student_id: studentId, enrolled: false, samples_count: 0, required_samples: 3, is_complete: false });
-            setCurrentSample(1);
-            addToast({ title: "Voice profile deleted", variant: "success", description: "You can re-enroll at any time." });
-        } catch (err) {
-            addToast({ title: "Delete failed", variant: "error", description: err instanceof Error ? err.message : "Unknown error" });
-        } finally {
-            setDeleting(false);
         }
     };
 
@@ -249,12 +249,29 @@ export default function VoiceEnrollmentPage() {
                     </div>
 
                     {isEnrolled ? (
-                        <Button variant="outline" size="sm" onClick={deleteProfile} disabled={deleting} className="gap-1 text-red-600 hover:text-red-700">
-                            {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                            Delete Voice Profile
-                        </Button>
+                        <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 p-3 flex items-start gap-2">
+                            <AlertCircle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                            <div className="text-left">
+                                <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                                    Voice profile enrolled
+                                </p>
+                                <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                                    To reset your voice profile, please ask your lecturer or an administrator.
+                                </p>
+                            </div>
+                        </div>
                     ) : (
                         <div className="space-y-4">
+                            {/* Guided sentence to read */}
+                            <div className="p-4 rounded-xl bg-muted/60 border border-border/50 text-center">
+                                <p className="text-xs text-muted-foreground mb-2 font-medium uppercase tracking-wide">
+                                    {recording ? "Read this sentence aloud:" : "You will be asked to read:"}
+                                </p>
+                                <p className="text-base leading-relaxed font-medium">
+                                    &ldquo;{enrollmentSentence}&rdquo;
+                                </p>
+                            </div>
+
                             {/* Recording controls */}
                             <div className="flex flex-col items-center gap-4">
                                 {recording ? (
@@ -273,7 +290,7 @@ export default function VoiceEnrollmentPage() {
                                             </span>
                                         </div>
                                         <p className="text-sm text-muted-foreground">
-                                            Speak naturally for at least 5 seconds, then click to stop.
+                                            Read the sentence above, then click to stop.
                                         </p>
                                     </>
                                 ) : uploading ? (
@@ -322,50 +339,53 @@ export default function VoiceEnrollmentPage() {
 async function convertToWav(blob: Blob): Promise<Blob> {
     const arrayBuffer = await blob.arrayBuffer();
     const audioContext = new AudioContext({ sampleRate: 16000 });
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    try {
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
-    const numChannels = 1;
-    const sampleRate = 16000;
-    const bitsPerSample = 16;
+        const numChannels = 1;
+        const sampleRate = 16000;
+        const bitsPerSample = 16;
 
-    // Resample to 16kHz mono
-    const offlineCtx = new OfflineAudioContext(numChannels, audioBuffer.duration * sampleRate, sampleRate);
-    const source = offlineCtx.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(offlineCtx.destination);
-    source.start();
-    const rendered = await offlineCtx.startRendering();
+        // Resample to 16kHz mono
+        const offlineCtx = new OfflineAudioContext(numChannels, audioBuffer.duration * sampleRate, sampleRate);
+        const source = offlineCtx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(offlineCtx.destination);
+        source.start();
+        const rendered = await offlineCtx.startRendering();
 
-    const channelData = rendered.getChannelData(0);
-    const dataLength = channelData.length * (bitsPerSample / 8);
-    const buffer = new ArrayBuffer(44 + dataLength);
-    const view = new DataView(buffer);
+        const channelData = rendered.getChannelData(0);
+        const dataLength = channelData.length * (bitsPerSample / 8);
+        const buffer = new ArrayBuffer(44 + dataLength);
+        const view = new DataView(buffer);
 
-    // WAV header
-    writeString(view, 0, "RIFF");
-    view.setUint32(4, 36 + dataLength, true);
-    writeString(view, 8, "WAVE");
-    writeString(view, 12, "fmt ");
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true); // PCM
-    view.setUint16(22, numChannels, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * numChannels * (bitsPerSample / 8), true);
-    view.setUint16(32, numChannels * (bitsPerSample / 8), true);
-    view.setUint16(34, bitsPerSample, true);
-    writeString(view, 36, "data");
-    view.setUint32(40, dataLength, true);
+        // WAV header
+        writeString(view, 0, "RIFF");
+        view.setUint32(4, 36 + dataLength, true);
+        writeString(view, 8, "WAVE");
+        writeString(view, 12, "fmt ");
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true); // PCM
+        view.setUint16(22, numChannels, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * numChannels * (bitsPerSample / 8), true);
+        view.setUint16(32, numChannels * (bitsPerSample / 8), true);
+        view.setUint16(34, bitsPerSample, true);
+        writeString(view, 36, "data");
+        view.setUint32(40, dataLength, true);
 
-    // Write PCM samples
-    let offset = 44;
-    for (let i = 0; i < channelData.length; i++) {
-        const s = Math.max(-1, Math.min(1, channelData[i]));
-        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-        offset += 2;
+        // Write PCM samples
+        let offset = 44;
+        for (let i = 0; i < channelData.length; i++) {
+            const s = Math.max(-1, Math.min(1, channelData[i]));
+            view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            offset += 2;
+        }
+
+        return new Blob([buffer], { type: "audio/wav" });
+    } finally {
+        await audioContext.close();
     }
-
-    await audioContext.close();
-    return new Blob([buffer], { type: "audio/wav" });
 }
 
 function writeString(view: DataView, offset: number, str: string) {

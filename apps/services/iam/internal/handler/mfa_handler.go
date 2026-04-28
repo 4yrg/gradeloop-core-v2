@@ -3,8 +3,8 @@ package handler
 import (
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/domain"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/service"
-	"github.com/google/uuid"
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 type MFAHandler struct {
@@ -41,7 +41,7 @@ func (h *MFAHandler) GenerateSecret(c fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"secret": secret,
+		"secret":  secret,
 		"message": "MFA secret generated. Please configure your authenticator app.",
 	})
 }
@@ -143,7 +143,7 @@ func (h *MFAHandler) GetMFAStatus(c fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"enabled":  mfa.IsEnabled(),
+		"enabled": mfa.IsEnabled(),
 		"status":  mfa.Status,
 	})
 }

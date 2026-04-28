@@ -8,17 +8,17 @@ import (
 )
 
 type Config struct {
-	HealthHandler       *handler.HealthHandler
-	AuthHandler        *handler.AuthHandler
-	UserHandler        *handler.UserHandler
-	BulkImportHandler  *handler.BulkImportHandler
+	HealthHandler     *handler.HealthHandler
+	AuthHandler       *handler.AuthHandler
+	UserHandler       *handler.UserHandler
+	BulkImportHandler *handler.BulkImportHandler
 	TenantHandler     *handler.TenantHandler
 	SSOHandler        *handler.SSOHandler
-	RBACHandler      *handler.RBACHandler
+	RBACHandler       *handler.RBACHandler
 	InvitationHandler *handler.InvitationHandler
-	AuditHandler     *handler.AuditHandler
-	MFAHandler       *handler.MFAHandler
-	JWTSecretKey     []byte
+	AuditHandler      *handler.AuditHandler
+	MFAHandler        *handler.MFAHandler
+	JWTSecretKey      []byte
 	ZeroTrustConfig   *config.ZeroTrustConfig
 }
 
