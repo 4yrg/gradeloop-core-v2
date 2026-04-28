@@ -1,0 +1,18 @@
+{
+  "version": "1",
+  "name": "List Permissions",
+  "request": {
+    "method": "GET",
+    "url": "{{baseUrl}}/api/v1/permissions",
+    "auth": {
+      "type": "bearer",
+      "bearer": [
+        {
+          "key": "token",
+          "value": "{{accessToken}}"
+        }
+      ]
+    }
+  },
+  "response": []
+}

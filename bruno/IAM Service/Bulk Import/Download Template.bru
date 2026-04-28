@@ -5,21 +5,16 @@ meta {
 }
 
 get {
-  url: {{USERS_URL_V1}}/import/template
-  body: none
+  url: {{baseUrl}}/api/v1/users/import/template
   auth: bearer
 }
 
 auth:bearer {
-  token: {{ACCESS_TOKEN}}
+  token: {{jwtToken}}
 }
 
-docs {
-  # Download Import Template
-  
-  Returns a CSV template for bulk user import.
-  
-  ## Prerequisites
-  - Valid access token
-  - Admin privileges
+tests {
+  test("Should return 200", function() {
+    expect(res.status).to.equal(200);
+  });
 }

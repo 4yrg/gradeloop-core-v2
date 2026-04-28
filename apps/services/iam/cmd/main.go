@@ -153,11 +153,17 @@ func run() error {
 	}))
 
 	router.SetupRoutes(app, router.Config{
-		HealthHandler:     healthHandler,
-		AuthHandler:       authHandler,
-		UserHandler:       userHandler,
-		BulkImportHandler: bulkImportHandler,
-		JWTSecretKey:      []byte(cfg.JWT.SecretKey),
+		HealthHandler:       healthHandler,
+		AuthHandler:        authHandler,
+		UserHandler:        userHandler,
+		BulkImportHandler:  bulkImportHandler,
+		TenantHandler:     tenantHandler,
+		RBACHandler:      rbacHandler,
+		InvitationHandler: invitationHandler,
+		AuditHandler:     auditHandler,
+		MFAHandler:       mfaHandler,
+		JWTSecretKey:     []byte(cfg.JWT.SecretKey),
+		ZeroTrustConfig:   cfg.ZeroTrust,
 	})
 
 	sigChan := make(chan os.Signal, 1)

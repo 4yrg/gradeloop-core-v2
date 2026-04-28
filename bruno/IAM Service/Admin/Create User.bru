@@ -1,26 +1,35 @@
 meta {
   name: Create User
   type: http
-  seq: 3
+  seq: 1
 }
 
 post {
-  url: {{USERS_URL_V1}}/
+  url: {{baseUrl}}/api/v1/users/
   body: json
   auth: bearer
 }
 
 auth:bearer {
-  token: {{ADMIN_TOKEN}}
+  token: {{jwtToken}}
 }
 
 body:json {
   {
-    "full_name": "New Instructor",
-    "email": "instructor.new@gradeloop.com",
-    "user_type": "instructor",
-    "department": "Computer Science",
-    "faculty": "Computing",
-    "designation": "Senior Lecturer"
+    "email": "newuser@dev.local",
+    "password": "password123",
+    "fullName": "New User",
+    "userType": "student"
   }
+}
+}
+
+tests {
+  test("Should return 201", function() {
+    expect(res.status).to.equal(201);
+  });
+  
+  test("Should contain user id", function() {
+    expect(res.body.id).to.not.be.null;
+  });
 }

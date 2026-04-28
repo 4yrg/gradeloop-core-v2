@@ -85,7 +85,14 @@ func (s *Seeder) seedSuperAdmin() error {
 
 	var existingUser domain.User
 	if err := s.db.Where("email = ?", email).First(&existingUser).Error; err == nil {
-		s.logger.Info("super admin already exists", zap.String("email", email))
+		if existingUser.UserType != "super_admin" {
+			if err := s.db.Model(&existingUser).Update("user_type", "super_admin").Error; err != nil {
+				return fmt.Errorf("promoting %s to super_admin: %w", email, err)
+			}
+			s.logger.Info("promoted user to super_admin", zap.String("email", email))
+		} else {
+			s.logger.Info("super admin already exists", zap.String("email", email))
+		}
 		return nil
 	} else if err != gorm.ErrRecordNotFound {
 		return fmt.Errorf("checking for existing user: %w", err)

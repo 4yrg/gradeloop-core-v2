@@ -5,32 +5,42 @@ meta {
 }
 
 post {
-  url: {{AUTH_URL_V1}}/login
+  url: {{baseUrl}}/api/v1/auth/login
   body: json
-  auth: inherit
+  auth: none
 }
 
 body:json {
   {
-    "email": "user@example.com",
-    "password": "Password123!"
+    "email": "{{admin_email}}",
+    "password": "{{admin_password}}"
+  }
+}}",
+    "password": "{{admin_password}}"
   }
 }
 
 script:post-response {
   if (res.status === 200) {
     if (res.body.access_token) {
-      bru.setEnvVar("ACCESS_TOKEN", res.body.access_token);
-      console.log("✅ Access token saved to environment");
-  
-      // Decode JWT to show payload (for debugging)
-      try {
-        const tokenParts = res.body.access_token.split('.');
-        const payload = JSON.parse(atob(tokenParts[1]));
-        console.log("Token payload:", JSON.stringify(payload, null, 2));
-      } catch (e) {
-        console.log("Could not decode token:", e.message);
-      }
+      bru.setEnvVar("jwtToken", res.body.access_token);
+    }
+    if (res.body.refresh_token) {
+      bru.setEnvVar("refreshToken", res.body.refresh_token);
     }
   }
+}
+
+tests {
+  test("Should return 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  
+  test("Should contain access token", function() {
+    expect(res.body.access_token).to.not.be.null;
+  });
+  
+  test("Should contain refresh token", function() {
+    expect(res.body.refresh_token).to.not.be.null;
+  });
 }

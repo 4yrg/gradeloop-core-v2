@@ -1,650 +1,134 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
-
 @variant dark (&:where(.dark, .dark *));
 
-/* ==========================================================================
-   GradeLoop Core V2 — Design Token System
-   Built for: Tailwind v4 + shadcn/ui + Radix UI
-
-   Brand Palette:
-     Primary:    248 89% 63%   Vibrant Indigo/Purple (#6366F1)
-     Secondary:  252 100% 96%  Soft Lavender (#F5F3FF)
-     Muted:      220 14% 96%   Light gray for subtle elements
-     Accent:     220 14% 96%   Hover states and icons
-     Background: 0 0% 100%     Pure white
-     Foreground: 224 71.4% 4.1% Deep navy text
-   ========================================================================== */
-
-@layer base {
-
-    /* -----------------------------------------------------------------------
-       LIGHT THEME  (:root)
-       Clean, modern aesthetic with vibrant indigo/purple brand colors
-    ----------------------------------------------------------------------- */
-    :root {
-        /* --- Core Surface Layers --- */
-        --background: 0 0% 100%;
-        /* Pure white canvas */
-        --foreground: 224 71.4% 4.1%;
-        /* Deep navy text */
-
-        --card: 0 0% 100%;
-        /* Pure white card surface */
-        --card-foreground: 224 71.4% 4.1%;
-        /* Deep navy text */
-
-        --popover: 0 0% 100%;
-        /* Pure white popover/dropdown */
-        --popover-foreground: 224 71.4% 4.1%;
-        /* Deep navy text */
-
-        /* --- Brand / Interactive --- */
-        --primary: 248 89% 63%;
-        /* Vibrant indigo/purple */
-        --primary-foreground: 210 20% 98%;
-        /* Light text on primary */
-
-        /* --- Secondary & Muted --- */
-        --secondary: 252 100% 96%;
-        /* Soft lavender background */
-        --secondary-foreground: 248 89% 63%;
-        /* Indigo text */
-
-        --muted: 220 14% 96%;
-        /* Light gray for subtle elements */
-        --muted-foreground: 220 9% 46%;
-        /* Medium gray text */
-
-        /* --- Accent --- */
-        --accent: 220 14% 96%;
-        /* Light gray for hover states */
-        --accent-foreground: 224 71.4% 4.1%;
-        /* Deep navy text */
-
-        /* --- Destructive --- */
-        --destructive: 0 84.2% 60.2%;
-        /* Red for errors/destructive actions */
-        --destructive-foreground: 210 20% 98%;
-        /* Light text on destructive */
-
-        /* --- Structural --- */
-        --border: 220 13% 91%;
-        /* Light gray borders */
-        --input: 220 13% 91%;
-        /* Light gray input borders */
-        --ring: 248 89% 63%;
-        /* Indigo focus rings */
-
-        /* --- Border Radius --- */
-        --radius: 0.3rem;
-
-        /* -------------------------------------------------------------------
-           FEEDBACK STATES — Light
-           Harmonized with indigo/purple brand palette
-        ------------------------------------------------------------------- */
-
-        /* Success (green with brand harmony) */
-        --success: 142 71% 45%;
-        /* Emerald green */
-        --success-foreground: 210 20% 98%;
-        /* Light text */
-        --success-muted: 142 70% 90%;
-        /* Light green background */
-        --success-muted-foreground: 142 70% 35%;
-        /* Dark green text */
-        --success-border: 142 50% 70%;
-        /* Light green border */
-
-        /* Warning (warm amber) */
-        --warning: 38 85% 55%;
-        /* Amber */
-        --warning-foreground: 210 20% 98%;
-        /* Light text */
-        --warning-muted: 38 80% 93%;
-        /* Light amber background */
-        --warning-muted-foreground: 38 75% 35%;
-        /* Dark amber text */
-        --warning-border: 38 70% 70%;
-        /* Light amber border */
-
-        /* Error (red) */
-        --error: 0 84% 60%;
-        /* Red */
-        --error-foreground: 210 20% 98%;
-        /* Light text */
-        --error-muted: 0 70% 93%;
-        /* Light red background */
-        --error-muted-foreground: 0 70% 40%;
-        /* Dark red text */
-        --error-border: 0 60% 70%;
-        /* Light red border */
-
-        /* Info (brand indigo) */
-        --info: 248 89% 63%;
-        /* Brand indigo */
-        --info-foreground: 210 20% 98%;
-        /* Light text */
-        --info-muted: 248 70% 93%;
-        /* Light indigo background */
-        --info-muted-foreground: 248 80% 45%;
-        /* Dark indigo text */
-        --info-border: 248 70% 75%;
-        /* Light indigo border */
-
-        /* -------------------------------------------------------------------
-           CODE & DEVELOPER TOOLING — Light
-           Clean, brand-harmonized
-        ------------------------------------------------------------------- */
-
-        --code-bg: 220 14% 96%;
-        /* Light gray code background */
-        --code-foreground: 224 71.4% 4.1%;
-        /* Deep navy text */
-        --code-border: 220 13% 91%;
-        /* Light gray border */
-
-        --diff-added: 142 50% 88%;
-        /* Light green for additions */
-        --diff-added-foreground: 142 70% 35%;
-        /* Dark green text */
-        --diff-removed: 0 60% 90%;
-        /* Light red for removals */
-        --diff-removed-foreground: 0 70% 40%;
-        /* Dark red text */
-        --diff-modified: 248 70% 90%;
-        /* Light indigo for modifications */
-        --diff-modified-foreground: 248 80% 45%;
-        /* Dark indigo text */
-
-        --log-info: 248 89% 63%;
-        /* Brand indigo */
-        --log-warning: 38 85% 55%;
-        /* Amber */
-        --log-error: 0 84% 60%;
-        /* Red */
-        --log-success: 142 71% 45%;
-        /* Emerald green */
-
-        /* -------------------------------------------------------------------
-           CHART COLORS — Light  (5 brand-derived points)
-        ------------------------------------------------------------------- */
-        --chart-1: 248 89% 63%;
-        /* brand indigo    #6366F1 */
-        --chart-2: 252 100% 96%;
-        /* soft lavender   #F5F3FF */
-        --chart-3: 38 85% 55%;
-        /* warm amber      #F59E0B */
-        --chart-4: 142 71% 45%;
-        /* emerald green   #10B981 */
-        --chart-5: 220 70% 55%;
-        /* steel blue      #3B82F6 */
-
-        /* -------------------------------------------------------------------
-           SIDEBAR TOKENS — Light
-        ------------------------------------------------------------------- */
-        --sidebar-background: 220 14% 96%;
-        /* Light gray sidebar */
-        --sidebar-foreground: 224 71.4% 4.1%;
-        /* Deep navy text */
-        --sidebar-primary: 248 89% 63%;
-        /* Brand indigo */
-        --sidebar-primary-foreground: 210 20% 98%;
-        /* Light text */
-        --sidebar-accent: 252 100% 96%;
-        /* Soft lavender */
-        --sidebar-accent-foreground: 248 89% 63%;
-        /* Indigo text */
-        --sidebar-border: 220 13% 91%;
-        /* Light gray border */
-        --sidebar-ring: 248 89% 63%;
-        /* Indigo focus ring */
-    }
-
-    /* -----------------------------------------------------------------------
-       DARK THEME  (.dark)
-       Deep navy base with luminous indigo/purple accents
-    ----------------------------------------------------------------------- */
-    .dark {
-        /* --- Core Surface Layers --- */
-        --background: 224 71% 4%;
-        /* Deep navy dark canvas */
-        --foreground: 210 20% 98%;
-        /* Light text */
-
-        --card: 224 71% 7%;
-        /* Slightly lighter navy card */
-        --card-foreground: 210 20% 98%;
-        /* Light text */
-
-        --popover: 224 71% 4%;
-        /* Deep navy popover */
-        --popover-foreground: 210 20% 98%;
-        /* Light text */
-
-        /* --- Brand / Interactive --- */
-        --primary: 248 89% 70%;
-        /* Brighter indigo for dark mode */
-        --primary-foreground: 224 71% 4%;
-        /* Dark text on primary */
-
-        /* --- Secondary & Muted --- */
-        --secondary: 248 50% 15%;
-        /* Dark indigo surface */
-        --secondary-foreground: 210 20% 98%;
-        /* Light text */
-
-        --muted: 224 30% 15%;
-        /* Dark muted surface */
-        --muted-foreground: 215 20% 65%;
-        /* Medium gray text */
-
-        /* --- Accent --- */
-        --accent: 224 30% 20%;
-        /* Dark accent surface */
-        --accent-foreground: 210 20% 98%;
-        /* Light text */
-
-        /* --- Destructive --- */
-        --destructive: 0 62.8% 30.6%;
-        /* Dark red for destructive */
-        --destructive-foreground: 210 20% 98%;
-        /* Light text */
-
-        /* --- Structural --- */
-        --border: 224 30% 18%;
-        /* Subtle dark borders */
-        --input: 224 30% 18%;
-        /* Dark input borders */
-        --ring: 248 89% 70%;
-        /* Bright indigo focus ring */
-
-        /* -------------------------------------------------------------------
-           FEEDBACK STATES — Dark
-        ------------------------------------------------------------------- */
-
-        /* Success */
-        --success: 142 65% 50%;
-        /* Bright emerald */
-        --success-foreground: 224 71% 4%;
-        /* Dark text */
-        --success-muted: 142 40% 14%;
-        /* Dark green background */
-        --success-muted-foreground: 142 55% 60%;
-        /* Bright green text */
-        --success-border: 142 50% 28%;
-        /* Dark green border */
-
-        /* Warning */
-        --warning: 38 80% 55%;
-        /* Bright amber */
-        --warning-foreground: 224 71% 4%;
-        /* Dark text */
-        --warning-muted: 38 50% 14%;
-        /* Dark amber background */
-        --warning-muted-foreground: 38 70% 65%;
-        /* Bright amber text */
-        --warning-border: 38 60% 32%;
-        /* Dark amber border */
-
-        /* Error */
-        --error: 0 65% 50%;
-        /* Bright red */
-        --error-foreground: 224 71% 4%;
-        /* Dark text */
-        --error-muted: 0 45% 14%;
-        /* Dark red background */
-        --error-muted-foreground: 0 60% 68%;
-        /* Bright red text */
-        --error-border: 0 55% 30%;
-        /* Dark red border */
-
-        /* Info */
-        --info: 248 89% 70%;
-        /* Brand indigo */
-        --info-foreground: 224 71% 4%;
-        /* Dark text */
-        --info-muted: 248 45% 12%;
-        /* Dark indigo background */
-        --info-muted-foreground: 248 60% 62%;
-        /* Bright indigo text */
-        --info-border: 248 55% 26%;
-        /* Dark indigo border */
-
-        /* -------------------------------------------------------------------
-           CODE & DEVELOPER TOOLING — Dark
-        ------------------------------------------------------------------- */
-
-        --code-bg: 224 71% 6%;
-        /* Deep navy code background */
-        --code-foreground: 215 20% 75%;
-        /* Light gray text */
-        --code-border: 224 30% 18%;
-        /* Dark border */
-
-        --diff-added: 142 40% 14%;
-        /* Dark green for additions */
-        --diff-added-foreground: 142 55% 60%;
-        /* Bright green text */
-        --diff-removed: 0 45% 14%;
-        /* Dark red for removals */
-        --diff-removed-foreground: 0 60% 68%;
-        /* Bright red text */
-        --diff-modified: 248 45% 14%;
-        /* Dark indigo for modifications */
-        --diff-modified-foreground: 248 65% 60%;
-        /* Bright indigo text */
-
-        --log-info: 248 89% 70%;
-        /* Brand indigo */
-        --log-warning: 38 80% 55%;
-        /* Amber */
-        --log-error: 0 65% 50%;
-        /* Red */
-        --log-success: 142 65% 50%;
-        /* Emerald green */
-
-        /* -------------------------------------------------------------------
-           CHART COLORS — Dark  (brightened for contrast on dark surfaces)
-        ------------------------------------------------------------------- */
-        --chart-1: 248 89% 70%;
-        /* bright indigo    #818CF8 */
-        --chart-2: 252 50% 25%;
-        /* dark lavender    #4C1D95 */
-        --chart-3: 38 80% 58%;
-        /* amber            #F59E0B */
-        --chart-4: 142 55% 52%;
-        /* muted green      #34D399 */
-        --chart-5: 220 50% 58%;
-        /* steel blue       #60A5FA */
-
-        /* -------------------------------------------------------------------
-           SIDEBAR TOKENS — Dark
-        ------------------------------------------------------------------- */
-        --sidebar-background: 224 71% 5%;
-        /* Slightly deeper than bg */
-        --sidebar-foreground: 215 20% 75%;
-        /* Light gray text */
-        --sidebar-primary: 248 89% 70%;
-        /* Bright indigo */
-        --sidebar-primary-foreground: 224 71% 4%;
-        /* Dark text */
-        --sidebar-accent: 224 30% 20%;
-        /* Dark accent */
-        --sidebar-accent-foreground: 210 20% 98%;
-        /* Light text */
-        --sidebar-border: 224 30% 18%;
-        /* Dark border */
-        --sidebar-ring: 248 89% 70%;
-        /* Bright indigo ring */
-    }
-
-    /* -----------------------------------------------------------------------
-       BASE STYLES
-    ----------------------------------------------------------------------- */
-
-    * {
-        border-color: hsl(var(--border));
-    }
-
-    body {
-        background-color: hsl(var(--background));
-        color: hsl(var(--foreground));
-        font-family:
-            var(--font-inter), ui-sans-serif, system-ui,
-            sans-serif;
-        font-feature-settings:
-            "rlig" 1,
-            "calt" 1;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-    }
-
-    .font-body {
-        font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-    }
-
-    /* Headings — Montserrat */
-    h1,
-    h2,
-    h3,
-    h4,
-    h5,
-    h6,
-    .font-heading {
-        font-family: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
-    }
-
-    /* Monospace — code blocks, logs, diffs */
-    code,
-    pre,
-    kbd,
-    samp {
-        font-family:
-            ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Monaco, Consolas,
-            monospace;
-    }
-
-    /* Scrollbar styling */
-    ::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
-    }
-
-    ::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
-    ::-webkit-scrollbar-thumb {
-        background: hsl(var(--border));
-        border-radius: 9999px;
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-        background: hsl(var(--muted-foreground) / 0.5);
-    }
-
-    /* -----------------------------------------------------------------------
-       NATIVE SELECT / OPTION — Dark Mode Fix
-       Browsers render <option> with their own white background by default,
-       ignoring CSS custom properties. These rules force proper colors.
-       ----------------------------------------------------------------------- */
-    .dark select {
-        background-color: hsl(var(--popover));
-        color: hsl(var(--popover-foreground));
-    }
-
-    .dark select option {
-        background-color: hsl(var(--popover));
-        color: hsl(var(--popover-foreground));
-    }
-
-    .dark select option:checked {
-        background-color: hsl(var(--accent));
-        color: hsl(var(--accent-foreground));
-    }
-}
-
-/* ==========================================================================
-   TAILWIND v4 THEME BRIDGE
-   Maps CSS custom properties into Tailwind's theme system.
-   Allows usage like: bg-background, text-primary, border-border, etc.
-   ========================================================================== */
-
 @theme inline {
-    /* Fonts */
-    --font-heading: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
-    --font-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-
-    /* Core surfaces */
-    --color-background: hsl(var(--background));
-    --color-foreground: hsl(var(--foreground));
-
-    --color-card: hsl(var(--card));
-    --color-card-foreground: hsl(var(--card-foreground));
-
-    --color-popover: hsl(var(--popover));
-    --color-popover-foreground: hsl(var(--popover-foreground));
-
-    /* Brand */
-    --color-primary: hsl(var(--primary));
-    --color-primary-foreground: hsl(var(--primary-foreground));
-
-    /* Secondary / Muted */
-    --color-secondary: hsl(var(--secondary));
-    --color-secondary-foreground: hsl(var(--secondary-foreground));
-
-    --color-muted: hsl(var(--muted));
-    --color-muted-foreground: hsl(var(--muted-foreground));
-
-    /* Accent */
-    --color-accent: hsl(var(--accent));
-    --color-accent-foreground: hsl(var(--accent-foreground));
-
-    /* Destructive */
-    --color-destructive: hsl(var(--destructive));
-    --color-destructive-foreground: hsl(var(--destructive-foreground));
-
-    /* Structural */
-    --color-border: hsl(var(--border));
-    --color-input: hsl(var(--input));
-    --color-ring: hsl(var(--ring));
-
-    /* --- Feedback: Success --- */
-    --color-success: hsl(var(--success));
-    --color-success-foreground: hsl(var(--success-foreground));
-    --color-success-muted: hsl(var(--success-muted));
-    --color-success-muted-foreground: hsl(var(--success-muted-foreground));
-    --color-success-border: hsl(var(--success-border));
-
-    /* --- Feedback: Warning --- */
-    --color-warning: hsl(var(--warning));
-    --color-warning-foreground: hsl(var(--warning-foreground));
-    --color-warning-muted: hsl(var(--warning-muted));
-    --color-warning-muted-foreground: hsl(var(--warning-muted-foreground));
-    --color-warning-border: hsl(var(--warning-border));
-
-    /* --- Feedback: Error --- */
-    --color-error: hsl(var(--error));
-    --color-error-foreground: hsl(var(--error-foreground));
-    --color-error-muted: hsl(var(--error-muted));
-    --color-error-muted-foreground: hsl(var(--error-muted-foreground));
-    --color-error-border: hsl(var(--error-border));
-
-    /* --- Feedback: Info --- */
-    --color-info: hsl(var(--info));
-    --color-info-foreground: hsl(var(--info-foreground));
-    --color-info-muted: hsl(var(--info-muted));
-    --color-info-muted-foreground: hsl(var(--info-muted-foreground));
-    --color-info-border: hsl(var(--info-border));
-
-    /* --- Code / Dev --- */
-    --color-code-bg: hsl(var(--code-bg));
-    --color-code-foreground: hsl(var(--code-foreground));
-    --color-code-border: hsl(var(--code-border));
-
-    --color-diff-added: hsl(var(--diff-added));
-    --color-diff-added-foreground: hsl(var(--diff-added-foreground));
-    --color-diff-removed: hsl(var(--diff-removed));
-    --color-diff-removed-foreground: hsl(var(--diff-removed-foreground));
-    --color-diff-modified: hsl(var(--diff-modified));
-    --color-diff-modified-foreground: hsl(var(--diff-modified-foreground));
-
-    --color-log-info: hsl(var(--log-info));
-    --color-log-warning: hsl(var(--log-warning));
-    --color-log-error: hsl(var(--log-error));
-    --color-log-success: hsl(var(--log-success));
-
-    /* --- Charts --- */
-    --color-chart-1: hsl(var(--chart-1));
-    --color-chart-2: hsl(var(--chart-2));
-    --color-chart-3: hsl(var(--chart-3));
-    --color-chart-4: hsl(var(--chart-4));
-    --color-chart-5: hsl(var(--chart-5));
-
-    /* --- Sidebar --- */
-    --color-sidebar-background: hsl(var(--sidebar-background));
-    --color-sidebar-foreground: hsl(var(--sidebar-foreground));
-    --color-sidebar-primary: hsl(var(--sidebar-primary));
-    --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
-    --color-sidebar-accent: hsl(var(--sidebar-accent));
-    --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
-    --color-sidebar-border: hsl(var(--sidebar-border));
-    --color-sidebar-ring: hsl(var(--sidebar-ring));
-
-    /* --- Radius --- */
-    --radius-sm: calc(var(--radius) - 4px);
-    --radius-md: var(--radius);
-    --radius-lg: calc(var(--radius) + 4px);
-    --radius-xl: calc(var(--radius) + 8px);
-    --radius-full: 9999px;
+    --font-heading: var(--font-redhat), ui-sans-serif, system-ui, sans-serif;
+    --font-sans: var(--font-redhat), ui-sans-serif, system-ui, sans-serif;
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
     --color-sidebar: var(--sidebar);
-}
-
-/* ==========================================================================
-   CUSTOM UTILITIES
-   ========================================================================== */
-
-@layer utilities {
-    .text-balance {
-        text-wrap: balance;
-    }
-
-    /* Semantic feedback utility shortcuts */
-    .feedback-success {
-        background-color: hsl(var(--success-muted));
-        color: hsl(var(--success-muted-foreground));
-        border-color: hsl(var(--success-border));
-    }
-
-    .feedback-warning {
-        background-color: hsl(var(--warning-muted));
-        color: hsl(var(--warning-muted-foreground));
-        border-color: hsl(var(--warning-border));
-    }
-
-    .feedback-error {
-        background-color: hsl(var(--error-muted));
-        color: hsl(var(--error-muted-foreground));
-        border-color: hsl(var(--error-border));
-    }
-
-    .feedback-info {
-        background-color: hsl(var(--info-muted));
-        color: hsl(var(--info-muted-foreground));
-        border-color: hsl(var(--info-border));
-    }
-
-    /* Code block utility */
-    .code-block {
-        background-color: hsl(var(--code-bg));
-        color: hsl(var(--code-foreground));
-        border-color: hsl(var(--code-border));
-        font-family:
-            ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Monaco, Consolas, monospace;
-    }
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 :root {
-    --sidebar: hsl(0 0% 98%);
-    --sidebar-foreground: hsl(240 5.3% 26.1%);
-    --sidebar-primary: hsl(240 5.9% 10%);
-    --sidebar-primary-foreground: hsl(0 0% 98%);
-    --sidebar-accent: hsl(240 4.8% 95.9%);
-    --sidebar-accent-foreground: hsl(240 5.9% 10%);
-    --sidebar-border: hsl(220 13% 91%);
-    --sidebar-ring: hsl(217.2 91.2% 59.8%);
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0.008 326);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0.008 326);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0.008 326);
+    --primary: oklch(0.212 0.019 322.12);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.96 0.003 325.6);
+    --secondary-foreground: oklch(0.212 0.019 322.12);
+    --muted: oklch(0.96 0.003 325.6);
+    --muted-foreground: oklch(0.542 0.034 322.5);
+    --accent: oklch(0.96 0.003 325.6);
+    --accent-foreground: oklch(0.212 0.019 322.12);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.922 0.005 325.62);
+    --input: oklch(0.922 0.005 325.62);
+    --ring: oklch(0.711 0.019 323.02);
+    --chart-1: oklch(0.865 0.012 325.68);
+    --chart-2: oklch(0.542 0.034 322.5);
+    --chart-3: oklch(0.435 0.029 321.78);
+    --chart-4: oklch(0.364 0.029 323.89);
+    --chart-5: oklch(0.263 0.024 320.12);
+    --radius: 0.625rem;
+    --sidebar: oklch(0.985 0 0);
+    --sidebar-foreground: oklch(0.145 0.008 326);
+    --sidebar-primary: oklch(0.212 0.019 322.12);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.96 0.003 325.6);
+    --sidebar-accent-foreground: oklch(0.212 0.019 322.12);
+    --sidebar-border: oklch(0.922 0.005 325.62);
+    --sidebar-ring: oklch(0.711 0.019 323.02);
 }
 
 .dark {
-    --sidebar: hsl(240 5.9% 10%);
-    --sidebar-foreground: hsl(240 4.8% 95.9%);
-    --sidebar-primary: hsl(224.3 76.3% 48%);
-    --sidebar-primary-foreground: hsl(0 0% 100%);
-    --sidebar-accent: hsl(240 3.7% 15.9%);
-    --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-    --sidebar-border: hsl(240 3.7% 15.9%);
-    --sidebar-ring: hsl(217.2 91.2% 59.8%);
+    --background: oklch(0.145 0.008 326);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.212 0.019 322.12);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.212 0.019 322.12);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.922 0.005 325.62);
+    --primary-foreground: oklch(0.212 0.019 322.12);
+    --secondary: oklch(0.263 0.024 320.12);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.263 0.024 320.12);
+    --muted-foreground: oklch(0.711 0.019 323.02);
+    --accent: oklch(0.263 0.024 320.12);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.542 0.034 322.5);
+    --chart-1: oklch(0.865 0.012 325.68);
+    --chart-2: oklch(0.542 0.034 322.5);
+    --chart-3: oklch(0.435 0.029 321.78);
+    --chart-4: oklch(0.364 0.029 323.89);
+    --chart-5: oklch(0.263 0.024 320.12);
+    --sidebar: oklch(0.212 0.019 322.12);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.488 0.243 264.376);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.263 0.024 320.12);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.542 0.034 322.5);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground;
+    }
+  html {
+    @apply font-sans;
+    }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading;
+    }
 }

@@ -1,0 +1,24 @@
+meta {
+  name: SSO Mock Login
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/auth/sso/mock/callback
+  auth: none
+}
+
+query {
+  email: student@dev.local
+}
+
+tests {
+  test("Should return 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  
+  test("Should contain user info", function() {
+    expect(res.body.user.email).to.equal("student@dev.local");
+  });
+}

@@ -1,0 +1,22 @@
+{
+  "version": "1",
+  "name": "List Tenants",
+  "request": {
+    "method": "GET",
+    "url": "{{baseUrl}}/api/v1/tenants",
+    "body": {
+      "mode": "json",
+      "json": {}
+    },
+    "auth": {
+      "type": "bearer",
+      "bearer": [
+        {
+          "key": "token",
+          "value": "{{accessToken}}"
+        }
+      ]
+    }
+  },
+  "response": []
+}

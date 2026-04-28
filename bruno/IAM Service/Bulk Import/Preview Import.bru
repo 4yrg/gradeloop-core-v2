@@ -5,17 +5,17 @@ meta {
 }
 
 post {
-  url: {{USERS_URL_V1}}/import/preview
+  url: {{usersUrlV1}}/import/preview
   body: multipartForm
   auth: bearer
 }
 
 auth:bearer {
-  token: {{ACCESS_TOKEN}}
+  token: {{jwtToken}}
 }
 
 body:multipart-form {
-  file: @file(REPLACE_WITH_CSV_PATH)
+  "file": @file(REPLACE_WITH_CSV_PATH)
 }
 
 docs {

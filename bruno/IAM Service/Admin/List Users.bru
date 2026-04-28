@@ -1,15 +1,24 @@
 meta {
   name: List Users
   type: http
-  seq: 2
+  seq: 1
 }
 
 get {
-  url: {{USERS_URL_V1}}/?page=1&limit=10&user_type=all
-  body: none
+  url: {{baseUrl}}/api/v1/users/
   auth: bearer
 }
 
 auth:bearer {
-  token: {{ADMIN_TOKEN}}
+  token: {{jwtToken}}
+}
+
+tests {
+  test("Should return 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  
+  test("Should contain users array", function() {
+    expect(res.body.users).to.not.be.null;
+  });
 }

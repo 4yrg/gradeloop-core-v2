@@ -1,15 +1,24 @@
 meta {
   name: List Students
   type: http
-  seq: 3
+  seq: 1
 }
 
 get {
-  url: {{USERS_URL_V1}}/students?page=1&limit=100
-  body: none
+  url: {{baseUrl}}/api/v1/users/students
   auth: bearer
 }
 
 auth:bearer {
-  token: {{INSTRUCTOR_TOKEN}}
+  token: {{jwtToken}}
+}
+
+tests {
+  test("Should return 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  
+  test("Should contain students array", function() {
+    expect(res.body.students).to.not.be.null;
+  });
 }

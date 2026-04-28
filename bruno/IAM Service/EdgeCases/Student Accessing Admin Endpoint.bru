@@ -5,11 +5,17 @@ meta {
 }
 
 get {
-  url: {{USERS_URL_V1}}/
+  url: {{usersUrlV1}}/
   body: none
   auth: bearer
 }
 
 auth:bearer {
-  token: {{STUDENT_TOKEN}}
+  token: {{student_token}}
+}
+
+tests {
+  test("Should return 403", function() {
+    expect(res.status).to.equal(403);
+  });
 }

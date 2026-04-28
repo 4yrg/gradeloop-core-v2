@@ -1,28 +1,20 @@
 meta {
   name: Health Check
   type: http
-  seq: 2
-}
-
-docs {
-  # Health Check
-
-  Check if the IAM service is healthy and responding.
-
-  ## Prerequisites
-  - None (public endpoint)
-
-  ## Response
-  Returns the health status of the service.
+  seq: 1
 }
 
 get {
-  url: {{IAM_BASE_URL}}/health
-  body: none
+  url: {{baseUrl}}/health
   auth: none
 }
 
-settings {
-  encodeUrl: true
-  timeout: 0
+tests {
+  test("Should return 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  
+  test("Should contain status", function() {
+    expect(res.body.status).to.equal("healthy");
+  });
 }

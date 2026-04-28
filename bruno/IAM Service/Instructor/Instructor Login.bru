@@ -5,9 +5,9 @@ meta {
 }
 
 post {
-  url: {{AUTH_URL_V1}}/login
+  url: {{authUrlV1}}/login
   body: json
-  auth: inherit
+  auth: none
 }
 
 body:json {
@@ -16,9 +16,12 @@ body:json {
     "password": "{{instructor_password}}"
   }
 }
+}}",
+  "password": "{{instructor_password}}"
+}
 
 script:post-response {
   if (res.status === 200 && res.body.access_token) {
-    bru.setEnvVar("INSTRUCTOR_TOKEN", res.body.access_token);
+    bru.setEnvVar("instructor_token", res.body.access_token);
   }
 }

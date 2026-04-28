@@ -1,0 +1,26 @@
+{
+  "version": "1",
+  "name": "Create Tenant",
+  "request": {
+    "method": "POST",
+    "url": "{{baseUrl}}/api/v1/tenants",
+    "body": {
+      "mode": "json",
+      "json": {
+        "name": "New University",
+        "slug": "new-university",
+        "domain": "newuni.edu"
+      }
+    },
+    "auth": {
+      "type": "bearer",
+      "bearer": [
+        {
+          "key": "token",
+          "value": "{{accessToken}}"
+        }
+      ]
+    }
+  },
+  "response": []
+}

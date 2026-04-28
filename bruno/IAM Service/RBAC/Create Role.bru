@@ -1,0 +1,25 @@
+{
+  "version": "1",
+  "name": "Create Role",
+  "request": {
+    "method": "POST",
+    "url": "{{baseUrl}}/api/v1/roles",
+    "body": {
+      "mode": "json",
+      "json": {
+        "name": "teaching_assistant",
+        "description": "Teaching Assistant role with limited privileges"
+      }
+    },
+    "auth": {
+      "type": "bearer",
+      "bearer": [
+        {
+          "key": "token",
+          "value": "{{accessToken}}"
+        }
+      ]
+    }
+  },
+  "response": []
+}

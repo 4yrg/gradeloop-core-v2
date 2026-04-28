@@ -1,12 +1,12 @@
 # =============================================================================
 # IAM Service - Kong Configuration
-# Handles authentication, users, and admin APIs
+# Handles authentication, users, tenants, admin APIs, RBAC, MFA, and audit logs
 # =============================================================================
 _format_version: "3.0"
 
 services:
   - name: iam-service
-    url: http://kong-service:8081
+    url: http://iam-service:8081
     routes:
       - name: iam-auth
         paths:
@@ -16,6 +16,31 @@ services:
       - name: iam-users
         paths:
           - /api/v1/users
+        strip_path: false
+        preserve_host: false
+      - name: iam-tenants
+        paths:
+          - /api/v1/tenants
+        strip_path: false
+        preserve_host: false
+      - name: iam-invitations
+        paths:
+          - /api/v1/invitations
+        strip_path: false
+        preserve_host: false
+      - name: iam-roles
+        paths:
+          - /api/v1/roles
+        strip_path: false
+        preserve_host: false
+      - name: iam-permissions
+        paths:
+          - /api/v1/permissions
+        strip_path: false
+        preserve_host: false
+      - name: iam-audit-logs
+        paths:
+          - /api/v1/audit-logs
         strip_path: false
         preserve_host: false
       - name: iam-admin

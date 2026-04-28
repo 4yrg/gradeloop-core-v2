@@ -168,6 +168,45 @@ services:
         compress: "true"
 
   # =============================================================================
+  # Keycloak (IAM Identity Provider)
+  # =============================================================================
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: gradeloop-keycloak
+    restart: unless-stopped
+    command: start-dev
+    ports:
+      - "8080:8080"
+    environment:
+      - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN:-admin}
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://postgres:5432/${IAM_SVC_DB_NAME:-iam_db}
+      - KC_DB_USERNAME=${GRA_DB_USER:-postgres}
+      - KC_DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
+      - KC_HOSTNAME=${KEYCLOAK_HOSTNAME:-localhost}
+      - KC_HOSTNAME_STRICT=${KEYCLOAK_HOSTNAME_STRICT:-false}
+      - KC_HTTP_ENABLED=${KEYCLOAK_HTTP_ENABLED:-true}
+      - KC_PROXY=edge
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+
+  # =============================================================================
   # SeaweedFS (Object Storage - S3 Compatible)
   # =============================================================================
   kong-database:

@@ -5,15 +5,11 @@ meta {
 }
 
 post {
-  url: {{BASE_URL}}/api/v1/admin/users/:id/revoke-sessions
+  url: {{baseUrl}}/api/v1/admin/users/{{user_id}}/revoke-sessions
   body: none
   auth: bearer
 }
 
-params:path {
-  id: uuid-goes-here
-}
-
 auth:bearer {
-  token: {{ADMIN_TOKEN}}
+  token: {{jwtToken}}
 }
