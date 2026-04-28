@@ -160,7 +160,7 @@ COMPOSE_DIR := $(ROOT)/infra/compose
 # Development Targets (Local Service Execution)
 # =============================================================================
 
-GO_SERVICES := iam email academic assessment cipas-xai
+GO_SERVICES := iam email academic assessment cipas-xai notification
 PY_SERVICES := ivas acafs keystroke cipas-ai cipas-semantics cipas-syntactics
 
 dev-logs:
@@ -188,6 +188,7 @@ dev:
 	@echo "  - Academic:   http://localhost:8083"
 	@echo "  - Assessment: http://localhost:8084"
 	@echo "  - CIPAS-XAI:  http://localhost:8085"
+	@echo "  - Notification: http://localhost:8086"
 	@echo ""
 	@echo "Python Services (81xx):"
 	@echo "  - IVAS:            http://localhost:8101"
