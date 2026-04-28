@@ -169,8 +169,9 @@ async def regrade_session(session_id: UUID) -> SessionOut:
         sid=session_id,
         transcript_turns=transcript_turns,
         assignment_context=assignment_context,
-        # Explicit: empty list [] is treated as None (no plan = free-form grading)
         selected_questions=planned_questions if planned_questions else None,
+        notify=True,
+        student_id=session.get("student_id"),
     )
 
     refreshed = await db.get_session(session_id)

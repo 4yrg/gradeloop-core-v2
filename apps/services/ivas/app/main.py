@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 from app.logging_config import configure_logging, get_logger
+from app.queue.rabbitmq import NotificationPublisher
 from app.routes.assignments import router as assignments_router
 from app.routes.chat_ui import router as chat_ui_router
 from app.routes.competencies import router as competencies_router
@@ -22,12 +23,13 @@ logger = get_logger(__name__)
 
 # Global state
 postgres_client: PostgresClient | None = None
+notification_publisher: NotificationPublisher | None = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator:
     """Application lifespan manager."""
-    global postgres_client
+    global postgres_client, notification_publisher
 
     settings = get_settings()
     configure_logging(settings.log_level, settings.environment)
@@ -49,12 +51,27 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         postgres_client = None
         logger.warning("ivas_postgres_unavailable", error=str(e))
 
+    # Initialize notification publisher (non-fatal — viva grading works without it)
+    try:
+        notification_publisher = NotificationPublisher(
+            url=settings.rabbitmq_url,
+            iam_service_url=settings.iam_service_url,
+        )
+        await notification_publisher.connect()
+        logger.info("ivas_notification_publisher_ready")
+    except Exception as e:
+        notification_publisher = None
+        logger.warning("ivas_notification_publisher_unavailable", error=str(e))
+
     logger.info("ivas_service_ready")
 
     yield
 
     # Shutdown
     logger.info("ivas_service_shutting_down")
+
+    if notification_publisher:
+        await notification_publisher.close()
 
     if postgres_client:
         await postgres_client.close()

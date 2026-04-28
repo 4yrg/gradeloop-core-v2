@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Search, Bell, Menu, LayoutGrid, Check, X } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { useAuthStore } from "@/lib/stores/authStore";
 import { useUIStore } from "@/lib/stores/uiStore";
 import { useNotificationStore } from "@/lib/stores/notificationStore";
 import { useNotifications } from "@/lib/hooks/use-notifications";
+import type { Notification } from "@/types/notification.types";
 
 function formatTimeAgo(dateString: string): string {
   const date = new Date(dateString);
@@ -34,6 +35,7 @@ function formatTimeAgo(dateString: string): string {
 
 const TYPE_ICONS: Record<string, string> = {
   viva_result_ready: "🎤",
+  viva_completed: "👨‍🏫",
   assignment_graded: "📊",
   submission_received: "📝",
   deadline_approaching: "⏰",
@@ -43,6 +45,26 @@ const TYPE_ICONS: Record<string, string> = {
   email_failed: "⚠️",
 };
 
+function getNotificationRoute(notification: Notification): string | null {
+  const data = notification.data as Record<string, unknown> | null;
+  if (!data) return null;
+
+  const sessionId = data.session_id as string | undefined;
+  const assignmentId = data.assignment_id as string | undefined;
+
+  switch (notification.type) {
+    case "viva_result_ready":
+      if (sessionId) return `/student/assessments/viva/${sessionId}`;
+      return null;
+    case "viva_completed":
+      if (assignmentId && sessionId)
+        return `/instructor/courses/${data.instance_id || ""}/assignments/${assignmentId}/viva/${sessionId}`;
+      return null;
+    default:
+      return null;
+  }
+}
+
 interface TopbarProps {
   onMenuClick?: () => void;
   className?: string;
@@ -50,6 +72,7 @@ interface TopbarProps {
 
 export function Topbar({ onMenuClick, className }: TopbarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const pageTitle = useUIStore((s) => s.pageTitle);
 
@@ -151,6 +174,10 @@ export function Topbar({ onMenuClick, className }: TopbarProps) {
                     onClick={() => {
                       if (!notification.read) {
                         markAsRead(notification.id);
+                      }
+                      const route = getNotificationRoute(notification);
+                      if (route) {
+                        router.push(route);
                       }
                     }}
                   >

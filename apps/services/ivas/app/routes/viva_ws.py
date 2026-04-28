@@ -531,6 +531,7 @@ async def _finalize_session(
     transcript_turns: list[dict],
     assignment_context: dict,
     selected_questions: list[dict] | None = None,
+    student_id: str | None = None,
 ) -> None:
     """Persist transcripts, run grading, save Q&A, and update session score.
 
@@ -564,6 +565,8 @@ async def _finalize_session(
         transcript_turns=transcript_turns,
         assignment_context=assignment_context,
         selected_questions=selected_questions,
+        notify=True,
+        student_id=student_id,
     )
 
 
@@ -575,6 +578,8 @@ async def _grade_and_persist(
     transcript_turns: list[dict],
     assignment_context: dict,
     selected_questions: list[dict] | None,
+    notify: bool = False,
+    student_id: str | None = None,
 ) -> bool:
     """Run grading on a transcript and persist all derived data.
 
@@ -707,7 +712,97 @@ async def _grade_and_persist(
 
     # Mark completed only after everything succeeded.
     await db.update_session_status(sid, "completed")
+
+    # Send notifications to the student and the instructor.
+    if notify and student_id:
+        await _send_viva_notifications(
+            db=db,
+            sid=sid,
+            student_id=student_id,
+            assignment_context=assignment_context,
+            total_score=float(graded.get("total_score") or 0.0),
+            max_possible=float(graded.get("max_possible") or 0.0),
+        )
+
     return True
+
+
+async def _send_viva_notifications(
+    db,
+    sid: UUID,
+    student_id: str,
+    assignment_context: dict,
+    total_score: float,
+    max_possible: float,
+) -> None:
+    """Publish viva result notifications for the student and instructor.
+
+    Non-blocking: any failure is logged but never propagates. The grading
+    result is already persisted at this point so a notification failure
+    must not roll it back.
+    """
+    from app.main import notification_publisher
+
+    if notification_publisher is None:
+        logger.info("viva_notification_skipped_no_publisher", session_id=str(sid))
+        return
+
+    # Look up the session to get the assignment_id for instructor resolution.
+    session = await db.get_session(sid)
+    assignment_id_raw = session.get("assignment_id") if session else None
+    assignment_id_str = str(assignment_id_raw) if assignment_id_raw else ""
+    assignment_title = (assignment_context.get("title") or "this assignment").strip()
+    score_str = f"{total_score:.0f}/{max_possible:.0f}"
+    session_id_str = str(sid)
+
+    # 1. Notify the student that their viva result is ready.
+    try:
+        await notification_publisher.publish_notification(
+            user_ids=[student_id],
+            notif_type="viva_result_ready",
+            title="Viva Result Ready",
+            message=f"Your viva for '{assignment_title}' has been graded. Score: {score_str}",
+            data={
+                "session_id": session_id_str,
+                "assignment_id": assignment_id_str,
+                "assignment_title": assignment_title,
+                "total_score": total_score,
+                "max_possible": max_possible,
+            },
+        )
+    except Exception as exc:
+        logger.warning("viva_student_notification_failed", session_id=str(sid), error=str(exc))
+
+    # 2. Notify the instructor that a student completed their viva.
+    instructor_id: str | None = None
+    if assignment_id_raw:
+        try:
+            assignment = await db.get_assignment(assignment_id_raw)
+            if assignment:
+                instructor_id = (assignment.get("instructor_id") or "").strip() or None
+        except Exception as exc:
+            logger.warning("viva_instructor_lookup_failed", session_id=str(sid), error=str(exc))
+
+    if instructor_id:
+        try:
+            student_name = await notification_publisher.resolve_user_name(student_id)
+
+            await notification_publisher.publish_notification(
+                user_ids=[instructor_id],
+                notif_type="viva_completed",
+                title="Student Viva Completed",
+                message=f"{student_name} has completed their viva for '{assignment_title}'. Score: {score_str}",
+                data={
+                    "session_id": session_id_str,
+                    "assignment_id": assignment_id_str,
+                    "student_id": student_id,
+                    "assignment_title": assignment_title,
+                    "total_score": total_score,
+                    "max_possible": max_possible,
+                },
+            )
+        except Exception as exc:
+            logger.warning("viva_instructor_notification_failed", session_id=str(sid), error=str(exc))
 
 
 def _serialize_planned_questions(planned: list[dict]) -> list[dict]:
@@ -975,6 +1070,7 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
             await _finalize_session(
                 db, settings, sid, transcript_turns, assignment_context,
                 selected_questions=selected_questions if selected_questions else None,
+                student_id=student_id,
             )
 
         # Safety net: if anything above failed silently (e.g. _bridge_gemini_live

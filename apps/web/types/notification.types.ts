@@ -10,6 +10,18 @@ export interface Notification {
   read_at: string | null;
 }
 
+export interface VivaResultReadyData {
+  session_id: string;
+  assignment_id: string;
+  assignment_title: string;
+  total_score: number;
+  max_possible: number;
+}
+
+export interface VivaCompletedData extends VivaResultReadyData {
+  student_id: string;
+}
+
 export interface UnreadCountResponse {
   count: number;
 }

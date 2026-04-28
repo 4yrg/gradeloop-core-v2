@@ -59,6 +59,18 @@ class Settings(BaseSettings):
         alias="IVAS_GEMINI_GRADER_MODEL",
     )
 
+    # RabbitMQ (for publishing notifications)
+    rabbitmq_url: str = Field(
+        default="amqp://guest:guest@localhost:5672/",
+        alias="RABBITMQ_URL",
+    )
+
+    # IAM Service (for resolving user display names in notifications)
+    iam_service_url: str = Field(
+        default="http://localhost:8081",
+        alias="IAM_SERVICE_URL",
+    )
+
     # Voice Authentication
     voice_similarity_threshold: float = Field(
         default=0.75,

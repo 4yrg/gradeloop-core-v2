@@ -636,6 +636,8 @@ services:
       - IVAS_GEMINI_GRADER_MODEL=${IVAS_GEMINI_GRADER_MODEL}
       - VOICE_SIMILARITY_THRESHOLD=0.75
       - VOICE_ENROLLMENT_SAMPLES=3
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - IAM_SERVICE_URL=http://iam-service:8081
     expose:
       - "8101"
     depends_on:

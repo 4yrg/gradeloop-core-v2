@@ -68,10 +68,6 @@ func (ps *PubSub) Subscribe(ctx context.Context, userIDs []string) (<-chan *redi
 }
 
 func (ps *PubSub) Unsubscribe(ctx context.Context, userIDs []string) error {
-	channels := make([]string, 0, len(userIDs))
-	for _, uid := range userIDs {
-		channels = append(channels, channelPrefix+uid)
-	}
 	return nil
 }
 
