@@ -8,6 +8,7 @@ import { Building2, Award, BookOpen, Landmark, ArrowRight, AlertTriangle, Calend
 import { Skeleton } from '@/components/ui/skeleton';
 import { departmentsApi, degreesApi, coursesApi, facultiesApi, semestersApi, batchesApi } from '@/lib/api/academics';
 import { useAcademicsAccess } from '@/lib/hooks/useAcademicsAccess';
+import { InstituteBadge } from '@/components/institute-context/institute-context';
 
 interface SectionStats {
   active: number;
@@ -150,6 +151,9 @@ export default function AcademicsOverviewPage() {
     <div className="space-y-8">
       {/* Header */}
       <div>
+        <div className="flex items-center gap-2 mb-2">
+          <InstituteBadge />
+        </div>
         <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
           Academics
         </h1>
