@@ -137,25 +137,6 @@ func run() error {
 	)
 	userHandler := handler.NewUserHandler(userService, minioStorage)
 	bulkImportHandler := handler.NewBulkImportHandler(bulkImportService)
-	rbacHandler := handler.NewRBACHandler(nil)
-
-	invitationRepo := repository.NewInvitationRepository(db.DB)
-	invitationService := service.NewInvitationService(db.DB, invitationRepo)
-	invitationHandler := handler.NewInvitationHandler(invitationService)
-
-	rbacRepo := repository.NewRBACRepository(db.DB)
-	rbacService := service.NewRBACService(rbacRepo)
-	rbacHandler = handler.NewRBACHandler(rbacService)
-
-	auditService := service.NewAuditService(db.DB)
-	auditHandler := handler.NewAuditHandler(auditService)
-
-	mfaService := service.NewMFAService(db.DB)
-	mfaHandler := handler.NewMFAHandler(mfaService)
-
-	tenantRepo := repository.NewTenantRepository(db.DB)
-	tenantService := service.NewTenantService(db.DB, tenantRepo)
-	tenantHandler := handler.NewTenantHandler(tenantService)
 
 	app := fiber.New(fiber.Config{
 		AppName:      "iam-service",
