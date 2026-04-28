@@ -8,6 +8,7 @@ import {
   CheckCircle,
   AlertCircle,
   GraduationCap,
+  Building2,
 } from "lucide-react";
 import {
   Card,
@@ -17,6 +18,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { InstituteBadge } from "@/components/institute-context/institute-context";
 
 export default function AdminDashboardPage() {
   const stats = [
@@ -131,12 +133,17 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-8">
       {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-zinc-500 dark:text-zinc-400 mt-2">
-          Welcome back! Here&apos;s what&apos;s happening with your platform
-          today.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <InstituteBadge />
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-zinc-500 dark:text-zinc-400 mt-2">
+            Welcome back! Here&apos;s what&apos;s happening with your platform
+            today.
+          </p>
+        </div>
       </div>
 
       {/* Stats Grid */}

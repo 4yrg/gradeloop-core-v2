@@ -50,6 +50,7 @@ import { RevokeSessionsDialog } from "@/components/admin/revoke-sessions-dialog"
 import { DeleteUserDialog } from "@/components/admin/delete-user-dialog";
 import { usersApi, handleApiError } from "@/lib/api/users";
 import type { UserListItem } from "@/types/auth.types";
+import { InstituteBadge } from "@/components/institute-context/institute-context";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -227,6 +228,9 @@ export default function UsersPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
+          <div className="flex items-center gap-2 mb-2">
+            <InstituteBadge />
+          </div>
           <h1 className="text-2xl font-bold tracking-tight">User Management</h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
             Manage user accounts and access.
