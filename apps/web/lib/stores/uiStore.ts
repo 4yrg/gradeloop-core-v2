@@ -3,6 +3,7 @@ import { create } from 'zustand';
 export interface SecondarySidebarItem {
     name: string;
     href: string;
+    children?: SecondarySidebarItem[];
 }
 
 export interface SecondarySidebarConfig {
@@ -42,6 +43,10 @@ interface UIState {
     popSecondarySidebar: () => void;
     /** Replace the top of the stack in-place (e.g. after async title fetch) */
     updateTopSecondarySidebar: (config: SecondarySidebarConfig) => void;
+    /** Replace a stack entry matched by basePath (used so parent layouts can
+     *  update their own sidebar even when a child layout has pushed another
+     *  sidebar on top). */
+    updateSidebarByBasePath: (basePath: string, config: SecondarySidebarConfig) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -71,5 +76,16 @@ export const useUIStore = create<UIState>((set) => ({
             const newStack = [...state._sidebarStack];
             newStack[newStack.length - 1] = config;
             return { _sidebarStack: newStack, secondarySidebar: config };
+        }),
+    updateSidebarByBasePath: (basePath, config) =>
+        set((state) => {
+            const idx = state._sidebarStack.findIndex((c) => c.basePath === basePath);
+            if (idx === -1) return {};
+            const newStack = [...state._sidebarStack];
+            newStack[idx] = config;
+            return {
+                _sidebarStack: newStack,
+                secondarySidebar: newStack[newStack.length - 1],
+            };
         }),
 }));

@@ -1,9 +1,12 @@
 """Voice enrollment and verification routes."""
 
+from uuid import UUID
+
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
 from app.config import get_settings
 from app.schemas.voice import (
+    VoiceAuthEventOut,
     VoiceEnrollmentOut,
     VoiceProfileStatus,
     VoiceVerifyOut,
@@ -21,7 +24,7 @@ router = APIRouter(prefix="/voice", tags=["voice"])
 
 # In-memory staging for enrollment samples before they're averaged and stored.
 # Maps student_id -> list of numpy embeddings collected so far.
-_enrollment_staging: dict[str, list] = {}
+_enrollment_staging: dict[str, dict[int, object]] = {}
 
 
 def _get_db():
@@ -78,28 +81,23 @@ async def enroll_sample(
 
     # Stage the embedding
     if student_id not in _enrollment_staging:
-        _enrollment_staging[student_id] = []
+        _enrollment_staging[student_id] = {}
 
     samples = _enrollment_staging[student_id]
 
-    # Replace if re-submitting the same index, otherwise append
-    idx = sample_index - 1
-    if idx < len(samples):
-        samples[idx] = embedding
-    else:
-        # Fill gaps if needed
-        while len(samples) < idx:
-            samples.append(None)
-        samples.append(embedding)
+    # Store by index (1-based) to handle out-of-order submissions correctly
+    samples[sample_index] = embedding
 
-    # Count valid (non-None) samples
-    valid_samples = [s for s in samples if s is not None]
+    # Count valid samples up to the required count
+    valid_samples = [samples[i] for i in range(1, required + 1) if i in samples]
     current_count = len(valid_samples)
     is_complete = current_count >= required
 
     # If enrollment is complete, average and persist
     if is_complete:
-        avg_embedding = average_embeddings(valid_samples[:required])
+        # Get embeddings in order (1 to required)
+        ordered_embeddings = [samples[i] for i in range(1, required + 1) if i in samples]
+        avg_embedding = average_embeddings(ordered_embeddings)
         embedding_bytes = serialize_embedding(avg_embedding)
 
         db = _get_db()
@@ -146,9 +144,9 @@ async def get_enrollment_status(student_id: str) -> VoiceProfileStatus:
             is_complete=profile["samples_count"] >= required,
         )
 
-    # Check staging
-    staged = _enrollment_staging.get(student_id, [])
-    valid_count = len([s for s in staged if s is not None])
+    # Check staging (now a dict mapping sample_index -> embedding)
+    staged = _enrollment_staging.get(student_id, {})
+    valid_count = len(staged)
 
     return VoiceProfileStatus(
         student_id=student_id,
@@ -221,3 +219,20 @@ async def verify_voice(
         confidence=confidence,
         threshold=threshold,
     )
+
+
+# =============================================================================
+# Voice Auth Events (per-session verification history)
+# =============================================================================
+
+
+@router.get("/auth-events/{session_id}", response_model=list[VoiceAuthEventOut])
+async def list_voice_auth_events(session_id: UUID) -> list[VoiceAuthEventOut]:
+    """List voice authentication events for a viva session.
+
+    Used by the instructor dashboard to review per-answer voice
+    verification results.
+    """
+    db = _get_db()
+    rows = await db.list_voice_auth_events(session_id)
+    return [VoiceAuthEventOut(**r) for r in rows]

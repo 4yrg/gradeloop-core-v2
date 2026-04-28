@@ -3,7 +3,14 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, CheckSquare, Settings, BarChart3, ShieldCheck } from "lucide-react";
+import {
+    LayoutDashboard,
+    CheckSquare,
+    Settings,
+    BarChart3,
+    ShieldCheck,
+    Mic2,
+} from "lucide-react";
 import { instructorAssessmentsApi } from "@/lib/api/assessments";
 import { useUIStore } from "@/lib/stores/uiStore";
 import { cn } from "@/lib/utils";
@@ -20,7 +27,7 @@ export default function AssignmentLayout({
 
     const pushSecondarySidebar = useUIStore((s) => s.pushSecondarySidebar);
     const popSecondarySidebar = useUIStore((s) => s.popSecondarySidebar);
-    const updateTopSecondarySidebar = useUIStore((s) => s.updateTopSecondarySidebar);
+    const updateSidebarByBasePath = useUIStore((s) => s.updateSidebarByBasePath);
     const setPageTitle = useUIStore((s) => s.setPageTitle);
 
     const coursePath = `/instructor/courses/${instanceId}/assignments`;
@@ -55,6 +62,7 @@ export default function AssignmentLayout({
             items: [
                 { name: "Overview", href: basePath },
                 { name: "Submissions", href: `${basePath}/submissions` },
+                { name: "Viva", href: `${basePath}/viva` },
                 { name: "Similarity", href: `${basePath}/similarity` },
                 { name: "Auth Monitor", href: `${basePath}/monitoring` },
                 { name: "Settings", href: `${basePath}/settings` },
@@ -67,10 +75,12 @@ export default function AssignmentLayout({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [assignmentId]);
 
-    // Update title once fetched
+    // Update title once fetched. Update our own stack entry by basePath so
+    // we don't stomp a child layout's sidebar (e.g. viva layout) that may
+    // have been pushed on top of ours.
     React.useEffect(() => {
         setPageTitle(assignmentTitle);
-        updateTopSecondarySidebar({
+        updateSidebarByBasePath(basePath, {
             title: assignmentTitle,
             subtitle: "Assessment",
             backHref: coursePath,
@@ -79,17 +89,19 @@ export default function AssignmentLayout({
             items: [
                 { name: "Overview", href: basePath },
                 { name: "Submissions", href: `${basePath}/submissions` },
+                { name: "Viva", href: `${basePath}/viva` },
                 { name: "Similarity", href: `${basePath}/similarity` },
                 { name: "Auth Monitor", href: `${basePath}/monitoring` },
                 { name: "Settings", href: `${basePath}/settings` },
             ],
         });
-    }, [assignmentTitle, assignmentId, basePath, coursePath, setPageTitle, updateTopSecondarySidebar]);
+    }, [assignmentTitle, assignmentId, basePath, coursePath, setPageTitle, updateSidebarByBasePath]);
 
     // Mobile-only tab strip
     const mobileTabs = [
         { name: "Overview", href: basePath, icon: LayoutDashboard },
         { name: "Submissions", href: `${basePath}/submissions`, icon: CheckSquare },
+        { name: "Viva", href: `${basePath}/viva`, icon: Mic2 },
         { name: "Similarity", href: `${basePath}/similarity`, icon: BarChart3 },
         { name: "Auth Monitor", href: `${basePath}/monitoring`, icon: ShieldCheck },
         { name: "Settings", href: `${basePath}/settings`, icon: Settings },

@@ -3,6 +3,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
+from pydantic import BaseModel, Field
 
 from app.schemas import (
     AssignmentCreate,
@@ -215,15 +216,18 @@ async def delete_question(question_id: UUID) -> None:
         raise HTTPException(status_code=404, detail="Question not found.")
 
 
+
+class _BulkStatusRequest(BaseModel):
+    question_ids: list[UUID]
+    new_status: str = Field(..., pattern="^(draft|approved|rejected)$")
+
+
 @router.post(
     "/questions/bulk-status",
     summary="Bulk update question status",
 )
-async def bulk_update_status(
-    question_ids: list[UUID],
-    new_status: str = Query(..., pattern="^(draft|approved|rejected)$"),
-) -> dict:
+async def bulk_update_status(body: _BulkStatusRequest) -> dict:
     """Approve or reject multiple questions at once."""
     db = _get_db()
-    count = await db.bulk_update_question_status(question_ids, new_status)
-    return {"updated": count, "status": new_status}
+    count = await db.bulk_update_question_status(body.question_ids, body.new_status)
+    return {"updated": count, "status": body.new_status}

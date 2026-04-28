@@ -1,0 +1,719 @@
+# =============================================================================
+# Gradeloop Core v2 - Dokploy Production Deployment
+# For Oracle Server with Dokploy (built-in Traefik)
+#
+# Dokploy manages Traefik routing - DO NOT include Traefik in this compose file
+# Deploy entire monorepo as a single project
+# =============================================================================
+
+services:
+  # =============================================================================
+  # PostgreSQL (Main Database - All Services Share)
+  # =============================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: gradeloop-postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=${GRA_DB_USER}
+      - POSTGRES_PASSWORD=${GRA_DB_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    configs:
+      - source: init-databases
+        target: /docker-entrypoint-initdb.d/databases.sh
+        mode: 0755
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${GRA_DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # PostgreSQL — Keystroke Service (dedicated instance)
+  # =============================================================================
+  postgres-keystroke:
+    image: postgres:16-alpine
+    container_name: gradeloop-postgres-keystroke
+    restart: always
+    environment:
+      - POSTGRES_USER=keystroke_user
+      - POSTGRES_PASSWORD=keystroke_pass
+      - POSTGRES_DB=keystroke-db
+    volumes:
+      - postgres-keystroke-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keystroke_user -d keystroke-db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # IVAS Service (Python FastAPI) — Intelligent Viva Assessment System
+  # =============================================================================
+  ivas-postgres:
+    image: postgres:16-alpine
+    container_name: gradeloop-ivas-postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=ivas_user
+      - POSTGRES_PASSWORD=ivas_pass
+      - POSTGRES_DB=ivas-db
+    volumes:
+      - ivas-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ivas_user -d ivas-db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # MinIO Object Storage
+  # =============================================================================
+  minio:
+    image: minio/minio
+    container_name: gradeloop-minio
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio-data:/data
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # RabbitMQ (Message Broker)
+  # =============================================================================
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: gradeloop-rabbitmq
+    restart: always
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # Redis (for session buffering)
+  # =============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: gradeloop-redis
+    restart: always
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # IAM Service (Go Fiber) - Authentication & User Management
+  # =============================================================================
+  iam-service:
+    build:
+      context: .
+      dockerfile: apps/services/iam-service/Dockerfile
+      target: production
+    container_name: gradeloop-iam-service
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - SERVER_PORT=${IAM_SVC_PORT}
+      - ENABLE_PREFORK=${IAM_SVC_ENABLE_PREFORK}
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${GRA_DB_USER}
+      - DB_PASSWORD=${GRA_DB_PASSWORD}
+      - DB_NAME=${IAM_SVC_DB_NAME}
+      - DB_SSLMODE=${GRA_DB_SSLMODE}
+      - EMAIL_SERVICE_URL=http://email-service:8082
+      - FRONTEND_URL=${FRONTEND_URL}
+      - SUPER_ADMIN_USERNAME=${SUPER_ADMIN_USERNAME}
+      - SUPER_ADMIN_PASSWORD=${SUPER_ADMIN_PASSWORD}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - JWT_ACCESS_TOKEN_EXPIRY=${JWT_ACCESS_TOKEN_EXPIRY}
+      - JWT_REFRESH_TOKEN_EXPIRY=${JWT_REFRESH_TOKEN_EXPIRY}
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
+      - MINIO_BUCKET=avatars
+      - MINIO_USE_SSL=false
+      - MINIO_PUBLIC_HOST=${MINIO_PUBLIC_HOST}
+    expose:
+      - "8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # Email Service
+  # =============================================================================
+  email-service:
+    build:
+      context: .
+      dockerfile: apps/services/email-service/Dockerfile
+      target: production
+    container_name: gradeloop-email-service
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - APP_ENV=production
+      - APP_PORT=${EMAIL_SVC_PORT}
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${GRA_DB_USER}
+      - DB_PASSWORD=${GRA_DB_PASSWORD}
+      - DB_NAME=${EMAIL_SVC_DB_NAME}
+      - DB_SSLMODE=${GRA_DB_SSLMODE}
+      - SMTP_PASSWORD=${SMTP_PASS}
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    expose:
+      - "8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # Academic Service (Go Fiber)
+  # =============================================================================
+  academic-service:
+    build:
+      context: .
+      dockerfile: apps/services/academic-service/Dockerfile
+      target: production
+    container_name: gradeloop-academic-service
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - SERVER_PORT=${ACADEMIC_SVC_PORT}
+      - ENABLE_PREFORK=${ACADEMIC_SVC_ENABLE_PREFORK}
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${GRA_DB_USER}
+      - DB_PASSWORD=${GRA_DB_PASSWORD}
+      - DB_NAME=${ACADEMIC_SVC_DB_NAME}
+      - DB_SSLMODE=${GRA_DB_SSLMODE}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - EMAIL_SERVICE_URL=http://email-service:8082
+      - IAM_SERVICE_URL=http://iam-service:8081
+    expose:
+      - "8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      iam-service:
+        condition: service_started
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # Assessment Service (Go Fiber)
+  # =============================================================================
+  assessment-service:
+    build:
+      context: .
+      dockerfile: apps/services/assessment-service/Dockerfile
+      target: production
+    container_name: gradeloop-assessment-service
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - SERVER_PORT=${ASSESSMENT_SVC_PORT}
+      - ENABLE_PREFORK=${ASSESSMENT_SVC_ENABLE_PREFORK}
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${GRA_DB_USER}
+      - DB_PASSWORD=${GRA_DB_PASSWORD}
+      - DB_NAME=${ASSESSMENT_SVC_DB_NAME}
+      - DB_SSLMODE=${GRA_DB_SSLMODE}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - IAM_SERVICE_URL=http://iam-service:8081
+      - ACADEMIC_SERVICE_URL=http://academic-service:8083
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
+      - MINIO_BUCKET=submissions
+      - MINIO_USE_SSL=false
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - RABBITMQ_SUBMISSION_WORKERS=${ASSESSMENT_SVC_SUBMISSION_WORKERS:-8}
+      - JUDGE0_URL=${JUDGE0_URL}
+      - JUDGE0_API_KEY=${JUDGE0_API_KEY}
+      - JUDGE0_TIMEOUT_SECONDS=${JUDGE0_TIMEOUT_SECONDS:-30}
+      - JUDGE0_MAX_PAYLOAD_SIZE=${JUDGE0_MAX_PAYLOAD_SIZE:-65536}
+    expose:
+      - "8084"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      iam-service:
+        condition: service_started
+      minio:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # CIPAS Syntactics Service (Python FastAPI)
+  # =============================================================================
+  cipas-syntactics:
+    build:
+      context: .
+      dockerfile: apps/services/cipas-services/cipas-syntactics/Dockerfile
+    container_name: gradeloop-cipas-syntactics
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./apps/services/cipas-services/cipas-syntactics/models:/app/models:ro
+    environment:
+      - CIPAS_SYNTACTICS_PORT=${CIPAS_SYN_SVC_PORT:-8086}
+      - CIPAS_SYNTACTICS_HOST=0.0.0.0
+      - DATABASE_URL=postgresql://${GRA_DB_USER}:${GRA_DB_PASSWORD}@postgres:5432/${CIPAS_SVC_DB_NAME:-cipas-db}?sslmode=${GRA_DB_SSLMODE}
+    expose:
+      - "${CIPAS_SYN_SVC_PORT:-8086}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os, urllib.request; port=os.environ.get('CIPAS_SYNTACTICS_PORT','8086'); urllib.request.urlopen(f'http://localhost:{port}/api/v1/syntactics/health')"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # CIPAS Semantics Service (Python FastAPI)
+  # =============================================================================
+  cipas-semantics:
+    build:
+      context: .
+      dockerfile: apps/services/cipas-services/cipas-semantics/Dockerfile
+    container_name: gradeloop-cipas-semantics
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./apps/services/cipas-services/cipas-semantics/models:/app/models:ro
+    environment:
+      - API_PORT=${CIPAS_SEM_SVC_PORT}
+      - CIPAS_SEMANTICS_HOST=0.0.0.0
+    expose:
+      - "${CIPAS_SEM_SVC_PORT}"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8087/api/v1/semantics/health')"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 150s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # CIPAS AI Detection Service (Python FastAPI)
+  # =============================================================================
+  cipas-ai:
+    build:
+      context: .
+      dockerfile: apps/services/cipas-services/cipas-ai/Dockerfile
+    container_name: gradeloop-cipas-ai
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./apps/services/cipas-services/cipas-ai/model:/app/model:ro
+    environment:
+      - CIPAS_AI_PORT=${CIPAS_AI_SVC_PORT}
+      - CIPAS_AI_HOST=0.0.0.0
+      - CIPAS_AI_DEVICE=${CIPAS_AI_DEVICE:-cpu}
+    expose:
+      - "${CIPAS_AI_SVC_PORT}"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${CIPAS_AI_SVC_PORT}/api/v1/ai/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # ACAFS Service (Python FastAPI)
+  # =============================================================================
+  acafs-service:
+    build:
+      context: .
+      dockerfile: apps/services/acafs-service/Dockerfile
+      target: production
+    container_name: gradeloop-acafs-service
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - SERVICE_NAME=${ACAFS_SERVICE_NAME:-acafs-service}
+      - SERVICE_PORT=${ACAFS_SERVICE_PORT:-8086}
+      - SERVICE_HOST=0.0.0.0
+      - LOG_LEVEL=${ACAFS_LOG_LEVEL:-INFO}
+      - ENVIRONMENT=production
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - RABBITMQ_EXCHANGE=${ACAFS_RABBITMQ_EXCHANGE:-submissions}
+      - RABBITMQ_QUEUE=${ACAFS_RABBITMQ_QUEUE:-acafs.evaluation}
+      - RABBITMQ_ROUTING_KEY=${ACAFS_RABBITMQ_ROUTING_KEY:-submission.created}
+      - RABBITMQ_CONCURRENCY=${ACAFS_RABBITMQ_CONCURRENCY:-4}
+      - DATABASE_URL=postgresql://${GRA_DB_USER}:${GRA_DB_PASSWORD}@postgres:5432/${ASSESSMENT_SVC_DB_NAME}?sslmode=${GRA_DB_SSLMODE}
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
+      - MINIO_BUCKET=${MINIO_BUCKET:-submissions}
+      - MINIO_USE_SSL=false
+      - AST_MAX_LINES=${ACAFS_AST_MAX_LINES:-5000}
+      - AST_TIMEOUT_SECONDS=${ACAFS_AST_TIMEOUT_SECONDS:-2}
+      - GEMINI_API_KEY=${ACAFS_GEMINI_API_KEY}
+      - GEMINI_MODEL=${ACAFS_GEMINI_MODEL:-gemini-2.5-flash}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_REASONER_MODEL=${OPENROUTER_REASONER_MODEL:-qwen/qwen3-vl-235b-a22b-thinking}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-arcee-ai/trinity-large-preview:free}
+      - OPENROUTER_BASE_URL=${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+      - JUDGE0_URL=${JUDGE0_URL:-http://judge0:2358}
+      - JUDGE0_API_KEY=${JUDGE0_API_KEY:-}
+    expose:
+      - "8086"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8086/api/v1/acafs/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # CIPAS XAI Service (Go Fiber)
+  # =============================================================================
+  cipas-xai:
+    build:
+      context: .
+      dockerfile: apps/services/cipas-services/cipas-xai/Dockerfile
+    container_name: gradeloop-cipas-xai
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - CIPAS_XAI_SVC_PORT=8085
+      - LLM_PROVIDER=${LLM_PROVIDER:-openrouter}
+      - LLM_API_KEY=${OPENROUTER_API_KEY}
+      - LLM_BASE_URL=${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+      - LLM_MODEL=${OPENROUTER_REASONER_MODEL:-qwen/qwen3-vl-235b-a22b-thinking}
+      - LLM_EXTRA_HEADERS=HTTP-Referer=${FRONTEND_URL:-http://localhost:3000},X-OpenRouter-Title=GradeLoop CIPAS-XAI
+      - LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-2048}
+      - LLM_TEMPERATURE=${LLM_TEMPERATURE:-0.7}
+      - LLM_TIMEOUT=${LLM_TIMEOUT:-60}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    expose:
+      - "8085"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # Keystroke Dynamics Authentication Service (Python FastAPI)
+  # =============================================================================
+  keystroke-service:
+    build:
+      context: .
+      dockerfile: apps/services/keystroke-service/Dockerfile
+    container_name: gradeloop-keystroke-service
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - PORT=8003
+      - DEVICE=cpu
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASS=guest
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://keystroke_user:keystroke_pass@postgres-keystroke:5432/keystroke-db
+      - SESSION_TTL_HOURS=2
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - MIN_EVENTS_FOR_ENROLLMENT=150
+    volumes:
+      - ./apps/services/keystroke-service/models:/app/models
+    expose:
+      - "8003"
+    depends_on:
+      postgres-keystroke:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # IVAS Service (Python FastAPI) — Intelligent Viva Assessment System
+  # =============================================================================
+  ivas-service:
+    build:
+      context: apps/services/ivas
+      dockerfile: Dockerfile
+      target: production
+    container_name: gradeloop-ivas-service
+    restart: always
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    env_file:
+      - .env
+    environment:
+      - SERVICE_NAME=ivas-service
+      - SERVICE_PORT=8101
+      - SERVICE_HOST=0.0.0.0
+      - LOG_LEVEL=INFO
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql://ivas_user:ivas_pass@ivas-postgres:5432/ivas-db
+      - REDIS_URL=redis://redis:6379/1
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
+      - MINIO_BUCKET=ivas-audio
+      - MINIO_USE_SSL=false
+      - IVAS_GEMINI_API_KEY=${IVAS_GEMINI_API_KEY}
+      - IVAS_GEMINI_LIVE_MODEL=${IVAS_GEMINI_LIVE_MODEL}
+      - IVAS_GEMINI_GRADER_MODEL=${IVAS_GEMINI_GRADER_MODEL}
+      - VOICE_SIMILARITY_THRESHOLD=0.75
+      - VOICE_ENROLLMENT_SAMPLES=3
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - IAM_SERVICE_URL=http://iam-service:8081
+    expose:
+      - "8101"
+    depends_on:
+      ivas-postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8101/api/v1/ivas/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
+  # Next.js Web Application
+  # =============================================================================
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: gradeloop-web
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://api.gradeloop.example.com}
+      - NEXT_PUBLIC_IAM_SERVICE_URL=${NEXT_PUBLIC_IAM_SERVICE_URL:-https://api.gradeloop.example.com/api/v1}
+    expose:
+      - "3000"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+    networks:
+      - gradeloop-network
+
+# =============================================================================
+# Configs (inline init scripts for database creation)
+# =============================================================================
+configs:
+  init-databases:
+    file: ./scripts/init-databases.sh
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  gradeloop-network:
+    driver: bridge
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  postgres-data:
+    driver: local
+  postgres-keystroke-data:
+    driver: local
+  minio-data:
+    driver: local
+  rabbitmq-data:
+    driver: local
+  redis-data:
+    driver: local
+  ivas-postgres-data:
+    driver: local

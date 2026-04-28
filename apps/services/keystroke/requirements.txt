@@ -11,8 +11,8 @@ pydantic==2.5.0
 
 # ML/AI
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.1.0+cpu
-numpy==1.24.3
+torch==2.6.0+cpu
+numpy>=1.26.0,<2
 google-generativeai==0.3.2
 
 # Data Processing

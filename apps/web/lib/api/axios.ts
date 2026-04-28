@@ -11,7 +11,7 @@ export const axiosInstance = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 30000,
+  timeout: 120000,
 });
 
 // Request interceptor - attach access token to all requests
@@ -148,7 +148,7 @@ axiosInstance.interceptors.response.use(
 // Helper function to handle API errors
 export const handleApiError = (error: unknown): string => {
   if (axios.isAxiosError(error)) {
-    const message = error.response?.data?.message || error.message;
+    const message = error.response?.data?.message || error.response?.data?.detail || error.message;
     return message;
   }
 

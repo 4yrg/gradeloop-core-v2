@@ -69,6 +69,22 @@ class Settings(BaseSettings):
         default="gemini-2.0-flash-live-001",
         alias="IVAS_GEMINI_LIVE_MODEL",
     )
+    gemini_grader_model: str = Field(
+        default="gemini-3.1-flash-lite-preview",
+        alias="IVAS_GEMINI_GRADER_MODEL",
+    )
+
+    # RabbitMQ (for publishing notifications)
+    rabbitmq_url: str = Field(
+        default="amqp://guest:guest@localhost:5672/",
+        alias="RABBITMQ_URL",
+    )
+
+    # IAM Service (for resolving user display names in notifications)
+    iam_service_url: str = Field(
+        default="http://localhost:8081",
+        alias="IAM_SERVICE_URL",
+    )
 
     # Voice Authentication
     voice_similarity_threshold: float = Field(
@@ -78,6 +94,10 @@ class Settings(BaseSettings):
     voice_enrollment_samples: int = Field(
         default=3,
         alias="VOICE_ENROLLMENT_SAMPLES",
+    )
+    voice_verify_interval_seconds: float = Field(
+        default=3.0,
+        alias="VOICE_VERIFY_INTERVAL_SECONDS",
     )
 
     @property
