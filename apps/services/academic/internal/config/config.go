@@ -5,9 +5,10 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/joho/godotenv"
+	"github.com/4yrg/gradeloop-core-v2/packages/go/env"
 )
 
+// Config holds all configuration for the Academic service.
 type Config struct {
 	Server          ServerConfig
 	Database        DatabaseConfig
@@ -17,11 +18,13 @@ type Config struct {
 	IAMServiceURL   string
 }
 
+// ServerConfig holds server-related configuration.
 type ServerConfig struct {
 	Port          string
 	EnablePrefork bool
 }
 
+// DatabaseConfig holds database connection configuration.
 type DatabaseConfig struct {
 	Host     string
 	Port     string
@@ -31,31 +34,29 @@ type DatabaseConfig struct {
 	SSLMode  string
 }
 
+// JWTConfig holds JWT-related configuration.
 type JWTConfig struct {
 	SecretKey string
 }
 
+// Load reads configuration from environment variables.
 func Load() (*Config, error) {
-	if err := godotenv.Load(); err != nil {
-		if !os.IsNotExist(err) {
-			return nil, fmt.Errorf("loading .env file: %w", err)
-		}
-	}
+	env.Load()
 
-	dbPort := getEnv("DB_PORT", "5432")
-	dbSSLMode := getEnv("DB_SSLMODE", "disable")
+	dbPort := getEnv("GRA_DB_PORT", "5432")
+	dbSSLMode := getEnv("GRA_DB_SSLMODE", "disable")
 
 	return &Config{
 		Server: ServerConfig{
-			Port:          getEnv("SERVER_PORT", "8083"),
+			Port:          getEnv("ACADEMIC_SVC_PORT", "8083"),
 			EnablePrefork: getEnvAsBool("ENABLE_PREFORK", false),
 		},
 		Database: DatabaseConfig{
-			Host:     getEnv("DB_HOST", "localhost"),
+			Host:     getEnv("GRA_DB_HOST", "localhost"),
 			Port:     dbPort,
-			User:     getEnv("DB_USER", "postgres"),
-			Password: getEnv("DB_PASSWORD", ""),
-			Name:     getEnv("DB_NAME", "academic_db"),
+			User:     getEnv("GRA_DB_USER", "postgres"),
+			Password: getEnv("GRA_DB_PASSWORD", ""),
+			Name:     getEnv("ACADEMIC_SVC_DB_NAME", "academic_db"),
 			SSLMode:  dbSSLMode,
 		},
 		JWT: JWTConfig{
@@ -67,6 +68,7 @@ func Load() (*Config, error) {
 	}, nil
 }
 
+// DSN returns the database connection string.
 func (c *Config) DSN() string {
 	return fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",

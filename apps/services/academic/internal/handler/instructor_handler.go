@@ -5,12 +5,12 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/client"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/dto"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/service"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/utils"
+	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 

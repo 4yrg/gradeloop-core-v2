@@ -3,7 +3,6 @@
 import * as React from "react";
 import { X, ChevronDown, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -45,7 +44,7 @@ export function MultiSelectTagInput({
         }
     };
 
-    const remove = (optValue: string, e: React.MouseEvent) => {
+    const remove = (optValue: string, e: React.SyntheticEvent) => {
         e.stopPropagation();
         onChange(value.filter((v) => v !== optValue));
     };
@@ -83,7 +82,7 @@ export function MultiSelectTagInput({
                                         role="button"
                                         tabIndex={0}
                                         onClick={(e) => remove(value[i], e)}
-                                        onKeyDown={(e) => e.key === "Enter" && remove(value[i], e as any)}
+                                        onKeyDown={(e) => e.key === "Enter" && remove(value[i], e)}
                                         className="ml-0.5 rounded-full hover:bg-muted-foreground/20 cursor-pointer p-0.5"
                                     >
                                         <X className="h-3 w-3" />

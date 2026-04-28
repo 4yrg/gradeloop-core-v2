@@ -1,9 +1,7 @@
 package middleware
 
 import (
-	"context"
-
-	"github.com/4yrg/gradeloop-core-v2/shared/libs/go/logger"
+	"github.com/4yrg/gradeloop-core-v2/packages/go/logger"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 )
@@ -32,9 +30,8 @@ func FiberTrace(serviceName string) fiber.Handler {
 		c.Locals("trace_id", traceID)
 
 		// Enrich the user context for the structured logger.
-		// This allows logger.WithContext(ctx, l) to automatically pick up the ID.
-		ctx := context.WithValue(c.Context(), logger.TraceIDKey, traceID)
-		c.SetContext(ctx)
+		// In Fiber v3, Locals are used to store request-scoped values which are also accessible via context.Context interface methods.
+		c.Locals(logger.TraceIDKey, traceID)
 
 		// Ensure the trace ID is returned to the caller/gateway for correlation in access logs
 		c.Set("X-Trace-ID", traceID)

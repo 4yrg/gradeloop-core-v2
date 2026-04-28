@@ -28,7 +28,6 @@ export function StepperHeader({ steps, currentStep, className, ...props }: Stepp
                     const stepNumber = idx + 1;
                     const isCompleted = stepNumber < currentStep;
                     const isCurrent = stepNumber === currentStep;
-                    const isUpcoming = stepNumber > currentStep;
 
                     return (
                         <div

@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import { instructorAssessmentsApi } from "@/lib/api/assessments";
-import type { AssignmentResponse } from "@/types/assessments.types";
 import { handleApiError } from "@/lib/api/axios";
 import { Settings2, Save, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { SectionHeader } from "@/components/instructor/section-header";
@@ -23,9 +22,6 @@ export default function AssignmentSettingsPage() {
   const assignmentId = params.assignmentId as string;
   const instanceId = params.instanceId as string;
 
-  const [assignment, setAssignment] = React.useState<AssignmentResponse | null>(
-    null,
-  );
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSaving, setIsSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -56,7 +52,6 @@ export default function AssignmentSettingsPage() {
         const found = all.find((a) => a.id === assignmentId);
 
         if (mounted && found) {
-          setAssignment(found);
           setTitle(found.title);
           setDescription(found.description || "");
           setTotalMarks(found.total_marks ?? 100);

@@ -7,6 +7,13 @@ from pathlib import Path
 
 import torch
 
+from env_utils.env_utils import load_root_env
+
+
+# Load environment variables from project root
+load_root_env()
+
+
 class Settings:
     """Application settings loaded from environment variables"""
 
@@ -19,7 +26,7 @@ class Settings:
 
     # Server Settings
     HOST: str = os.getenv("API_HOST", "0.0.0.0")
-    PORT: int = int(os.getenv("API_PORT", "8105"))
+    PORT: int = int(os.getenv("CIPAS_SEM_SVC_PORT", os.getenv("API_PORT", "8105")))
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
 
     # Model Settings

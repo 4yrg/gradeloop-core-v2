@@ -5,7 +5,6 @@ import {
     Mic,
     MicOff,
     CheckCircle2,
-    Circle,
     Loader2,
     AlertCircle,
     ShieldCheck,

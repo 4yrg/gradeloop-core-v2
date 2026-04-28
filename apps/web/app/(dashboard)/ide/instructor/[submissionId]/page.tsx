@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { CodeIDE } from "@/components/ide";
 import { assessmentsApi } from "@/lib/api/assessments";
 import type { SubmissionCodeResponse } from "@/types/assessments.types";
@@ -11,7 +11,6 @@ import { toast } from "sonner";
 
 export default function InstructorIDEPage() {
   const params = useParams();
-  const searchParams = useSearchParams();
   const router = useRouter();
   const submissionId = params.submissionId as string;
 

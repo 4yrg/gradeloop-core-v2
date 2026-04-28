@@ -23,7 +23,6 @@ import {
   DEGREE_LEVELS,
   type Degree,
   type Department,
-  type DegreeLevel,
   type CreateDegreeRequest,
   type UpdateDegreeRequest,
   type AcademicFormErrors,

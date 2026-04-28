@@ -3,14 +3,12 @@
 import * as React from 'react';
 import {
     Upload,
-    FileText,
     CheckCircle2,
     AlertCircle,
     Download,
     ArrowRight,
     Check,
     Loader2,
-    Table as TableIcon,
 } from 'lucide-react';
 import {
     SideDialog as Dialog,
@@ -35,7 +33,6 @@ import { toast } from '@/lib/hooks/use-toast';
 import type {
     BulkImportPreviewResponse,
     BulkImportExecuteResponse,
-    BulkImportUserRow,
 } from '@/types/admin.types';
 
 interface Props {
@@ -121,9 +118,15 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: Props) {
                 <div className="flex-1 overflow-hidden">
                     {step === 'upload' && (
                         <div className="pt-2 space-y-6">
-                            <div
-                                className="border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl p-12 flex flex-col items-center justify-center text-center space-y-4 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors cursor-pointer relative"
+                            <button
+                                className="w-full border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl p-12 flex flex-col items-center justify-center text-center space-y-4 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors cursor-pointer relative"
                                 onClick={() => document.getElementById('file-upload')?.click()}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        document.getElementById('file-upload')?.click();
+                                    }
+                                }}
                             >
                                 <input
                                     id="file-upload"
@@ -145,11 +148,11 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: Props) {
                                     </p>
                                     <p className="text-sm text-zinc-500">CSV or XLSX (max 5,000 rows)</p>
                                 </div>
-                            </div>
+                            </button>
 
                             <div className="space-y-3">
                                 <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
-                                    Don't have a file? Download our template
+                                    Don&apos;t have a file? Download our template
                                 </p>
                                 <div className="flex gap-3">
                                     <Button
@@ -269,7 +272,7 @@ export function BulkImportDialog({ open, onOpenChange, onSuccess }: Props) {
                                     Import Completed Successfully
                                 </h3>
                                 <p className="text-zinc-500 max-w-md mx-auto">
-                                    We've finished processing your file. Below is a summary of the operation.
+                                    We&apos;ve finished processing your file. Below is a summary of the operation.
                                 </p>
                             </div>
 

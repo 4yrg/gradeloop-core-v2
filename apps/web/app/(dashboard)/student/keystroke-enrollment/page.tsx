@@ -64,7 +64,7 @@ export default function KeystrokeEnrollmentPage() {
     const router = useRouter();
     const user = useAuthStore((s) => s.user);
     const isHydrated = useAuthStore((s) => s.isHydrated);
-    const { setEnrolled, isEnrolled } = useKeystrokeEnrollmentStore();
+    const { setEnrolled } = useKeystrokeEnrollmentStore();
 
     const [progress, setProgress] = React.useState<{
         phases_complete: string[];

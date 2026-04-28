@@ -78,9 +78,7 @@ class Fragment(Base):
 
 class PlagiarismGroup(Base):
     __tablename__ = "plagiarism_groups"
-    __table_args__ = (
-        Index("idx_plagiarism_groups_assignment", "assignment_id", "group_index"),
-    )
+    __table_args__ = (Index("idx_plagiarism_groups_assignment", "assignment_id", "group_index"),)
 
     id = Column(PG_UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     assignment_id = Column(Text, nullable=False)
@@ -146,9 +144,7 @@ class CloneMatch(Base):
 
 class LSHBucketMetadata(Base):
     __tablename__ = "lsh_bucket_metadata"
-    __table_args__ = (
-        Index("idx_lsh_bucket_metadata_fragment", "fragment_id"),
-    )
+    __table_args__ = (Index("idx_lsh_bucket_metadata_fragment", "fragment_id"),)
 
     id = Column(PG_UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     fragment_id = Column(

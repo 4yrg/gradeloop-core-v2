@@ -58,16 +58,14 @@ logger = setup_logging(__name__)
 # Dataset paths
 # ---------------------------------------------------------------------------
 BCB_FULL_PATH = Path(
-    "/home/iamdasun/Projects/4yrg/gradeloop-core-v2/datasets/bigclonebench/"
-    "bigclonebench.jsonl"
+    "/home/iamdasun/Projects/4yrg/gradeloop-core-v2/datasets/bigclonebench/bigclonebench.jsonl"
 )
 BCB_BALANCED_PATH = Path(
     "/home/iamdasun/Projects/4yrg/gradeloop-core-v2/datasets/bigclonebench/"
     "bigclonebench_balanced.json"
 )
 BCB_100K_PATH = Path(
-    "/home/iamdasun/Projects/4yrg/gradeloop-core-v2/datasets/bigclonebench/"
-    "bigclonebench_100k.jsonl"
+    "/home/iamdasun/Projects/4yrg/gradeloop-core-v2/datasets/bigclonebench/bigclonebench_100k.jsonl"
 )
 
 DEFAULT_MODEL_NAME = "clone_detector_xgb.pkl"
@@ -139,11 +137,7 @@ def evaluate_pair_worker(args):
 
         if nicad_fired:
             pred = 1
-            score = (
-                result.jaccard_similarity
-                if hasattr(result, "jaccard_similarity")
-                else 1.0
-            )
+            score = result.jaccard_similarity if hasattr(result, "jaccard_similarity") else 1.0
         elif prob_xgb > threshold:
             pred = int(is_type3_clone(feature_vector, feature_names, prob_xgb))
             score = prob_xgb
@@ -185,7 +179,7 @@ def load_full_bcb_dataset(
     skipped_type4 = 0
 
     if dataset_format == "json":
-        with open(bcb_path, "r", encoding="utf-8") as f:
+        with open(bcb_path, encoding="utf-8") as f:
             records = json.load(f)
 
         logger.info(f"Loaded {len(records):,} records")
@@ -231,17 +225,15 @@ def load_full_bcb_dataset(
                 meta_list.append(meta)
     else:
         # JSONL format
-        total_lines = sum(1 for _ in open(bcb_path, "r", encoding="utf-8"))
+        total_lines = sum(1 for _ in open(bcb_path, encoding="utf-8"))
         logger.info(f"Total lines in file: {total_lines:,}")
 
         sample_interval = None
         if sample_size and sample_size < total_lines:
             sample_interval = total_lines // sample_size
-            logger.info(
-                f"Sampling 1 in {sample_interval} lines (target: {sample_size:,})"
-            )
+            logger.info(f"Sampling 1 in {sample_interval} lines (target: {sample_size:,})")
 
-        with open(bcb_path, "r", encoding="utf-8") as f:
+        with open(bcb_path, encoding="utf-8") as f:
             for i, line in enumerate(f):
                 # Sampling logic
                 if sample_interval and (i % sample_interval != 0):
@@ -308,9 +300,7 @@ def extract_features_batch(
     Returns:
         (feature_matrix, feature_names)
     """
-    extractor = SyntacticFeatureExtractor(
-        language=language, include_node_types=include_node_types
-    )
+    extractor = SyntacticFeatureExtractor(language=language, include_node_types=include_node_types)
     features = []
     failed = 0
 
@@ -410,7 +400,7 @@ def evaluate_parallel(
 
     # Extract features
     logger.info("\nExtracting features...")
-    X, raw_feature_names = extract_features_batch(
+    x_data, raw_feature_names = extract_features_batch(
         code1_list,
         code2_list,
         language="java",
@@ -426,12 +416,12 @@ def evaluate_parallel(
         raise ValueError("Feature mismatch")
 
     kept_indices = [raw_feature_names.index(f) for f in model.feature_names]
-    X_filtered = X[:, kept_indices]
+    x_filtered = x_data[:, kept_indices]
     feature_names = model.feature_names
 
     # Compute XGBoost probabilities
     logger.info("\nComputing XGBoost probabilities...")
-    y_proba_xgb = model.predict_proba(X_filtered)[:, 1]
+    y_proba_xgb = model.predict_proba(x_filtered)[:, 1]
 
     # Set threshold
     effective_threshold = threshold
@@ -457,7 +447,7 @@ def evaluate_parallel(
             code1_list[i],
             code2_list[i],
             y_proba_xgb[i],
-            X_filtered[i],
+            x_filtered[i],
             feature_names,
             effective_threshold,
             include_node_types,
@@ -473,15 +463,12 @@ def evaluate_parallel(
     with ProcessPoolExecutor(max_workers=workers) as executor:
         # Submit all tasks
         futures = {
-            executor.submit(evaluate_pair_worker, arg): i
-            for i, arg in enumerate(worker_args)
+            executor.submit(evaluate_pair_worker, arg): i for i, arg in enumerate(worker_args)
         }
 
         # Collect results in order
         results = [None] * total
-        for future in tqdm(
-            as_completed(futures), total=len(futures), desc="Evaluating pairs"
-        ):
+        for future in tqdm(as_completed(futures), total=len(futures), desc="Evaluating pairs"):
             idx = futures[future]
             pred, score, ct, label = future.result()
             results[idx] = (pred, score, ct, label)
@@ -557,9 +544,7 @@ def evaluate_parallel(
     logger.info(f"ROC AUC     : {metrics['roc_auc']:.4f}")
 
     logger.info("\nClassification Report:")
-    logger.info(
-        classification_report(y, y_pred_arr, target_names=["Non-Clone", "Clone"])
-    )
+    logger.info(classification_report(y, y_pred_arr, target_names=["Non-Clone", "Clone"]))
 
     logger.info("Confusion Matrix:")
     cm = confusion_matrix(y, y_pred_arr)
@@ -597,9 +582,7 @@ def evaluate_parallel(
         "total_pairs": total,
         "metrics": {k: float(v) for k, v in metrics.items()},
         "per_clone_type": {
-            str(ct): {
-                k: (float(v) if isinstance(v, float) else v) for k, v in m.items()
-            }
+            str(ct): {k: (float(v) if isinstance(v, float) else v) for k, v in m.items()}
             for ct, m in clone_type_metrics.items()
         },
     }

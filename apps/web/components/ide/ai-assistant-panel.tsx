@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
@@ -139,7 +140,7 @@ export function AIAssistantPanel({ assignmentId, assignmentTitle, assignmentDesc
           timestamp: m.created_at ? new Date(m.created_at) : new Date(),
         }));
         if (msgs.length > 0) setMessages([WELCOME_MESSAGE, ...msgs]);
-      } catch (e) {
+      } catch {
         // ignore history load errors silently (404 = no session yet)
       }
     }
@@ -193,8 +194,12 @@ export function AIAssistantPanel({ assignmentId, assignmentTitle, assignmentDesc
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, assistantMsg]);
-    } catch (err: any) {
-      const detail = err?.response?.data?.detail ?? err?.message ?? String(err);
+    } catch (err: unknown) {
+      const detail = axios.isAxiosError(err)
+          ? err.response?.data?.detail
+          : err instanceof Error
+              ? err.message
+          : String(err);
       const assistantMsg: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
@@ -206,7 +211,7 @@ export function AIAssistantPanel({ assignmentId, assignmentTitle, assignmentDesc
       setIsLoading(false);
       textareaRef.current?.focus();
     }
-  }, [input, isLoading]);
+  }, [input, isLoading, assignmentId, userId, studentCode, assignmentTitle, assignmentDescription]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {

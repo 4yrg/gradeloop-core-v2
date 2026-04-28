@@ -11,17 +11,17 @@ FROM oven/bun:1 AS deps
 WORKDIR /app
 
 # Copy root workspace files
-COPY package.json bun.lock* ./
+COPY package.json bun.lock ./
 
 # Copy workspace package files
 COPY apps/web/package.json ./apps/web/package.json
 
 # Install dependencies (this will install for workspace too)
-RUN bun install --frozen-lockfile
+RUN bun install
 
 # Also install in the web directory to ensure binaries are available
 WORKDIR /app/apps/web
-RUN bun install --frozen-lockfile
+RUN bun install
 
 
 # -----------------------------------------------------------------------------
@@ -69,9 +69,9 @@ ENV HOSTNAME=0.0.0.0
 RUN addgroup -S bunjs && adduser -S nextjs -G bunjs
 
 # Copy standalone build output
-COPY --from=builder --chown=nextjs:bunjs /app/apps/web/.next/standalone ./
-COPY --from=builder --chown=nextjs:bunjs /app/apps/web/.next/static ./apps/web/.next/static
-COPY --from=builder --chown=nextjs:bunjs /app/apps/web/public ./apps/web/public
+COPY --from=builder --chown=root:root --chmod=755 /app/apps/web/.next/standalone ./
+COPY --from=builder --chown=root:root --chmod=755 /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder --chown=root:root --chmod=755 /app/apps/web/public ./apps/web/public
 
 USER nextjs
 

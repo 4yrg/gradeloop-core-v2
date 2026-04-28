@@ -24,11 +24,11 @@ type ImportPreviewRow struct {
 }
 
 type BulkImportPreviewResponse struct {
-	Rows            []ImportPreviewRow `json:"rows"`
-	TotalRows       int                `json:"total_rows"`
-	ValidRows       int                `json:"valid_rows"`
-	InvalidRows     int                `json:"invalid_rows"`
-	ColumnMapping   map[string]string  `json:"column_mapping"` // Map of normalized header to actual header
+	Rows          []ImportPreviewRow `json:"rows"`
+	TotalRows     int                `json:"total_rows"`
+	ValidRows     int                `json:"valid_rows"`
+	InvalidRows   int                `json:"invalid_rows"`
+	ColumnMapping map[string]string  `json:"column_mapping"` // Map of normalized header to actual header
 }
 
 type BulkImportExecuteRequest struct {

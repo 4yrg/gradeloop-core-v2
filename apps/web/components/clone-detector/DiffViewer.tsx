@@ -11,6 +11,7 @@
  * - AI likelihood badges shown in panel headers
  */
 
+import * as React from "react";
 import { useRef, useState, useCallback } from "react";
 import {
   ChevronLeft,
@@ -247,12 +248,17 @@ export function DiffViewer({
   const cycle = (cur: number, delta: number) =>
     (cur + delta + submissions.length) % submissions.length;
 
-  const lines =
+  const lines = React.useMemo(() => 
     leftSub && rightSub
       ? diffLines(leftSub.source_code, rightSub.source_code)
-      : [];
+      : [],
+    [leftSub, rightSub]
+  );
 
-  const cloneStarts = cloneBlockIndices(lines);
+  const cloneStarts = React.useMemo(() => 
+    cloneBlockIndices(lines),
+    [lines]
+  );
 
   const jumpToBlock = useCallback(
     (direction: "prev" | "next") => {

@@ -5,16 +5,14 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
     ArrowLeft,
-    BookOpen,
     Users,
     FileText,
-    Loader2,
     Calendar,
     ChevronRight,
     Clock,
     Code2,
 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -84,10 +82,10 @@ export default function StudentCourseDetailPage() {
         return () => {
             mounted = false;
         };
-    }, [instanceId]);
+    }, [instanceId, setPageTitle]);
 
     // Clear topbar title when leaving this page
-    React.useEffect(() => () => { setPageTitle(null); }, []);
+    React.useEffect(() => () => { setPageTitle(null); }, [setPageTitle]);
 
     if (isLoading) {
         return (

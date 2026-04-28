@@ -19,7 +19,6 @@ improved recall by capturing deeper structural similarities.
 """
 
 from collections import Counter
-from typing import Optional
 
 import numpy as np
 from rapidfuzz import fuzz
@@ -68,6 +67,81 @@ JAVA_NODE_TYPES = [
     "ternary_expression",
     "update_expression",
     "unary_expression",
+]
+
+# Standardized Python AST node types for structural features
+PYTHON_NODE_TYPES = [
+    "if_statement",
+    "for_statement",
+    "while_statement",
+    "with_statement",
+    "try_statement",
+    "except_clause",
+    "finally_clause",
+    "return_statement",
+    "break_statement",
+    "continue_statement",
+    "raise_statement",
+    "assert_statement",
+    "assignment",
+    "augmented_assignment",
+    "expression_statement",
+    "binary_operator",
+    "call",
+    "class_definition",
+    "function_definition",
+    "lambda",
+    "conditional_expression",
+    "list_comprehension",
+    "dictionary_comprehension",
+    "set_comprehension",
+    "generator_expression",
+    "attribute",
+    "subscript",
+    "list",
+    "tuple",
+    "dictionary",
+    "set",
+    "yield",
+    "global_statement",
+    "nonlocal_statement",
+    "import_statement",
+    "import_from_statement",
+    "decorated_definition",
+]
+
+# Standardized C AST node types for structural features
+C_NODE_TYPES = [
+    "if_statement",
+    "for_statement",
+    "while_statement",
+    "do_statement",
+    "switch_statement",
+    "case_statement",
+    "return_statement",
+    "break_statement",
+    "continue_statement",
+    "goto_statement",
+    "declaration",
+    "assignment_expression",
+    "binary_expression",
+    "call_expression",
+    "struct_specifier",
+    "enum_specifier",
+    "function_definition",
+    "conditional_expression",
+    "pointer_expression",
+    "array_expression",
+    "cast_expression",
+    "sizeof_expression",
+    "update_expression",
+    "unary_expression",
+    "type_definition",
+    "preproc_include",
+    "preproc_def",
+    "preproc_if",
+    "compound_statement",
+    "expression_statement",
 ]
 
 # Feature names for explainability (GRADELOOP-83)
@@ -147,15 +221,42 @@ class SyntacticFeatureExtractor:
         self.feature_names.extend(CODE_METRICS_NAMES)
         self.feature_names.extend(STRUCTURAL_FEATURE_NAMES)
 
+        # Cache for AST node types supported by the language
+        if self.language == "java":
+            self._node_types = JAVA_NODE_TYPES
+        elif self.language == "python":
+            self._node_types = PYTHON_NODE_TYPES
+        elif self.language in ("c", "cpp"):
+            self._node_types = C_NODE_TYPES
+        else:
+            self._node_types = JAVA_NODE_TYPES  # Default fallback
+
         # Add node type distribution features if enabled
         if self.include_node_types:
-            for node_type in JAVA_NODE_TYPES:
+            for node_type in self._node_types:
                 self.feature_names.append(f"{NODE_TYPE_FEATURE_PREFIX}{node_type}_diff")
 
-        # Cache for AST node types supported by the language
-        self._node_types = (
-            JAVA_NODE_TYPES if language == "java" else JAVA_NODE_TYPES
-        )  # Can be extended for other languages
+        self._setup_node_categories()
+
+    def _setup_node_categories(self):
+        """Setup language-specific node categories for structural metrics."""
+        if self.language == "python":
+            self._loop_nodes = ["for_statement", "while_statement"]
+            self._cond_nodes = ["if_statement", "conditional_expression"]
+            self._call_node = "call"
+        elif self.language in ("c", "cpp"):
+            self._loop_nodes = ["for_statement", "while_statement", "do_statement"]
+            self._cond_nodes = ["if_statement", "switch_statement", "conditional_expression"]
+            self._call_node = "call_expression"
+        else:  # java default
+            self._loop_nodes = [
+                "for_statement",
+                "while_statement",
+                "do_statement",
+                "enhanced_for_statement",
+            ]
+            self._cond_nodes = ["if_statement", "switch_statement", "ternary_expression"]
+            self._call_node = "method_invocation"
 
     def extract_features(self, tokens1: list[str], tokens2: list[str]) -> np.ndarray:
         """
@@ -191,9 +292,7 @@ class SyntacticFeatureExtractor:
         token_cosine = self._cosine_similarity(counter1, counter2)
 
         # Token Edit distance on the arrays of tokens
-        token_edit = (
-            fuzz.ratio(tokens1, tokens2) / 100.0
-        )  # rapidfuzz works on lists of strings too
+        token_edit = fuzz.ratio(tokens1, tokens2) / 100.0  # rapidfuzz works on lists of strings too
 
         # LCS Similarity
         lcs = self._lcs_length(tokens1, tokens2)
@@ -204,8 +303,8 @@ class SyntacticFeatureExtractor:
 
         # Structural features will be computed from raw code
         # For backward compatibility, we compute them from tokens joined as strings
-        additional_struct, metrics, structural_features = (
-            self._extract_all_structural_metrics(str1, str2)
+        additional_struct, metrics, structural_features = self._extract_all_structural_metrics(
+            str1, str2
         )
 
         # Code Metrics
@@ -216,17 +315,13 @@ class SyntacticFeatureExtractor:
 
         # Combine all features
         all_features = (
-            syntactic_features
-            + token_features
-            + additional_struct
-            + metrics
-            + structural_features
+            syntactic_features + token_features + additional_struct + metrics + structural_features
         )
 
         return np.array(all_features)
 
     def extract_features_from_code(
-        self, code1: str, code2: str, language: Optional[str] = None
+        self, code1: str, code2: str, language: str | None = None
     ) -> np.ndarray:
         """
         Extract hybrid features directly from source code.
@@ -284,8 +379,8 @@ class SyntacticFeatureExtractor:
         token_features = [token_jaccard, token_cosine, token_edit, token_lcs_similarity]
 
         # Extract all structural metrics
-        additional_struct, metrics, structural_features = (
-            self._extract_all_structural_metrics(code1, code2)
+        additional_struct, metrics, structural_features = self._extract_all_structural_metrics(
+            code1, code2
         )
 
         # Token count ratio
@@ -296,11 +391,7 @@ class SyntacticFeatureExtractor:
 
         # Combine all features
         all_features = (
-            syntactic_features
-            + token_features
-            + additional_struct
-            + metrics
-            + structural_features
+            syntactic_features + token_features + additional_struct + metrics + structural_features
         )
 
         return np.array(all_features)
@@ -409,9 +500,7 @@ class SyntacticFeatureExtractor:
         c1_node = ast_info1["node_count"]
         c2_node = ast_info2["node_count"]
         ast_node_similarity = (
-            min(c1_node, c2_node) / max(c1_node, c2_node)
-            if max(c1_node, c2_node) > 0
-            else 1.0
+            min(c1_node, c2_node) / max(c1_node, c2_node) if max(c1_node, c2_node) > 0 else 1.0
         )
 
         c1_depth = ast_info1["max_depth"]
@@ -427,9 +516,7 @@ class SyntacticFeatureExtractor:
         cnt2 = ast_info2["node_type_counts"]
 
         # Cosine sim on statement distributions
-        statement_distribution_similarity = self._cosine_similarity(
-            Counter(cnt1), Counter(cnt2)
-        )
+        statement_distribution_similarity = self._cosine_similarity(Counter(cnt1), Counter(cnt2))
 
         # Jaccard on structural nodes acts as generic subtree similarity
         subtree_similarity = self._structural_jaccard(
@@ -450,28 +537,19 @@ class SyntacticFeatureExtractor:
         lines_ratio = min(loc1, loc2) / max(loc1, loc2) if max(loc1, loc2) > 0 else 1.0
 
         # loop count
-        loop_nodes = [
-            "for_statement",
-            "while_statement",
-            "do_statement",
-            "enhanced_for_statement",
-        ]
-        loop1 = sum(cnt1.get(n, 0) for n in loop_nodes)
-        loop2 = sum(cnt2.get(n, 0) for n in loop_nodes)
+        loop1 = sum(cnt1.get(n, 0) for n in self._loop_nodes)
+        loop2 = sum(cnt2.get(n, 0) for n in self._loop_nodes)
         loop_diff = abs(loop1 - loop2)
 
         # conditions
-        cond_nodes = ["if_statement", "switch_statement", "ternary_expression"]
-        cond1 = sum(cnt1.get(n, 0) for n in cond_nodes)
-        cond2 = sum(cnt2.get(n, 0) for n in cond_nodes)
+        cond1 = sum(cnt1.get(n, 0) for n in self._cond_nodes)
+        cond2 = sum(cnt2.get(n, 0) for n in self._cond_nodes)
         cond_diff = abs(cond1 - cond2)
 
         # function calls
-        call1 = cnt1.get("method_invocation", 0)
-        call2 = cnt2.get("method_invocation", 0)
-        func_call_sim = (
-            min(call1, call2) / max(call1, call2) if max(call1, call2) > 0 else 1.0
-        )
+        call1 = cnt1.get(self._call_node, 0)
+        call2 = cnt2.get(self._call_node, 0)
+        func_call_sim = min(call1, call2) / max(call1, call2) if max(call1, call2) > 0 else 1.0
 
         metrics = [lines_ratio, 0.0, float(loop_diff), float(cond_diff), func_call_sim]
 
@@ -480,18 +558,12 @@ class SyntacticFeatureExtractor:
         if self.include_node_types:
             n_structural_features += len(self._node_types)
 
-        struct_jaccard = self._structural_jaccard(
-            ast_info1["node_types"], ast_info2["node_types"]
-        )
-        depth_diff = self._normalize_depth_diff(
-            ast_info1["max_depth"], ast_info2["max_depth"]
-        )
+        struct_jaccard = self._structural_jaccard(ast_info1["node_types"], ast_info2["node_types"])
+        depth_diff = self._normalize_depth_diff(ast_info1["max_depth"], ast_info2["max_depth"])
         node_count_diff = self._normalize_node_count_diff(
             ast_info1["node_count"], ast_info2["node_count"]
         )
-        node_count_ratio = self._node_count_ratio(
-            ast_info1["node_count"], ast_info2["node_count"]
-        )
+        node_count_ratio = self._node_count_ratio(ast_info1["node_count"], ast_info2["node_count"])
         density1 = self._structural_density(code1, ast_info1["node_count"])
         density2 = self._structural_density(code2, ast_info2["node_count"])
         density_diff = abs(density1 - density2)
@@ -548,15 +620,11 @@ class SyntacticFeatureExtractor:
         features = []
 
         # 1. Structural Jaccard Similarity
-        struct_jaccard = self._structural_jaccard(
-            ast_info1["node_types"], ast_info2["node_types"]
-        )
+        struct_jaccard = self._structural_jaccard(ast_info1["node_types"], ast_info2["node_types"])
         features.append(struct_jaccard)
 
         # 2. AST Depth difference (normalized)
-        depth_diff = self._normalize_depth_diff(
-            ast_info1["max_depth"], ast_info2["max_depth"]
-        )
+        depth_diff = self._normalize_depth_diff(ast_info1["max_depth"], ast_info2["max_depth"])
         features.append(depth_diff)
 
         # 3. AST Node Count difference (normalized)
@@ -566,9 +634,7 @@ class SyntacticFeatureExtractor:
         features.append(node_count_diff)
 
         # 4. AST Node Count ratio
-        node_count_ratio = self._node_count_ratio(
-            ast_info1["node_count"], ast_info2["node_count"]
-        )
+        node_count_ratio = self._node_count_ratio(ast_info1["node_count"], ast_info2["node_count"])
         features.append(node_count_ratio)
 
         # 5. Structural Density: AST node_count / LOC for each snippet
@@ -722,9 +788,7 @@ class SyntacticFeatureExtractor:
 
         return max_depth
 
-    def _structural_jaccard(
-        self, node_types1: set[str], node_types2: set[str]
-    ) -> float:
+    def _structural_jaccard(self, node_types1: set[str], node_types2: set[str]) -> float:
         """
         Calculate Structural Jaccard Similarity between two ASTs.
 
@@ -773,9 +837,7 @@ class SyntacticFeatureExtractor:
         diff = abs(depth1 - depth2)
         return 1.0 - (diff / max_depth)
 
-    def _normalize_node_count_diff(
-        self, count1: int, count2: int, max_count: int = 1000
-    ) -> float:
+    def _normalize_node_count_diff(self, count1: int, count2: int, max_count: int = 1000) -> float:
         """
         Normalize AST node count difference to [0, 1] range.
 
@@ -876,9 +938,7 @@ class SyntacticFeatureExtractor:
 
         return diffs
 
-    def extract_features_batch(
-        self, token_pairs: list[tuple[list[str], list[str]]]
-    ) -> np.ndarray:
+    def extract_features_batch(self, token_pairs: list[tuple[list[str], list[str]]]) -> np.ndarray:
         """
         Extract features for multiple token pairs.
 
@@ -896,7 +956,7 @@ class SyntacticFeatureExtractor:
         return np.array(features)
 
     def extract_features_from_code_batch(
-        self, code_pairs: list[tuple[str, str]], language: Optional[str] = None
+        self, code_pairs: list[tuple[str, str]], language: str | None = None
     ) -> np.ndarray:
         """
         Extract features for multiple code pairs directly from source code.
@@ -1000,9 +1060,7 @@ class SyntacticFeatureExtractor:
         """
         return " ".join(tokens)
 
-    def extract_toma_features(
-        self, tokens1: list[str], tokens2: list[str]
-    ) -> dict[str, float]:
+    def extract_toma_features(self, tokens1: list[str], tokens2: list[str]) -> dict[str, float]:
         """
         Extract TOMA-style features for Type-3 clone detection.
 
@@ -1113,9 +1171,7 @@ def calculate_pairwise_features_from_code(
     Returns:
         Tuple of (features array, feature names list)
     """
-    extractor = SyntacticFeatureExtractor(
-        language=language, include_node_types=include_node_types
-    )
+    extractor = SyntacticFeatureExtractor(language=language, include_node_types=include_node_types)
     n = len(code_list)
     num_pairs = n * (n - 1) // 2
 
@@ -1125,9 +1181,7 @@ def calculate_pairwise_features_from_code(
 
     for i in range(n):
         for j in range(i + 1, n):
-            features[idx] = extractor.extract_features_from_code(
-                code_list[i], code_list[j]
-            )
+            features[idx] = extractor.extract_features_from_code(code_list[i], code_list[j])
             idx += 1
 
     return features, extractor.get_feature_names()

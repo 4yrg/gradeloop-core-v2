@@ -19,11 +19,23 @@ interface ToastStore {
 
 const ToastContext = React.createContext<ToastStore | null>(null);
 
+const generateSecureId = (): string => {
+  const arr = new Uint8Array(8);
+  if (typeof globalThis !== 'undefined' && globalThis.crypto) {
+    globalThis.crypto.getRandomValues(arr);
+  } else {
+    for (let i = 0; i < 8; i++) {
+      arr[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  return Array.from(arr, (b) => b.toString(16).padStart(2, '0')).join('');
+};
+
 export function ToastProvider({ children }: { children: React.ReactNode }) {
     const [toasts, setToasts] = React.useState<Toast[]>([]);
 
     const addToast = React.useCallback((toast: Omit<Toast, "id">) => {
-        const id = Math.random().toString(36).slice(2);
+        const id = generateSecureId();
         setToasts((prev) => [...prev, { ...toast, id }]);
         // Auto-dismiss after 5 seconds
         setTimeout(() => {

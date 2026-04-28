@@ -4,7 +4,7 @@
  * Group (Batch) dialogs: Create + Edit
  */
 import * as React from 'react';
-import { Users2, Shield, Info } from 'lucide-react';
+import { Users2, Info } from 'lucide-react';
 import {
     SideDialog,
     SideDialogContent,
@@ -93,7 +93,7 @@ export function CreateGroupDialog({
         }
     }, [values.degree_id]);
 
-    function set(field: keyof CreateBatchRequest, value: any) {
+    function set<K extends keyof CreateBatchRequest>(field: K, value: CreateBatchRequest[K]) {
         setValues((prev) => ({ ...prev, [field]: value }));
         if (errors[field as string]) setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
@@ -269,7 +269,7 @@ export function EditGroupDialog({
         }
     }, [open, batch]);
 
-    function set(field: keyof UpdateBatchRequest, value: any) {
+    function set<K extends keyof UpdateBatchRequest>(field: K, value: UpdateBatchRequest[K]) {
         setValues((prev) => ({ ...prev, [field]: value }));
         if (errors[field as string]) setErrors((prev) => ({ ...prev, [field]: undefined }));
     }

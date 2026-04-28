@@ -48,43 +48,44 @@ from pathlib import Path
 import h5py
 import numpy as np
 import torch
+
 try:
     import gdown
 except ImportError:
     gdown = None  # lazy check in download helper
 import torch.nn as nn
-import torch.nn.functional as F
+import torch.nn.functional as F  # noqa: N812
 import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader, Dataset
 from tqdm.auto import tqdm
 
 # ──────────────────────────────────────────────────────────────────────────────
 # DEFAULT HYPERPARAMETERS
 # (match the Colab notebook — change via CLI args if needed)
 # ──────────────────────────────────────────────────────────────────────────────
-INPUT_SIZE        = 5       # [HL, IL, PL, RL, KeyCode]
-HIDDEN_SIZE       = 128     # LSTM hidden units per layer
-OUTPUT_SIZE       = 128     # embedding dimension
-DROPOUT_RATE      = 0.5
+INPUT_SIZE = 5  # [HL, IL, PL, RL, KeyCode]
+HIDDEN_SIZE = 128  # LSTM hidden units per layer
+OUTPUT_SIZE = 128  # embedding dimension
+DROPOUT_RATE = 0.5
 
-SEQ_LEN           = 30      # must match the value used during preprocessing
-BATCH_SIZE        = 512     # matches Colab notebook — best generalisation for user verification
-LEARNING_RATE     = 0.005
-MARGIN            = 1.5     # triplet loss margin
-EPOCHS            = 100
+SEQ_LEN = 30  # must match the value used during preprocessing
+BATCH_SIZE = 512  # matches Colab notebook — best generalisation for user verification
+LEARNING_RATE = 0.005
+MARGIN = 1.5  # triplet loss margin
+EPOCHS = 100
 TRIPLETS_PER_USER = 10
-CHECKPOINT_EVERY  = 5       # save checkpoint every N epochs
+CHECKPOINT_EVERY = 5  # save checkpoint every N epochs
 
 TRAIN_RATIO = 0.80
-VAL_RATIO   = 0.10
-TEST_RATIO  = 0.10
-SPLIT_SEED  = 42
+VAL_RATIO = 0.10
+TEST_RATIO = 0.10
+SPLIT_SEED = 42
 
 
 # ──────────────────────────────────────────────────────────────────────────────
 # GOOGLE DRIVE DOWNLOAD
 # ──────────────────────────────────────────────────────────────────────────────
-_GDRIVE_FILE_ID  = "1HQcqaGhPKYfQvT1zMJLyxB7za1dsU1Ro"
+_GDRIVE_FILE_ID = "1HQcqaGhPKYfQvT1zMJLyxB7za1dsU1Ro"
 _GDRIVE_GDRIVE_URL = f"https://drive.google.com/uc?id={_GDRIVE_FILE_ID}"
 
 
@@ -101,8 +102,7 @@ def download_h5_if_missing(dest: str | Path) -> None:
 
     if gdown is None:
         raise ImportError(
-            "gdown is required to download the dataset.\n"
-            "Install it with:  pip install gdown"
+            "gdown is required to download the dataset.\nInstall it with:  pip install gdown"
         )
 
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -112,10 +112,10 @@ def download_h5_if_missing(dest: str | Path) -> None:
 
     t0 = time.perf_counter()
     gdown.download(
-        url    = _GDRIVE_GDRIVE_URL,
-        output = str(dest),
-        quiet  = False,
-        fuzzy  = True,   # handles /view?usp=sharing URLs as well
+        url=_GDRIVE_GDRIVE_URL,
+        output=str(dest),
+        quiet=False,
+        fuzzy=True,  # handles /view?usp=sharing URLs as well
     )
     elapsed = time.perf_counter() - t0
 
@@ -129,7 +129,7 @@ def download_h5_if_missing(dest: str | Path) -> None:
         )
 
     size_gb = dest.stat().st_size / 1e9
-    print(f"\n✅ Download complete in {elapsed/60:.1f} min  ({size_gb:.2f} GB)")
+    print(f"\n✅ Download complete in {elapsed / 60:.1f} min  ({size_gb:.2f} GB)")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -142,14 +142,14 @@ def configure_gpu() -> torch.device:
         return torch.device("cpu")
 
     device = torch.device("cuda")
-    gpu    = torch.cuda.get_device_properties(0)
+    gpu = torch.cuda.get_device_properties(0)
 
     # TF32 — free ~2x throughput on Ampere+ for matrix multiplications
     torch.backends.cuda.matmul.allow_tf32 = True
-    torch.backends.cudnn.allow_tf32       = True
+    torch.backends.cudnn.allow_tf32 = True
 
     # cuDNN auto-tuner — fixed sequence length means stable kernel choice
-    torch.backends.cudnn.benchmark        = True
+    torch.backends.cudnn.benchmark = True
 
     # Choose AMP dtype: BF16 on Blackwell/Ampere (sm_80+), FP16 elsewhere
     cc_major = gpu.major
@@ -185,13 +185,13 @@ class RamTripletDataset(Dataset):
         self.triplets_per_user = triplets_per_user
 
         with h5py.File(str(h5_path), "r") as hf:
-            total_users    = int(hf.attrs["n_users"])
-            full_index_map = hf["index_map"][:]           # (total_users, 2)
+            total_users = int(hf.attrs["n_users"])
+            full_index_map = hf["index_map"][:]  # (total_users, 2)
 
             if sequences is None:
                 t0 = time.perf_counter()
                 print(f"  Loading sequences into RAM from {h5_path} …", flush=True)
-                self.sequences = hf["sequences"][:]       # (N, SEQ_LEN, 5) float32
+                self.sequences = hf["sequences"][:]  # (N, SEQ_LEN, 5) float32
                 elapsed = time.perf_counter() - t0
                 print(
                     f"  ✅  {self.sequences.shape[0]:,} seqs  "
@@ -200,14 +200,14 @@ class RamTripletDataset(Dataset):
                     flush=True,
                 )
             else:
-                self.sequences = sequences                # shared — zero copy
+                self.sequences = sequences  # shared — zero copy
 
         if user_indices is None:
             user_indices = np.arange(total_users, dtype=np.int64)
 
         self.user_indices = np.asarray(user_indices, dtype=np.int64)
-        self.index_map    = full_index_map[self.user_indices]   # (n_users, 2)
-        self.n_users      = len(self.user_indices)
+        self.index_map = full_index_map[self.user_indices]  # (n_users, 2)
+        self.n_users = len(self.user_indices)
 
         print(
             f"  [Dataset]  users={self.n_users:,}  "
@@ -219,13 +219,13 @@ class RamTripletDataset(Dataset):
         return self.n_users * self.triplets_per_user
 
     def __getitem__(self, idx: int):
-        anc_user        = idx % self.n_users
-        a_start, a_end  = self.index_map[anc_user]
-        a_count         = int(a_end - a_start)
+        anc_user = idx % self.n_users
+        a_start, a_end = self.index_map[anc_user]
+        a_count = int(a_end - a_start)
 
-        picks   = np.random.choice(a_count, 2, replace=(a_count < 2))
-        a_idx   = int(a_start) + picks[0]
-        p_idx   = int(a_start) + picks[1]
+        picks = np.random.choice(a_count, 2, replace=(a_count < 2))
+        a_idx = int(a_start) + picks[0]
+        p_idx = int(a_start) + picks[1]
 
         neg_user = np.random.randint(0, self.n_users)
         while neg_user == anc_user:
@@ -251,24 +251,24 @@ class TypeNet(nn.Module):
 
     def __init__(self):
         super().__init__()
-        self.lstm1 = nn.LSTM(INPUT_SIZE,  HIDDEN_SIZE, batch_first=True)
-        self.bn1   = nn.BatchNorm1d(HIDDEN_SIZE)
+        self.lstm1 = nn.LSTM(INPUT_SIZE, HIDDEN_SIZE, batch_first=True)
+        self.bn1 = nn.BatchNorm1d(HIDDEN_SIZE)
         self.drop1 = nn.Dropout(DROPOUT_RATE)
 
         self.lstm2 = nn.LSTM(HIDDEN_SIZE, HIDDEN_SIZE, batch_first=True)
-        self.bn2   = nn.BatchNorm1d(HIDDEN_SIZE)
+        self.bn2 = nn.BatchNorm1d(HIDDEN_SIZE)
         self.drop2 = nn.Dropout(DROPOUT_RATE)
 
         self.fc = nn.Linear(HIDDEN_SIZE, OUTPUT_SIZE)
 
     def forward_one(self, x: torch.Tensor) -> torch.Tensor:
         out, _ = self.lstm1(x)
-        out    = self.bn1(out.permute(0, 2, 1)).permute(0, 2, 1)
-        out    = self.drop1(out)
+        out = self.bn1(out.permute(0, 2, 1)).permute(0, 2, 1)
+        out = self.drop1(out)
 
         out, _ = self.lstm2(out)
-        out    = self.bn2(out.permute(0, 2, 1)).permute(0, 2, 1)
-        out    = self.drop2(out)
+        out = self.bn2(out.permute(0, 2, 1)).permute(0, 2, 1)
+        out = self.drop2(out)
 
         return F.normalize(self.fc(out[:, -1, :]), p=2, dim=1)
 
@@ -284,9 +284,7 @@ class TripletLoss(nn.Module):
         super().__init__()
         self.margin = margin
 
-    def forward(
-        self, a: torch.Tensor, p: torch.Tensor, n: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, a: torch.Tensor, p: torch.Tensor, n: torch.Tensor) -> torch.Tensor:
         d_pos = (a - p).pow(2).sum(dim=1)
         d_neg = (a - n).pow(2).sum(dim=1)
         return F.relu(d_pos - d_neg + self.margin).mean()
@@ -298,22 +296,22 @@ class TripletLoss(nn.Module):
 def make_user_splits(
     h5_path: str | Path,
     train_ratio: float = TRAIN_RATIO,
-    val_ratio: float   = VAL_RATIO,
-    seed: int          = SPLIT_SEED,
+    val_ratio: float = VAL_RATIO,
+    seed: int = SPLIT_SEED,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Deterministic per-user 80/10/10 shuffle split."""
     with h5py.File(str(h5_path), "r") as hf:
         n_total = int(hf.attrs["n_users"])
 
-    rng     = np.random.default_rng(seed)
+    rng = np.random.default_rng(seed)
     indices = rng.permutation(n_total)
 
     n_train = int(n_total * train_ratio)
-    n_val   = int(n_total * val_ratio)
+    n_val = int(n_total * val_ratio)
 
     train_idx = indices[:n_train]
-    val_idx   = indices[n_train : n_train + n_val]
-    test_idx  = indices[n_train + n_val :]
+    val_idx = indices[n_train : n_train + n_val]
+    test_idx = indices[n_train + n_val :]
 
     print(
         f"User split (seed={seed}) ─── "
@@ -333,12 +331,12 @@ def train(args: argparse.Namespace) -> None:
     if isinstance(result, tuple):
         device, amp_dtype = result
     else:
-        device    = result
+        device = result
         amp_dtype = torch.float16
 
     use_amp = device.type == "cuda"
 
-    print(f"\n{'='*68}")
+    print(f"\n{'=' * 68}")
     print("  TypeNet — Workstation training  (RTX 6000 Pro Blackwell)")
     print(f"  Data        : {args.data}")
     print(f"  Output      : {args.out}")
@@ -346,30 +344,28 @@ def train(args: argparse.Namespace) -> None:
     print(f"  AMP         : {'yes (' + str(amp_dtype) + ')' if use_amp else 'no'}")
     print(f"  torch.compile: {'yes' if args.compile else 'no'}")
     print(f"  Workers     : {args.workers}")
-    print(f"{'='*68}\n")
+    print(f"{'=' * 68}\n")
 
     # ── Ensure HDF5 exists (download if needed) ───────────────────────────────
     download_h5_if_missing(args.data)
 
     # ── Splits ────────────────────────────────────────────────────────────────
-    train_idx, val_idx, test_idx = make_user_splits(
-        args.data, TRAIN_RATIO, VAL_RATIO, SPLIT_SEED
-    )
+    train_idx, val_idx, test_idx = make_user_splits(args.data, TRAIN_RATIO, VAL_RATIO, SPLIT_SEED)
 
-    out_path      = Path(args.out)
-    splits_dir    = out_path.parent
+    out_path = Path(args.out)
+    splits_dir = out_path.parent
     splits_dir.mkdir(parents=True, exist_ok=True)
 
     np.save(splits_dir / "split_train.npy", train_idx)
-    np.save(splits_dir / "split_val.npy",   val_idx)
-    np.save(splits_dir / "split_test.npy",  test_idx)
+    np.save(splits_dir / "split_val.npy", val_idx)
+    np.save(splits_dir / "split_test.npy", test_idx)
     print(f"Splits saved to {splits_dir}\n")
 
     # ── Load sequences once, share between train + val ────────────────────────
     print("Loading sequences into RAM (shared by train + val) …")
     t0 = time.perf_counter()
     with h5py.File(str(args.data), "r") as hf:
-        shared_seqs = hf["sequences"][:]          # (N, SEQ_LEN, 5) float32
+        shared_seqs = hf["sequences"][:]  # (N, SEQ_LEN, 5) float32
     print(
         f"  ✅  {shared_seqs.shape[0]:,} sequences  "
         f"({shared_seqs.nbytes / 1e9:.2f} GB)  "
@@ -382,35 +378,34 @@ def train(args: argparse.Namespace) -> None:
     print("Building train dataset:")
     train_ds = RamTripletDataset(
         args.data,
-        user_indices      = train_idx,
-        triplets_per_user = args.triplets_per_user,
-        sequences         = shared_seqs,
+        user_indices=train_idx,
+        triplets_per_user=args.triplets_per_user,
+        sequences=shared_seqs,
     )
     print("Building val dataset:")
     val_ds = RamTripletDataset(
         args.data,
-        user_indices      = val_idx,
-        triplets_per_user = args.triplets_per_user,
-        sequences         = shared_seqs,
+        user_indices=val_idx,
+        triplets_per_user=args.triplets_per_user,
+        sequences=shared_seqs,
     )
 
     loader_kwargs = dict(
-        batch_size         = args.batch,
-        num_workers        = num_workers,
-        pin_memory         = use_amp,
-        persistent_workers = (num_workers > 0),
-        prefetch_factor    = 4 if num_workers > 0 else None,
+        batch_size=args.batch,
+        num_workers=num_workers,
+        pin_memory=use_amp,
+        persistent_workers=(num_workers > 0),
+        prefetch_factor=4 if num_workers > 0 else None,
     )
-    train_loader = DataLoader(train_ds, shuffle=True,  **loader_kwargs)
-    val_loader   = DataLoader(val_ds,   shuffle=False, **loader_kwargs)
+    train_loader = DataLoader(train_ds, shuffle=True, **loader_kwargs)
+    val_loader = DataLoader(val_ds, shuffle=False, **loader_kwargs)
 
     print(
-        f"\nTrain batches/epoch : {len(train_loader):,}  "
-        f" Val batches/epoch : {len(val_loader):,}\n"
+        f"\nTrain batches/epoch : {len(train_loader):,}   Val batches/epoch : {len(val_loader):,}\n"
     )
 
     # ── Model, loss, optimiser ────────────────────────────────────────────────
-    model     = TypeNet().to(device)
+    model = TypeNet().to(device)
     criterion = TripletLoss(margin=args.margin)
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(
@@ -428,11 +423,11 @@ def train(args: argparse.Namespace) -> None:
             print(f"torch.compile skipped: {e}\n")
 
     # ── Resume from checkpoint ────────────────────────────────────────────────
-    ckpt_path     = out_path.with_suffix(".ckpt.pth")
-    start_epoch   = 0
+    ckpt_path = out_path.with_suffix(".ckpt.pth")
+    start_epoch = 0
     best_val_loss = float("inf")
     train_history: list[float] = []
-    val_history:   list[float] = []
+    val_history: list[float] = []
 
     if args.resume and ckpt_path.exists():
         print(f"Loading checkpoint: {ckpt_path}")
@@ -442,21 +437,21 @@ def train(args: argparse.Namespace) -> None:
         scheduler.load_state_dict(ckpt["scheduler"])
         if "scaler" in ckpt:
             scaler.load_state_dict(ckpt["scaler"])
-        start_epoch   = ckpt["epoch"]
+        start_epoch = ckpt["epoch"]
         best_val_loss = ckpt.get("best_val_loss", best_val_loss)
         train_history = ckpt.get("train_history", [])
-        val_history   = ckpt.get("val_history",   [])
+        val_history = ckpt.get("val_history", [])
         print(f"Resumed from epoch {start_epoch}  best_val_loss={best_val_loss:.4f}\n")
     else:
         print("No checkpoint found — starting fresh.\n")
 
     # ── Metrics output paths ─────────────────────────────────────────────────
-    csv_path  = out_path.with_suffix(".training_log.csv")
+    csv_path = out_path.with_suffix(".training_log.csv")
     json_path = out_path.with_suffix(".results.json")
 
     # Write CSV header (append mode so resume doesn't erase previous rows)
     csv_existed = csv_path.exists() and start_epoch > 0
-    csv_file  = csv_path.open("a", newline="")
+    csv_file = csv_path.open("a", newline="")
     csv_writer = csv.writer(csv_file)
     if not csv_existed:
         csv_writer.writerow(["epoch", "train_loss", "val_loss", "lr", "epoch_time_s", "is_best"])
@@ -479,14 +474,14 @@ def train(args: argparse.Namespace) -> None:
 
         bar = tqdm(
             train_loader,
-            desc  = f"Epoch {epoch+1:>3}/{args.epochs}  train",
-            leave = False,
-            dynamic_ncols = True,
+            desc=f"Epoch {epoch + 1:>3}/{args.epochs}  train",
+            leave=False,
+            dynamic_ncols=True,
         )
         for anchor, pos, neg in bar:
             anchor = anchor.to(device, non_blocking=True)
-            pos    = pos.to(device,    non_blocking=True)
-            neg    = neg.to(device,    non_blocking=True)
+            pos = pos.to(device, non_blocking=True)
+            neg = neg.to(device, non_blocking=True)
 
             optimizer.zero_grad(set_to_none=True)
 
@@ -509,13 +504,13 @@ def train(args: argparse.Namespace) -> None:
         with torch.no_grad():
             for anchor, pos, neg in tqdm(
                 val_loader,
-                desc  = f"Epoch {epoch+1:>3}/{args.epochs}  val  ",
-                leave = False,
-                dynamic_ncols = True,
+                desc=f"Epoch {epoch + 1:>3}/{args.epochs}  val  ",
+                leave=False,
+                dynamic_ncols=True,
             ):
                 anchor = anchor.to(device, non_blocking=True)
-                pos    = pos.to(device,    non_blocking=True)
-                neg    = neg.to(device,    non_blocking=True)
+                pos = pos.to(device, non_blocking=True)
+                neg = neg.to(device, non_blocking=True)
 
                 with torch.autocast(device_type="cuda", dtype=amp_dtype, enabled=use_amp):
                     e_a, e_p, e_n = model(anchor, pos, neg)
@@ -524,23 +519,31 @@ def train(args: argparse.Namespace) -> None:
         scheduler.step()
 
         avg_train = total_train / len(train_loader)
-        avg_val   = total_val   / len(val_loader)
-        elapsed   = time.perf_counter() - epoch_t0
-        lr_now    = scheduler.get_last_lr()[0]
+        avg_val = total_val / len(val_loader)
+        elapsed = time.perf_counter() - epoch_t0
+        lr_now = scheduler.get_last_lr()[0]
 
         train_history.append(avg_train)
         val_history.append(avg_val)
 
         is_best = avg_val < best_val_loss
-        marker  = "  ← best" if is_best else ""
+        marker = "  ← best" if is_best else ""
         print(
-            f"{epoch+1:>6}  {avg_train:>10.4f}  {avg_val:>10.4f}  "
+            f"{epoch + 1:>6}  {avg_train:>10.4f}  {avg_val:>10.4f}  "
             f"{lr_now:>10.6f}  {elapsed:>5.0f}s{marker}"
         )
 
         # Write CSV row
-        csv_writer.writerow([epoch + 1, f"{avg_train:.6f}", f"{avg_val:.6f}",
-                             f"{lr_now:.8f}", f"{elapsed:.1f}", int(is_best)])
+        csv_writer.writerow(
+            [
+                epoch + 1,
+                f"{avg_train:.6f}",
+                f"{avg_val:.6f}",
+                f"{lr_now:.8f}",
+                f"{elapsed:.1f}",
+                int(is_best),
+            ]
+        )
         csv_file.flush()
 
         # Save best model (judged on val loss)
@@ -552,14 +555,14 @@ def train(args: argparse.Namespace) -> None:
         if (epoch + 1) % CHECKPOINT_EVERY == 0:
             torch.save(
                 {
-                    "epoch":         epoch + 1,
-                    "model":         model.state_dict(),
-                    "optimizer":     optimizer.state_dict(),
-                    "scheduler":     scheduler.state_dict(),
-                    "scaler":        scaler.state_dict(),
+                    "epoch": epoch + 1,
+                    "model": model.state_dict(),
+                    "optimizer": optimizer.state_dict(),
+                    "scheduler": scheduler.state_dict(),
+                    "scaler": scaler.state_dict(),
                     "best_val_loss": best_val_loss,
                     "train_history": train_history,
-                    "val_history":   val_history,
+                    "val_history": val_history,
                 },
                 ckpt_path,
             )
@@ -581,8 +584,11 @@ def train(args: argparse.Namespace) -> None:
     gpu_info = {}
     if torch.cuda.is_available():
         g = torch.cuda.get_device_properties(0)
-        gpu_info = {"name": g.name, "vram_gb": g.total_memory // 1024**3,
-                    "compute": f"sm_{g.major}{g.minor}"}
+        gpu_info = {
+            "name": g.name,
+            "vram_gb": g.total_memory // 1024**3,
+            "compute": f"sm_{g.major}{g.minor}",
+        }
 
     results = {
         "run": {
@@ -592,40 +598,40 @@ def train(args: argparse.Namespace) -> None:
             "gpu": gpu_info,
         },
         "hyperparameters": {
-            "epochs":            args.epochs,
-            "batch_size":        args.batch,
-            "learning_rate":     args.lr,
-            "margin":            args.margin,
-            "seq_len":           SEQ_LEN,
+            "epochs": args.epochs,
+            "batch_size": args.batch,
+            "learning_rate": args.lr,
+            "margin": args.margin,
+            "seq_len": SEQ_LEN,
             "triplets_per_user": args.triplets_per_user,
-            "amp_dtype":         str(amp_dtype) if use_amp else "disabled",
-            "torch_compile":     args.compile,
-            "workers":           args.workers,
-            "train_ratio":       TRAIN_RATIO,
-            "val_ratio":         VAL_RATIO,
-            "test_ratio":        TEST_RATIO,
-            "split_seed":        SPLIT_SEED,
+            "amp_dtype": str(amp_dtype) if use_amp else "disabled",
+            "torch_compile": args.compile,
+            "workers": args.workers,
+            "train_ratio": TRAIN_RATIO,
+            "val_ratio": VAL_RATIO,
+            "test_ratio": TEST_RATIO,
+            "split_seed": SPLIT_SEED,
         },
         "split": {
             "train_users": int(len(train_idx)),
-            "val_users":   int(len(val_idx)),
-            "test_users":  int(len(test_idx)),
+            "val_users": int(len(val_idx)),
+            "test_users": int(len(test_idx)),
         },
         "training": {
-            "best_val_loss":  round(best_val_loss, 6),
-            "best_epoch":     best_epoch,
+            "best_val_loss": round(best_val_loss, 6),
+            "best_epoch": best_epoch,
             "final_train_loss": round(train_history[-1], 6) if train_history else None,
-            "final_val_loss":   round(val_history[-1],   6) if val_history   else None,
+            "final_val_loss": round(val_history[-1], 6) if val_history else None,
             "train_loss_history": [round(v, 6) for v in train_history],
-            "val_loss_history":   [round(v, 6) for v in val_history],
+            "val_loss_history": [round(v, 6) for v in val_history],
         },
         "test_sanity": test_results,
         "output_files": {
-            "best_model":   str(out_path),
-            "checkpoint":   str(ckpt_path),
+            "best_model": str(out_path),
+            "checkpoint": str(ckpt_path),
             "training_log": str(csv_path),
             "results_json": str(json_path),
-            "loss_curves":  str(out_path.with_suffix(".loss_curves.png")),
+            "loss_curves": str(out_path.with_suffix(".loss_curves.png")),
         },
     }
 
@@ -658,17 +664,19 @@ def _save_loss_curves(
     """Save train/val loss curve as a PNG next to the model file."""
     try:
         import matplotlib
+
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
 
         fig, ax = plt.subplots(figsize=(11, 4))
-        epochs  = range(1, len(train_history) + 1)
-        ax.plot(epochs, train_history, label="Train (80%)",      marker="o", ms=3)
-        ax.plot(epochs, val_history,   label="Validation (10%)", marker="s", ms=3)
+        epochs = range(1, len(train_history) + 1)
+        ax.plot(epochs, train_history, label="Train (80%)", marker="o", ms=3)
+        ax.plot(epochs, val_history, label="Validation (10%)", marker="s", ms=3)
 
         best_ep = val_history.index(min(val_history)) + 1
-        ax.axvline(best_ep, color="red", linestyle="--", alpha=0.5,
-                   label=f"Best val epoch {best_ep}")
+        ax.axvline(
+            best_ep, color="red", linestyle="--", alpha=0.5, label=f"Best val epoch {best_ep}"
+        )
 
         ax.set_xlabel("Epoch")
         ax.set_ylabel("Avg Triplet Loss")
@@ -715,12 +723,12 @@ def _run_test_sanity(
 
         with torch.no_grad():
             for i in range(n_check):
-                u              = int(test_idx[i])
-                start, end     = idx_map[u]
+                u = int(test_idx[i])
+                start, end = idx_map[u]
                 if end - start < 2:
                     continue
 
-                s1 = torch.from_numpy(seqs_ds[int(start)    ][None].astype(np.float32)).to(device)
+                s1 = torch.from_numpy(seqs_ds[int(start)][None].astype(np.float32)).to(device)
                 s2 = torch.from_numpy(seqs_ds[int(start) + 1][None].astype(np.float32)).to(device)
 
                 with torch.autocast(device_type="cuda", dtype=amp_dtype, enabled=use_amp):
@@ -729,9 +737,9 @@ def _run_test_sanity(
 
                 intra_dists.append((e1 - e2).pow(2).sum().item())
 
-                other   = int(test_idx[(i + 1) % n_check])
+                other = int(test_idx[(i + 1) % n_check])
                 o_start = int(idx_map[other, 0])
-                eo      = model.forward_one(
+                eo = model.forward_one(
                     torch.from_numpy(seqs_ds[o_start][None].astype(np.float32)).to(device)
                 )
                 inter_dists.append((e1 - eo).pow(2).sum().item())
@@ -742,19 +750,19 @@ def _run_test_sanity(
 
     avg_intra = sum(intra_dists) / len(intra_dists)
     avg_inter = sum(inter_dists) / len(inter_dists)
-    ratio     = avg_inter / avg_intra if avg_intra > 0 else float("inf")
+    ratio = avg_inter / avg_intra if avg_intra > 0 else float("inf")
     print(f"  Avg intra-user dist (same person)      : {avg_intra:.4f}")
     print(f"  Avg inter-user dist (different person) : {avg_inter:.4f}")
     print(f"  Separation ratio   (inter/intra)       : {ratio:.2f}x")
     print("  (higher ratio = better discrimination)")
 
     return {
-        "n_users_checked":    n_check,
+        "n_users_checked": n_check,
         "avg_intra_user_dist": round(avg_intra, 6),
         "avg_inter_user_dist": round(avg_inter, 6),
-        "separation_ratio":    round(ratio, 4),
-        "all_intra_dists":     [round(v, 6) for v in intra_dists],
-        "all_inter_dists":     [round(v, 6) for v in inter_dists],
+        "separation_ratio": round(ratio, 4),
+        "all_intra_dists": [round(v, 6) for v in intra_dists],
+        "all_inter_dists": [round(v, 6) for v in inter_dists],
     }
 
 
@@ -769,34 +777,45 @@ def _parse_args() -> argparse.Namespace:
         "--data",
         default=str(Path(__file__).parent / "aalto_full.h5"),
         help="Path to aalto_full.h5.  If the file is missing it will be downloaded "
-             "automatically from Google Drive (requires: pip install gdown).",
+        "automatically from Google Drive (requires: pip install gdown).",
     )
     p.add_argument(
-        "--out", default="models/typenet_pretrained.pth",
+        "--out",
+        default="models/typenet_pretrained.pth",
         help="Output path for the best model weights (.pth)",
     )
-    p.add_argument("--epochs",            type=int,   default=EPOCHS)
-    p.add_argument("--batch",             type=int,   default=BATCH_SIZE,
-                   help="Batch size (default 512 — matches Colab for best accuracy; "
-                        "scale LR proportionally if increasing: e.g. 1024→lr 0.010, 2048→lr 0.020)")
-    p.add_argument("--lr",                type=float, default=LEARNING_RATE)
-    p.add_argument("--margin",            type=float, default=MARGIN)
-    p.add_argument("--triplets_per_user", type=int,   default=TRIPLETS_PER_USER)
+    p.add_argument("--epochs", type=int, default=EPOCHS)
     p.add_argument(
-        "--workers", type=int,
+        "--batch",
+        type=int,
+        default=BATCH_SIZE,
+        help="Batch size (default 512 — matches Colab for best accuracy; "
+        "scale LR proportionally if increasing: e.g. 1024→lr 0.010, 2048→lr 0.020)",
+    )
+    p.add_argument("--lr", type=float, default=LEARNING_RATE)
+    p.add_argument("--margin", type=float, default=MARGIN)
+    p.add_argument("--triplets_per_user", type=int, default=TRIPLETS_PER_USER)
+    p.add_argument(
+        "--workers",
+        type=int,
         default=min(8, max(1, multiprocessing.cpu_count() // 2)),
         help="DataLoader workers (default: half the CPU cores, max 8)",
     )
     p.add_argument(
-        "--compile", action="store_true", default=True,
+        "--compile",
+        action="store_true",
+        default=True,
         help="Use torch.compile() for graph fusion (PyTorch 2.x, default on)",
     )
     p.add_argument(
-        "--no-compile", dest="compile", action="store_false",
+        "--no-compile",
+        dest="compile",
+        action="store_false",
         help="Disable torch.compile()",
     )
     p.add_argument(
-        "--resume", action="store_true",
+        "--resume",
+        action="store_true",
         help="Resume training from checkpoint if available",
     )
     return p.parse_args()

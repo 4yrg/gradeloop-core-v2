@@ -1,10 +1,10 @@
 package router
 
 import (
-	"github.com/gofiber/fiber/v3"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/handler"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/middleware"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/utils"
+	"github.com/gofiber/fiber/v3"
 )
 
 type Config struct {

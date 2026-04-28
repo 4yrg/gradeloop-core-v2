@@ -4,12 +4,9 @@ import * as React from "react";
 import {
   User,
   Mail,
-  Phone,
-  MapPin,
   Hash,
   Calendar,
   Clock,
-  Building2,
   GraduationCap,
   Briefcase,
   Edit,
@@ -17,12 +14,10 @@ import {
   Trash2,
   MoreVertical,
   FileUp,
-  CheckCircle2,
   AlertCircle,
   LogIn,
   KeyRound,
   UserCog,
-  BookOpen,
 } from "lucide-react";
 import {
   SideDialog,
@@ -55,14 +50,6 @@ function getInitials(fullName: string, email: string) {
     .map((p) => p[0]?.toUpperCase() ?? "")
     .slice(0, 2)
     .join("");
-}
-
-function formatDate(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
 }
 
 function formatRelativeTime(iso: string | null) {

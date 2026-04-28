@@ -1,11 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
   getSimilarityReport,
   clusterAssignment,
-  getSimilarityReportMetadata,
   getAnnotations,
   detectAICode,
   getSemanticSimilarity,
@@ -23,7 +22,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DataTable, type ColumnDef } from "@/components/instructor/data-table";
 import { NetworkGraph } from "@/components/instructor/similarity/network-graph";
-import { ClusterCard } from "@/components/instructor/similarity/cluster-card";
 import { SummaryStats } from "@/components/instructor/similarity/summary-stats";
 import { SimilarityBadge, SimilarityScore } from "@/components/instructor/similarity/similarity-badge";
 import { SemanticSimilarityCompact } from "@/components/ui/semantic-similarity-badge";
@@ -36,16 +34,12 @@ import {
   AlertCircle,
   Loader2,
   Eye,
-  Filter,
   BarChart3,
 } from "lucide-react";
-import { format } from "date-fns";
 
 export default function SimilarityOverviewPage() {
   const params = useParams();
-  const router = useRouter();
   const assignmentId = params.assignmentId as string;
-  const instanceId = params.instanceId as string;
 
   const [report, setReport] = React.useState<AssignmentClusterResponse | null>(null);
   const [assignment, setAssignment] = React.useState<AssignmentResponse | null>(null);
@@ -127,7 +121,6 @@ export default function SimilarityOverviewPage() {
     if (!report || !assignment) return;
 
     async function analyzeSubmissions() {
-      if (!assignment) return;
       try {
         setIsAnalyzingSubmissions(true);
 
@@ -146,11 +139,10 @@ export default function SimilarityOverviewPage() {
 
         // Fetch instructor template if available
         let instructorTemplate: string | null = null;
-        if (assignment && assignment.instructor_template_id) {
+        const templateId = assignment?.instructor_template_id;
+        if (templateId) {
           try {
-            const templateCode = await assessmentsApi.getSubmissionCode(
-              assignment.instructor_template_id
-            );
+            const templateCode = await assessmentsApi.getSubmissionCode(templateId);
             instructorTemplate = templateCode.code;
           } catch (err) {
             console.warn("Could not fetch instructor template:", err);
@@ -241,7 +233,7 @@ export default function SimilarityOverviewPage() {
     }
 
     analyzeSubmissions();
-  }, [report, assignment, assignmentId]);
+  }, [report, assignment, assignmentId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Run similarity analysis
   const handleRunAnalysis = async () => {
@@ -294,7 +286,7 @@ export default function SimilarityOverviewPage() {
             assignment.instructor_template_id
           );
           instructorTemplate = templateCode.code || undefined;
-          console.info(`Fetched instructor template: ${instructorTemplate?.length || 0} characters`);
+          console.log(`Fetched instructor template: ${instructorTemplate?.length || 0} characters`);
         } catch (err) {
           console.warn("Could not fetch instructor template for clustering:", err);
         }
@@ -713,13 +705,12 @@ export default function SimilarityOverviewPage() {
                           <div className="flex items-center gap-2">
                             <div className="w-24 bg-muted rounded-full h-2">
                               <div
-                                className={`h-2 rounded-full transition-all ${
-                                  metrics.aiLikelihood > 0.7
+                                className={`h-2 rounded-full transition-all ${metrics.aiLikelihood > 0.7
                                     ? "bg-red-500"
                                     : metrics.aiLikelihood > 0.4
-                                    ? "bg-yellow-500"
-                                    : "bg-green-500"
-                                }`}
+                                      ? "bg-yellow-500"
+                                      : "bg-green-500"
+                                  }`}
                                 style={{ width: `${metrics.aiLikelihood * 100}%` }}
                               />
                             </div>
@@ -734,11 +725,10 @@ export default function SimilarityOverviewPage() {
                           "..."
                         ) : (
                           <span
-                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              metrics.isAIGenerated
+                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${metrics.isAIGenerated
                                 ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
                                 : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                            }`}
+                              }`}
                           >
                             {metrics.isAIGenerated ? "Likely AI" : "Likely Human"}
                           </span>
@@ -798,7 +788,6 @@ export default function SimilarityOverviewPage() {
         cluster={diffSheetCluster}
         initialEdge={diffSheetEdge}
         assignmentId={assignmentId}
-        instanceId={instanceId}
         open={diffSheetOpen}
         onClose={() => setDiffSheetOpen(false)}
       />

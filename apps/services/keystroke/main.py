@@ -7,26 +7,24 @@ import asyncio
 import json
 import os
 from datetime import datetime
-from typing import Dict, List, Optional
 
+import pika
+from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from psycopg2 import extras
+from pydantic import BaseModel, ConfigDict
 
-from feature_extraction import KeystrokeFeatureExtractor
-from typenet_inference import TypeNetAuthenticator
 from behavioral_analysis import (
     BehavioralAnalyzer,
     KeystrokeSessionEvent,
     format_analysis_report,
 )
-
-# Import new clients
 from db import get_db_client
-from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
 from feature_extraction import KeystrokeFeatureExtractor
-from pydantic import BaseModel
 from redis_client import get_redis_client
 from typenet_inference import TypeNetAuthenticator
+
+# Environment variables are loaded from docker-compose/.env
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -48,12 +46,8 @@ app.add_middleware(
 feature_extractor = KeystrokeFeatureExtractor()
 
 # TypeNet model path
-typenet_model_path = os.path.join(
-    os.path.dirname(__file__), "models", "typenet_pretrained.pth"
-)
-typenet_template_path = os.path.join(
-    os.path.dirname(__file__), "models", "user_templates.pkl"
-)
+typenet_model_path = os.path.join(os.path.dirname(__file__), "models", "typenet_pretrained.pth")
+typenet_template_path = os.path.join(os.path.dirname(__file__), "models", "user_templates.pkl")
 
 # Initialize TypeNet authenticator
 authenticator = TypeNetAuthenticator(
@@ -65,9 +59,7 @@ authenticator = TypeNetAuthenticator(
 if os.path.exists(typenet_template_path):
     try:
         authenticator.load_templates(typenet_template_path)
-        print(
-            f"✅ Loaded {len(authenticator.user_templates)} user templates from TypeNet"
-        )
+        print(f"✅ Loaded {len(authenticator.user_templates)} user templates from TypeNet")
     except Exception as e:
         print(f"⚠️  Failed to load user templates: {e}")
 else:
@@ -92,9 +84,7 @@ if db_client.enabled:
                 # For simplicity, use the first available phase template
                 first_phase = list(phases.values())[0]
                 authenticator.user_templates[user_id] = first_phase
-        print(
-            f"✅ Loaded {len(authenticator.user_templates)} user templates from database"
-        )
+        print(f"✅ Loaded {len(authenticator.user_templates)} user templates from database")
     except Exception as e:
         print(f"⚠️  Failed to load templates from database: {e}")
         # Fallback to pickle
@@ -110,9 +100,7 @@ elif os.path.exists(typenet_template_path):
     # Database not enabled, use pickle
     try:
         authenticator.load_templates(typenet_template_path)
-        print(
-            f"✅ Loaded {len(authenticator.user_templates)} user templates from pickle"
-        )
+        print(f"✅ Loaded {len(authenticator.user_templates)} user templates from pickle")
     except Exception as e:
         print(f"⚠️  Failed to load user templates: {e}")
 else:
@@ -123,12 +111,13 @@ else:
 SESSION_TTL_SECONDS = int(os.getenv("SESSION_TTL_HOURS", "2")) * 3600
 
 # RabbitMQ Configuration
-RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
-RABBITMQ_PORT = int(os.getenv('RABBITMQ_PORT', '5672'))
-RABBITMQ_USER = os.getenv('RABBITMQ_USER', 'guest')
-RABBITMQ_PASS = os.getenv('RABBITMQ_PASS', 'guest')
-RABBITMQ_EXCHANGE = 'keystroke.exchange'
-RABBITMQ_ROUTING_KEY = 'keystroke.auth.result'
+RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
+RABBITMQ_PORT = int(os.getenv("RABBITMQ_PORT", "5672"))
+RABBITMQ_USER = os.getenv("RABBITMQ_USER", "guest")
+RABBITMQ_PASS = os.getenv("RABBITMQ_PASSWORD", "guest")
+RABBITMQ_EXCHANGE = "keystroke.exchange"
+RABBITMQ_ROUTING_KEY = "keystroke.auth.result"
+
 
 def publish_auth_event(event_data: dict):
     """Publish authentication event to RabbitMQ"""
@@ -144,9 +133,7 @@ def publish_auth_event(event_data: dict):
         channel = connection.channel()
 
         # Declare exchange
-        channel.exchange_declare(
-            exchange=RABBITMQ_EXCHANGE, exchange_type="topic", durable=True
-        )
+        channel.exchange_declare(exchange=RABBITMQ_EXCHANGE, exchange_type="topic", durable=True)
 
         # Publish message
         channel.basic_publish(
@@ -160,23 +147,23 @@ def publish_auth_event(event_data: dict):
         )
 
         connection.close()
-        print(
-            f"✅ Published auth event to RabbitMQ for student: {event_data.get('studentId')}"
-        )
+        print(f"✅ Published auth event to RabbitMQ for student: {event_data.get('studentId')}")
     except Exception as e:
         print(f"⚠️ Failed to publish to RabbitMQ: {e}")
         # Don't fail the request if RabbitMQ publish fails
 
 
 # In-memory phase tracking (used when database is disabled as fallback)
-_in_memory_phases: Dict[str, set] = {}
+_in_memory_phases: dict[str, set] = {}
 
 # Load enrollment phase config from enrollment_tasks.json
 _enrollment_config_path = os.path.join(os.path.dirname(__file__), "enrollment_tasks.json")
 try:
     with open(_enrollment_config_path) as _f:
         _enrollment_config = json.load(_f)
-    _cfg_phases: List[str] = _enrollment_config.get("phases_required", ["baseline", "transcription"])
+    _cfg_phases: list[str] = _enrollment_config.get(
+        "phases_required", ["baseline", "transcription"]
+    )
     print(f"✅ Enrollment config loaded: required phases = {_cfg_phases}")
 except Exception as _e:
     print(f"⚠️  Failed to load enrollment_tasks.json, using defaults: {_e}")
@@ -187,53 +174,59 @@ REQUIRED_PHASES = set(_cfg_phases)
 # ==================== Pydantic Models ====================
 
 
-class KeystrokeEvent(BaseModel):
-    userId: str
-    sessionId: str
+class KeystrokeEvent(BaseModel):  # noqa: N815
+    model_config = ConfigDict(populate_by_name=True)
+    userId: str  # noqa: N815
+    sessionId: str  # noqa: N815
     timestamp: int
     key: str
-    dwellTime: int
-    flightTime: int
-    keyCode: int
-    assignmentId: Optional[str] = None
-    courseId: Optional[str] = None
+    dwellTime: int  # noqa: N815
+    flightTime: int  # noqa: N815
+    keyCode: int  # noqa: N815
+    assignmentId: str | None = None  # noqa: N815
+    courseId: str | None = None  # noqa: N815
 
 
 class KeystrokeBatch(BaseModel):
-    events: List[KeystrokeEvent]
+    events: list[KeystrokeEvent]
 
 
-class EnrollmentRequest(BaseModel):
-    userId: str
-    keystrokeEvents: List[Dict]
+class EnrollmentRequest(BaseModel):  # noqa: N815
+    model_config = ConfigDict(populate_by_name=True)
+    userId: str  # noqa: N815
+    keystrokeEvents: list[dict]  # noqa: N815
 
 
-class VerificationRequest(BaseModel):
-    userId: str
-    keystrokeEvents: List[Dict]
-    threshold: Optional[float] = 0.7
-    assignmentId: Optional[str] = None
-    courseId: Optional[str] = None
+class VerificationRequest(BaseModel):  # noqa: N815
+    model_config = ConfigDict(populate_by_name=True)
+    userId: str  # noqa: N815
+    keystrokeEvents: list[dict]  # noqa: N815
+    threshold: float | None = 0.7
+    assignmentId: str | None = None  # noqa: N815
+    courseId: str | None = None  # noqa: N815
 
 
-class IdentificationRequest(BaseModel):
-    keystrokeEvents: List[Dict]
-    topK: Optional[int] = 3
+class IdentificationRequest(BaseModel):  # noqa: N815
+    model_config = ConfigDict(populate_by_name=True)
+    keystrokeEvents: list[dict]  # noqa: N815
+    topK: int | None = 3  # noqa: N815
 
 
-class BehavioralAnalysisRequest(BaseModel):
-    sessionId: str
-    studentId: str
-    events: List[Dict]
-    finalCode: str
-    includeReport: Optional[bool] = False
+class BehavioralAnalysisRequest(BaseModel):  # noqa: N815
+    model_config = ConfigDict(populate_by_name=True)
+    sessionId: str  # noqa: N815
+    studentId: str  # noqa: N815
+    events: list[dict]
+    finalCode: str  # noqa: N815
+    includeReport: bool | None = False  # noqa: N815
 
 
-class MonitoringRequest(BaseModel):
-    userId: str
-    sessionId: str
-    assignmentId: Optional[str] = None
-    courseId: Optional[str] = None
+class MonitoringRequest(BaseModel):  # noqa: N815
+    model_config = ConfigDict(populate_by_name=True)
+    userId: str  # noqa: N815
+    sessionId: str  # noqa: N815
+    assignmentId: str | None = None  # noqa: N815
+    courseId: str | None = None  # noqa: N815
 
 
 # ==================== Health Check ====================
@@ -295,26 +288,32 @@ async def capture_keystrokes(batch: KeystrokeBatch):
         session_id = events[0]["sessionId"]
 
         # Create session in Redis if doesn't exist
-        assignment_id_from_event = events[0].get('assignmentId') or None
-        course_id_from_event = events[0].get('courseId') or None
+        assignment_id_from_event = events[0].get("assignmentId") or None
+        course_id_from_event = events[0].get("courseId") or None
         if not redis_client.session_exists(user_id, session_id):
-            redis_client.create_session(user_id, session_id, {
-                'assignment_id': assignment_id_from_event,
-                'course_id': course_id_from_event,
-            })
+            redis_client.create_session(
+                user_id,
+                session_id,
+                {
+                    "assignment_id": assignment_id_from_event,
+                    "course_id": course_id_from_event,
+                },
+            )
         elif assignment_id_from_event:
             # Back-fill assignment_id if session already exists but has None
             meta = redis_client.get_session_metadata(user_id, session_id)
-            if not meta or meta.get('assignment_id') in (None, 'None', ''):
-                redis_client.update_session_metadata(user_id, session_id, {
-                    'assignment_id': assignment_id_from_event,
-                    'course_id': course_id_from_event,
-                })
+            if not meta or meta.get("assignment_id") in (None, "None", ""):
+                redis_client.update_session_metadata(
+                    user_id,
+                    session_id,
+                    {
+                        "assignment_id": assignment_id_from_event,
+                        "course_id": course_id_from_event,
+                    },
+                )
 
         # Append events to Redis (circular buffer with max 500)
-        total_buffered = redis_client.append_events(
-            user_id, session_id, events, max_buffer=500
-        )
+        total_buffered = redis_client.append_events(user_id, session_id, events, max_buffer=500)
 
         return {
             "success": True,
@@ -350,9 +349,7 @@ async def enroll_user(request: EnrollmentRequest):
         sequences = []
         for i in range(0, len(all_events) - sequence_length, sequence_length // 2):
             sequence_events = all_events[i : i + sequence_length]
-            sequence = feature_extractor.create_typenet_sequence(
-                sequence_events, sequence_length
-            )
+            sequence = feature_extractor.create_typenet_sequence(sequence_events, sequence_length)
             sequences.append(sequence)
 
         if len(sequences) < 3:
@@ -368,12 +365,8 @@ async def enroll_user(request: EnrollmentRequest):
         if db_client.enabled and result.get("success"):
             template = authenticator.user_templates[user_id]["template"]
             template_std = authenticator.user_templates[user_id].get("std")
-            sample_count = authenticator.user_templates[user_id].get(
-                "sample_count", len(sequences)
-            )
-            db_client.save_template(
-                user_id, phase, template, template_std, sample_count
-            )
+            sample_count = authenticator.user_templates[user_id].get("sample_count", len(sequences))
+            db_client.save_template(user_id, phase, template, template_std, sample_count)
             db_client.update_enrollment_progress(user_id, phase)
         else:
             # Fallback: save to pickle file and track phase in-memory
@@ -425,7 +418,7 @@ async def get_enrollment_progress(user_id: str):
             }
 
         phases = _cfg_phases
-        phases_complete = [p for p in phases if progress.get(f'{p}_complete')]
+        phases_complete = [p for p in phases if progress.get(f"{p}_complete")]
         # Derive completion from config-required phases, not the DB flag.
         # The DB flag requires all 4 phases hardcoded; the config may only require 2.
         enrollment_complete = all(p in phases_complete for p in _cfg_phases)
@@ -438,9 +431,7 @@ async def get_enrollment_progress(user_id: str):
             "phases_remaining": [p for p in phases if p not in phases_complete],
             "total_sessions": progress.get("total_sessions", 0),
             "started_at": (
-                progress.get("started_at").isoformat()
-                if progress.get("started_at")
-                else None
+                progress.get("started_at").isoformat() if progress.get("started_at") else None
             ),
         }
 
@@ -449,7 +440,7 @@ async def get_enrollment_progress(user_id: str):
 
 
 @app.post("/api/keystroke/enroll/phase")
-async def enroll_phase(request: Dict):
+async def enroll_phase(request: dict):
     """
     Submit enrollment data for a specific phase
     Supports multi-condition stress-robust enrollment
@@ -469,9 +460,7 @@ async def enroll_phase(request: Dict):
             raise HTTPException(status_code=400, detail="userId is required")
 
         if len(all_events) < 150:
-            raise HTTPException(
-                status_code=400, detail="Insufficient data for phase enrollment"
-            )
+            raise HTTPException(status_code=400, detail="Insufficient data for phase enrollment")
 
         # Convert dict events to EnrollmentEvent if needed
         events = [e.dict() if hasattr(e, "dict") else e for e in all_events]
@@ -486,9 +475,7 @@ async def enroll_phase(request: Dict):
             sequences.append(seq)
 
         if len(sequences) < 3:
-            raise HTTPException(
-                status_code=400, detail="Could not create enough sequences"
-            )
+            raise HTTPException(status_code=400, detail="Could not create enough sequences")
 
         # Enroll user for this phase
         result = authenticator.enroll_user(user_id, sequences)
@@ -509,15 +496,11 @@ async def enroll_phase(request: Dict):
 
             # Check enrollment completion status
             progress = db_client.get_enrollment_progress(user_id)
-            enrollment_complete = progress and progress.get(
-                "enrollment_complete", False
-            )
+            enrollment_complete = progress and progress.get("enrollment_complete", False)
         else:
             authenticator.save_templates(typenet_template_path)
             _in_memory_phases.setdefault(user_id, set()).add(phase)
-            enrollment_complete = (
-                _in_memory_phases.get(user_id, set()) >= REQUIRED_PHASES
-            )
+            enrollment_complete = _in_memory_phases.get(user_id, set()) >= REQUIRED_PHASES
 
         return {
             "success": True,
@@ -563,8 +546,7 @@ async def verify_user(request: VerificationRequest):
             "assignmentId": request.assignmentId,
             "courseId": request.courseId,
             "sessionId": None,
-            "confidenceLevel": result.get("similarity", 0)
-            * 100,  # Convert to percentage
+            "confidenceLevel": result.get("similarity", 0) * 100,  # Convert to percentage
             "riskScore": result.get("risk_score", 0) * 100,  # Convert to percentage
             "keystrokeSampleSize": len(events),
             "timestamp": datetime.now().isoformat(),
@@ -665,9 +647,7 @@ async def monitor_session(request: MonitoringRequest):
         # Calculate offset_seconds for timeline
         session_start = redis_client.get_session_start_time(user_id, session_id)
         offset_seconds = (
-            int((datetime.now() - session_start).total_seconds())
-            if session_start
-            else 0
+            int((datetime.now() - session_start).total_seconds()) if session_start else 0
         )
 
         # Classify anomaly type
@@ -697,11 +677,15 @@ async def monitor_session(request: MonitoringRequest):
             )
 
         # Update session metadata in Redis
-        redis_client.update_session_metadata(user_id, session_id, {
-            'last_verification': datetime.now().isoformat(),
-            'risk_score': avg_risk,
-            'similarity_score': result.get('average_similarity', 0.0),
-        })
+        redis_client.update_session_metadata(
+            user_id,
+            session_id,
+            {
+                "last_verification": datetime.now().isoformat(),
+                "risk_score": avg_risk,
+                "similarity_score": result.get("average_similarity", 0.0),
+            },
+        )
 
         # Publish auth event to RabbitMQ
         auth_event = {
@@ -749,9 +733,7 @@ async def get_session_status(user_id: str, session_id: str):
         "session_id": session_id,
         "events_captured": event_count,
         "last_verification": metadata.get("last_verification") if metadata else None,
-        "current_risk_score": (
-            float(metadata.get("risk_score", 0.0)) if metadata else 0.0
-        ),
+        "current_risk_score": (float(metadata.get("risk_score", 0.0)) if metadata else 0.0),
     }
 
 
@@ -836,17 +818,19 @@ async def get_active_sessions_for_assignment(assignment_id: str):
             else:
                 status = "AUTHENTICATED"
 
-            active.append({
-                "user_id": user_id,
-                "session_id": session_id,
-                "assignment_id": assignment_id,
-                "risk_score": risk_score,
-                "event_count": event_count,
-                "status": status,
-                "is_struggling": False,
-                "last_verification": session.get("last_verification"),
-                "session_started": session.get("created_at"),
-            })
+            active.append(
+                {
+                    "user_id": user_id,
+                    "session_id": session_id,
+                    "assignment_id": assignment_id,
+                    "risk_score": risk_score,
+                    "event_count": event_count,
+                    "status": status,
+                    "is_struggling": False,
+                    "last_verification": session.get("last_verification"),
+                    "session_started": session.get("created_at"),
+                }
+            )
 
         return {
             "success": True,
@@ -906,20 +890,26 @@ async def get_assignment_student_summaries(assignment_id: str):
             else:
                 status = "AUTHENTICATED"
 
-            students.append({
-                "user_id": row["user_id"],
-                "session_id": row["session_id"],
-                "assignment_id": assignment_id,
-                "event_count": int(row["event_count"]),
-                "avg_risk_score": avg_risk,
-                "avg_similarity": float(row["avg_similarity"] or 0.0),
-                "anomaly_count": int(row["anomaly_count"] or 0),
-                "struggle_count": int(row["struggle_count"] or 0),
-                "has_anomaly": bool(row["has_anomaly"]),
-                "status": status,
-                "last_event_at": row["last_event_at"].isoformat() if row["last_event_at"] else None,
-                "session_started_at": row["session_started_at"].isoformat() if row["session_started_at"] else None,
-            })
+            students.append(
+                {
+                    "user_id": row["user_id"],
+                    "session_id": row["session_id"],
+                    "assignment_id": assignment_id,
+                    "event_count": int(row["event_count"]),
+                    "avg_risk_score": avg_risk,
+                    "avg_similarity": float(row["avg_similarity"] or 0.0),
+                    "anomaly_count": int(row["anomaly_count"] or 0),
+                    "struggle_count": int(row["struggle_count"] or 0),
+                    "has_anomaly": bool(row["has_anomaly"]),
+                    "status": status,
+                    "last_event_at": row["last_event_at"].isoformat()
+                    if row["last_event_at"]
+                    else None,
+                    "session_started_at": row["session_started_at"].isoformat()
+                    if row["session_started_at"]
+                    else None,
+                }
+            )
 
         return {"success": True, "assignment_id": assignment_id, "students": students}
 
@@ -928,7 +918,7 @@ async def get_assignment_student_summaries(assignment_id: str):
 
 
 @app.post("/api/keystroke/session/finalize")
-async def finalize_session(request: Dict):
+async def finalize_session(request: dict):
     """
     Finalize session: archive keystroke data to PostgreSQL, cleanup Redis
     Call this after assignment submission for forensic archiving
@@ -1025,9 +1015,7 @@ async def lookup_archive(assignment_id: str, user_id: str):
         "anomaly_count": int(archive.get("anomaly_count") or 0),
         "authentication_failures": int(archive.get("authentication_failures") or 0),
         "archived_at": (
-            archived_at.isoformat()
-            if hasattr(archived_at, "isoformat")
-            else str(archived_at or "")
+            archived_at.isoformat() if hasattr(archived_at, "isoformat") else str(archived_at or "")
         ),
     }
 
@@ -1207,7 +1195,9 @@ async def get_playback_data(session_id: str):
             # Express position in ms so the frontend can correlate with event timestamps
             "timestamp_ms": int(row["offset_seconds"]) * 1000,
             "risk_score": float(row["risk_score"]) if row.get("risk_score") is not None else 0.0,
-            "similarity_score": float(row["similarity_score"]) if row.get("similarity_score") is not None else 0.0,
+            "similarity_score": float(row["similarity_score"])
+            if row.get("similarity_score") is not None
+            else 0.0,
             "authenticated": bool(row.get("authenticated", True)),
             "confidence_level": row.get("confidence_level", "LOW"),
             "is_anomaly": bool(row.get("is_anomaly", False)),
@@ -1319,7 +1309,9 @@ async def get_session_analytics(
         {
             "offset_seconds": row["offset_seconds"],
             "risk_score": float(row["risk_score"]) if row.get("risk_score") is not None else 0.0,
-            "similarity_score": float(row["similarity_score"]) if row.get("similarity_score") is not None else 0.0,
+            "similarity_score": float(row["similarity_score"])
+            if row.get("similarity_score") is not None
+            else 0.0,
             "is_anomaly": bool(row.get("is_anomaly", False)),
             "is_struggling": bool(row.get("is_struggling", False)),
         }
@@ -1442,5 +1434,5 @@ async def websocket_monitor(websocket: WebSocket, user_id: str, session_id: str)
 if __name__ == "__main__":
     import uvicorn
 
-    port = int(os.getenv("PORT", 8103))
+    port = int(os.getenv("KEYSTROKE_SVC_PORT", 8103))
     uvicorn.run(app, host="0.0.0.0", port=port)

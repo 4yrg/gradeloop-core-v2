@@ -211,10 +211,14 @@ export default function CoursesPage() {
     } finally {
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [showInactive]);
 
-  React.useEffect(() => { load(); }, [load]);
+  React.useEffect(() => {
+    queueMicrotask(() => {
+      load();
+    });
+  }, [load]);
 
   const [togglingIds, setTogglingIds] = React.useState<Set<string>>(new Set());
 

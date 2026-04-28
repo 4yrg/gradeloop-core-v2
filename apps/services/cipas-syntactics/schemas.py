@@ -6,7 +6,6 @@ Includes new models for Phase 1–4 pipeline (segmentation, LSH, cascade, collus
 """
 
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -46,26 +45,22 @@ class ComparisonResult(BaseModel):
 
     is_clone: bool = Field(..., description="Whether the codes are clones")
     confidence: float = Field(..., description="Confidence score (0-1)")
-    clone_type: Optional[str] = Field(
-        None, description="Type of clone detected (Type-1/2/3)"
-    )
+    clone_type: str | None = Field(None, description="Type of clone detected (Type-1/2/3)")
     pipeline_used: str = Field(
         ...,
         description="Which pipeline was used (Syntactic Cascade Type-1/2/3)",
     )
-    normalization_level: Optional[str] = Field(
+    normalization_level: str | None = Field(
         None,
         description="Normalization level used (Literal, Blinded, or Token-based)",
     )
 
     # Optional detailed results
-    syntactic_features: Optional[SyntacticFeatures] = Field(
-        None, description="Syntactic features"
-    )
+    syntactic_features: SyntacticFeatures | None = Field(None, description="Syntactic features")
 
     # Additional metadata
-    tokens1_count: Optional[int] = Field(None, description="Number of tokens in code1")
-    tokens2_count: Optional[int] = Field(None, description="Number of tokens in code2")
+    tokens1_count: int | None = Field(None, description="Number of tokens in code1")
+    tokens2_count: int | None = Field(None, description="Number of tokens in code2")
 
 
 class BatchComparisonRequest(BaseModel):
@@ -91,7 +86,7 @@ class ModelStatus(BaseModel):
     model_name: str
     available: bool
     loaded: bool = False
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class HealthResponse(BaseModel):
@@ -100,9 +95,7 @@ class HealthResponse(BaseModel):
     status: str = "healthy"
     service: str = "cipas-syntactics"
     version: str = "0.1.0"
-    models: dict[str, ModelStatus] = Field(
-        default_factory=dict, description="Status of ML models"
-    )
+    models: dict[str, ModelStatus] = Field(default_factory=dict, description="Status of ML models")
 
 
 class FeatureImportanceResponse(BaseModel):
@@ -116,9 +109,7 @@ class TokenizeRequest(BaseModel):
     """Request model for tokenization."""
 
     code: str = Field(..., description="Source code to tokenize", min_length=1)
-    language: LanguageEnum = Field(
-        default=LanguageEnum.JAVA, description="Programming language"
-    )
+    language: LanguageEnum = Field(default=LanguageEnum.JAVA, description="Programming language")
     abstract_identifiers: bool = Field(
         default=True, description="Whether to abstract identifiers to 'V'"
     )
@@ -143,18 +134,14 @@ class SubmissionIngestRequest(BaseModel):
     submission_id: str = Field(..., description="Unique identifier for the submission")
     student_id: str = Field(..., description="Student ID")
     assignment_id: str = Field(..., description="Assignment ID")
-    source_code: str = Field(
-        ..., description="Full source code of the submission", min_length=1
-    )
-    language: LanguageEnum = Field(
-        default=LanguageEnum.JAVA, description="Programming language"
-    )
+    source_code: str = Field(..., description="Full source code of the submission", min_length=1)
+    language: LanguageEnum = Field(default=LanguageEnum.JAVA, description="Programming language")
 
 
 class CloneMatchSchema(BaseModel):
     """Single clone match result from the cascade."""
 
-    id: Optional[str] = None
+    id: str | None = None
     frag_a_id: str
     frag_b_id: str
     student_a: str
@@ -162,11 +149,9 @@ class CloneMatchSchema(BaseModel):
     clone_type: str = Field(..., description="Type-1 | Type-2 | Type-3 | Non-Syntactic")
     confidence: float = Field(..., ge=0.0, le=1.0)
     is_clone: bool
-    features: Optional[dict[str, float]] = Field(
-        None, description="Syntactic feature vector"
-    )
-    normalized_code_a: Optional[str] = None
-    normalized_code_b: Optional[str] = None
+    features: dict[str, float] | None = Field(None, description="Syntactic feature vector")
+    normalized_code_a: str | None = None
+    normalized_code_b: str | None = None
 
 
 class IngestionResponse(BaseModel):
@@ -175,15 +160,9 @@ class IngestionResponse(BaseModel):
     submission_id: str
     student_id: str
     assignment_id: str
-    fragment_count: int = Field(
-        ..., description="Number of fragments after template filtering"
-    )
-    candidate_pair_count: int = Field(
-        ..., description="LSH candidate pairs before cascade"
-    )
-    confirmed_clone_count: int = Field(
-        ..., description="Pairs confirmed as clones (any type)"
-    )
+    fragment_count: int = Field(..., description="Number of fragments after template filtering")
+    candidate_pair_count: int = Field(..., description="LSH candidate pairs before cascade")
+    confirmed_clone_count: int = Field(..., description="Pairs confirmed as clones (any type)")
     clone_matches: list[CloneMatchSchema] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
 
@@ -192,17 +171,13 @@ class TemplateRegisterRequest(BaseModel):
     """Register instructor skeleton code to suppress from student matching."""
 
     assignment_id: str = Field(..., description="Assignment to attach the template to")
-    source_code: str = Field(
-        ..., description="Instructor skeleton / starter code", min_length=1
-    )
+    source_code: str = Field(..., description="Instructor skeleton / starter code", min_length=1)
     language: LanguageEnum = Field(default=LanguageEnum.JAVA)
 
 
 class TemplateRegisterResponse(BaseModel):
     assignment_id: str
-    template_fragment_count: int = Field(
-        ..., description="Number of template fragments registered"
-    )
+    template_fragment_count: int = Field(..., description="Number of template fragments registered")
 
 
 class CollusionEdgeSchema(BaseModel):
@@ -226,7 +201,7 @@ class CollusionGroupSchema(BaseModel):
 class CollusionReportResponse(BaseModel):
     """Connected-component collusion report for an assignment."""
 
-    assignment_id: Optional[str] = None
+    assignment_id: str | None = None
     group_count: int
     total_flagged_students: int
     groups: list[CollusionGroupSchema]
@@ -235,7 +210,7 @@ class CollusionReportResponse(BaseModel):
 class FragmentSchema(BaseModel):
     """Serialisable representation of a code fragment."""
 
-    fragment_id: Optional[str] = None
+    fragment_id: str | None = None
     submission_id: str
     student_id: str
     assignment_id: str
@@ -244,7 +219,7 @@ class FragmentSchema(BaseModel):
     token_count: int
     byte_offset: int
     fragment_type: str
-    node_type: Optional[str] = None
+    node_type: str | None = None
 
 
 class IndexStatusResponse(BaseModel):
@@ -265,9 +240,7 @@ class SubmissionItem(BaseModel):
 
     submission_id: str = Field(..., description="Unique identifier for this submission")
     student_id: str = Field(..., description="Student identifier")
-    source_code: str = Field(
-        ..., description="Full source code of the submission", min_length=1
-    )
+    source_code: str = Field(..., description="Full source code of the submission", min_length=1)
 
 
 class AssignmentClusterRequest(BaseModel):
@@ -280,13 +253,11 @@ class AssignmentClusterRequest(BaseModel):
     """
 
     assignment_id: str = Field(..., description="Assignment identifier")
-    language: LanguageEnum = Field(
-        default=LanguageEnum.JAVA, description="Programming language"
-    )
+    language: LanguageEnum = Field(default=LanguageEnum.JAVA, description="Programming language")
     submissions: list[SubmissionItem] = Field(
         ..., description="All student submissions for this assignment", min_length=2
     )
-    instructor_template: Optional[str] = Field(
+    instructor_template: str | None = Field(
         None,
         description=(
             "Optional instructor-provided starter/skeleton code.  "
@@ -333,9 +304,7 @@ class AssignmentClusterResponse(BaseModel):
     language: str
     submission_count: int = Field(..., description="Total submissions received")
     processed_count: int = Field(..., description="Successfully processed submissions")
-    failed_count: int = Field(
-        ..., description="Submissions that errored during ingestion"
-    )
+    failed_count: int = Field(..., description="Submissions that errored during ingestion")
     total_clone_pairs: int = Field(
         ..., description="Total confirmed clone pairs across all submissions"
     )
@@ -370,20 +339,18 @@ class CreateAnnotationRequest(BaseModel):
     assignment_id: str = Field(..., description="Assignment identifier")
     instructor_id: str = Field(..., description="Instructor identifier")
     status: AnnotationStatusEnum = Field(..., description="Annotation status")
-    match_id: Optional[str] = Field(None, description="Clone match UUID (optional)")
-    group_id: Optional[str] = Field(
-        None, description="Plagiarism group UUID (optional)"
-    )
-    comments: Optional[str] = Field(None, description="Instructor comments")
-    action_taken: Optional[str] = Field(None, description="Action description")
+    match_id: str | None = Field(None, description="Clone match UUID (optional)")
+    group_id: str | None = Field(None, description="Plagiarism group UUID (optional)")
+    comments: str | None = Field(None, description="Instructor comments")
+    action_taken: str | None = Field(None, description="Action description")
 
 
 class UpdateAnnotationRequest(BaseModel):
     """Request to update an instructor annotation."""
 
-    status: Optional[AnnotationStatusEnum] = Field(None, description="New status")
-    comments: Optional[str] = Field(None, description="New comments")
-    action_taken: Optional[str] = Field(None, description="New action description")
+    status: AnnotationStatusEnum | None = Field(None, description="New status")
+    comments: str | None = Field(None, description="New comments")
+    action_taken: str | None = Field(None, description="New action description")
 
 
 class AnnotationResponse(BaseModel):
@@ -393,10 +360,10 @@ class AnnotationResponse(BaseModel):
     assignment_id: str
     instructor_id: str
     status: AnnotationStatusEnum
-    match_id: Optional[str] = None
-    group_id: Optional[str] = None
-    comments: Optional[str] = None
-    action_taken: Optional[str] = None
+    match_id: str | None = None
+    group_id: str | None = None
+    comments: str | None = None
+    action_taken: str | None = None
     created_at: str = Field(..., description="ISO timestamp")
     updated_at: str = Field(..., description="ISO timestamp")
 
@@ -430,6 +397,6 @@ class SimilarityReportMetadata(BaseModel):
     total_clone_pairs: int
     lsh_threshold: float
     min_confidence: float
-    processing_time_seconds: Optional[float] = None
+    processing_time_seconds: float | None = None
     created_at: str = Field(..., description="ISO timestamp")
     updated_at: str = Field(..., description="ISO timestamp")

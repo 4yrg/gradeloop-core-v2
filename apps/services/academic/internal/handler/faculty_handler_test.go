@@ -6,10 +6,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/domain"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/dto"
+	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

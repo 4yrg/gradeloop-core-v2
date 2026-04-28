@@ -4,9 +4,6 @@ import (
 	"context"
 	"log"
 
-	"github.com/gofiber/fiber/v3"
-	"github.com/gofiber/fiber/v3/middleware/cors"
-	"github.com/gofiber/fiber/v3/middleware/logger"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/config"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/delivery/http"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/infrastructure"
@@ -14,6 +11,9 @@ import (
 	"github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/repository"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/service"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/worker"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/cors"
+	"github.com/gofiber/fiber/v3/middleware/logger"
 )
 
 func main() {

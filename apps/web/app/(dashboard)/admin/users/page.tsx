@@ -39,7 +39,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { CreateUserDialog } from "@/components/admin/create-user-dialog";
 import { BulkImportDialog } from "@/components/admin/bulk-import-dialog";
@@ -162,12 +162,12 @@ export default function UsersPage() {
         search: debouncedSearch || undefined,
         user_type: userTypeFilter === "all" ? undefined : userTypeFilter,
       });
-      
+
       // Debug logging
       console.log('[Users] API response:', result);
       console.log('[Users] Data:', result.data);
       console.log('[Users] Total:', result.total);
-      
+
       if (!result || !result.data) {
         console.warn('[Users] Invalid API response structure:', result);
         setError('Invalid response from server');
@@ -175,7 +175,7 @@ export default function UsersPage() {
         setTotal(0);
         return;
       }
-      
+
       setUsers(result.data);
       setTotal(result.total || 0);
     } catch (err) {
@@ -189,7 +189,9 @@ export default function UsersPage() {
   }, [page, debouncedSearch, userTypeFilter]);
 
   React.useEffect(() => {
-    fetchUsers();
+    queueMicrotask(() => {
+      fetchUsers();
+    });
   }, [fetchUsers]);
 
   // ── Client-side filtering (status only) ──

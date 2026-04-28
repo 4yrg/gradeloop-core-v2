@@ -4,17 +4,13 @@ import * as React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
     ArrowLeft,
-    Plus,
     Search,
-    RefreshCw,
     UserPlus,
     X,
     Check,
     Loader2,
     Calendar,
     Users,
-    ChevronRight,
-    MoreHorizontal,
     UserCircle,
     Copy,
     Settings,
@@ -35,7 +31,7 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { batchesApi, batchMembersApi, degreesApi, specializationsApi } from '@/lib/api/academics';
+import { batchesApi, batchMembersApi, specializationsApi } from '@/lib/api/academics';
 import { usersApi } from '@/lib/api/users';
 import { handleApiError } from '@/lib/api/axios';
 import { toast } from '@/lib/hooks/use-toast';
@@ -50,7 +46,7 @@ import {
     SideDialogHeader,
     SideDialogTitle,
 } from '@/components/ui/side-dialog';
-import type { Batch, BatchMemberDetail } from '@/types/academics.types';
+import type { Batch, BatchMemberDetail, Specialization, UpdateBatchRequest } from '@/types/academics.types';
 import type { UserListItem } from '@/types/auth.types';
 import { cn } from '@/lib/utils/cn';
 import { useUIStore } from '@/lib/stores/uiStore';
@@ -65,14 +61,14 @@ export default function GroupDetailPage() {
     const [batch, setBatch] = React.useState<Batch | null>(null);
     const [members, setMembers] = React.useState<BatchMemberDetail[]>([]);
     const [loading, setLoading] = React.useState(true);
-    const [error, setError] = React.useState('');
     const [search, setSearch] = React.useState('');
+    const [, setError] = React.useState<string | null>(null);
     const [activeTab, setActiveTab] = React.useState<'students' | 'settings'>('students');
 
     // Settings form state
-    const [editValues, setEditValues] = React.useState<any>({});
+    const [editValues, setEditValues] = React.useState<UpdateBatchRequest>({});
     const [saving, setSaving] = React.useState(false);
-    const [specializations, setSpecializations] = React.useState<any[]>([]);
+    const [specializations, setSpecializations] = React.useState<Specialization[]>([]);
 
     // Bulk Add state
     const [addOpen, setAddOpen] = React.useState(false);
@@ -84,7 +80,6 @@ export default function GroupDetailPage() {
 
     const fetchData = React.useCallback(async () => {
         setLoading(true);
-        setError('');
         try {
             const [batchData, membersData] = await Promise.all([
                 batchesApi.get(id),
@@ -110,7 +105,7 @@ export default function GroupDetailPage() {
         } finally {
             setLoading(false);
         }
-    }, [id]);
+    }, [id, setPageTitle]);
 
     React.useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -317,16 +312,22 @@ export default function GroupDetailPage() {
                                         const isAlreadyMember = members.some(m => m.user_id === student.id);
 
                                         return (
-                                            <div
+                                            <button
                                                 key={student.id}
                                                 className={cn(
-                                                    "flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer",
+                                                    "flex w-full items-center justify-between p-3 rounded-lg border transition-all cursor-pointer text-left",
                                                     isSelected
                                                         ? "bg-primary/5 border-primary shadow-sm"
                                                         : "bg-white dark:bg-zinc-950 border-zinc-100 dark:border-zinc-900 hover:border-zinc-300",
                                                     isAlreadyMember && "opacity-50 pointer-events-none grayscale"
                                                 )}
                                                 onClick={() => !isAlreadyMember && toggleStudentSelection(student.id)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        if (!isAlreadyMember) toggleStudentSelection(student.id);
+                                                    }
+                                                }}
                                             >
                                                 <div className="flex items-center gap-3">
                                                     <Avatar className="h-8 w-8">
@@ -349,7 +350,7 @@ export default function GroupDetailPage() {
                                                         <div className="h-5 w-5 border-2 border-zinc-200 rounded-full" />
                                                     )}
                                                 </div>
-                                            </div>
+                                            </button>
                                         );
                                     })
                                 ) : (

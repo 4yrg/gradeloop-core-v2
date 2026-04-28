@@ -4,7 +4,6 @@ import * as React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-    Edit3,
     Plus,
     Calendar,
     MoreVertical,
@@ -135,8 +134,10 @@ export default function CourseDetailPage() {
 
     React.useEffect(() => {
         if (!canAccess) return;
-        fetchCourse();
-        fetchInstances();
+        queueMicrotask(() => {
+            fetchCourse();
+            fetchInstances();
+        });
     }, [canAccess, fetchCourse, fetchInstances]);
 
     React.useEffect(() => { return () => setPageTitle(null); }, [setPageTitle]);

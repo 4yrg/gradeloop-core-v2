@@ -12,3 +12,4 @@ protobuf>=3.20.0
 
 # Utilities
 python-multipart==0.0.20
+python-dotenv==1.0.0

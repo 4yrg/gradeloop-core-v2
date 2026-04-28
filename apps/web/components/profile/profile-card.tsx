@@ -298,7 +298,7 @@ export function ProfileCard({ initialData }: ProfileCardProps) {
         <p className="text-xs text-amber-800 dark:text-amber-400 leading-relaxed text-center">
           <strong>Note:</strong> Some profile details are managed by the
           administration. To update your name, role, or faculty information,
-          please contact the Registrar's Office or Human Resources department.
+          please contact the Registrar&apos;s Office or Human Resources department.
         </p>
       </div>
 

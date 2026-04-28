@@ -6,8 +6,8 @@ import asyncio
 import json
 from contextlib import asynccontextmanager
 from typing import Any
-from uuid import UUID
 from urllib.parse import urlparse, urlunparse
+from uuid import UUID
 
 import asyncpg
 
@@ -32,7 +32,7 @@ class PostgresClient:
     async def connect(self) -> None:
         """Initialize connection pool."""
         import ssl as _ssl
-        from urllib.parse import parse_qs, urlparse
+        from urllib.parse import parse_qs
 
         # Detect sslmode in DSN query params (e.g. ?sslmode=require)
         use_ssl = False

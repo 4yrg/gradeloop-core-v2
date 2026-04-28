@@ -5,7 +5,6 @@ import { AlertTriangle, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DiffViewer } from "./DiffViewer";
-import { AILikelihoodBadge } from "./AILikelihoodBadge";
 import type {
   CollusionGroup,
   CollusionEdge,

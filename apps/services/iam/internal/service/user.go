@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/client"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/domain"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/dto"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/jwt"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/repository"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 

@@ -17,7 +17,6 @@ import {
   Send,
 } from "lucide-react";
 import { MIN_FONT_SIZE, MAX_FONT_SIZE, DEFAULT_FONT_SIZE } from "./constants";
-import { cn } from "@/lib/utils";
 
 interface ToolbarProps {
   onRun: () => void;

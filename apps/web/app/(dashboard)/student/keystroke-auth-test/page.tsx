@@ -95,9 +95,7 @@ export default function KeystrokeAuthTestPage() {
     const monacoTheme = (systemTheme === "dark" ? "dark" : "light") as "dark" | "light";
 
     // Session id is stable for this page load
-    const sessionId = React.useRef(
-        `auth_test_${user?.id ?? "anon"}_${Date.now()}`
-    ).current;
+    const [sessionId] = React.useState(() => `auth_test_${user?.id ?? "anon"}_${Date.now()}`);
 
     // ── Editor state ──────────────────────────────────────────────────────────
     const [code, setCode] = React.useState(STARTER_CODE);
@@ -221,7 +219,7 @@ export default function KeystrokeAuthTestPage() {
                 }
             });
         },
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+
         [sessionId, flushEvents, startMonitoring]
     );
 

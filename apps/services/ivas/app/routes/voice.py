@@ -8,7 +8,6 @@ from app.config import get_settings
 from app.schemas.voice import (
     VoiceAuthEventOut,
     VoiceEnrollmentOut,
-    VoiceProfileOut,
     VoiceProfileStatus,
     VoiceVerifyOut,
 )

@@ -7,8 +7,6 @@ using cosine similarity.
 """
 
 import io
-import pickle
-from pathlib import Path
 
 import numpy as np
 from resemblyzer import VoiceEncoder, preprocess_wav
@@ -52,6 +50,7 @@ def extract_embedding(audio_bytes: bytes, sample_rate: int = 16000) -> np.ndarra
     # Resample to 16kHz if needed
     if sr != sample_rate:
         import librosa
+
         audio_data = librosa.resample(audio_data, orig_sr=sr, target_sr=sample_rate)
 
     # Resemblyzer preprocessing (VAD, normalization)

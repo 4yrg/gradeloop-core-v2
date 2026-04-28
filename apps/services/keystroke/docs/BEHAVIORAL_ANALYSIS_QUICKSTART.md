@@ -187,7 +187,7 @@ if (analysis.critical_anomalies.length > 0) {
 // Batch analyze all submissions
 for (const submission of assignments) {
   const analysis = await analyzeSession({...});
-  
+
   if (analysis.process_score.overall_score < 50) {
     flagForManualReview(submission);
   }

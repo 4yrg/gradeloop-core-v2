@@ -7,7 +7,7 @@ import json
 import os
 import statistics
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import google.generativeai as genai
 from pydantic import BaseModel
@@ -20,13 +20,13 @@ class KeystrokeSessionEvent(BaseModel):
 
     timestamp: float  # milliseconds since session start
     key: str
-    keyCode: int
-    dwellTime: float  # time key was held down (ms)
-    flightTime: float  # time between this key and previous key (ms)
+    key_code: int
+    dwell_time: float  # time key was held down (ms)
+    flight_time: float  # time between this key and previous key (ms)
     action: str  # 'type', 'delete', 'paste', etc.
-    lineNumber: Optional[int] = None
-    columnNumber: Optional[int] = None
-    codeSnapshot: Optional[str] = None  # code state at this moment
+    line_number: int | None = None
+    column_number: int | None = None
+    code_snapshot: str | None = None  # code state at this moment
 
 
 class SessionMetrics(BaseModel):
@@ -47,7 +47,7 @@ class SessionMetrics(BaseModel):
     std_flight_time: float
     burst_typing_events: int  # very fast typing bursts
     rhythm_consistency: float  # 0-1 score
-    friction_points: List[Dict[str, Any]]  # moments of struggle
+    friction_points: list[dict[str, Any]]  # moments of struggle
 
 
 class AuthenticityIndicators(BaseModel):
@@ -56,7 +56,7 @@ class AuthenticityIndicators(BaseModel):
     human_signature_score: float  # 0-100, natural human patterns
     synthetic_signature_score: float  # 0-100, AI/copy-paste indicators
     consistency_score: float  # 0-100, pattern consistency
-    anomaly_flags: List[Dict[str, Any]]
+    anomaly_flags: list[dict[str, Any]]
     multiple_contributor_probability: float  # 0-1
     external_assistance_probability: float  # 0-1
 
@@ -65,12 +65,12 @@ class CognitiveAnalysis(BaseModel):
     """Cognitive process and learning analysis"""
 
     incremental_construction: bool
-    pivotal_moments: List[Dict[str, Any]]
+    pivotal_moments: list[dict[str, Any]]
     troubleshooting_style: str  # 'systematic', 'erratic', 'confident'
-    cognitive_load_timeline: List[Dict[str, float]]
-    high_friction_concepts: List[str]
-    struggle_areas: List[Dict[str, Any]]
-    mastery_indicators: List[str]
+    cognitive_load_timeline: list[dict[str, float]]
+    high_friction_concepts: list[str]
+    struggle_areas: list[dict[str, Any]]
+    mastery_indicators: list[str]
 
 
 class ProcessScore(BaseModel):
@@ -94,9 +94,9 @@ class BehavioralAnalysisResult(BaseModel):
     authenticity_indicators: AuthenticityIndicators
     cognitive_analysis: CognitiveAnalysis
     process_score: ProcessScore
-    llm_insights: Dict[str, Any]
-    critical_anomalies: List[str]
-    pedagogical_feedback: Dict[str, Any]
+    llm_insights: dict[str, Any]
+    critical_anomalies: list[str]
+    pedagogical_feedback: dict[str, Any]
 
 
 # ==================== Analysis Engine ====================
@@ -105,22 +105,20 @@ class BehavioralAnalysisResult(BaseModel):
 class BehavioralAnalyzer:
     """Main analyzer for keystroke session logs"""
 
-    def __init__(self, gemini_api_key: Optional[str] = None):
+    def __init__(self, gemini_api_key: str | None = None):
         self.gemini_api_key = gemini_api_key or os.getenv("GEMINI_API_KEY")
         if self.gemini_api_key:
             genai.configure(api_key=self.gemini_api_key)
             self.model = genai.GenerativeModel("gemini-2.5-flash")
         else:
             self.model = None
-            print(
-                "⚠️  Warning: No Gemini API key provided. LLM analysis will be disabled."
-            )
+            print("⚠️  Warning: No Gemini API key provided. LLM analysis will be disabled.")
 
     def analyze_session(
         self,
         session_id: str,
         student_id: str,
-        events: List[KeystrokeSessionEvent],
+        events: list[KeystrokeSessionEvent],
         final_code: str,
     ) -> BehavioralAnalysisResult:
         """
@@ -136,9 +134,7 @@ class BehavioralAnalyzer:
         cognitive = self._analyze_cognitive_process(events, session_metrics, final_code)
 
         # Process scoring
-        process_score = self._compute_process_score(
-            session_metrics, authenticity, cognitive
-        )
+        process_score = self._compute_process_score(session_metrics, authenticity, cognitive)
 
         # LLM-based deep analysis
         llm_insights = {}
@@ -152,12 +148,8 @@ class BehavioralAnalyzer:
             critical_anomalies = llm_insights.get("critical_anomalies", [])
             pedagogical_feedback = llm_insights.get("pedagogical_feedback", {})
         else:
-            critical_anomalies = self._rule_based_anomalies(
-                authenticity, session_metrics
-            )
-            pedagogical_feedback = self._basic_pedagogical_feedback(
-                cognitive, session_metrics
-            )
+            critical_anomalies = self._rule_based_anomalies(authenticity, session_metrics)
+            pedagogical_feedback = self._basic_pedagogical_feedback(cognitive, session_metrics)
 
         return BehavioralAnalysisResult(
             session_id=session_id,
@@ -172,9 +164,7 @@ class BehavioralAnalyzer:
             pedagogical_feedback=pedagogical_feedback,
         )
 
-    def _compute_session_metrics(
-        self, events: List[KeystrokeSessionEvent]
-    ) -> SessionMetrics:
+    def _compute_session_metrics(self, events: list[KeystrokeSessionEvent]) -> SessionMetrics:
         """Compute basic metrics from keystroke events"""
         if not events:
             return SessionMetrics(
@@ -201,33 +191,25 @@ class BehavioralAnalyzer:
 
         # Typing speed (CPM)
         typing_chars = sum(1 for e in events if len(e.key) == 1 and e.action == "type")
-        average_typing_speed = (
-            (typing_chars / total_duration * 60) if total_duration > 0 else 0
-        )
+        average_typing_speed = (typing_chars / total_duration * 60) if total_duration > 0 else 0
 
         # Pauses
-        flight_times = [e.flightTime for e in events if e.flightTime > 0]
+        flight_times = [e.flight_time for e in events if e.flight_time > 0]
         pause_threshold = 1000  # 1 second
         long_pause_threshold = 3000  # 3 seconds
         pause_count = sum(1 for ft in flight_times if ft > pause_threshold)
         long_pause_count = sum(1 for ft in flight_times if ft > long_pause_threshold)
 
         # Deletions
-        deletion_count = sum(
-            1 for e in events if "Backspace" in e.key or "Delete" in e.key
-        )
+        deletion_count = sum(1 for e in events if "Backspace" in e.key or "Delete" in e.key)
         deletion_rate = deletion_count / total_keystrokes if total_keystrokes > 0 else 0
 
         # Copy/Paste
-        paste_count = sum(
-            1 for e in events if hasattr(e, "action") and "paste" in e.action.lower()
-        )
-        copy_count = sum(
-            1 for e in events if hasattr(e, "action") and "copy" in e.action.lower()
-        )
+        paste_count = sum(1 for e in events if hasattr(e, "action") and "paste" in e.action.lower())
+        copy_count = sum(1 for e in events if hasattr(e, "action") and "copy" in e.action.lower())
 
         # Timing statistics
-        dwell_times = [e.dwellTime for e in events if e.dwellTime > 0]
+        dwell_times = [e.dwell_time for e in events if e.dwell_time > 0]
         avg_dwell = statistics.mean(dwell_times) if dwell_times else 0
         std_dwell = statistics.stdev(dwell_times) if len(dwell_times) > 1 else 0
 
@@ -264,8 +246,8 @@ class BehavioralAnalyzer:
         )
 
     def _identify_friction_points(
-        self, events: List[KeystrokeSessionEvent]
-    ) -> List[Dict[str, Any]]:
+        self, events: list[KeystrokeSessionEvent]
+    ) -> list[dict[str, Any]]:
         """Identify moments of struggle in the coding session"""
         friction_points = []
         window_size = 50  # analyze 50-keystroke windows
@@ -274,10 +256,8 @@ class BehavioralAnalyzer:
             window = events[i : i + window_size]
 
             # Calculate friction indicators
-            deletions = sum(
-                1 for e in window if "Backspace" in e.key or "Delete" in e.key
-            )
-            long_pauses = sum(1 for e in window if e.flightTime > 3000)
+            deletions = sum(1 for e in window if "Backspace" in e.key or "Delete" in e.key)
+            long_pauses = sum(1 for e in window if e.flight_time > 3000)
 
             deletion_rate = deletions / len(window)
 
@@ -296,7 +276,7 @@ class BehavioralAnalyzer:
         return friction_points
 
     def _analyze_authenticity(
-        self, events: List[KeystrokeSessionEvent], metrics: SessionMetrics
+        self, events: list[KeystrokeSessionEvent], metrics: SessionMetrics
     ) -> AuthenticityIndicators:
         """Analyze authenticity indicators"""
 
@@ -304,9 +284,7 @@ class BehavioralAnalyzer:
         human_score = 50.0
         human_score += min(30, metrics.deletion_rate * 100)  # humans make mistakes
         human_score += min(20, len(metrics.friction_points) * 5)  # humans struggle
-        human_score -= min(
-            20, metrics.burst_typing_events / 10
-        )  # too fast is suspicious
+        human_score -= min(20, metrics.burst_typing_events / 10)  # too fast is suspicious
         human_score = max(0, min(100, human_score))
 
         # Synthetic signature (perfect typing, large pastes, no errors)
@@ -358,9 +336,7 @@ class BehavioralAnalyzer:
             )
 
         # Multiple contributor probability (sudden changes in typing pattern)
-        flight_times = [
-            e.flightTime for e in events if e.flightTime > 0 and e.flightTime < 5000
-        ]
+        flight_times = [e.flight_time for e in events if e.flight_time > 0 and e.flight_time < 5000]
         if len(flight_times) > 50:
             # Split into quartiles and check variance
             q1 = flight_times[: len(flight_times) // 4]
@@ -370,18 +346,14 @@ class BehavioralAnalyzer:
             avg_q4 = statistics.mean(q4)
 
             change_ratio = (
-                abs(avg_q1 - avg_q4) / ((avg_q1 + avg_q4) / 2)
-                if (avg_q1 + avg_q4) > 0
-                else 0
+                abs(avg_q1 - avg_q4) / ((avg_q1 + avg_q4) / 2) if (avg_q1 + avg_q4) > 0 else 0
             )
             multiple_contributor_prob = min(1.0, change_ratio)
         else:
             multiple_contributor_prob = 0.0
 
         # External assistance probability
-        external_assistance_prob = min(
-            1.0, (synthetic_score + metrics.paste_count * 10) / 100
-        )
+        external_assistance_prob = min(1.0, (synthetic_score + metrics.paste_count * 10) / 100)
 
         return AuthenticityIndicators(
             human_signature_score=round(human_score, 2),
@@ -394,7 +366,7 @@ class BehavioralAnalyzer:
 
     def _analyze_cognitive_process(
         self,
-        events: List[KeystrokeSessionEvent],
+        events: list[KeystrokeSessionEvent],
         metrics: SessionMetrics,
         final_code: str,
     ) -> CognitiveAnalysis:
@@ -434,7 +406,7 @@ class BehavioralAnalyzer:
                 continue
 
             # High load = long pauses + many deletions
-            long_pauses = sum(1 for e in window if e.flightTime > 3000)
+            long_pauses = sum(1 for e in window if e.flight_time > 3000)
             deletions = sum(1 for e in window if "Backspace" in e.key)
             load = min(1.0, (long_pauses * 0.2 + deletions * 0.05))
 
@@ -482,9 +454,7 @@ class BehavioralAnalyzer:
         # Active problem solving (based on cognitive engagement)
         problem_solving = 50.0
         problem_solving += min(25, len(cognitive.pivotal_moments) * 10)
-        problem_solving += min(
-            25, len(metrics.friction_points) * 5
-        )  # friction shows thinking
+        problem_solving += min(25, len(metrics.friction_points) * 5)  # friction shows thinking
         problem_solving -= min(20, metrics.paste_count * 5)
         problem_solving = max(0, min(100, problem_solving))
 
@@ -512,9 +482,7 @@ class BehavioralAnalyzer:
         engagement = max(0, min(100, engagement))
 
         # Overall score
-        overall = (
-            problem_solving + learning_depth + authenticity_score + engagement
-        ) / 4
+        overall = (problem_solving + learning_depth + authenticity_score + engagement) / 4
 
         # Confidence level
         if authenticity_score > 80 and problem_solving > 70:
@@ -535,21 +503,19 @@ class BehavioralAnalyzer:
 
     def _llm_deep_analysis(
         self,
-        events: List[KeystrokeSessionEvent],
+        events: list[KeystrokeSessionEvent],
         metrics: SessionMetrics,
         authenticity: AuthenticityIndicators,
         cognitive: CognitiveAnalysis,
         final_code: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Use LLM for deep qualitative analysis"""
 
         if not self.model:
             return {}
 
         # Prepare summary for LLM
-        summary = self._prepare_llm_summary(
-            events, metrics, authenticity, cognitive, final_code
-        )
+        summary = self._prepare_llm_summary(events, metrics, authenticity, cognitive, final_code)
 
         prompt = f"""You are an expert Behavioral Data Analyst and Educational Strategist analyzing a student coding session.
 
@@ -609,7 +575,7 @@ Respond ONLY with valid JSON, no additional text."""
 
     def _prepare_llm_summary(
         self,
-        events: List[KeystrokeSessionEvent],
+        events: list[KeystrokeSessionEvent],
         metrics: SessionMetrics,
         authenticity: AuthenticityIndicators,
         cognitive: CognitiveAnalysis,
@@ -654,7 +620,7 @@ Respond ONLY with valid JSON, no additional text."""
 
     def _rule_based_anomalies(
         self, authenticity: AuthenticityIndicators, metrics: SessionMetrics
-    ) -> List[str]:
+    ) -> list[str]:
         """Generate anomalies without LLM"""
         anomalies = []
 
@@ -672,15 +638,13 @@ Respond ONLY with valid JSON, no additional text."""
             )
 
         if metrics.average_typing_speed > 400:
-            anomalies.append(
-                f"Unusually high typing speed ({metrics.average_typing_speed} CPM)"
-            )
+            anomalies.append(f"Unusually high typing speed ({metrics.average_typing_speed} CPM)")
 
         return anomalies
 
     def _basic_pedagogical_feedback(
         self, cognitive: CognitiveAnalysis, metrics: SessionMetrics
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Generate basic pedagogical feedback without LLM"""
 
         return {
@@ -689,11 +653,7 @@ Respond ONLY with valid JSON, no additional text."""
                 for fp in metrics.friction_points[:3]
             ],
             "recommendations": [
-                (
-                    "Review areas with high deletion rates"
-                    if metrics.deletion_rate > 0.2
-                    else None
-                ),
+                ("Review areas with high deletion rates" if metrics.deletion_rate > 0.2 else None),
                 (
                     "Consider additional practice with incremental development"
                     if not cognitive.incremental_construction

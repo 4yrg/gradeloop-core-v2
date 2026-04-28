@@ -382,7 +382,7 @@ import { BehavioralAnalysisReport } from '@/components/instructor/behavioral-ana
 
 function SubmissionReview() {
   const [analysis, setAnalysis] = useState<BehavioralAnalysisResult | null>(null);
-  
+
   const handleAnalyze = async () => {
     const result = await behavioralAnalysisService.analyzeSession({
       sessionId: submissionId,
@@ -392,7 +392,7 @@ function SubmissionReview() {
     });
     setAnalysis(result);
   };
-  
+
   return analysis ? (
     <BehavioralAnalysisReport analysis={analysis} />
   ) : (
@@ -521,5 +521,5 @@ For issues or questions:
 
 ---
 
-**Last Updated:** January 7, 2026  
+**Last Updated:** January 7, 2026
 **Version:** 1.0.0

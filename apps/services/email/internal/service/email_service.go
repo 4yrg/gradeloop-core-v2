@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/domain"
+	"github.com/google/uuid"
 	"gorm.io/datatypes"
 )
 

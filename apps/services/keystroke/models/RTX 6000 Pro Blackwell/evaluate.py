@@ -1,14 +1,20 @@
 # evaluate_and_export.py
-import torch
-import numpy as np
-import h5py
 import os
-from tqdm.auto import tqdm
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
-import matplotlib.pyplot as plt
-import seaborn as sns
-import pandas as pd
 
+import h5py
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import torch
+from sklearn.metrics import (
+    accuracy_score,
+    confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
+)
+from tqdm.auto import tqdm
 from train_workstation import TypeNet  # your model class
 
 # ------------------------------
@@ -29,7 +35,7 @@ EVAL_PROP = 0.1  # 10% of users
 # LOAD MODEL
 # ------------------------------
 model = TypeNet()
-model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
+model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE, weights_only=True))
 model.to(DEVICE)
 model.eval()
 
@@ -96,16 +102,16 @@ with torch.no_grad():
 # METRICS
 # ------------------------------
 accuracy = accuracy_score(y_true_all, y_pred_all)
-precision = precision_score(y_true_all, y_pred_all, average='binary', zero_division=0)
-recall = recall_score(y_true_all, y_pred_all, average='binary', zero_division=0)
-f1 = f1_score(y_true_all, y_pred_all, average='binary', zero_division=0)
+precision = precision_score(y_true_all, y_pred_all, average="binary", zero_division=0)
+recall = recall_score(y_true_all, y_pred_all, average="binary", zero_division=0)
+f1 = f1_score(y_true_all, y_pred_all, average="binary", zero_division=0)
 
 metrics = {
     "accuracy": accuracy,
     "precision": precision,
     "recall": recall,
     "f1": f1,
-    "triplet_accuracy": correct / total if total > 0 else 0
+    "triplet_accuracy": correct / total if total > 0 else 0,
 }
 
 # Save metrics as CSV
@@ -132,7 +138,7 @@ print(f"Confusion matrix saved to {cm_path}")
 # PLOT METRICS BAR CHART
 # ------------------------------
 plt.figure(figsize=(6, 4))
-plt.bar(metrics.keys(), metrics.values(), color='skyblue')
+plt.bar(metrics.keys(), metrics.values(), color="skyblue")
 plt.ylim(0, 1)
 plt.title("Evaluation Metrics")
 for i, v in enumerate(metrics.values()):

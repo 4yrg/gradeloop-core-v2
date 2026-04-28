@@ -9,7 +9,6 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 
@@ -48,7 +47,7 @@ def get_parsers_dir() -> Path:
 def setup_logging(
     name: str = "cipas_syntactics",
     level: int = logging.INFO,
-    log_file: Optional[str] = None,
+    log_file: str | None = None,
 ) -> logging.Logger:
     """
     Set up logging configuration.

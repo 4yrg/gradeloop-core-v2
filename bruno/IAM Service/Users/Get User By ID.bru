@@ -1,7 +1,7 @@
 meta {
   name: Get User By ID
   type: http
-  seq: 7
+  seq: 3
 }
 
 get {
@@ -11,18 +11,9 @@ get {
 }
 
 params:path {
-  id: {{CURRENT_USER_ID}}
+  id: uuid-goes-here
 }
 
 auth:bearer {
   token: {{ACCESS_TOKEN}}
-}
-
-docs {
-  # Get User By ID
-  
-  Returns the details of a specific user by their ID.
-  
-  ## Prerequisites
-  - Valid access token
 }

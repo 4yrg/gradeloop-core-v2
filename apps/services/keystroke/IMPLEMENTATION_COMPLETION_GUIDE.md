@@ -54,7 +54,7 @@ async def enroll_user(request: EnrollmentRequest):
             template = authenticator.user_templates[user_id]['template']
             template_std = authenticator.user_templates[user_id].get('std')
             sample_count = authenticator.user_templates[user_id].get('sample_count', len(sequences))
-            
+
             db_client.save_template(user_id, phase, template, template_std, sample_count)
             db_client.update_enrollment_progress(user_id, phase)
         else:
@@ -100,10 +100,10 @@ async def start_enrollment(user_id: str):
                 "success": False,
                 "message": "Database not enabled - multi-phase enrollment unavailable"
             }
-        
+
         # Create enrollment progress record
         # (Will be created automatically on first phase completion)
-        
+
         return {
             "success": True,
             "user_id": user_id,
@@ -111,7 +111,7 @@ async def start_enrollment(user_id: str):
             "minimum_sessions": 8,
             "message": "Enrollment started. Complete all 4 phases across multiple sessions."
         }
-    
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -148,7 +148,7 @@ async def enroll_phase(request: EnrollmentPhaseRequest):
         embeddings = [authenticator.model.forward(
             torch.FloatTensor(seq).unsqueeze(0).to(authenticator.device)
         ).cpu().detach().numpy()[0] for seq in sequences]
-        
+
         template = np.mean(embeddings, axis=0)
         template_std = np.std(embeddings, axis=0)
 
@@ -156,11 +156,11 @@ async def enroll_phase(request: EnrollmentPhaseRequest):
         if db_client.enabled:
             db_client.save_template(user_id, phase, template, template_std, len(sequences), request.metadata)
             db_client.update_enrollment_progress(user_id, phase)
-            
+
             # Check if enrollment complete
             progress = db_client.get_enrollment_progress(user_id)
             enrollment_complete = progress and progress.get('enrollment_complete', False)
-            
+
             # Update in-memory templates (aggregate all phases for verification)
             all_phase_templates = db_client.load_templates(user_id)
             if all_phase_templates:
@@ -203,9 +203,9 @@ async def get_enrollment_progress(user_id: str):
                 "enrollment_complete": enrolled,
                 "message": "Database not enabled - showing legacy enrollment status"
             }
-        
+
         progress = db_client.get_enrollment_progress(user_id)
-        
+
         if not progress:
             return {
                 "success": True,
@@ -214,19 +214,19 @@ async def get_enrollment_progress(user_id: str):
                 "phases_complete": [],
                 "message": "No enrollment data found"
             }
-        
+
         phases_complete = []
         if progress.get('baseline_complete'): phases_complete.append('baseline')
         if progress.get('transcription_complete'): phases_complete.append('transcription')
         if progress.get('stress_complete'): phases_complete.append('stress')
         if progress.get('cognitive_complete'): phases_complete.append('cognitive')
-        
+
         return {
             "success": True,
             "user_id": user_id,
             "enrollment_complete": progress.get('enrollment_complete', False),
             "phases_complete": phases_complete,
-            "phases_remaining": [p for p in ['baseline', 'transcription', 'stress', 'cognitive'] 
+            "phases_remaining": [p for p in ['baseline', 'transcription', 'stress', 'cognitive']
                                if p not in phases_complete],
             "total_sessions": progress.get('total_sessions', 0),
             "started_at": progress.get('started_at').isoformat() if progress.get('started_at') else None,
@@ -377,10 +377,10 @@ async def get_session_status(user_id: str, session_id: str):
     try:
         if not redis_client.session_exists(user_id, session_id):
             raise HTTPException(status_code=404, detail="Session not found")
-        
+
         metadata = redis_client.get_session_metadata(user_id, session_id)
         event_count = redis_client.get_event_count(user_id, session_id)
-        
+
         return {
             "success": True,
             "user_id": user_id,
@@ -389,7 +389,7 @@ async def get_session_status(user_id: str, session_id: str):
             "last_verification": metadata.get('last_verification'),
             "current_risk_score": float(metadata.get('risk_score', 0.0))
         }
-    
+
     except HTTPException:
         raise
     except Exception as e:
@@ -402,12 +402,12 @@ async def end_session(user_id: str, session_id: str):
     try:
         if redis_client.session_exists(user_id, session_id):
             redis_client.delete_session(user_id, session_id)
-        
+
         return {
             "success": True,
             "message": "Session ended and data cleared"
         }
-    
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -423,16 +423,16 @@ async def get_session_timeline(session_id: str):
                 "success": False,
                 "message": "Database not enabled - timeline unavailable"
             }
-        
+
         timeline = db_client.get_session_timeline(session_id)
-        
+
         return {
             "success": True,
             "session_id": session_id,
             "event_count": len(timeline),
             "events": timeline
         }
-    
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

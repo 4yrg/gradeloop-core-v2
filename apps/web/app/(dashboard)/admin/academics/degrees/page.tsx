@@ -185,7 +185,7 @@ export default function DegreesPage() {
     } finally {
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [showInactive]);
 
   React.useEffect(() => { load(); }, [load]);

@@ -5,8 +5,6 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
     ArrowLeft,
-    Send,
-    Save,
     FileText,
     AlertCircle,
     Loader2,
@@ -172,7 +170,7 @@ export default function StudentAttemptPage() {
             cancelled = true;
             clearTimeout(timer);
         };
-    }, [gradedSubmissionId]);
+    }, [gradedSubmissionId, viewSubmissionId]);
 
     React.useEffect(() => {
         let mounted = true;
@@ -227,10 +225,10 @@ export default function StudentAttemptPage() {
         return () => {
             mounted = false;
         };
-    }, [assignmentId, viewSubmissionId]);
+    }, [assignmentId, viewSubmissionId, setPageTitle]);
 
     // Clear topbar title when leaving this page
-    React.useEffect(() => () => { setPageTitle(null); }, []);
+    React.useEffect(() => () => { setPageTitle(null); }, [setPageTitle]);
 
     const handleSubmit = async (code: string, languageId: number) => {
         if (!assignment) return;

@@ -26,8 +26,7 @@ import { instructorAssessmentsApi } from "@/lib/api/assessments";
 import { handleApiError } from "@/lib/api/axios";
 import { StatsCard } from "@/components/instructor/stats-card";
 import { SectionHeader } from "@/components/instructor/section-header";
-import { EmptyStateCard } from "@/components/instructor/empty-state";
-import { format, isPast, isWithinInterval, addDays } from "date-fns";
+import { format, isWithinInterval, addDays } from "date-fns";
 
 interface RecentSubmission {
     id: string;
@@ -77,7 +76,7 @@ const mockRecentSubmissions: RecentSubmission[] = [
     },
 ];
 
-const submissionColumns: ColumnDef<RecentSubmission, any>[] = [
+const submissionColumns: ColumnDef<RecentSubmission, unknown>[] = [
     {
         accessorKey: "studentName",
         header: "Student",

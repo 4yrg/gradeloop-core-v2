@@ -3,9 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import {
-    BookOpen,
     ChevronRight,
-    Loader2,
     GraduationCap,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";

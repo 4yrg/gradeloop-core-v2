@@ -3,12 +3,12 @@ package service
 import (
 	"fmt"
 
-	"github.com/google/uuid"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/client"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/domain"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/dto"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/repository"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/utils"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )

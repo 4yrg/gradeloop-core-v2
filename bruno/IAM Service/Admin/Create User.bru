@@ -1,0 +1,26 @@
+meta {
+  name: Create User
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{USERS_URL_V1}}/
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ADMIN_TOKEN}}
+}
+
+body:json {
+  {
+    "full_name": "New Instructor",
+    "email": "instructor.new@gradeloop.com",
+    "user_type": "instructor",
+    "department": "Computer Science",
+    "faculty": "Computing",
+    "designation": "Senior Lecturer"
+  }
+}

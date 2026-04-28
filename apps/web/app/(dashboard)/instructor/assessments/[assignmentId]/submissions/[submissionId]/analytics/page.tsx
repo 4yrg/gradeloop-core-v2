@@ -25,7 +25,7 @@ export default function BehaviorAnalyticsPage({ params }: PageProps) {
     const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
 
     const loadAnalytics = useCallback(
-        async (sid: string, showComputing = false, force = false) => {
+        async function self(sid: string, showComputing = false, force = false) {
             try {
                 if (showComputing) setComputing(true);
                 const data = await keystrokeApi.getAnalytics(sid, force);
@@ -33,7 +33,7 @@ export default function BehaviorAnalyticsPage({ params }: PageProps) {
 
                 // If analysis still not available, poll once more after 5s
                 if (!data.analysis_available) {
-                    setTimeout(() => loadAnalytics(sid, true), 5000);
+                    setTimeout(() => self(sid, true), 5000);
                 }
             } catch (err) {
                 setError(err instanceof Error ? err.message : "Failed to load analytics.");

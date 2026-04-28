@@ -1,6 +1,5 @@
 """IVAS Service schemas."""
 
-from app.schemas.session import SessionCreate, SessionOut
 from app.schemas.assignment import (
     AssignmentCreate,
     AssignmentDetailOut,
@@ -13,6 +12,7 @@ from app.schemas.assignment import (
     QuestionOut,
     QuestionUpdate,
 )
+from app.schemas.session import SessionCreate, SessionOut
 from app.schemas.voice import (
     VoiceEnrollmentOut,
     VoiceEnrollmentRequest,

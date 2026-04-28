@@ -3,7 +3,6 @@
 import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { SimilarityBadge, SimilarityScore } from "./similarity-badge";
 import { Eye, Users } from "lucide-react";
 import type { CollusionGroup } from "@/types/cipas";
@@ -17,7 +16,7 @@ interface ClusterCardProps {
 
 export function ClusterCard({ cluster, onViewDetails, className }: ClusterCardProps) {
   const maxConfidence = cluster.max_confidence;
-  
+
   return (
     <Card className={cn("hover:shadow-md transition-shadow", className)}>
       <CardHeader className="pb-3">
@@ -25,7 +24,7 @@ export function ClusterCard({ cluster, onViewDetails, className }: ClusterCardPr
           <div className="flex items-center gap-3">
             <div className={cn(
               "w-10 h-10 rounded-lg flex items-center justify-center font-bold text-lg",
-              maxConfidence >= 0.85 
+              maxConfidence >= 0.85
                 ? "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
                 : maxConfidence >= 0.75
                 ? "bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400"
@@ -58,8 +57,8 @@ export function ClusterCard({ cluster, onViewDetails, className }: ClusterCardPr
 
         <div className="flex items-center justify-between pt-2">
           <SimilarityScore score={maxConfidence} showBar />
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
             variant="outline"
             onClick={() => onViewDetails(cluster)}
             className="gap-1.5"

@@ -6,8 +6,8 @@ This document describes the **Clone Evidence Interpretation and Visualization** 
 
 ## User Story
 
-**As an instructor,**  
-**I want CIPAS to transform raw clone similarity scores into interpretable evidence**—including grouped clone classes, interactive graphs, and side-by-side code comparisons—  
+**As an instructor,**
+**I want CIPAS to transform raw clone similarity scores into interpretable evidence**—including grouped clone classes, interactive graphs, and side-by-side code comparisons—
 **So that I can efficiently investigate academic integrity incidents and make fair, data-driven decisions.**
 
 ## Architecture
@@ -280,7 +280,7 @@ async with httpx.AsyncClient() as client:
         params={"threshold": 0.85}
     )
     graph = response.json()
-    
+
     # Render with Sigma.js
     # sigmaInstance.setGraph(graph)
 
@@ -354,8 +354,8 @@ function CloneGraph({ assignmentId }: { assignmentId: string }) {
 ## Acceptance Criteria Validation
 
 ### AC1: Union-Find Clustering
-> Given 5 submissions form a collusion ring (A↔B, B↔C, C↔D, D↔E),  
-> When Union-Find runs,  
+> Given 5 submissions form a collusion ring (A↔B, B↔C, C↔D, D↔E),
+> When Union-Find runs,
 > Then they are grouped into a single `clone_class_id` with size=5
 
 **Validated:** ✅ See `test_ac1_five_submissions_ring_forms_one_class` in `test_clustering.py`
@@ -363,8 +363,8 @@ function CloneGraph({ assignmentId }: { assignmentId: string }) {
 ---
 
 ### AC2: Interactive Graph API
-> Given an instructor opens the clone report UI,  
-> When the graph loads,  
+> Given an instructor opens the clone report UI,
+> When the graph loads,
 > Then nodes (submissions) and edges (clone relationships ≥ threshold) render in Sigma.js
 
 **Validated:** ✅ See `test_sigma_js_compatible_format` in `test_clustering.py`
@@ -372,8 +372,8 @@ function CloneGraph({ assignmentId }: { assignmentId: string }) {
 ---
 
 ### AC3: Explainable Evidence View
-> Given a clone pair has 85% similarity,  
-> When the instructor clicks "View Evidence",  
+> Given a clone pair has 85% similarity,
+> When the instructor clicks "View Evidence",
 > Then a side-by-side diff highlights the matching normalized code lines
 
 **Validated:** ✅ Endpoint returns `submission_a_code`, `submission_b_code`, and `matching_lines`

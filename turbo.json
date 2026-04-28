@@ -9,8 +9,7 @@
     },
     "dev": {
       "cache": false,
-      "persistent": true,
-      "runOn": []
+      "persistent": true
     },
     "lint": {
       "dependsOn": ["^build"],
@@ -28,20 +27,16 @@
       "inputs": ["tsconfig.json", "src/**", "app/**", "*.ts", "*.tsx"]
     },
     "clean": {
-      "cache": false,
-      "runOn": []
+      "cache": false
     },
     "db:generate": {
-      "cache": false,
-      "runOn": []
+      "cache": false
     },
     "db:push": {
-      "cache": false,
-      "runOn": []
+      "cache": false
     },
     "migrate": {
-      "cache": false,
-      "runOn": []
+      "cache": false
     }
   },
   "globalDependencies": [".env", ".env.*"],

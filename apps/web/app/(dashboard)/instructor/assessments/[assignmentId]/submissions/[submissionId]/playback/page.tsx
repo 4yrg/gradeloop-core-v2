@@ -121,7 +121,7 @@ export default function SessionPlaybackPage({ params }: PageProps) {
                         <div>
                             <p className="font-semibold">No session recording found</p>
                             <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-                                The student's keystroke session was not archived for this
+                                The student&apos;s keystroke session was not archived for this
                                 submission. This happens when the assignment was completed before
                                 keystroke monitoring was enabled, or the session was never
                                 finalized.
