@@ -39,7 +39,7 @@ export function InstituteProvider({ children }: InstituteProviderProps) {
       return;
     }
 
-    const userRecord = user as Record<string, unknown>;
+    const userRecord = user as unknown as Record<string, unknown>;
     const instituteName = (userRecord.tenant_name ?? userRecord.institute_name ?? userRecord.organization ?? "Institute") as string;
     const instituteId = (userRecord.tenant_id ?? userRecord.institute_id ?? userRecord.org_id ?? null) as string | null;
 
