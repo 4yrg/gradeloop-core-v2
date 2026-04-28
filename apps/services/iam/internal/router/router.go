@@ -8,13 +8,18 @@ import (
 )
 
 type Config struct {
-	HealthHandler      *handler.HealthHandler
-	AuthHandler       *handler.AuthHandler
-	UserHandler      *handler.UserHandler
-	BulkImportHandler *handler.BulkImportHandler
-	SSOHandler       *handler.SSOHandler
+	HealthHandler       *handler.HealthHandler
+	AuthHandler        *handler.AuthHandler
+	UserHandler        *handler.UserHandler
+	BulkImportHandler  *handler.BulkImportHandler
+	TenantHandler     *handler.TenantHandler
+	SSOHandler        *handler.SSOHandler
+	RBACHandler      *handler.RBACHandler
+	InvitationHandler *handler.InvitationHandler
+	AuditHandler     *handler.AuditHandler
+	MFAHandler       *handler.MFAHandler
 	JWTSecretKey     []byte
-	ZeroTrustConfig  *config.ZeroTrustConfig
+	ZeroTrustConfig   *config.ZeroTrustConfig
 }
 
 func SetupRoutes(app *fiber.App, cfg Config) {
@@ -69,9 +74,37 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	cfg.AuthHandler.RegisterAdminRoutes(adminProtected)
 	adminProtected.Get("/users/:id/activity", cfg.UserHandler.GetUserActivity)
 
-	// RBAC stub routes
-	api.Get("/roles", middleware.AuthMiddleware(cfg.JWTSecretKey), cfg.RBACHandler.GetRoles)
-	api.Get("/permissions", middleware.AuthMiddleware(cfg.JWTSecretKey), cfg.RBACHandler.GetPermissions)
+	// RBAC routes - roles and permissions
+	rbac := api.Group("/roles", authMiddleware...)
+	rbac.Get("/", cfg.RBACHandler.GetRoles)
+	rbac.Post("/", cfg.RBACHandler.CreateRole)
+	rbac.Put("/:id", cfg.RBACHandler.UpdateRole)
+	rbac.Delete("/:id", cfg.RBACHandler.DeleteRole)
+
+	api.Get("/permissions", cfg.RBACHandler.GetPermissions)
+
+	// User role assignment
+	users.Post("/:id/roles", cfg.RBACHandler.AssignRole)
+
+	// Tenant routes
+	if cfg.TenantHandler != nil {
+		cfg.TenantHandler.RegisterRoutes(api)
+	}
+
+	// Invitations routes
+	if cfg.InvitationHandler != nil {
+		cfg.InvitationHandler.RegisterRoutes(api)
+	}
+
+	// Audit logs routes
+	if cfg.AuditHandler != nil {
+		cfg.AuditHandler.RegisterRoutes(api)
+	}
+
+	// MFA routes
+	if cfg.MFAHandler != nil {
+		cfg.MFAHandler.RegisterRoutes(api)
+	}
 
 	app.Get("/", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{
