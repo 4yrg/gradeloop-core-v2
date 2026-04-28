@@ -39,7 +39,14 @@ func Seed(db *gorm.DB) error {
 			return fmt.Errorf("failed to check super admin: %w", err)
 		}
 	} else {
-		log.Printf("Super admin already exists: %s", superAdminEmail)
+		if user.UserType != "super_admin" {
+			if err := db.Model(&user).Update("user_type", "super_admin").Error; err != nil {
+				return fmt.Errorf("failed to promote superadmin@gradeloop.com to super_admin: %w", err)
+			}
+			log.Printf("Promoted superadmin@gradeloop.com from %q to super_admin", user.UserType)
+		} else {
+			log.Printf("Super admin already exists: %s", superAdminEmail)
+		}
 	}
 
 	log.Println("Seeding admin...")
