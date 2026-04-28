@@ -1,0 +1,25 @@
+{
+  "version": "1",
+  "name": "Update Tenant",
+  "request": {
+    "method": "PUT",
+    "url": "{{baseUrl}}/api/v1/tenants/{{tenantId}}",
+    "body": {
+      "mode": "json",
+      "json": {
+        "name": "Updated University Name",
+        "is_active": true
+      }
+    },
+    "auth": {
+      "type": "bearer",
+      "bearer": [
+        {
+          "key": "token",
+          "value": "{{accessToken}}"
+        }
+      ]
+    }
+  },
+  "response": []
+}
