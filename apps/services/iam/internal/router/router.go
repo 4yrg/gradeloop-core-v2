@@ -8,13 +8,18 @@ import (
 )
 
 type Config struct {
-	HealthHandler      *handler.HealthHandler
-	AuthHandler       *handler.AuthHandler
-	UserHandler      *handler.UserHandler
-	BulkImportHandler *handler.BulkImportHandler
-	SSOHandler       *handler.SSOHandler
+	HealthHandler       *handler.HealthHandler
+	AuthHandler        *handler.AuthHandler
+	UserHandler        *handler.UserHandler
+	BulkImportHandler  *handler.BulkImportHandler
+	TenantHandler     *handler.TenantHandler
+	SSOHandler        *handler.SSOHandler
+	RBACHandler      *handler.RBACHandler
+	InvitationHandler *handler.InvitationHandler
+	AuditHandler     *handler.AuditHandler
+	MFAHandler       *handler.MFAHandler
 	JWTSecretKey     []byte
-	ZeroTrustConfig  *config.ZeroTrustConfig
+	ZeroTrustConfig   *config.ZeroTrustConfig
 }
 
 func SetupRoutes(app *fiber.App, cfg Config) {

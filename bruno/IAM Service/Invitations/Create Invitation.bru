@@ -1,0 +1,26 @@
+{
+  "version": "1",
+  "name": "Create Invitation",
+  "request": {
+    "method": "POST",
+    "url": "{{baseUrl}}/api/v1/invitations",
+    "body": {
+      "mode": "json",
+      "json": {
+        "email": "newuser@university.edu",
+        "role": "student",
+        "full_name": "New User"
+      }
+    },
+    "auth": {
+      "type": "bearer",
+      "bearer": [
+        {
+          "key": "token",
+          "value": "{{accessToken}}"
+        }
+      ]
+    }
+  },
+  "response": []
+}
