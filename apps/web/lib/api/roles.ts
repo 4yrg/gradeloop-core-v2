@@ -1,47 +1,50 @@
-import { axiosInstance } from './axios';
-import type { Role, Permission } from '@/types/auth.types';
-
+import { axiosInstance } from "./axios";
+import type { Role, Permission } from "@/types/auth.types";
 
 function normalizeArray<T>(raw: unknown): T[] {
   if (Array.isArray(raw)) return raw as T[];
-  if (raw && typeof raw === 'object') {
+  if (raw && typeof raw === "object") {
     const r = raw as Record<string, unknown>;
     if (Array.isArray(r.data)) return r.data as T[];
-    if (Array.isArray(r.roles)) return r.roles as T[];
   }
   return [];
 }
 
 export const rolesApi = {
-  /** GET /roles */
-  list: async (): Promise<Role[]> => {
-    const { data } = await axiosInstance.get('/roles');
+  list: async (tenantId?: string): Promise<Role[]> => {
+    const params = tenantId ? { tenant_id: tenantId } : {};
+    const { data } = await axiosInstance.get("/roles", { params });
     return normalizeArray<Role>(data);
   },
 
-  /** GET /roles/:id */
   get: async (id: string): Promise<Role> => {
     const { data } = await axiosInstance.get<Role>(`/roles/${id}`);
     return data;
   },
 
-  /** POST /roles */
-  create: async (payload: { name: string; description?: string; base_role_id?: string; permissions?: string[] }): Promise<Role> => {
-    const { data } = await axiosInstance.post<Role>('/roles', payload);
+  create: async (payload: { name: string; description?: string }): Promise<Role> => {
+    const { data } = await axiosInstance.post<Role>("/roles", payload);
     return data;
   },
 
-  /** PUT /roles/:id or PATCH */
-  update: async (id: string, payload: { name?: string; description?: string; permissions?: string[] }): Promise<Role> => {
+  update: async (id: string, payload: { name?: string; description?: string }): Promise<Role> => {
     const { data } = await axiosInstance.put<Role>(`/roles/${id}`, payload);
     return data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await axiosInstance.delete(`/roles/${id}`);
+  },
+
+  assignToUser: async (userId: string, roleId: string, tenantId?: string): Promise<void> => {
+    await axiosInstance.post(`/users/${userId}/roles`, { role_id: roleId, tenant_id: tenantId });
   },
 };
 
 export const permissionsApi = {
-  /** GET /permissions */
-  list: async (): Promise<Permission[]> => {
-    const { data } = await axiosInstance.get('/permissions');
+  list: async (category?: string): Promise<Permission[]> => {
+    const params = category ? { category } : {};
+    const { data } = await axiosInstance.get("/permissions", { params });
     return normalizeArray<Permission>(data);
   },
 };
