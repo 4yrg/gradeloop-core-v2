@@ -29,7 +29,11 @@ class TestVoiceEnrollmentStaging:
             3: b"embedding_3",
         }
 
-        valid_samples = [_enrollment_staging[student_id][i] for i in range(1, 4) if i in _enrollment_staging[student_id]]
+        valid_samples = [
+            _enrollment_staging[student_id][i]
+            for i in range(1, 4)
+            if i in _enrollment_staging[student_id]
+        ]
         assert len(valid_samples) == 3
         assert valid_samples[0] == b"embedding_1"
         assert valid_samples[1] == b"embedding_2"
@@ -45,7 +49,11 @@ class TestVoiceEnrollmentStaging:
         _enrollment_staging[student_id][1] = b"embedding_1"
         _enrollment_staging[student_id][2] = b"embedding_2"
 
-        valid_samples = [_enrollment_staging[student_id][i] for i in range(1, 4) if i in _enrollment_staging[student_id]]
+        valid_samples = [
+            _enrollment_staging[student_id][i]
+            for i in range(1, 4)
+            if i in _enrollment_staging[student_id]
+        ]
         assert len(valid_samples) == 3
         # Order should be preserved when retrieving
         assert valid_samples[0] == b"embedding_1"

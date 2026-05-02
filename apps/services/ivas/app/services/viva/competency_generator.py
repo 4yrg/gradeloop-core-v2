@@ -55,9 +55,9 @@ JSON schema:
   ]
 }}
 
-Assignment title: {title or '(no title)'}
-Assignment description: {description or '(no description)'}
-Assignment code (first 3000 chars): {code_context[:3000] if code_context else '(no code)'}
+Assignment title: {title or "(no title)"}
+Assignment description: {description or "(no description)"}
+Assignment code (first 3000 chars): {code_context[:3000] if code_context else "(no code)"}
 """
 
 

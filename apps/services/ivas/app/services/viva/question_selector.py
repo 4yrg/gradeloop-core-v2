@@ -90,9 +90,7 @@ async def select_questions_ai(
             comp_names = ", ".join(c["name"] for c in level_comps)
         else:
             comp_names = "(any topic at this level)"
-        level_requests.append(
-            f'  {count} {label} question(s) — focus on: {comp_names}'
-        )
+        level_requests.append(f"  {count} {label} question(s) — focus on: {comp_names}")
 
     questions_per_level = "\n".join(level_requests)
 
@@ -210,14 +208,16 @@ Question requirements (exactly follow this distribution):
             difficulty = 2
         difficulty = max(1, min(5, difficulty))
 
-        results.append({
-            "question_text": question_text,
-            "competency_id": _comp_id(comp) if comp else None,
-            "competency_name": comp["name"] if comp else comp_name,
-            "difficulty": difficulty,
-            "sequence_num": idx,
-            "max_score": 10.0,
-        })
+        results.append(
+            {
+                "question_text": question_text,
+                "competency_id": _comp_id(comp) if comp else None,
+                "competency_name": comp["name"] if comp else comp_name,
+                "difficulty": difficulty,
+                "sequence_num": idx,
+                "max_score": 10.0,
+            }
+        )
 
     logger.info("question_selector_done", count=len(results))
     return results
@@ -263,14 +263,16 @@ def select_questions_random(
         shuffled = random.sample(pool, k=min(count, len(pool)))
         for comp in shuffled:
             template = _fallback_templates.get(level, "What is {name}?")
-            questions.append({
-                "question_text": template.format(name=comp["name"]),
-                "competency_id": comp["id"],
-                "competency_name": comp["name"],
-                "difficulty": level,
-                "sequence_num": seq,
-                "max_score": 10.0,
-            })
+            questions.append(
+                {
+                    "question_text": template.format(name=comp["name"]),
+                    "competency_id": comp["id"],
+                    "competency_name": comp["name"],
+                    "difficulty": level,
+                    "sequence_num": seq,
+                    "max_score": 10.0,
+                }
+            )
             seq += 1
 
     return questions
@@ -279,6 +281,7 @@ def select_questions_random(
 # ---------------------------------------------------------------------------
 # Helper
 # ---------------------------------------------------------------------------
+
 
 def _extract_json(text: str) -> dict | None:
     """Extract JSON from model response."""

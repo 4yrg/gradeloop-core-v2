@@ -96,6 +96,7 @@ def _get_kickoff_audio() -> bytes:
 # Core Gemini Live bridge
 # =============================================================================
 
+
 def _build_viva_system_instruction(
     assignment_context: dict | None,
     selected_questions: list[dict] | None = None,
@@ -153,15 +154,24 @@ def _build_viva_system_instruction(
     if description:
         lines.append(f"- Description: {description}")
     if len(lines) == len([line for line in lines if not line.startswith("- ")]):
-        lines.append("- (No assignment details were provided — briefly ask the student which assignment they are defending, then conduct the conceptual viva on that basis.)")
+        lines.append(
+            "- (No assignment details were provided — briefly ask the student which assignment they are defending, then conduct the conceptual viva on that basis.)"
+        )
 
     # Inject structured question plan if provided (competency-based viva).
     if selected_questions:
         lines.append("")
         lines.append("Structured question plan — ask questions in this order:")
-        difficulty_labels = {1: "🔵 Basic", 2: "🟡 Intermediate", 3: "🟠 Advanced", 4: "🔴 Expert", 5: "⚪ Master"}
+        difficulty_labels = {
+            1: "🔵 Basic",
+            2: "🟡 Intermediate",
+            3: "🟠 Advanced",
+            4: "🔴 Expert",
+            5: "⚪ Master",
+        }
         # Group questions by competency for a clearer viva structure
         from collections import OrderedDict
+
         by_comp = OrderedDict()
         for q in selected_questions:
             comp_name = q.get("competency_name", "unknown")
@@ -246,16 +256,19 @@ async def _bridge_gemini_live(
         buf = pending.get(role, "").strip()
         if buf:
             turn_counter["n"] += 1
-            transcript_turns.append({
-                "turn_number": turn_counter["n"],
-                "role": role,
-                "content": buf,
-            })
+            transcript_turns.append(
+                {
+                    "turn_number": turn_counter["n"],
+                    "role": role,
+                    "content": buf,
+                }
+            )
         pending[role] = ""
 
     try:
         async with client.aio.live.connect(
-            model=settings.gemini_live_model, config=config,
+            model=settings.gemini_live_model,
+            config=config,
         ) as live:
             logger.info("gemini_connected")
             await websocket.send_json({"type": "session_started"})
@@ -282,7 +295,7 @@ async def _bridge_gemini_live(
                 for offset in range(0, len(kickoff_pcm), frame_bytes):
                     await live.send_realtime_input(
                         audio=types.Blob(
-                            data=kickoff_pcm[offset:offset + frame_bytes],
+                            data=kickoff_pcm[offset : offset + frame_bytes],
                             mime_type="audio/pcm;rate=16000",
                         ),
                     )
@@ -295,7 +308,7 @@ async def _bridge_gemini_live(
                 for offset in range(0, len(silence), frame_bytes):
                     await live.send_realtime_input(
                         audio=types.Blob(
-                            data=silence[offset:offset + FRAME_BYTES],
+                            data=silence[offset : offset + FRAME_BYTES],
                             mime_type="audio/pcm;rate=16000",
                         ),
                     )
@@ -316,7 +329,8 @@ async def _bridge_gemini_live(
                     while not end.is_set():
                         try:
                             raw = await asyncio.wait_for(
-                                websocket.receive_text(), timeout=60,
+                                websocket.receive_text(),
+                                timeout=60,
                             )
                         except asyncio.TimeoutError:
                             continue
@@ -333,13 +347,17 @@ async def _bridge_gemini_live(
                             audio = base64.b64decode(msg["data"])
                             await live.send_realtime_input(
                                 audio=types.Blob(
-                                    data=audio, mime_type="audio/pcm;rate=16000",
+                                    data=audio,
+                                    mime_type="audio/pcm;rate=16000",
                                 ),
                             )
                             # Voice verification: accumulate chunk for periodic check
                             if voice_verifier and student_id and session_id_str:
                                 await voice_verifier.accumulate_chunk(
-                                    session_id_str, student_id, audio, websocket,
+                                    session_id_str,
+                                    student_id,
+                                    audio,
+                                    websocket,
                                 )
                         elif msg.get("type") == "end_session":
                             break
@@ -373,9 +391,12 @@ async def _bridge_gemini_live(
                                         b64 = base64.b64encode(
                                             part.inline_data.data,
                                         ).decode()
-                                        await websocket.send_json({
-                                            "type": "audio", "data": b64,
-                                        })
+                                        await websocket.send_json(
+                                            {
+                                                "type": "audio",
+                                                "data": b64,
+                                            }
+                                        )
 
                             # Streaming transcript of user speech
                             # NOTE: We must check input_transcription even when
@@ -386,7 +407,7 @@ async def _bridge_gemini_live(
                             # to be skipped, permanently dropping all student
                             # input for the rest of the session.
                             if sc.input_transcription:
-                                chunk = (sc.input_transcription.text or "")
+                                chunk = sc.input_transcription.text or ""
                                 finished = bool(sc.input_transcription.finished)
 
                                 # Drop the synthetic kickoff turn's transcription
@@ -413,21 +434,25 @@ async def _bridge_gemini_live(
                                     pending["student"] += chunk
                                     if finished:
                                         _flush_role("student")
-                                    await websocket.send_json({
-                                        "type": "user_transcript",
-                                        "data": chunk,
-                                        "finished": finished,
-                                    })
+                                    await websocket.send_json(
+                                        {
+                                            "type": "user_transcript",
+                                            "data": chunk,
+                                            "finished": finished,
+                                        }
+                                    )
                                 elif finished:
                                     # Empty-text finished chunk: flush any
                                     # buffered student text and notify browser.
                                     if pending["student"]:
                                         _flush_role("student")
-                                    await websocket.send_json({
-                                        "type": "user_transcript",
-                                        "data": "",
-                                        "finished": True,
-                                    })
+                                    await websocket.send_json(
+                                        {
+                                            "type": "user_transcript",
+                                            "data": "",
+                                            "finished": True,
+                                        }
+                                    )
 
                             # Streaming transcript of AI speech
                             if sc.output_transcription and sc.output_transcription.text:
@@ -439,11 +464,13 @@ async def _bridge_gemini_live(
                                 pending["examiner"] += chunk
                                 if finished:
                                     _flush_role("examiner")
-                                await websocket.send_json({
-                                    "type": "ai_transcript",
-                                    "data": chunk,
-                                    "finished": finished,
-                                })
+                                await websocket.send_json(
+                                    {
+                                        "type": "ai_transcript",
+                                        "data": chunk,
+                                        "finished": finished,
+                                    }
+                                )
 
                             # Gemini finished this response turn — flush any
                             # un-finalised chunks from both sides.
@@ -494,7 +521,11 @@ async def _bridge_gemini_live(
         # Preserve whatever transcript was accumulated before the error.
         # Without this catch, any exception from the bridge discards all
         # turns, causing sessions to be finalized with empty transcripts.
-        logger.error("bridge_error_preserving_partial_transcript", error=str(exc), turns=len(transcript_turns))
+        logger.error(
+            "bridge_error_preserving_partial_transcript",
+            error=str(exc),
+            turns=len(transcript_turns),
+        )
         _flush_role("student")
         _flush_role("examiner")
 
@@ -504,6 +535,7 @@ async def _bridge_gemini_live(
 # =============================================================================
 # Endpoints
 # =============================================================================
+
 
 @router.websocket("/ws/ivas/viva")
 async def gemini_voice_chat(websocket: WebSocket) -> None:
@@ -613,7 +645,7 @@ async def _grade_and_persist(
             exc_str = str(exc)
             is_rate_limit = "429" in exc_str or "RESOURCE_EXHAUSTED" in exc_str
             if is_rate_limit and attempt < max_retries - 1:
-                wait_time = 15 * (2 ** attempt)  # 15s, 30s, ...
+                wait_time = 15 * (2**attempt)  # 15s, 30s, ...
                 logger.warning(
                     "grading_rate_limited_retrying",
                     session_id=str(sid),
@@ -663,14 +695,16 @@ async def _grade_and_persist(
             for q in selected_questions:
                 seq = int(q.get("sequence_num", 0))
                 if seq not in existing_seqs:
-                    items.append({
-                        "sequence_num": seq,
-                        "question_text": q.get("question_text", ""),
-                        "response_text": None,
-                        "score": 0.0,
-                        "max_score": float(q.get("max_score") or 10.0),
-                        "score_justification": "Grader did not produce an entry for this planned question.",
-                    })
+                    items.append(
+                        {
+                            "sequence_num": seq,
+                            "question_text": q.get("question_text", ""),
+                            "response_text": None,
+                            "score": 0.0,
+                            "max_score": float(q.get("max_score") or 10.0),
+                            "score_justification": "Grader did not produce an entry for this planned question.",
+                        }
+                    )
             items.sort(key=lambda x: x.get("sequence_num", 0))
 
     # Build competency metadata for Q&A persistence.
@@ -802,7 +836,9 @@ async def _send_viva_notifications(
                 },
             )
         except Exception as exc:
-            logger.warning("viva_instructor_notification_failed", session_id=str(sid), error=str(exc))
+            logger.warning(
+                "viva_instructor_notification_failed", session_id=str(sid), error=str(exc)
+            )
 
 
 def _serialize_planned_questions(planned: list[dict]) -> list[dict]:
@@ -812,14 +848,16 @@ def _serialize_planned_questions(planned: list[dict]) -> list[dict]:
         comp_id = q.get("competency_id")
         if comp_id is not None and not isinstance(comp_id, str):
             comp_id = str(comp_id)
-        out.append({
-            "sequence_num": int(q.get("sequence_num") or 0),
-            "question_text": q.get("question_text") or "",
-            "competency_id": comp_id,
-            "competency_name": q.get("competency_name"),
-            "difficulty": q.get("difficulty"),
-            "max_score": float(q.get("max_score") or 10.0),
-        })
+        out.append(
+            {
+                "sequence_num": int(q.get("sequence_num") or 0),
+                "question_text": q.get("question_text") or "",
+                "competency_id": comp_id,
+                "competency_name": q.get("competency_name"),
+                "difficulty": q.get("difficulty"),
+                "max_score": float(q.get("max_score") or 10.0),
+            }
+        )
     return out
 
 
@@ -869,6 +907,7 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
     logger.info("session_ws_accepted", session_id=session_id)
 
     from app.main import postgres_client as db
+
     if db is None:
         await websocket.send_json({"type": "error", "data": "Service not ready."})
         await websocket.close()
@@ -900,10 +939,12 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
     assignment_id = session.get("assignment_id")
     competency_rows = await db.list_assignment_competencies(assignment_id)
     if not competency_rows:
-        await websocket.send_json({
-            "type": "error",
-            "data": "Cannot start viva: no grading criteria (competencies) configured for this assignment.",
-        })
+        await websocket.send_json(
+            {
+                "type": "error",
+                "data": "Cannot start viva: no grading criteria (competencies) configured for this assignment.",
+            }
+        )
         await websocket.close()
         return
 
@@ -919,15 +960,14 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
     raw_distribution = session.get("difficulty_distribution") or {}
     # JSON deserialisation from JSONB may produce string keys ("1", "2", "3")
     # but the question selector expects int keys. Normalise here.
-    difficulty_distribution: dict[int, int] = {
-        int(k): int(v) for k, v in raw_distribution.items()
-    }
+    difficulty_distribution: dict[int, int] = {int(k): int(v) for k, v in raw_distribution.items()}
     settings = get_settings()
     selected_questions: list[dict] = []
 
     # Voice verification setup
     student_id = session.get("student_id", "")
     from app.services.voice.verifier import VoiceVerificationManager
+
     voice_verifier = VoiceVerificationManager(db, settings)
 
     # HARD BLOCK: student must have a voice profile before starting a viva.
@@ -936,10 +976,12 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
     voice_profile = await db.get_voice_profile(student_id)
     if not voice_profile:
         logger.warning("voice_no_profile_blocked", session_id=session_id, student_id=student_id)
-        await websocket.send_json({
-            "type": "error",
-            "data": "Voice enrollment required. Please enroll your voice before starting a viva.",
-        })
+        await websocket.send_json(
+            {
+                "type": "error",
+                "data": "Voice enrollment required. Please enroll your voice before starting a viva.",
+            }
+        )
         await websocket.close()
         # Reset status back to initial so the student can retry after enrolling.
         with suppress(Exception):
@@ -965,6 +1007,7 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
     #   1 question per competency.
     if competency_rows and not difficulty_distribution:
         from collections import Counter
+
         counts = Counter(int(c.get("difficulty", 2)) for c in competency_rows)
         difficulty_distribution = dict(counts)
         logger.info(
@@ -996,7 +1039,9 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
                         questions=[q.get("question_text", "")[:60] for q in selected_questions],
                     )
                     break
-                logger.warning("question_selector_returned_empty", session_id=session_id, attempt=attempt + 1)
+                logger.warning(
+                    "question_selector_returned_empty", session_id=session_id, attempt=attempt + 1
+                )
             except Exception as exc:
                 logger.warning(
                     "question_selection_ai_failed",
@@ -1020,7 +1065,9 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
             if selected_questions:
                 for q in selected_questions:
                     if not q.get("question_text"):
-                        q["question_text"] = f"Explain your understanding of {q.get('competency_name', 'this topic')}."
+                        q["question_text"] = (
+                            f"Explain your understanding of {q.get('competency_name', 'this topic')}."
+                        )
 
         # Persist the selected plan onto the session so the instructor's
         # regrade endpoint can re-run grading later with the same plan
@@ -1028,7 +1075,9 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
         if selected_questions:
             try:
                 existing_meta = session.get("metadata") or {}
-                existing_meta["planned_questions"] = _serialize_planned_questions(selected_questions)
+                existing_meta["planned_questions"] = _serialize_planned_questions(
+                    selected_questions
+                )
                 await db.update_session_metadata(sid, existing_meta)
             except Exception as exc:
                 logger.warning("persist_planned_questions_failed", error=str(exc))
@@ -1041,15 +1090,18 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
 
     transcript_turns: list[dict] = []
     try:
-        transcript_turns = await _bridge_gemini_live(
-            websocket,
-            settings,
-            assignment_context=assignment_context,
-            selected_questions=selected_questions if selected_questions else None,
-            session_id=session_id,
-            student_id=student_id,
-            voice_verifier=voice_verifier,
-        ) or []
+        transcript_turns = (
+            await _bridge_gemini_live(
+                websocket,
+                settings,
+                assignment_context=assignment_context,
+                selected_questions=selected_questions if selected_questions else None,
+                session_id=session_id,
+                student_id=student_id,
+                voice_verifier=voice_verifier,
+            )
+            or []
+        )
     except Exception as exc:
         logger.error("session_ws_error", error=str(exc), partial_turns=len(transcript_turns))
         with suppress(Exception):
@@ -1068,7 +1120,11 @@ async def session_viva(websocket: WebSocket, session_id: str) -> None:
         # is set inside _finalize_session after grading finishes.
         with suppress(Exception):
             await _finalize_session(
-                db, settings, sid, transcript_turns, assignment_context,
+                db,
+                settings,
+                sid,
+                transcript_turns,
+                assignment_context,
                 selected_questions=selected_questions if selected_questions else None,
                 student_id=student_id,
             )

@@ -17,7 +17,6 @@ import {
     ChevronDown,
     ChevronUp,
     AlertCircle,
-    Eye,
     Sliders,
     Edit2,
     Check,

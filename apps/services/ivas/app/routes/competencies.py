@@ -32,12 +32,14 @@ def _get_db():
 
 def _get_settings():
     from app.config import get_settings
+
     return get_settings()
 
 
 # =============================================================================
 # Competency CRUD (global)
 # =============================================================================
+
 
 @router.get("", response_model=list[CompetencyOut])
 async def list_competencies() -> list[CompetencyOut]:
@@ -89,6 +91,7 @@ async def update_competency(competency_id: UUID, body: CreateCompetencyRequest) 
 # Competency-Assignment linking
 # =============================================================================
 
+
 @router.get("/assignment/{assignment_id}", response_model=list[CompetencyAssignmentLinkOut])
 async def list_assignment_competencies(assignment_id: UUID) -> list[CompetencyAssignmentLinkOut]:
     """Return all competencies configured for a given assignment."""
@@ -119,6 +122,7 @@ async def set_assignment_competencies(
 # =============================================================================
 # AI competency generation
 # =============================================================================
+
 
 @router.post("/generate", response_model=GenerateCompetenciesResponse)
 async def generate_competencies(
@@ -153,6 +157,7 @@ async def generate_competencies(
 # =============================================================================
 # Competency scores
 # =============================================================================
+
 
 @router.get("/scores/student/{student_id}", response_model=list[CompetencyScoreOut])
 async def list_student_competency_scores(student_id: str) -> list[CompetencyScoreOut]:

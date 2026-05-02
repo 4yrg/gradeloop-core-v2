@@ -148,7 +148,10 @@ async def regrade_session(session_id: UUID) -> SessionOut:
     # 3. Last resort: re-select questions from the assignment competencies.
     if not planned_questions:
         planned_questions = await _select_fresh_plan(
-            db, settings, session.get("assignment_id"), assignment_context,
+            db,
+            settings,
+            session.get("assignment_id"),
+            assignment_context,
             session.get("difficulty_distribution") or {},
         )
 
@@ -207,14 +210,16 @@ async def _reconstruct_plan_from_instances(db, session_id: UUID) -> list[dict]:
             comp = await db.get_competency_by_name(comp_name)
             if comp:
                 comp_id = str(comp["id"])
-        plan.append({
-            "sequence_num": int(r["sequence_num"]),
-            "question_text": r.get("question_text") or "",
-            "competency_id": comp_id,
-            "competency_name": comp_name,
-            "difficulty": r.get("difficulty"),
-            "max_score": 10.0,
-        })
+        plan.append(
+            {
+                "sequence_num": int(r["sequence_num"]),
+                "question_text": r.get("question_text") or "",
+                "competency_id": comp_id,
+                "competency_name": comp_name,
+                "difficulty": r.get("difficulty"),
+                "max_score": 10.0,
+            }
+        )
     return plan
 
 
@@ -238,11 +243,11 @@ async def _select_fresh_plan(
     }
     if not norm_distribution:
         from collections import Counter
-        norm_distribution = dict(
-            Counter(int(c.get("difficulty", 2)) for c in competency_rows)
-        )
+
+        norm_distribution = dict(Counter(int(c.get("difficulty", 2)) for c in competency_rows))
 
     from app.services.viva.question_selector import select_questions_ai
+
     try:
         return await select_questions_ai(
             gemini_api_key=settings.gemini_api_key,
@@ -290,7 +295,5 @@ async def get_session_details(session_id: UUID) -> SessionDetailOut:
         session=SessionOut(**row),
         transcripts=[TranscriptOut(**t) for t in transcripts],
         graded_qa=graded_out,
-        voice_auth_events=[
-            VoiceAuthEventOut(**v) for v in voice_events
-        ],
+        voice_auth_events=[VoiceAuthEventOut(**v) for v in voice_events],
     )

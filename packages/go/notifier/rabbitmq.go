@@ -11,11 +11,11 @@ import (
 )
 
 const (
-	reconnectDelay      = 5 * time.Second
+	reconnectDelay       = 5 * time.Second
 	maxReconnectAttempts = 10
 
-	queueName    = "notification.process"
-	dlxName      = "notifications.dlx"
+	queueName     = "notification.process"
+	dlxName       = "notifications.dlx"
 	deadQueueName = "notification.process.dead"
 )
 
@@ -73,7 +73,7 @@ func (p *Publisher) Publish(ctx context.Context, notification Notification) erro
 			ContentType:  "application/json",
 			DeliveryMode: amqp.Persistent,
 			MessageId:    notification.ID,
-			Timestamp:     notification.Timestamp,
+			Timestamp:    notification.Timestamp,
 			Body:         body,
 		},
 	)

@@ -35,26 +35,26 @@ class TestExtractJson:
 
     def test_fenced_json(self):
         """Test extracting JSON from markdown code fence."""
-        text = '''```json
+        text = """```json
 {"questions": [{"question_text": "What is X?", "difficulty": 2}]}
-```'''
+```"""
         result = _extract_json(text)
         assert result is not None
         assert len(result["questions"]) == 1
 
     def test_fenced_json_no_language(self):
         """Test extracting JSON from code fence without language."""
-        text = '''```
+        text = """```
 {"questions": [{"question_text": "What is X?", "difficulty": 2}]}
-```'''
+```"""
         result = _extract_json(text)
         assert result is not None
 
     def test_json_with_surrounding_text(self):
         """Test extracting JSON surrounded by prose."""
-        text = '''Here is the result:
+        text = """Here is the result:
 {"questions": [{"question_text": "What is X?", "difficulty": 2}]}
-I hope this helps!'''
+I hope this helps!"""
         result = _extract_json(text)
         assert result is not None
 
@@ -71,7 +71,7 @@ I hope this helps!'''
 
     def test_multiple_json_objects(self):
         """Test extracting the main JSON when multiple exist."""
-        text = '''Some text {"questions": [...]} more text {"other": "data"}'''
+        text = """Some text {"questions": [...]} more text {"other": "data"}"""
         # Should find the widest balanced {} slice
         _extract_json(text)
         # Result may vary, but shouldn't crash

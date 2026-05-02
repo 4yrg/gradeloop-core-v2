@@ -1,9 +1,11 @@
 """PostgreSQL client for IVAS Service."""
 
-import asyncpg
-from json import dumps as json_dumps, loads as json_loads
+from json import dumps as json_dumps
+from json import loads as json_loads
 from urllib.parse import urlparse, urlunparse
 from uuid import UUID
+
+import asyncpg
 
 from app.logging_config import get_logger
 
@@ -124,7 +126,6 @@ class PostgresClient:
             except Exception:
                 pass
 
-
     # =========================================================================
     # Voice Profiles
     # =========================================================================
@@ -150,7 +151,9 @@ class PostgresClient:
                         updated_at = now()
                 RETURNING *
                 """,
-                student_id, embedding, samples_count,
+                student_id,
+                embedding,
+                samples_count,
             )
             return dict(row)
 
@@ -183,8 +186,12 @@ class PostgresClient:
                 VALUES ($1, $2, $3, $4, $5, $6)
                 RETURNING *
                 """,
-                session_id, question_instance_id, similarity_score,
-                is_match, confidence, audio_ref,
+                session_id,
+                question_instance_id,
+                similarity_score,
+                is_match,
+                confidence,
+                audio_ref,
             )
             return dict(row) if row else {}
 
@@ -280,7 +287,8 @@ class PostgresClient:
                 WHERE id = $1
                 RETURNING *
                 """,
-                session_id, status,
+                session_id,
+                status,
             )
             return self._parse_session_row(row) if row else None
 
@@ -298,7 +306,8 @@ class PostgresClient:
                 WHERE id = $1
                 RETURNING *
                 """,
-                session_id, json_dumps(metadata),
+                session_id,
+                json_dumps(metadata),
             )
             return self._parse_session_row(row) if row else None
 
@@ -317,7 +326,9 @@ class PostgresClient:
                 WHERE id = $1
                 RETURNING *
                 """,
-                session_id, total_score, max_possible,
+                session_id,
+                total_score,
+                max_possible,
             )
             return self._parse_session_row(row) if row else None
 
@@ -363,11 +374,18 @@ class PostgresClient:
                             INSERT INTO transcripts (session_id, turn_number, role, content)
                             VALUES ($1, $2, $3, $4)
                             """,
-                            session_id, t["turn_number"], t["role"], t["content"],
+                            session_id,
+                            t["turn_number"],
+                            t["role"],
+                            t["content"],
                         )
-                    logger.info("save_transcripts_success", session_id=str(session_id), count=len(turns))
+                    logger.info(
+                        "save_transcripts_success", session_id=str(session_id), count=len(turns)
+                    )
                 except Exception as e:
-                    logger.error("save_transcripts_failed", session_id=str(session_id), error=str(e))
+                    logger.error(
+                        "save_transcripts_failed", session_id=str(session_id), error=str(e)
+                    )
                     raise
 
     async def list_transcripts(self, session_id: UUID) -> list[dict]:
@@ -520,7 +538,12 @@ class PostgresClient:
                 VALUES ($1, $2, $3, $4, $5, $6)
                 RETURNING *
                 """,
-                title, instructor_id, description, code_context, programming_language, course_id,
+                title,
+                instructor_id,
+                description,
+                code_context,
+                programming_language,
+                course_id,
             )
             return dict(row)
 
@@ -540,19 +563,23 @@ class PostgresClient:
         where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
         async with self._pool.acquire() as conn:
             rows = await conn.fetch(
-                f"SELECT * FROM assignments {where} ORDER BY created_at DESC", *params,
+                f"SELECT * FROM assignments {where} ORDER BY created_at DESC",
+                *params,
             )
             return [dict(r) for r in rows]
 
     async def get_assignment(self, assignment_id: UUID) -> dict | None:
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
-                "SELECT * FROM assignments WHERE id = $1", assignment_id,
+                "SELECT * FROM assignments WHERE id = $1",
+                assignment_id,
             )
             return dict(row) if row else None
 
     async def update_assignment(
-        self, assignment_id: UUID, **fields: str | None,
+        self,
+        assignment_id: UUID,
+        **fields: str | None,
     ) -> dict | None:
         if not fields:
             return await self.get_assignment(assignment_id)
@@ -573,7 +600,8 @@ class PostgresClient:
     async def delete_assignment(self, assignment_id: UUID) -> bool:
         async with self._pool.acquire() as conn:
             result = await conn.execute(
-                "DELETE FROM assignments WHERE id = $1", assignment_id,
+                "DELETE FROM assignments WHERE id = $1",
+                assignment_id,
             )
             return result == "DELETE 1"
 
@@ -598,7 +626,12 @@ class PostgresClient:
                 VALUES ($1, $2, $3, $4, $5, $6)
                 RETURNING *
                 """,
-                assignment_id, competency, description, max_score, weight, difficulty,
+                assignment_id,
+                competency,
+                description,
+                max_score,
+                weight,
+                difficulty,
             )
             return dict(row)
 
@@ -611,12 +644,15 @@ class PostgresClient:
             return [dict(r) for r in rows]
 
     async def update_criteria(
-        self, criteria_id: UUID, **fields: str | float | int | None,
+        self,
+        criteria_id: UUID,
+        **fields: str | float | int | None,
     ) -> dict | None:
         if not fields:
             async with self._pool.acquire() as conn:
                 row = await conn.fetchrow(
-                    "SELECT * FROM grading_criteria WHERE id = $1", criteria_id,
+                    "SELECT * FROM grading_criteria WHERE id = $1",
+                    criteria_id,
                 )
                 return dict(row) if row else None
         set_clauses = []
@@ -636,7 +672,8 @@ class PostgresClient:
     async def delete_criteria(self, criteria_id: UUID) -> bool:
         async with self._pool.acquire() as conn:
             result = await conn.execute(
-                "DELETE FROM grading_criteria WHERE id = $1", criteria_id,
+                "DELETE FROM grading_criteria WHERE id = $1",
+                criteria_id,
             )
             return result == "DELETE 1"
 
@@ -661,13 +698,19 @@ class PostgresClient:
                 VALUES ($1, $2, $3, $4, $5, $6)
                 RETURNING *
                 """,
-                assignment_id, criteria_id, question_text, competency, difficulty,
+                assignment_id,
+                criteria_id,
+                question_text,
+                competency,
+                difficulty,
                 expected_topics,
             )
             return dict(row)
 
     async def list_questions(
-        self, assignment_id: UUID, status_filter: str | None = None,
+        self,
+        assignment_id: UUID,
+        status_filter: str | None = None,
     ) -> list[dict]:
         conditions = ["assignment_id = $1"]
         params: list = [assignment_id]
@@ -683,12 +726,15 @@ class PostgresClient:
             return [dict(r) for r in rows]
 
     async def update_question(
-        self, question_id: UUID, **fields: str | float | int | list | None,
+        self,
+        question_id: UUID,
+        **fields: str | float | int | list | None,
     ) -> dict | None:
         if not fields:
             async with self._pool.acquire() as conn:
                 row = await conn.fetchrow(
-                    "SELECT * FROM questions WHERE id = $1", question_id,
+                    "SELECT * FROM questions WHERE id = $1",
+                    question_id,
                 )
                 return dict(row) if row else None
         set_clauses = []
@@ -708,12 +754,15 @@ class PostgresClient:
     async def delete_question(self, question_id: UUID) -> bool:
         async with self._pool.acquire() as conn:
             result = await conn.execute(
-                "DELETE FROM questions WHERE id = $1", question_id,
+                "DELETE FROM questions WHERE id = $1",
+                question_id,
             )
             return result == "DELETE 1"
 
     async def bulk_update_question_status(
-        self, question_ids: list[UUID], new_status: str,
+        self,
+        question_ids: list[UUID],
+        new_status: str,
     ) -> int:
         async with self._pool.acquire() as conn:
             result = await conn.execute(
@@ -721,7 +770,8 @@ class PostgresClient:
                 UPDATE questions SET status = $1
                 WHERE id = ANY($2::uuid[])
                 """,
-                new_status, question_ids,
+                new_status,
+                question_ids,
             )
             # result is "UPDATE N" — extract N
             if result.startswith("UPDATE "):
@@ -752,7 +802,10 @@ class PostgresClient:
                     updated_at  = now()
                 RETURNING *
                 """,
-                name, description, difficulty, max_score,
+                name,
+                description,
+                difficulty,
+                max_score,
             )
             return dict(row)
 
@@ -777,29 +830,33 @@ class PostgresClient:
                 WHERE id = $1
                 RETURNING *
                 """,
-                competency_id, name, description, difficulty, max_score,
+                competency_id,
+                name,
+                description,
+                difficulty,
+                max_score,
             )
             return dict(row) if row else None
 
     async def list_competencies(self) -> list[dict]:
         """Return all competencies ordered by name."""
         async with self._pool.acquire() as conn:
-            rows = await conn.fetch(
-                "SELECT * FROM competencies ORDER BY name ASC"
-            )
+            rows = await conn.fetch("SELECT * FROM competencies ORDER BY name ASC")
             return [dict(r) for r in rows]
 
     async def get_competency_by_name(self, name: str) -> dict | None:
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
-                "SELECT * FROM competencies WHERE name = $1", name,
+                "SELECT * FROM competencies WHERE name = $1",
+                name,
             )
             return dict(row) if row else None
 
     async def delete_competency(self, competency_id: UUID) -> bool:
         async with self._pool.acquire() as conn:
             result = await conn.execute(
-                "DELETE FROM competencies WHERE id = $1", competency_id,
+                "DELETE FROM competencies WHERE id = $1",
+                competency_id,
             )
             return result == "DELETE 1"
 
@@ -884,7 +941,12 @@ class PostgresClient:
                     override_at = CASE WHEN EXCLUDED.is_override THEN now() ELSE competency_scores.override_at END
                 RETURNING *
                 """,
-                student_id, competency_id, session_id, score, is_override, override_by,
+                student_id,
+                competency_id,
+                session_id,
+                score,
+                is_override,
+                override_by,
             )
             return dict(row)
 
@@ -963,7 +1025,8 @@ class PostgresClient:
                     GROUP BY cs.student_id, c.name, c.max_score
                     ORDER BY avg_score ASC NULLS LAST
                     """,
-                    competency_id, assignment_id,
+                    competency_id,
+                    assignment_id,
                 )
             else:
                 rows = await conn.fetch(
@@ -1002,7 +1065,8 @@ class PostgresClient:
                 SELECT id FROM competency_scores
                 WHERE student_id = $1 AND competency_id = $2 AND session_id IS NULL
                 """,
-                student_id, competency_id,
+                student_id,
+                competency_id,
             )
             if existing:
                 row = await conn.fetchrow(
@@ -1015,7 +1079,9 @@ class PostgresClient:
                     WHERE id = $1
                     RETURNING *
                     """,
-                    existing["id"], new_score, override_by,
+                    existing["id"],
+                    new_score,
+                    override_by,
                 )
             else:
                 row = await conn.fetchrow(
@@ -1025,7 +1091,10 @@ class PostgresClient:
                     VALUES ($1, $2, NULL, $3, TRUE, $4, now())
                     RETURNING *
                     """,
-                    student_id, competency_id, new_score, override_by,
+                    student_id,
+                    competency_id,
+                    new_score,
+                    override_by,
                 )
             return dict(row)
 

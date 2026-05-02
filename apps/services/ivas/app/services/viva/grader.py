@@ -66,9 +66,7 @@ def _build_grading_prompt(
         f"Your task: read the transcript below, identify every distinct CONCEPTUAL question the examiner asked, "
         f"pair each with the student's answer, and score each answer out of {max_score}.\n"
         "\n"
-        "Assignment that was being examined:\n"
-        + assignment_block
-        + "\n\n"
+        "Assignment that was being examined:\n" + assignment_block + "\n\n"
         "Rules:\n"
         "- Only include substantive conceptual questions (ignore greetings, chit-chat, acknowledgements, and pure pleasantries).\n"
         "- If the student did not answer a question (or answer is missing/off-topic), still include the item but set response_text to null and give an appropriate low score (0-3).\n"
@@ -90,9 +88,7 @@ def _build_grading_prompt(
         "}\n"
         "\n"
         "Transcript:\n"
-        "---\n"
-        + transcript
-        + "\n---\n"
+        "---\n" + transcript + "\n---\n"
     )
 
 
@@ -132,12 +128,8 @@ def _build_plan_aware_grading_prompt(
         f"score it out of {max_score}. The examiner may have asked the question verbatim, paraphrased it, "
         "asked follow-ups, or skipped it entirely — match by topic, not by literal text.\n"
         "\n"
-        "Assignment that was being examined:\n"
-        + assignment_block
-        + "\n\n"
-        "Planned questions (you MUST grade exactly these, in this order):\n"
-        + plan_block
-        + "\n\n"
+        "Assignment that was being examined:\n" + assignment_block + "\n\n"
+        "Planned questions (you MUST grade exactly these, in this order):\n" + plan_block + "\n\n"
         "CRITICAL output rules:\n"
         "- Output EXACTLY one item per planned question — no more, no less.\n"
         "- Each item's `sequence_num` MUST equal the seq= value of the corresponding planned question.\n"
@@ -163,9 +155,7 @@ def _build_plan_aware_grading_prompt(
         "}\n"
         "\n"
         "Transcript:\n"
-        "---\n"
-        + transcript
-        + "\n---\n"
+        "---\n" + transcript + "\n---\n"
     )
 
 
@@ -322,14 +312,16 @@ async def grade_viva_transcript(
             if entry is None:
                 # Fallback: the model didn't return this question. Insert a
                 # zero-score placeholder so the competency stays accounted for.
-                cleaned.append({
-                    "sequence_num": seq,
-                    "question_text": q.get("question_text", ""),
-                    "response_text": None,
-                    "score": 0.0,
-                    "max_score": float(q.get("max_score") or MAX_SCORE_PER_QUESTION),
-                    "score_justification": "Grader could not locate an answer for this question in the transcript.",
-                })
+                cleaned.append(
+                    {
+                        "sequence_num": seq,
+                        "question_text": q.get("question_text", ""),
+                        "response_text": None,
+                        "score": 0.0,
+                        "max_score": float(q.get("max_score") or MAX_SCORE_PER_QUESTION),
+                        "score_justification": "Grader could not locate an answer for this question in the transcript.",
+                    }
+                )
             else:
                 # Always force the planned question text + sequence_num + max_score through.
                 # The model doesn't return max_score in its JSON, so _coerce_item
