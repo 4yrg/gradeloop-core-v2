@@ -39,7 +39,7 @@ func run() error {
 	if err := utils.InitLogger(); err != nil {
 		return fmt.Errorf("initializing logger: %w", err)
 	}
-	defer utils.Sync()
+	defer func() { _ = utils.Sync() }()
 
 	logger := utils.GetLogger()
 
