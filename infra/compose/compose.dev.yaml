@@ -225,7 +225,6 @@ services:
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-gradeloop_secret_key_change_me}
     ports:
       - "8081:8081"
-      - "8081"
     depends_on:
       postgres:
         condition: service_healthy
@@ -261,8 +260,7 @@ services:
       - IAM_SERVICE_URL=http://gradeloop-iam:8081
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-gradeloop_secret_key_change_me}
     ports:
-      - "8081:8081"
-      - "8083"
+      - "8083:8083"
     depends_on:
       postgres:
         condition: service_healthy
@@ -301,8 +299,7 @@ services:
       - RABBITMQ_URL=amqp://guest:guest@gradeloop-rabbitmq:5672/
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-gradeloop_secret_key_change_me}
     ports:
-      - "8081:8081"
-      - "8084"
+      - "8084:8084"
     depends_on:
       postgres:
         condition: service_healthy
@@ -344,8 +341,7 @@ services:
       - SMTP_PASS=${SMTP_PASS:-}
       - EMAIL_FROM=${EMAIL_FROM:-noreply@gradeloop.com}
     ports:
-      - "8081:8081"
-      - "8082"
+      - "8082:8082"
     depends_on:
       postgres:
         condition: service_healthy
@@ -383,8 +379,7 @@ services:
       - REDIS_URL=redis://:${REDIS_PASSWORD:-redis_pass}@gradeloop-redis:6379/1
       - PYTHONPATH=/app:/packages/python
     ports:
-      - "8081:8081"
-      - "8101"
+      - "8101:8101"
     depends_on:
       postgres:
         condition: service_healthy
@@ -417,8 +412,7 @@ services:
       - ../../apps/services/acafs:/app
       - ../../packages/python:/packages/python
     ports:
-      - "8081:8081"
-      - "8102"
+      - "8102:8102"
     depends_on:
       postgres:
         condition: service_healthy
@@ -450,8 +444,7 @@ services:
       - ../../apps/services/keystroke:/app
       - ../../packages/python:/packages/python
     ports:
-      - "8081:8081"
-      - "8103"
+      - "8103:8103"
     depends_on:
       postgres-keystroke:
         condition: service_healthy
@@ -482,8 +475,7 @@ services:
       - ../../apps/services/cipas-syntactics:/app
       - ../../packages/python:/packages/python
     ports:
-      - "8081:8081"
-      - "8106"
+      - "8106:8106"
     depends_on:
       postgres:
         condition: service_healthy
@@ -512,8 +504,7 @@ services:
       - ../../apps/services/cipas-semantics:/app
       - ../../packages/python:/packages/python
     ports:
-      - "8081:8081"
-      - "8105"
+      - "8105:8105"
     depends_on:
       postgres:
         condition: service_healthy
@@ -542,8 +533,7 @@ services:
       - ../../apps/services/cipas-ai:/app
       - ../../packages/python:/packages/python
     ports:
-      - "8081:8081"
-      - "8104"
+      - "8104:8104"
     depends_on:
       postgres:
         condition: service_healthy
@@ -580,8 +570,7 @@ services:
       - IAM_SERVICE_URL=http://gradeloop-iam:8081
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-gradeloop_secret_key_change_me}
     ports:
-      - "8081:8081"
-      - "8086"
+      - "8086:8086"
     depends_on:
       postgres:
         condition: service_healthy
@@ -606,8 +595,7 @@ services:
       - SERVER_PORT=${CIPAS_XAI_SVC_PORT:-8085}
       - LLM_API_KEY=${LLM_API_KEY:-placeholder_key_change_me}
     ports:
-      - "8081:8081"
-      - "8085"
+      - "8085:8085"
     networks:
       - gradeloop-network
     healthcheck:
