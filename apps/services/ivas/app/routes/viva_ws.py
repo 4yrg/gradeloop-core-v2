@@ -308,7 +308,7 @@ async def _bridge_gemini_live(
                 for offset in range(0, len(silence), frame_bytes):
                     await live.send_realtime_input(
                         audio=types.Blob(
-                            data=silence[offset : offset + FRAME_BYTES],
+                            data=silence[offset : offset + frame_bytes],
                             mime_type="audio/pcm;rate=16000",
                         ),
                     )
