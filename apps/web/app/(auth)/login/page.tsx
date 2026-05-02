@@ -9,6 +9,8 @@ import {
   ArrowRight,
   Terminal,
   Code,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
@@ -29,10 +31,13 @@ export default function LoginPage() {
   const setSession = useAuthStore((s) => s.setSession);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null);
 
     const formData = new FormData(e.currentTarget);
     const email = formData.get("email") as string;
@@ -63,6 +68,7 @@ export default function LoginPage() {
     } catch (err) {
       console.error("[Login] Exception:", err);
       const errorMessage = handleApiError(err);
+      setError(errorMessage);
       toast.error(errorMessage);
     } finally {
       console.log("[Login] Process ended");
