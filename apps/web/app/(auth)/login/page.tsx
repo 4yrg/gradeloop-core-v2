@@ -39,18 +39,33 @@ export default function LoginPage() {
     const password = formData.get("password") as string;
 
     try {
+      console.log("[Login] Starting request for:", email);
+
       const response = await authApi.login({
         email,
         password,
       });
 
+      console.log("[Login] Response received:", response);
+
+      if (!response.access_token) {
+        throw new Error("No access token received from server");
+      }
+
       setSession(response.access_token);
+      console.log("[Login] Session updated in store");
+
       const path = useAuthStore.getState().getRedirectPath();
+      console.log("[Login] Redirecting to:", path);
+
       router.push(path);
       toast.success("Successfully signed in!");
     } catch (err) {
-      toast.error(handleApiError(err));
+      console.error("[Login] Exception:", err);
+      const errorMessage = handleApiError(err);
+      toast.error(errorMessage);
     } finally {
+      console.log("[Login] Process ended");
       setIsLoading(false);
     }
   };
