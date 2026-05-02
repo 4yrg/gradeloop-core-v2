@@ -498,7 +498,9 @@ export default function VivaSessionPage() {
         reconnectTimeoutRef.current = setTimeout(() => {
           reconnectAttemptsRef.current += 1;
           setReconnectAttempts(reconnectAttemptsRef.current);
-          connectRef.current();
+          if (connectRef.current) {
+            connectRef.current();
+          }
         }, delay);
       } else {
         setConnectionState("error");

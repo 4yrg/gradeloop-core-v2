@@ -73,14 +73,16 @@ export function useNotifications() {
       }
       reconnectTimeoutRef.current = setTimeout(() => {
         if (isAuthenticated && accessToken) {
-          connectRef.current();
+          if (connectRef.current) {
+            connectRef.current();
+          }
         }
       }, 5000);
     };
   }, [accessToken, isAuthenticated, setConnected, addNotification, setUnreadCount]);
 
   // Store connect function ref after definition for reconnect logic
-  React.useEffect(() => {
+  useEffect(() => {
     connectRef.current = connect;
   }, [connect]);
 
