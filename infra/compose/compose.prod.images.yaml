@@ -258,6 +258,8 @@ services:
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-n0vmKdZJ8Idsy3InTyYFzgvfcFT4okAKWX42aCFhYx0}
       - JWT_ACCESS_TOKEN_EXPIRY=${JWT_ACCESS_TOKEN_EXPIRY:-15}
       - JWT_REFRESH_TOKEN_EXPIRY=${JWT_REFRESH_TOKEN_EXPIRY:-10080}
+      - JWT_COOKIE_SECURE=${JWT_COOKIE_SECURE:-true}
+      - JWT_COOKIE_SAMESITE=${JWT_COOKIE_SAMESITE:-Lax}
     depends_on:
       postgres:
         condition: service_healthy
