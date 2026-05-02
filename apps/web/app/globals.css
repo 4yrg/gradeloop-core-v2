@@ -20,11 +20,85 @@
 
 @layer base {
 
+    /* ==========================================================================
+       GradeLoop Core V2 — NEW Design Token System
+       Emerald Green Primary Palette
+    ========================================================================== */
+
     /* -----------------------------------------------------------------------
        LIGHT THEME  (:root)
-       Clean, modern aesthetic with vibrant indigo/purple brand colors
+       Clean, modern aesthetic with emerald green brand colors
     ----------------------------------------------------------------------- */
     :root {
+        /* --- NEW Primary Palette (Emerald Green) --- */
+        --primary: 152 71% 27%;        /* #006d3d */
+        --primary-foreground: 0 0% 100%;
+        --primary-container: 152 62% 51%; /* #26d07c */
+        --on-primary: 0 0% 100%;
+        --on-primary-container: 152 73% 20%; /* #00532d */
+
+        --primary-fixed: 152 79% 65%;  /* #63fea5 */
+        --primary-fixed-dim: 152 62% 53%; /* #40e18b */
+        --on-primary-fixed: 152 85% 7%; /* #00210f */
+        --on-primary-fixed-variant: 152 68% 26%; /* #00522c */
+
+        /* --- NEW Secondary (Blue) --- */
+        --secondary: 211 100% 37%;      /* #005fae */
+        --secondary-foreground: 0 0% 100%;
+        --secondary-container: 212 100% 62%; /* #51a0ff */
+        --on-secondary: 0 0% 100%;
+        --on-secondary-container: 213 100% 27%; /* #003666 */
+
+        --secondary-fixed: 214 100% 89%; /* #d4e3ff */
+        --secondary-fixed-dim: 214 100% 78%; /* #a5c8ff */
+        --on-secondary-fixed: 214 100% 12%; /* #001c3a */
+        --on-secondary-fixed-variant: 214 100% 28%; /* #004785 */
+
+        /* --- NEW Tertiary (Teal) --- */
+        --tertiary: 194 100% 29%;      /* #006688 */
+        --tertiary-foreground: 0 0% 100%;
+        --tertiary-container: 194 100% 63%; /* #27c4ff */
+        --on-tertiary: 0 0% 100%;
+        --on-tertiary-container: 194 100% 27%; /* #004e68 */
+
+        --tertiary-fixed: 194 100% 87%; /* #c2e8ff */
+        --tertiary-fixed-dim: 194 100% 67%; /* #75d1ff */
+        --on-tertiary-fixed: 194 100% 10%; /* #001e2b */
+        --on-tertiary-fixed-variant: 194 100% 27%; /* #004d67 */
+
+        /* --- NEW Surface Colors --- */
+        --surface-bright: 270 33% 98%; /* #faf8ff */
+        --surface: 270 33% 98%;       /* #faf8ff */
+        --surface-dim: 228 46% 90%;   /* #d2d9f4 */
+        --surface-container: 228 46% 94%; /* #eaedff */
+        --surface-container-low: 240 50% 97%; /* #f2f3ff */
+        --surface-container-lowest: 0 0% 100%; /* #ffffff */
+        --surface-container-high: 228 46% 92%; /* #e2e7ff */
+        --surface-container-highest: 228 46% 88%; /* #dae2fd */
+
+        /* --- NEW On Surfaces --- */
+        --on-surface: 224 44% 11%;     /* #131b2e */
+        --on-surface-variant: 140 22% 29%; /* #3c4a3f */
+        --on-background: 224 44% 11%;  /* #131b2e */
+
+        /* --- NEW Outline --- */
+        --outline: 140 15% 42%;        /* #6c7b6e */
+        --outline-variant: 140 12% 70%; /* #bbcbbc */
+
+        /* --- NEW Inverse --- */
+        --inverse-surface: 224 33% 19%; /* #283044 */
+        --inverse-primary: 152 62% 53%; /* #40e18b */
+        --inverse-on-surface: 228 50% 96%; /* #eef0ff */
+
+        /* --- Error --- */
+        --error: 0 65% 50%;            /* #ba1a1a */
+        --error-foreground: 0 0% 100%;
+        --error-container: 0 100% 91%; /* #ffdad6 */
+        --on-error: 0 0% 100%;
+        --on-error-container: 0 100% 24%; /* #93000a */
+
+        /* --- Surface Tint --- */
+        --surface-tint: 152 71% 27%;    /* #006d3d */
         /* --- Core Surface Layers --- */
         --background: 0 0% 100%;
         /* Pure white canvas */
@@ -224,11 +298,77 @@
         --popover-foreground: 210 20% 98%;
         /* Light text */
 
-        /* --- Brand / Interactive --- */
-        --primary: 248 89% 70%;
-        /* Brighter indigo for dark mode */
-        --primary-foreground: 224 71% 4%;
+        /* --- Brand / Interactive - NEW Emerald Green Palette --- */
+        --primary: 152 71% 60%;
+        /* Brighter emerald for dark mode */
+        --primary-foreground: 152 85% 7%;
         /* Dark text on primary */
+
+        --primary-container: 152 68% 26%;
+        /* Dark emerald container */
+        --on-primary: 152 85% 7%;
+        --on-primary-container: 152 79% 65%;
+
+        --primary-fixed: 152 79% 65%;
+        --primary-fixed-dim: 152 68% 38%;
+        --on-primary-fixed: 152 85% 7%;
+        --on-primary-fixed-variant: 152 79% 65%;
+
+        /* --- Secondary - NEW Blue for Dark --- */
+        --secondary: 214 100% 60%;
+        /* Brighter blue */
+        --secondary-foreground: 214 100% 12%;
+        --secondary-container: 214 100% 20%;
+        --on-secondary: 214 100% 12%;
+        --on-secondary-container: 214 100% 78%;
+
+        --secondary-fixed: 214 100% 78%;
+        --secondary-fixed-dim: 214 100% 55%;
+        --on-secondary-fixed: 214 100% 10%;
+        --on-secondary-fixed-variant: 214 100% 60%;
+
+        /* --- Tertiary - NEW Teal for Dark --- */
+        --tertiary: 194 100% 40%;
+        /* Brighter teal */
+        --tertiary-foreground: 194 100% 10%;
+        --tertiary-container: 194 100% 20%;
+        --on-tertiary: 194 100% 10%;
+        --on-tertiary-container: 194 100% 67%;
+
+        --tertiary-fixed: 194 100% 67%;
+        --tertiary-fixed-dim: 194 100% 45%;
+        --on-tertiary-fixed: 194 100% 10%;
+        --on-tertiary-fixed-variant: 194 100% 40%;
+
+        /* --- Surface Colors - NEW Dark --- */
+        --surface-bright: 224 33% 10%;
+        --surface: 224 33% 8%;
+        --surface-dim: 224 25% 10%;
+        --surface-container: 224 25% 12%;
+        --surface-container-low: 224 33% 8%;
+        --surface-container-lowest: 224 44% 4%;
+        --surface-container-high: 224 25% 14%;
+        --surface-container-highest: 224 25% 16%;
+
+        --on-surface: 210 20% 90%;
+        --on-surface-variant: 140 15% 70%;
+        --on-background: 210 20% 90%;
+
+        --outline: 140 15% 50%;
+        --outline-variant: 140 12% 25%;
+
+        --inverse-surface: 210 20% 95%;
+        --inverse-primary: 152 71% 27%;
+        --inverse-on-surface: 224 44% 10%;
+
+        --surface-tint: 152 71% 60%;
+
+        /* --- Error --- */
+        --error: 0 100% 63%;
+        --error-foreground: 0 0% 0%;
+        --error-container: 0 60% 20%;
+        --on-error: 0 0% 0%;
+        --on-error-container: 0 100% 90%;
 
         /* --- Secondary & Muted --- */
         --secondary: 248 50% 15%;
@@ -474,9 +614,12 @@
    ========================================================================== */
 
 @theme inline {
-    /* Fonts */
-    --font-heading: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
+    /* Fonts - Updated with Space Grotesk */
+    --font-heading: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
     --font-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+    --font-h3: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+    --font-h2: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+    --font-label-caps: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 
     /* Core surfaces */
     --color-background: hsl(var(--background));
@@ -488,14 +631,70 @@
     --color-popover: hsl(var(--popover));
     --color-popover-foreground: hsl(var(--popover-foreground));
 
-    /* Brand */
+    /* Brand - NEW Emerald Green Palette */
     --color-primary: hsl(var(--primary));
     --color-primary-foreground: hsl(var(--primary-foreground));
+    --color-primary-container: hsl(var(--primary-container));
+    --color-on-primary: hsl(var(--on-primary));
+    --color-on-primary-container: hsl(var(--on-primary-container));
 
-    /* Secondary / Muted */
+    --color-primary-fixed: hsl(var(--primary-fixed));
+    --color-primary-fixed-dim: hsl(var(--primary-fixed-dim));
+    --color-on-primary-fixed: hsl(var(--on-primary-fixed));
+    --color-on-primary-fixed-variant: hsl(var(--on-primary-fixed-variant));
+
+    /* Secondary - NEW Blue */
     --color-secondary: hsl(var(--secondary));
     --color-secondary-foreground: hsl(var(--secondary-foreground));
+    --color-secondary-container: hsl(var(--secondary-container));
+    --color-on-secondary: hsl(var(--on-secondary));
+    --color-on-secondary-container: hsl(var(--on-secondary-container));
 
+    --color-secondary-fixed: hsl(var(--secondary-fixed));
+    --color-secondary-fixed-dim: hsl(var(--secondary-fixed-dim));
+    --color-on-secondary-fixed: hsl(var(--on-secondary-fixed));
+    --color-on-secondary-fixed-variant: hsl(var(--on-secondary-fixed-variant));
+
+    /* Tertiary - NEW Teal */
+    --color-tertiary: hsl(var(--tertiary));
+    --color-tertiary-foreground: hsl(var(--tertiary-foreground));
+    --color-tertiary-container: hsl(var(--tertiary-container));
+    --color-on-tertiary: hsl(var(--on-tertiary));
+    --color-on-tertiary-container: hsl(var(--on-tertiary-container));
+
+    --color-tertiary-fixed: hsl(var(--tertiary-fixed));
+    --color-tertiary-fixed-dim: hsl(var(--tertiary-fixed-dim));
+    --color-on-tertiary-fixed: hsl(var(--on-tertiary-fixed));
+    --color-on-tertiary-fixed-variant: hsl(var(--on-tertiary-fixed-variant));
+
+    /* Surface Colors - NEW */
+    --color-surface-bright: hsl(var(--surface-bright));
+    --color-surface-dim: hsl(var(--surface-dim));
+    --color-surface: hsl(var(--surface));
+    --color-surface-container: hsl(var(--surface-container));
+    --color-surface-container-low: hsl(var(--surface-container-low));
+    --color-surface-container-lowest: hsl(var(--surface-container-lowest));
+    --color-surface-container-high: hsl(var(--surface-container-high));
+    --color-surface-container-highest: hsl(var(--surface-container-highest));
+
+    /* On Surfaces - NEW */
+    --color-on-surface: hsl(var(--on-surface));
+    --color-on-surface-variant: hsl(var(--on-surface-variant));
+    --color-on-background: hsl(var(--on-background));
+
+    /* Outline - NEW */
+    --color-outline: hsl(var(--outline));
+    --color-outline-variant: hsl(var(--outline-variant));
+
+    /* Inverse - NEW */
+    --color-inverse-surface: hsl(var(--inverse-surface));
+    --color-inverse-primary: hsl(var(--inverse-primary));
+    --color-inverse-on-surface: hsl(var(--inverse-on-surface));
+
+    /* Surface Tint */
+    --color-surface-tint: hsl(var(--surface-tint));
+
+    /* Secondary / Muted - Legacy (keeping for compatibility) */
     --color-muted: hsl(var(--muted));
     --color-muted-foreground: hsl(var(--muted-foreground));
 

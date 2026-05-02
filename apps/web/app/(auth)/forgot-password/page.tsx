@@ -7,22 +7,16 @@ import {
   ArrowLeft,
   CheckCircle2,
   AlertCircle,
-  ArrowRight
+  ArrowRight,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authApi } from "@/lib/api/auth";
 import { handleApiError } from "@/lib/api/axios";
+
+const GRADELOOP_LOGO = "https://lh3.googleusercontent.com/aida/ADBb0ugP-d8dy1zHENxaDQSUeqpN4tKVRw5B7yneXKScqh04MJAais1yPb1ZVvJTYTbUC9qwaEkTr3KNGm5nNblhQHVQOr29l9hTkKd3J_4qPhKh13pmeqzjY5RFA9s8Y1lPZMup1lNZ80NWlPqz_ZE7jNhy0vijcXezOYx1gXcMQJfi4pDlgikaJSqQPu1c0loq-K-_0G4zk1J_XeNxUdxBmN5qRnz1UniV2wryZVt9Zlb7zyej31lRGvs-CllWLJ7g00vFDnj3PSfCdg";
 
 export default function ForgotPasswordPage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -64,111 +58,132 @@ export default function ForgotPasswordPage() {
 
   if (isSubmitted) {
     return (
-      <div className="w-full max-w-md animate-in fade-in zoom-in duration-500 px-4">
-        <Card className="border-none shadow-2xl shadow-indigo-200/50 dark:shadow-none bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl">
-          <CardHeader className="space-y-4 pb-6 pt-8 text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-success/10 text-success">
-              <CheckCircle2 className="h-10 w-10" />
-            </div>
-            <div className="space-y-1">
-              <CardTitle className="text-3xl font-bold tracking-tight">Check your email</CardTitle>
-              <CardDescription className="text-base text-muted-foreground">
-                We&apos;ve sent instructions to <span className="font-bold text-foreground">{email}</span>
-              </CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4 pb-2">
-            <div className="rounded-xl border border-muted/50 bg-muted/30 p-5">
-              <p className="text-sm text-center text-muted-foreground leading-relaxed">
-                Click the link in the email to reset your password. If you
-                don&apos;t see it, check your spam folder.
-              </p>
-            </div>
-            {error && (
-              <div className="flex items-center gap-2 rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-destructive animate-in slide-in-from-top-2">
-                <AlertCircle className="h-4 w-4" />
-                <p className="text-sm font-medium">{error}</p>
-              </div>
-            )}
-          </CardContent>
-          <CardFooter className="flex flex-col gap-4 pb-10 pt-4">
+      <div className="w-full max-w-[440px] bg-white rounded-xl border border-slate-200/60 shadow-xl shadow-slate-200/40 p-10 relative overflow-hidden">
+        {/* Glassmorphism Accent */}
+        <div className="absolute -top-20 -right-20 w-40 h-40 bg-primary-container/10 rounded-full blur-3xl" />
+
+        <div className="flex flex-col items-center mb-8">
+          <img
+            alt="Gradeloop System Logo"
+            className="w-20 h-20 mb-6 object-contain"
+            src={GRADELOOP_LOGO}
+          />
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary-container/10 text-primary-container">
+            <CheckCircle2 className="h-10 w-10" />
+          </div>
+          <h1 className="font-[family-name:var(--font-space-grotesk)] text-3xl font-semibold text-on-surface mt-6 mb-2">
+            Check your email
+          </h1>
+          <p className="text-on-surface-variant font-[family-name:var(--font-inter)] text-center">
+            We&apos;ve sent instructions to{" "}
+            <span className="font-bold text-on-surface">{email}</span>
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-primary/10 bg-primary/5 p-5 mb-6">
+          <p className="text-xs text-center text-primary/80 font-medium leading-relaxed uppercase tracking-wider font-[family-name:var(--font-inter)]">
+            Click the link in the email to reset your password. If you don&apos;t
+            see it, check your spam folder.
+          </p>
+        </div>
+
+        {error && (
+          <div className="flex items-center gap-2 rounded-xl border border-error/20 bg-error/5 p-4 text-error mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <p className="text-sm font-medium">{error}</p>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-4">
+          <Button
+            variant="outline"
+            className="w-full h-12 rounded-xl font-semibold border-2 border-outline-variant hover:bg-slate-50 transition-colors font-[family-name:var(--font-space-grotesk)]"
+            onClick={handleResend}
+            disabled={isLoading}
+          >
+            {isLoading ? "Sending..." : "Resend Email"}
+          </Button>
+          <Link href="/login" className="w-full">
             <Button
-              variant="outline"
-              className="w-full h-12 rounded-xl font-bold border-2 border-muted-foreground/10 hover:bg-muted/50 transition-colors"
-              onClick={handleResend}
-              disabled={isLoading}
+              variant="ghost"
+              className="w-full h-11 rounded-xl font-semibold gap-2 text-on-surface-variant hover:text-on-surface font-[family-name:var(--font-space-grotesk)]"
             >
-              {isLoading ? "Sending..." : "Resend Email"}
+              <ArrowLeft className="h-4 w-4" /> Back to Login
             </Button>
-            <Link href="/login" className="w-full">
-              <Button variant="ghost" className="w-full h-11 rounded-xl font-semibold gap-2 text-muted-foreground hover:text-foreground">
-                <ArrowLeft className="h-4 w-4" /> Back to Login
-              </Button>
-            </Link>
-          </CardFooter>
-        </Card>
+          </Link>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-md animate-in fade-in zoom-in duration-500 px-4">
-      <Card className="border-none shadow-2xl shadow-indigo-200/50 dark:shadow-none bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl">
-        <CardHeader className="space-y-1 pb-6 pt-8 text-center">
-          <CardTitle className="text-3xl font-bold tracking-tight">Forgot Password?</CardTitle>
-          <CardDescription className="text-base text-muted-foreground">
-            Don&apos;t worry! It happens. Enter your email to receive a reset link.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pb-2">
-          <form onSubmit={handleSubmit} id="forgot-password-form">
-            <div className="space-y-4">
-              {error && (
-                <div className="flex items-center gap-2 rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-destructive animate-in slide-in-from-top-2">
-                  <AlertCircle className="h-4 w-4" />
-                  <p className="text-sm font-medium">{error}</p>
-                </div>
-              )}
+    <div className="w-full max-w-[440px] bg-white rounded-xl border border-slate-200/60 shadow-xl shadow-slate-200/40 p-10 relative overflow-hidden">
+      {/* Glassmorphism Accent */}
+      <div className="absolute -top-20 -right-20 w-40 h-40 bg-primary-container/10 rounded-full blur-3xl" />
 
-              <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-sm font-semibold ml-1">
-                  Email Address
-                </Label>
-                <div className="relative group">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors">
-                    <Mail className="h-4 w-4" />
-                  </div>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="name@example.com"
-                    required
-                    disabled={isLoading}
-                    className="pl-10 h-11 bg-muted/40 border-muted-foreground/10 focus:bg-background transition-all rounded-xl"
-                    autoComplete="email"
-                  />
-                </div>
-              </div>
+      <div className="flex flex-col items-center mb-8">
+        <img
+          alt="Gradeloop System Logo"
+          className="w-20 h-20 mb-6 object-contain"
+          src={GRADELOOP_LOGO}
+        />
+        <h1 className="font-[family-name:var(--font-space-grotesk)] text-3xl font-semibold text-on-surface mb-2">
+          Forgot Password?
+        </h1>
+        <p className="text-on-surface-variant font-[family-name:var(--font-inter)] text-center">
+          Don&apos;t worry! It happens. Enter your email to receive a reset
+          link.
+        </p>
+      </div>
 
-              <div className="rounded-xl border border-primary/10 bg-primary/5 p-4">
-                <p className="text-[11px] text-center text-primary/80 font-medium leading-relaxed uppercase tracking-wider">
-                  You will receive instructions in a few minutes.
-                </p>
-              </div>
+      <form onSubmit={handleSubmit} id="forgot-password-form">
+        <div className="space-y-6">
+          {error && (
+            <div className="flex items-center gap-2 rounded-xl border border-error/20 bg-error/5 p-4 text-error">
+              <AlertCircle className="h-4 w-4" />
+              <p className="text-sm font-medium">{error}</p>
             </div>
-          </form>
-        </CardContent>
-        <CardFooter className="flex flex-col gap-4 pb-10 pt-4">
+          )}
+
+          <div>
+            <Label
+              htmlFor="email"
+              className="block text-xs font-semibold text-on-surface-variant mb-2 ml-1 uppercase tracking-wider"
+            >
+              Email Address
+            </Label>
+            <div className="relative">
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-outline" />
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="name@example.com"
+                required
+                disabled={isLoading}
+                className="w-full pl-12 pr-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary-container focus:border-primary-container outline-none transition-all font-[family-name:var(--font-inter)]"
+                autoComplete="email"
+              />
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-primary/10 bg-primary/5 p-4">
+            <p className="text-xs text-center text-primary/80 font-medium leading-relaxed uppercase tracking-wider font-[family-name:var(--font-inter)]">
+              You will receive instructions in a few minutes.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-4 mt-8">
           <Button
             type="submit"
             form="forgot-password-form"
-            className="w-full h-12 rounded-xl font-bold text-base shadow-lg shadow-primary/25 hover:shadow-primary/35 transition-all active:scale-[0.98]"
+            className="w-full h-12 rounded-xl font-semibold text-base shadow-lg shadow-primary-container/20 hover:shadow-primary-container/30 transition-all active:scale-[0.98] bg-primary-container text-on-primary-container font-[family-name:var(--font-space-grotesk)]"
             disabled={isLoading}
           >
             {isLoading ? (
               <span className="flex items-center gap-2">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent" />
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                 Sending...
               </span>
             ) : (
@@ -178,12 +193,15 @@ export default function ForgotPasswordPage() {
             )}
           </Button>
           <Link href="/login" className="w-full">
-            <Button variant="ghost" className="w-full h-11 rounded-xl font-semibold gap-2 text-muted-foreground hover:text-foreground">
+            <Button
+              variant="ghost"
+              className="w-full h-11 rounded-xl font-semibold gap-2 text-on-surface-variant hover:text-on-surface font-[family-name:var(--font-space-grotesk)]"
+            >
               <ArrowLeft className="h-4 w-4" /> Back to Login
             </Button>
           </Link>
-        </CardFooter>
-      </Card>
+        </div>
+      </form>
     </div>
   );
 }
