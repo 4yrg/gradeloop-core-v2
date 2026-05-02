@@ -41,6 +41,7 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	users.Get("/students", middleware.RequireInstructor(), cfg.UserHandler.GetStudents)
 	users.Get("/", middleware.RequireAdmin(), cfg.UserHandler.GetUsers)
 	users.Post("/bulk", cfg.UserHandler.GetUsersByIDs)
+	users.Get("/me", cfg.UserHandler.GetProfile) // Current user's profile
 	users.Get("/:id", cfg.UserHandler.GetUserByID)
 	users.Post("/", middleware.RequireAdmin(), cfg.UserHandler.CreateUser)
 	users.Put("/:id", middleware.RequireAdmin(), cfg.UserHandler.UpdateUser)
