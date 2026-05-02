@@ -31,74 +31,115 @@
     ----------------------------------------------------------------------- */
     :root {
         /* --- NEW Primary Palette (Emerald Green) --- */
-        --primary: 152 71% 27%;        /* #006d3d */
+        --primary: 152 71% 27%;
+        /* #006d3d */
         --primary-foreground: 0 0% 100%;
-        --primary-container: 152 62% 51%; /* #26d07c */
+        --primary-container: 152 62% 51%;
+        /* #26d07c */
         --on-primary: 0 0% 100%;
-        --on-primary-container: 152 73% 20%; /* #00532d */
+        --on-primary-container: 152 73% 20%;
+        /* #00532d */
 
-        --primary-fixed: 152 79% 65%;  /* #63fea5 */
-        --primary-fixed-dim: 152 62% 53%; /* #40e18b */
-        --on-primary-fixed: 152 85% 7%; /* #00210f */
-        --on-primary-fixed-variant: 152 68% 26%; /* #00522c */
+        --primary-fixed: 152 79% 65%;
+        /* #63fea5 */
+        --primary-fixed-dim: 152 62% 53%;
+        /* #40e18b */
+        --on-primary-fixed: 152 85% 7%;
+        /* #00210f */
+        --on-primary-fixed-variant: 152 68% 26%;
+        /* #00522c */
 
         /* --- NEW Secondary (Blue) --- */
-        --secondary: 211 100% 37%;      /* #005fae */
+        --secondary: 211 100% 37%;
+        /* #005fae */
         --secondary-foreground: 0 0% 100%;
-        --secondary-container: 212 100% 62%; /* #51a0ff */
+        --secondary-container: 212 100% 62%;
+        /* #51a0ff */
         --on-secondary: 0 0% 100%;
-        --on-secondary-container: 213 100% 27%; /* #003666 */
+        --on-secondary-container: 213 100% 27%;
+        /* #003666 */
 
-        --secondary-fixed: 214 100% 89%; /* #d4e3ff */
-        --secondary-fixed-dim: 214 100% 78%; /* #a5c8ff */
-        --on-secondary-fixed: 214 100% 12%; /* #001c3a */
-        --on-secondary-fixed-variant: 214 100% 28%; /* #004785 */
+        --secondary-fixed: 214 100% 89%;
+        /* #d4e3ff */
+        --secondary-fixed-dim: 214 100% 78%;
+        /* #a5c8ff */
+        --on-secondary-fixed: 214 100% 12%;
+        /* #001c3a */
+        --on-secondary-fixed-variant: 214 100% 28%;
+        /* #004785 */
 
         /* --- NEW Tertiary (Teal) --- */
-        --tertiary: 194 100% 29%;      /* #006688 */
+        --tertiary: 194 100% 29%;
+        /* #006688 */
         --tertiary-foreground: 0 0% 100%;
-        --tertiary-container: 194 100% 63%; /* #27c4ff */
+        --tertiary-container: 194 100% 63%;
+        /* #27c4ff */
         --on-tertiary: 0 0% 100%;
-        --on-tertiary-container: 194 100% 27%; /* #004e68 */
+        --on-tertiary-container: 194 100% 27%;
+        /* #004e68 */
 
-        --tertiary-fixed: 194 100% 87%; /* #c2e8ff */
-        --tertiary-fixed-dim: 194 100% 67%; /* #75d1ff */
-        --on-tertiary-fixed: 194 100% 10%; /* #001e2b */
-        --on-tertiary-fixed-variant: 194 100% 27%; /* #004d67 */
+        --tertiary-fixed: 194 100% 87%;
+        /* #c2e8ff */
+        --tertiary-fixed-dim: 194 100% 67%;
+        /* #75d1ff */
+        --on-tertiary-fixed: 194 100% 10%;
+        /* #001e2b */
+        --on-tertiary-fixed-variant: 194 100% 27%;
+        /* #004d67 */
 
         /* --- NEW Surface Colors --- */
-        --surface-bright: 270 33% 98%; /* #faf8ff */
-        --surface: 270 33% 98%;       /* #faf8ff */
-        --surface-dim: 228 46% 90%;   /* #d2d9f4 */
-        --surface-container: 228 46% 94%; /* #eaedff */
-        --surface-container-low: 240 50% 97%; /* #f2f3ff */
-        --surface-container-lowest: 0 0% 100%; /* #ffffff */
-        --surface-container-high: 228 46% 92%; /* #e2e7ff */
-        --surface-container-highest: 228 46% 88%; /* #dae2fd */
+        --surface-bright: 270 33% 98%;
+        /* #faf8ff */
+        --surface: 270 33% 98%;
+        /* #faf8ff */
+        --surface-dim: 228 46% 90%;
+        /* #d2d9f4 */
+        --surface-container: 228 46% 94%;
+        /* #eaedff */
+        --surface-container-low: 240 50% 97%;
+        /* #f2f3ff */
+        --surface-container-lowest: 0 0% 100%;
+        /* #ffffff */
+        --surface-container-high: 228 46% 92%;
+        /* #e2e7ff */
+        --surface-container-highest: 228 46% 88%;
+        /* #dae2fd */
 
         /* --- NEW On Surfaces --- */
-        --on-surface: 224 44% 11%;     /* #131b2e */
-        --on-surface-variant: 140 22% 29%; /* #3c4a3f */
-        --on-background: 224 44% 11%;  /* #131b2e */
+        --on-surface: 224 44% 11%;
+        /* #131b2e */
+        --on-surface-variant: 140 22% 29%;
+        /* #3c4a3f */
+        --on-background: 224 44% 11%;
+        /* #131b2e */
 
         /* --- NEW Outline --- */
-        --outline: 140 15% 42%;        /* #6c7b6e */
-        --outline-variant: 140 12% 70%; /* #bbcbbc */
+        --outline: 140 15% 42%;
+        /* #6c7b6e */
+        --outline-variant: 140 12% 70%;
+        /* #bbcbbc */
 
         /* --- NEW Inverse --- */
-        --inverse-surface: 224 33% 19%; /* #283044 */
-        --inverse-primary: 152 62% 53%; /* #40e18b */
-        --inverse-on-surface: 228 50% 96%; /* #eef0ff */
+        --inverse-surface: 224 33% 19%;
+        /* #283044 */
+        --inverse-primary: 152 62% 53%;
+        /* #40e18b */
+        --inverse-on-surface: 228 50% 96%;
+        /* #eef0ff */
 
         /* --- Error --- */
-        --error: 0 65% 50%;            /* #ba1a1a */
+        --error: 0 65% 50%;
+        /* #ba1a1a */
         --error-foreground: 0 0% 100%;
-        --error-container: 0 100% 91%; /* #ffdad6 */
+        --error-container: 0 100% 91%;
+        /* #ffdad6 */
         --on-error: 0 0% 100%;
-        --on-error-container: 0 100% 24%; /* #93000a */
+        --on-error-container: 0 100% 24%;
+        /* #93000a */
 
         /* --- Surface Tint --- */
-        --surface-tint: 152 71% 27%;    /* #006d3d */
+        --surface-tint: 152 71% 27%;
+        /* #006d3d */
         /* --- Core Surface Layers --- */
         --background: 0 0% 100%;
         /* Pure white canvas */
@@ -116,16 +157,16 @@
         /* Deep navy text */
 
         /* --- Brand / Interactive --- */
-        --primary: 248 89% 63%;
-        /* Vibrant indigo/purple */
+        --primary: 142 71% 45%;
+        /* Brand Green */
         --primary-foreground: 210 20% 98%;
         /* Light text on primary */
 
         /* --- Secondary & Muted --- */
-        --secondary: 252 100% 96%;
-        /* Soft lavender background */
-        --secondary-foreground: 248 89% 63%;
-        /* Indigo text */
+        --secondary: 142 70% 95%;
+        /* Soft green background */
+        --secondary-foreground: 142 71% 45%;
+        /* Green text */
 
         --muted: 220 14% 96%;
         /* Light gray for subtle elements */
@@ -133,10 +174,10 @@
         /* Medium gray text */
 
         /* --- Accent --- */
-        --accent: 220 14% 96%;
-        /* Light gray for hover states */
-        --accent-foreground: 224 71.4% 4.1%;
-        /* Deep navy text */
+        --accent: 142 70% 95%;
+        /* Light green for hover states */
+        --accent-foreground: 142 71% 45%;
+        /* Green text */
 
         /* --- Destructive --- */
         --destructive: 0 84.2% 60.2%;
@@ -149,8 +190,8 @@
         /* Light gray borders */
         --input: 220 13% 91%;
         /* Light gray input borders */
-        --ring: 248 89% 63%;
-        /* Indigo focus rings */
+        --ring: 142 71% 45%;
+        /* Green focus rings */
 
         /* --- Border Radius --- */
         --radius: 0.3rem;
@@ -371,8 +412,8 @@
         --on-error-container: 0 100% 90%;
 
         /* --- Secondary & Muted --- */
-        --secondary: 248 50% 15%;
-        /* Dark indigo surface */
+        --secondary: 142 40% 14%;
+        /* Dark green surface */
         --secondary-foreground: 210 20% 98%;
         /* Light text */
 
@@ -382,8 +423,8 @@
         /* Medium gray text */
 
         /* --- Accent --- */
-        --accent: 224 30% 20%;
-        /* Dark accent surface */
+        --accent: 142 40% 20%;
+        /* Dark green accent surface */
         --accent-foreground: 210 20% 98%;
         /* Light text */
 
@@ -398,8 +439,8 @@
         /* Subtle dark borders */
         --input: 224 30% 18%;
         /* Dark input borders */
-        --ring: 248 89% 70%;
-        /* Bright indigo focus ring */
+        --ring: 142 65% 50%;
+        /* Bright green focus ring */
 
         /* -------------------------------------------------------------------
            FEEDBACK STATES — Dark

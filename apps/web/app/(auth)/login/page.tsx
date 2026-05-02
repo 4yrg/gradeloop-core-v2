@@ -4,14 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Eye,
-  EyeOff,
   Mail,
   Lock,
   ArrowRight,
   Terminal,
   Code,
 } from "lucide-react";
+import Image from "next/image";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,12 +29,9 @@ export default function LoginPage() {
   const setSession = useAuthStore((s) => s.setSession);
 
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError(null);
     setIsLoading(true);
 
     const formData = new FormData(e.currentTarget);
@@ -50,8 +47,9 @@ export default function LoginPage() {
       setSession(response.access_token);
       const path = useAuthStore.getState().getRedirectPath();
       router.push(path);
+      toast.success("Successfully signed in!");
     } catch (err) {
-      setError(handleApiError(err));
+      toast.error(handleApiError(err));
     } finally {
       setIsLoading(false);
     }
