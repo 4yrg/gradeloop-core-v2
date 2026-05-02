@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, field_validator
 
 from app.schemas.voice import VoiceAuthEventOut
 
@@ -25,7 +25,9 @@ class SessionCreate(BaseModel):
             if not isinstance(level, int) or level < 1 or level > 5:
                 raise ValueError(f"Invalid difficulty level {level}. Must be 1-5.")
             if not isinstance(count, int) or count < 0:
-                raise ValueError(f"Invalid question count {count} for level {level}. Must be non-negative integer.")
+                raise ValueError(
+                    f"Invalid question count {count} for level {level}. Must be non-negative integer."
+                )
         return v
 
 
@@ -83,6 +85,7 @@ class StudentResponseOut(BaseModel):
 
 class GradedQAOut(BaseModel):
     """Paired question + response (what the instructor actually wants to see)."""
+
     sequence_num: int
     question_text: str
     response_text: str | None = None

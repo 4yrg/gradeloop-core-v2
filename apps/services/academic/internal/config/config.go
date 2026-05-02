@@ -99,15 +99,3 @@ func getEnvAsBool(key string, defaultValue bool) bool {
 	}
 	return result
 }
-
-func getEnvAsInt64(key string, defaultValue int64) int64 {
-	value := os.Getenv(key)
-	if value == "" {
-		return defaultValue
-	}
-	result, err := strconv.ParseInt(value, 10, 64)
-	if err != nil {
-		return defaultValue
-	}
-	return result
-}

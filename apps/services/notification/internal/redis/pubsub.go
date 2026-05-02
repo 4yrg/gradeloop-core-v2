@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	channelPrefix  = "notifications:"
+	channelPrefix    = "notifications:"
 	broadcastChannel = "notifications:broadcast"
 )
 

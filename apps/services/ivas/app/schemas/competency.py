@@ -43,6 +43,7 @@ class CompetencyScoreOut(BaseModel):
 
 class CompetencyScoreSummary(BaseModel):
     """Aggregated score per student per competency."""
+
     student_id: str
     competency_id: UUID
     competency_name: str
@@ -55,6 +56,7 @@ class CompetencyScoreSummary(BaseModel):
 
 class SetCompetenciesRequest(BaseModel):
     """Request body to set competencies for an assignment."""
+
     competencies: list["CompetencyEntry"] = []
 
 
@@ -84,6 +86,7 @@ class GeneratedCompetency(BaseModel):
 
 class CreateCompetencyRequest(BaseModel):
     """Request body for creating a new competency."""
+
     name: str
     description: str | None = None
     difficulty: int = Field(default=1, ge=1, le=5)

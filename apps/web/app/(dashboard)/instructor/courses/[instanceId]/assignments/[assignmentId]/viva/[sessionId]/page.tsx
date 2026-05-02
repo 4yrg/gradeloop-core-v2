@@ -17,7 +17,6 @@ import {
     ChevronDown,
     ChevronUp,
     AlertCircle,
-    Eye,
     Sliders,
     Edit2,
     Check,
@@ -218,16 +217,6 @@ function QuestionCard({ item }: { item: GradedQA }) {
     );
 }
 
-function DifficultyBadge({ difficulty }: { difficulty: number }) {
-    if (difficulty >= 3) {
-        return <Badge variant="outline" className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0 text-xs">Advanced</Badge>;
-    }
-    if (difficulty >= 2) {
-        return <Badge variant="outline" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0 text-xs">Intermediate</Badge>;
-    }
-    return <Badge variant="outline" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-xs">Beginner</Badge>;
-}
-
 function VoiceVerificationSection({ events }: { events: VoiceAuthEvent[] }) {
     if (events.length === 0) return null;
     const avgSimilarity = events.reduce((sum, e) => sum + (e.similarity_score ?? 0), 0) / events.length;
@@ -320,7 +309,7 @@ function VoiceVerificationSection({ events }: { events: VoiceAuthEvent[] }) {
     );
 }
 
-function CompetencyScoresSection({ studentId, assignmentId, sessionId }: { studentId: string; assignmentId: string; sessionId: string }) {
+function CompetencyScoresSection({ studentId, sessionId }: { studentId: string; sessionId: string }) {
     const { addToast } = useToast();
     const [scores, setScores] = React.useState<CompetencyScoreOut[]>([]);
     const [loading, setLoading] = React.useState(true);
@@ -478,7 +467,7 @@ function StudentIdCell({ studentId }: { studentId: string }) {
 }
 
 export default function InstructorVivaReviewPage() {
-    const { addToast } = useToast();
+    const { addToast: _addToast } = useToast();
     const params = useParams<{ sessionId: string; assignmentId: string; instanceId: string }>();
     const router = useRouter();
     const sessionId = params.sessionId;
@@ -515,7 +504,7 @@ export default function InstructorVivaReviewPage() {
             // Re-fetch full details after a short delay to let grading finish or show progress
             const refreshed = await ivasApi.getSessionDetails(sessionId);
             setDetails(refreshed);
-        } catch (err) {
+        } catch (_err) {
             // If regrade fails, just refresh to show current state
             const refreshed = await ivasApi.getSessionDetails(sessionId);
             setDetails(refreshed);
@@ -715,7 +704,6 @@ export default function InstructorVivaReviewPage() {
             {session.status === "completed" && (
                 <CompetencyScoresSection
                     studentId={session.student_id}
-                    assignmentId={assignmentId}
                     sessionId={sessionId}
                 />
             )}

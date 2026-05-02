@@ -112,7 +112,9 @@ class NotificationPublisher:
             logger.warning("ivas_notification_skipped_no_connection", type=notif_type)
             return False
 
-        notification_id = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S") + "-" + uuid.uuid4().hex[:8]
+        notification_id = (
+            datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S") + "-" + uuid.uuid4().hex[:8]
+        )
         payload = {
             "id": notification_id,
             "user_ids": user_ids,

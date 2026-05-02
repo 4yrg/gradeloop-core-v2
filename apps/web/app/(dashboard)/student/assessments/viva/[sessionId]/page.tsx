@@ -61,6 +61,9 @@ export default function VivaSessionPage() {
   const MAX_RECONNECT_ATTEMPTS = 3;
   const [showEndConfirm, setShowEndConfirm] = React.useState(false);
 
+  // Ref to store connect function for reconnect logic
+  const connectRef = React.useRef<() => void>(null);
+
   // Voice verification state
   const [voiceStatus, setVoiceStatus] = React.useState<"unverified" | "match" | "uncertain" | "mismatch">("unverified");
   const [voiceSimilarity, setVoiceSimilarity] = React.useState<number | null>(null);
@@ -310,8 +313,6 @@ export default function VivaSessionPage() {
 
   // --- WebSocket Connection ---
   const connectWebSocket = React.useCallback(() => {
-    if (sessionEndedRef.current) return;
-
     if (!playbackCtxRef.current) {
       try {
         playbackCtxRef.current = new AudioContext({ sampleRate: 24000 });
@@ -497,7 +498,9 @@ export default function VivaSessionPage() {
         reconnectTimeoutRef.current = setTimeout(() => {
           reconnectAttemptsRef.current += 1;
           setReconnectAttempts(reconnectAttemptsRef.current);
-          connectWebSocket();
+          if (connectRef.current) {
+            connectRef.current();
+          }
         }, delay);
       } else {
         setConnectionState("error");
@@ -513,6 +516,11 @@ export default function VivaSessionPage() {
       setConnectionState("error");
     };
   }, [sessionId, playAudioChunk, appendTranscript, addToast, startRecording, stopAllPlayback, isRecording]);
+
+  // Store connect function ref after definition for reconnect logic
+  React.useEffect(() => {
+    connectRef.current = connectWebSocket;
+  }, [connectWebSocket]);
 
   // --- Mic toggle ---
   const toggleMic = React.useCallback(() => {

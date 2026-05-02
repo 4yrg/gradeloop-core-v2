@@ -92,7 +92,7 @@ def _has_speech(pcm16_data: bytes, threshold: float = _SPEECH_RMS_THRESHOLD) -> 
     if len(pcm16_data) < 3200:  # < 0.1s of audio — too short to evaluate
         return False
     samples = np.frombuffer(pcm16_data, dtype=np.int16).astype(np.float32)
-    rms = np.sqrt(np.mean(samples ** 2)) / 32768.0
+    rms = np.sqrt(np.mean(samples**2)) / 32768.0
     return rms >= threshold
 
 
@@ -176,9 +176,7 @@ class VoiceVerificationManager:
                 )
                 return
 
-            asyncio.create_task(
-                self._verify(session_id, student_id, audio_data, websocket)
-            )
+            asyncio.create_task(self._verify(session_id, student_id, audio_data, websocket))
 
     def flush(self, session_id: str) -> None:
         """Clear the buffer for a session.  Called on session end."""
@@ -224,11 +222,13 @@ class VoiceVerificationManager:
             if session_id not in self._no_profile_warned:
                 self._no_profile_warned.add(session_id)
                 with suppress(Exception):
-                    await websocket.send_json({
-                        "type": "voice_warning",
-                        "confidence": "none",
-                        "message": "No voice profile enrolled",
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "voice_warning",
+                            "confidence": "none",
+                            "message": "No voice profile enrolled",
+                        }
+                    )
             logger.warning(
                 "voice_verify_skip_no_profile",
                 session_id=session_id,
@@ -267,9 +267,11 @@ class VoiceVerificationManager:
         # Notify the browser
         msg_type = "voice_warning" if confidence == "low" else "voice_status"
         with suppress(Exception):
-            await websocket.send_json({
-                "type": msg_type,
-                "similarity": round(similarity, 4),
-                "confidence": confidence,
-                "is_match": is_match,
-            })
+            await websocket.send_json(
+                {
+                    "type": msg_type,
+                    "similarity": round(similarity, 4),
+                    "confidence": confidence,
+                    "is_match": is_match,
+                }
+            )

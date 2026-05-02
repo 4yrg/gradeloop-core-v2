@@ -1,0 +1,78 @@
+name: Lint
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  lint-go:
+    name: Lint Go Services
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: false
+
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.62
+
+      - name: Run golangci-lint
+        run: |
+          for service in academic assessment email iam notification keystroke; do
+            if [ -d "apps/services/$service" ]; then
+              echo "Linting $service..."
+              cd "apps/services/$service"
+              golangci-lint run --timeout=5m || exit 1
+              cd ../../../..
+            fi
+          done
+
+  lint-python:
+    name: Lint Python Services
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Run ruff
+        run: |
+          for service in acafs keystroke cipas-syntactics ivas; do
+            if [ -d "apps/services/$service" ] && [ -f "apps/services/$service/pyproject.toml" ]; then
+              echo "Linting $service..."
+              cd "apps/services/$service"
+              ruff check . --fix || exit 1
+              cd ../../..
+            fi
+          done
+
+  lint-frontend:
+    name: Lint Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: apps/web
+
+      - name: Run ESLint
+        run: npm run lint
+        working-directory: apps/web

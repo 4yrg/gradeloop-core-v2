@@ -13,13 +13,13 @@ const (
 )
 
 type Notification struct {
-	ID        string            `json:"id"`
-	UserIDs   []string          `json:"user_ids"`
-	Type      string            `json:"type"`
-	Title     string            `json:"title"`
-	Message   string            `json:"message"`
-	Data      map[string]any    `json:"data,omitempty"`
-	Timestamp time.Time         `json:"timestamp"`
+	ID        string         `json:"id"`
+	UserIDs   []string       `json:"user_ids"`
+	Type      string         `json:"type"`
+	Title     string         `json:"title"`
+	Message   string         `json:"message"`
+	Data      map[string]any `json:"data,omitempty"`
+	Timestamp time.Time      `json:"timestamp"`
 }
 
 func NewNotification(userIDs []string, notifType, title, message string, data map[string]any) Notification {

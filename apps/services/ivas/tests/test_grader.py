@@ -1,13 +1,15 @@
 """Tests for viva transcript grader."""
 
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
+
 from app.services.viva.grader import (
-    grade_viva_transcript,
     MAX_SCORE_PER_QUESTION,
-    _format_transcript_for_prompt,
-    _format_assignment_block,
     _extract_json,
+    _format_assignment_block,
+    _format_transcript_for_prompt,
+    grade_viva_transcript,
 )
 
 
@@ -228,9 +230,27 @@ class TestPlanAwareMaxScoreOverride:
         with non-default max_score (e.g. 5.0) are scored correctly.
         """
         planned_questions = [
-            {"sequence_num": 1, "question_text": "Explain loops.", "competency_name": "Loops", "difficulty": 2, "max_score": 5.0},
-            {"sequence_num": 2, "question_text": "Explain recursion.", "competency_name": "Recursion", "difficulty": 4, "max_score": 15.0},
-            {"sequence_num": 3, "question_text": "Explain arrays.", "competency_name": "Arrays", "difficulty": 1, "max_score": 10.0},
+            {
+                "sequence_num": 1,
+                "question_text": "Explain loops.",
+                "competency_name": "Loops",
+                "difficulty": 2,
+                "max_score": 5.0,
+            },
+            {
+                "sequence_num": 2,
+                "question_text": "Explain recursion.",
+                "competency_name": "Recursion",
+                "difficulty": 4,
+                "max_score": 15.0,
+            },
+            {
+                "sequence_num": 3,
+                "question_text": "Explain arrays.",
+                "competency_name": "Arrays",
+                "difficulty": 1,
+                "max_score": 10.0,
+            },
         ]
 
         # Simulate model returning items without max_score (model doesn't include it)
@@ -254,9 +274,15 @@ class TestPlanAwareMaxScoreOverride:
 
         # max_score should come from the planned questions, NOT from model output
         items_by_seq = {item["sequence_num"]: item for item in result["items"]}
-        assert items_by_seq[1]["max_score"] == 5.0, f"Expected 5.0, got {items_by_seq[1]['max_score']}"
-        assert items_by_seq[2]["max_score"] == 15.0, f"Expected 15.0, got {items_by_seq[2]['max_score']}"
-        assert items_by_seq[3]["max_score"] == 10.0, f"Expected 10.0, got {items_by_seq[3]['max_score']}"
+        assert items_by_seq[1]["max_score"] == 5.0, (
+            f"Expected 5.0, got {items_by_seq[1]['max_score']}"
+        )
+        assert items_by_seq[2]["max_score"] == 15.0, (
+            f"Expected 15.0, got {items_by_seq[2]['max_score']}"
+        )
+        assert items_by_seq[3]["max_score"] == 10.0, (
+            f"Expected 10.0, got {items_by_seq[3]['max_score']}"
+        )
 
         # total and max_possible should reflect the correct per-question maxes
         assert result["max_possible"] == 30.0  # 5 + 15 + 10
@@ -268,9 +294,27 @@ class TestPlanAwareMaxScoreOverride:
     async def test_plan_aware_gap_fills_missing_questions(self):
         """Plan-aware mode should fill gaps for questions the model didn't return."""
         planned_questions = [
-            {"sequence_num": 1, "question_text": "Q1", "competency_name": "A", "difficulty": 1, "max_score": 10.0},
-            {"sequence_num": 2, "question_text": "Q2", "competency_name": "B", "difficulty": 2, "max_score": 10.0},
-            {"sequence_num": 3, "question_text": "Q3", "competency_name": "C", "difficulty": 3, "max_score": 10.0},
+            {
+                "sequence_num": 1,
+                "question_text": "Q1",
+                "competency_name": "A",
+                "difficulty": 1,
+                "max_score": 10.0,
+            },
+            {
+                "sequence_num": 2,
+                "question_text": "Q2",
+                "competency_name": "B",
+                "difficulty": 2,
+                "max_score": 10.0,
+            },
+            {
+                "sequence_num": 3,
+                "question_text": "Q3",
+                "competency_name": "C",
+                "difficulty": 3,
+                "max_score": 10.0,
+            },
         ]
 
         mock_response = AsyncMock()

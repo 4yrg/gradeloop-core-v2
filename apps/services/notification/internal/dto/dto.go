@@ -3,11 +3,11 @@ package dto
 import "time"
 
 type CreateNotificationRequest struct {
-	UserIDs []string         `json:"user_ids" validate:"required,min=1"`
-	Type    string           `json:"type" validate:"required"`
-	Title   string           `json:"title" validate:"required"`
-	Message string           `json:"message" validate:"required"`
-	Data    map[string]any   `json:"data,omitempty"`
+	UserIDs []string       `json:"user_ids" validate:"required,min=1"`
+	Type    string         `json:"type" validate:"required"`
+	Title   string         `json:"title" validate:"required"`
+	Message string         `json:"message" validate:"required"`
+	Data    map[string]any `json:"data,omitempty"`
 }
 
 type NotificationResponse struct {
@@ -28,9 +28,9 @@ type UnreadCountResponse struct {
 
 type ListNotificationsResponse struct {
 	Notifications []NotificationResponse `json:"notifications"`
-	Total         int64                   `json:"total"`
-	Page          int                     `json:"page"`
-	PerPage       int                     `json:"per_page"`
+	Total         int64                  `json:"total"`
+	Page          int                    `json:"page"`
+	PerPage       int                    `json:"per_page"`
 }
 
 type MarkReadRequest struct {

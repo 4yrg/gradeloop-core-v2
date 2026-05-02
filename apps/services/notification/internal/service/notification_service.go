@@ -4,14 +4,14 @@ import (
 	"context"
 	"encoding/json"
 
-	notifier "github.com/4yrg/gradeloop-core-v2/packages/go/notifier"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/notification/internal/domain"
 	redispubsub "github.com/4yrg/gradeloop-core-v2/apps/services/notification/internal/redis"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/notification/internal/repository"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/notification/internal/sse"
+	notifier "github.com/4yrg/gradeloop-core-v2/packages/go/notifier"
 	"github.com/google/uuid"
-	"gorm.io/datatypes"
 	"go.uber.org/zap"
+	"gorm.io/datatypes"
 )
 
 type NotificationService struct {
