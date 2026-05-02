@@ -70,7 +70,7 @@ jobs:
           node-version: '22'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
         working-directory: apps/web
 
       - name: Run ESLint
