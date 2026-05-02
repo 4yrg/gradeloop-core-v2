@@ -152,14 +152,14 @@ def _build_viva_system_instruction(
         lines.append(f"- Language/Subject: {language}")
     if description:
         lines.append(f"- Description: {description}")
-    if len(lines) == len([l for l in lines if not l.startswith("- ")]):
+    if len(lines) == len([line for line in lines if not line.startswith("- ")]):
         lines.append("- (No assignment details were provided — briefly ask the student which assignment they are defending, then conduct the conceptual viva on that basis.)")
 
     # Inject structured question plan if provided (competency-based viva).
     if selected_questions:
         lines.append("")
         lines.append("Structured question plan — ask questions in this order:")
-        DIFFICULTY_LABELS = {1: "🔵 Basic", 2: "🟡 Intermediate", 3: "🟠 Advanced", 4: "🔴 Expert", 5: "⚪ Master"}
+        difficulty_labels = {1: "🔵 Basic", 2: "🟡 Intermediate", 3: "🟠 Advanced", 4: "🔴 Expert", 5: "⚪ Master"}
         # Group questions by competency for a clearer viva structure
         from collections import OrderedDict
         by_comp = OrderedDict()
@@ -168,7 +168,7 @@ def _build_viva_system_instruction(
             by_comp.setdefault(comp_name, []).append(q)
         for comp_name, comp_questions in by_comp.items():
             level = comp_questions[0].get("difficulty", 2)
-            label = DIFFICULTY_LABELS.get(level, str(level))
+            label = difficulty_labels.get(level, str(level))
             lines.append(f"\n{label} — {comp_name}")
             for q in comp_questions:
                 lines.append(f"  [{q['sequence_num']}] {q['question_text']}")
@@ -278,11 +278,11 @@ async def _bridge_gemini_live(
                 # Slightly pacing the frames keeps Gemini's VAD happy —
                 # dumping the whole blob in one send_realtime_input call can
                 # confuse VAD's speech-end detection.
-                FRAME_BYTES = 3200
-                for offset in range(0, len(kickoff_pcm), FRAME_BYTES):
+                frame_bytes = 3200
+                for offset in range(0, len(kickoff_pcm), frame_bytes):
                     await live.send_realtime_input(
                         audio=types.Blob(
-                            data=kickoff_pcm[offset:offset + FRAME_BYTES],
+                            data=kickoff_pcm[offset:offset + frame_bytes],
                             mime_type="audio/pcm;rate=16000",
                         ),
                     )
@@ -292,7 +292,7 @@ async def _bridge_gemini_live(
                 # Trailing silence (~400ms) to let VAD detect end-of-speech
                 # and commit the turn, so Gemini responds promptly.
                 silence = b"\x00\x00" * (16000 * 4 // 10)  # 400ms @ 16kHz s16
-                for offset in range(0, len(silence), FRAME_BYTES):
+                for offset in range(0, len(silence), frame_bytes):
                     await live.send_realtime_input(
                         audio=types.Blob(
                             data=silence[offset:offset + FRAME_BYTES],

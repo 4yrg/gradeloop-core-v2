@@ -14,7 +14,6 @@ from __future__ import annotations
 import json
 import random
 import re
-from uuid import UUID
 
 from app.logging_config import get_logger
 

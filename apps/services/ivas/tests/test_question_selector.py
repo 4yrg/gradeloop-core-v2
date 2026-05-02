@@ -1,11 +1,12 @@
 """Tests for difficulty-aware question selector."""
 
 import pytest
+
 from app.services.viva.question_selector import (
-    select_questions_ai,
-    select_questions_random,
     DIFFICULTY_LABELS,
     _extract_json,
+    select_questions_ai,
+    select_questions_random,
 )
 
 
@@ -72,9 +73,8 @@ I hope this helps!'''
         """Test extracting the main JSON when multiple exist."""
         text = '''Some text {"questions": [...]} more text {"other": "data"}'''
         # Should find the widest balanced {} slice
-        result = _extract_json(text)
+        _extract_json(text)
         # Result may vary, but shouldn't crash
-        pass
 
 
 class TestSelectQuestionsRandom:

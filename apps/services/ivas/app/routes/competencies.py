@@ -12,7 +12,6 @@ from app.schemas.competency import (
     CreateCompetencyRequest,
     GenerateCompetenciesRequest,
     GenerateCompetenciesResponse,
-    GeneratedCompetency,
     OverrideScoreRequest,
     SetCompetenciesRequest,
 )

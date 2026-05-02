@@ -1,10 +1,9 @@
 """PostgreSQL client for IVAS Service."""
 
+import asyncpg
 from json import dumps as json_dumps, loads as json_loads
 from urllib.parse import urlparse, urlunparse
 from uuid import UUID
-
-import asyncpg
 
 from app.logging_config import get_logger
 
@@ -22,16 +21,16 @@ class PostgresClient:
         """Create connection pool."""
         parsed = urlparse(self._dsn)
         db_name = parsed.path.lstrip("/")
-        
+
         logger.info(
             "postgres_connecting",
             host=parsed.hostname,
             port=parsed.port,
             database=db_name,
         )
-        
+
         await self._ensure_database_exists(parsed, db_name)
-        
+
         self._pool = await asyncpg.create_pool(
             dsn=self._dsn,
             min_size=2,
