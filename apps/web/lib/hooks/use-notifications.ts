@@ -21,6 +21,9 @@ export function useNotifications() {
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Store connect function for reconnect logic
+  const connectRef = useRef<() => void>(null);
+
   const connect = useCallback(() => {
     if (!accessToken || !isAuthenticated) return;
 
@@ -70,11 +73,16 @@ export function useNotifications() {
       }
       reconnectTimeoutRef.current = setTimeout(() => {
         if (isAuthenticated && accessToken) {
-          connect();
+          connectRef.current();
         }
       }, 5000);
     };
   }, [accessToken, isAuthenticated, setConnected, addNotification, setUnreadCount]);
+
+  // Store connect function ref after definition for reconnect logic
+  React.useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   useEffect(() => {
     if (isAuthenticated && accessToken) {

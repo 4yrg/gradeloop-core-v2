@@ -56,8 +56,8 @@ func (h *NotificationHandler) List(c fiber.Ctx) error {
 
 	return c.JSON(dto.ListNotificationsResponse{
 		Notifications: items,
-		Total:        total,
-		Page:         page,
+		Total:         total,
+		Page:          page,
 		PerPage:       perPage,
 	})
 }
