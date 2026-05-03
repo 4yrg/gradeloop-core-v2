@@ -4,30 +4,37 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-interface SliderProps extends React.InputHTMLAttributes<HTMLInputElement> {
+interface SliderProps {
   value?: number[]
   onValueChange?: (value: number[]) => void
+  defaultValue?: number[]
   max?: number
   step?: number
+  className?: string
 }
 
 const Slider = React.forwardRef<HTMLInputElement, SliderProps>(
-  ({ className, value = [0], onValueChange, max = 100, step = 1, ...props }, ref) => {
-    const currentValue = value[0] ?? 0
+  ({ className, value, defaultValue = [0], onValueChange, max = 100, step = 1 }, ref) => {
+    const [internalValue, setInternalValue] = React.useState(defaultValue[0])
+    const currentValue = value !== undefined ? value[0] : internalValue
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newValue = parseInt(e.target.value, 10)
+      setInternalValue(newValue)
+      if (onValueChange) {
+        onValueChange([newValue])
+      }
+    }
 
     return (
       <div className="relative w-full">
         <input
           type="range"
           ref={ref}
-          value={String(currentValue)}
+          value={currentValue}
           max={max}
           step={step}
-          onChange={(e) => {
-            if (onValueChange) {
-              onValueChange([parseInt(e.target.value, 10)])
-            }
-          }}
+          onChange={handleChange}
           className={cn(
             "w-full h-2 bg-[hsl(var(--shell-sidebar-fg))]/10 rounded-full appearance-none cursor-pointer",
             "[&::-webkit-slider-thumb]:appearance-none",
@@ -45,7 +52,6 @@ const Slider = React.forwardRef<HTMLInputElement, SliderProps>(
             "[&::-moz-range-thumb]:border-0",
             className
           )}
-          {...props}
         />
       </div>
     )
