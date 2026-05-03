@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useParams } from "next/navigation";
 import {
-  ShieldCheck,
   Shield,
   Loader2,
   RotateCcw,

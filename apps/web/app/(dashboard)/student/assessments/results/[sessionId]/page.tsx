@@ -10,7 +10,6 @@ import {
     Clock,
     XCircle,
     ArrowLeft,
-    User,
     MessageSquare,
     Star,
     BookOpen,
@@ -24,7 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { ivasApi } from "@/lib/ivas-api";
 import type { SessionDetail, GradedQA, Transcript, CompetencyScoreOut } from "@/types/ivas";
 
