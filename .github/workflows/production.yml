@@ -169,6 +169,8 @@ jobs:
             context: apps/services/assessment
           - service: cipas-xai
             context: apps/services/cipas-xai
+          - service: notification
+            context: apps/services/notification
     steps:
       - uses: actions/checkout@v4
 
@@ -358,6 +360,11 @@ jobs:
       RUNTIME: docker
       COMPOSE_FILE: "infra/compose/compose.prod.images.yaml"
       GHCR_PACKAGE_PREFIX: ${{ vars.GHCR_PACKAGE_PREFIX || '4yrg' }}
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: 587
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
+      EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -367,7 +374,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           command_timeout: 30m
           timeout: 120s
-          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN
+          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN,SMTP_HOST,SMTP_PORT,SMTP_USER,SMTP_PASS,EMAIL_FROM
           script: |
             set -e
 
@@ -534,7 +541,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           command_timeout: 30m
           timeout: 120s
-          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN
+          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN,SMTP_HOST,SMTP_PORT,SMTP_USER,SMTP_PASS,EMAIL_FROM
           script: |
             set -e
 
