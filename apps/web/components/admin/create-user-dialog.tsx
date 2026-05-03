@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { UserPlus, User, Mail, Shield, Badge } from 'lucide-react';
+import { User, Mail, Shield, Badge } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -16,7 +16,6 @@ import { Label } from '@/components/ui/label';
 import { usersApi, handleApiError } from '@/lib/api/users';
 import { toast } from '@/lib/hooks/use-toast';
 import type { CreateUserRequest, CreateUserResponse, FormErrors } from '@/types/admin.types';
-import { USER_TYPES } from '@/types/auth.types';
 import { cn } from '@/lib/utils/cn';
 
 interface Props {
