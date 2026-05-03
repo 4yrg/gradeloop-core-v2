@@ -165,10 +165,10 @@
         /* Deep navy text */
 
         /* --- Brand / Interactive --- */
-        --primary: 142 71% 45%;
-        /* Brand Green */
-        --primary-foreground: 210 20% 98%;
-        /* Light text on primary */
+        --primary: 150 69% 48%;
+        /* Brand Green #26d07c */
+        --primary-foreground: 150 85% 7%;
+        /* Dark text on primary */
 
         /* --- Secondary & Muted --- */
         --secondary: 142 70% 95%;
@@ -306,24 +306,25 @@
         /* steel blue      #3B82F6 */
 
         /* -------------------------------------------------------------------
-           SIDEBAR TOKENS — Light
+           SHELL TOKENS — Base
         ------------------------------------------------------------------- */
-        --sidebar-background: 220 14% 96%;
-        /* Light gray sidebar */
-        --sidebar-foreground: 224 71.4% 4.1%;
-        /* Deep navy text */
-        --sidebar-primary: 248 89% 63%;
-        /* Brand indigo */
-        --sidebar-primary-foreground: 210 20% 98%;
-        /* Light text */
-        --sidebar-accent: 252 100% 96%;
-        /* Soft lavender */
-        --sidebar-accent-foreground: 248 89% 63%;
-        /* Indigo text */
-        --sidebar-border: 220 13% 91%;
-        /* Light gray border */
-        --sidebar-ring: 248 89% 63%;
-        /* Indigo focus ring */
+        --shell-sidebar-width: 280px;
+        --shell-sidebar-secondary-width: 320px;
+        --shell-header-height: 64px;
+        --shell-sidebar-bg: 222 47% 11%;
+        --shell-sidebar-fg: 215 20% 75%;
+        --shell-header-bg: 222 47% 6%;
+        --shell-header-fg: 215 20% 75%;
+        --shell-border: 222 47% 12%;
+
+        --sidebar-background: var(--shell-sidebar-bg);
+        --sidebar-foreground: var(--shell-sidebar-fg);
+        --sidebar-primary: 150 69% 48%;
+        --sidebar-primary-foreground: 150 85% 7%;
+        --sidebar-accent: 222 47% 15%;
+        --sidebar-accent-foreground: 210 20% 98%;
+        --sidebar-border: var(--shell-border);
+        --sidebar-ring: 150 69% 48%;
     }
 
     /* -----------------------------------------------------------------------
@@ -348,9 +349,9 @@
         /* Light text */
 
         /* --- Brand / Interactive - NEW Emerald Green Palette --- */
-        --primary: 152 71% 60%;
-        /* Brighter emerald for dark mode */
-        --primary-foreground: 152 85% 7%;
+        --primary: 150 69% 48%;
+        /* Brand Green #26d07c */
+        --primary-foreground: 150 85% 7%;
         /* Dark text on primary */
 
         --primary-container: 152 68% 26%;
@@ -590,7 +591,7 @@
         background-color: hsl(var(--background));
         color: hsl(var(--foreground));
         font-family:
-            var(--font-inter), ui-sans-serif, system-ui,
+            var(--font-red-hat-display), ui-sans-serif, system-ui,
             sans-serif;
         font-feature-settings:
             "rlig" 1,
@@ -600,10 +601,10 @@
     }
 
     .font-body {
-        font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+        font-family: var(--font-red-hat-display), ui-sans-serif, system-ui, sans-serif;
     }
 
-    /* Headings — Montserrat */
+    /* Headings */
     h1,
     h2,
     h3,
@@ -611,7 +612,7 @@
     h5,
     h6,
     .font-heading {
-        font-family: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
+        font-family: var(--font-red-hat-display), ui-sans-serif, system-ui, sans-serif;
     }
 
     /* Monospace — code blocks, logs, diffs */
@@ -671,12 +672,12 @@
    ========================================================================== */
 
 @theme inline {
-    /* Fonts - Updated with Space Grotesk */
-    --font-heading: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
-    --font-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-    --font-h3: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
-    --font-h2: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
-    --font-label-caps: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+    /* Fonts - Updated with Red Hat Display */
+    --font-heading: var(--font-red-hat-display), ui-sans-serif, system-ui, sans-serif;
+    --font-body: var(--font-red-hat-display), ui-sans-serif, system-ui, sans-serif;
+    --font-h3: var(--font-red-hat-display), ui-sans-serif, system-ui, sans-serif;
+    --font-h2: var(--font-red-hat-display), ui-sans-serif, system-ui, sans-serif;
+    --font-label-caps: var(--font-red-hat-display), ui-sans-serif, system-ui, sans-serif;
 
     /* Core surfaces */
     --color-background: hsl(var(--background));
@@ -892,14 +893,14 @@
 }
 
 :root {
-    --sidebar: hsl(0 0% 98%);
-    --sidebar-foreground: hsl(240 5.3% 26.1%);
-    --sidebar-primary: hsl(240 5.9% 10%);
-    --sidebar-primary-foreground: hsl(0 0% 98%);
-    --sidebar-accent: hsl(240 4.8% 95.9%);
-    --sidebar-accent-foreground: hsl(240 5.9% 10%);
-    --sidebar-border: hsl(220 13% 91%);
-    --sidebar-ring: hsl(217.2 91.2% 59.8%);
+    --sidebar: hsl(222 47% 11%);
+    --sidebar-foreground: hsl(215 20% 75%);
+    --sidebar-primary: hsl(150 69% 48%);
+    --sidebar-primary-foreground: hsl(150 85% 7%);
+    --sidebar-accent: hsl(222 47% 15%);
+    --sidebar-accent-foreground: hsl(210 20% 98%);
+    --sidebar-border: hsl(222 47% 12%);
+    --sidebar-ring: hsl(150 69% 48%);
 }
 
 .dark {

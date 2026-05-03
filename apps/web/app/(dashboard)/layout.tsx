@@ -38,7 +38,11 @@ export default function DashboardLayout({
 
         {/* Main Content */}
         <div className="flex flex-1 flex-col overflow-hidden">
-          <Topbar onMenuClick={() => setMobileMenuOpen(true)} />
+          <Topbar 
+            onMenuClick={() => setMobileMenuOpen(true)} 
+            sidebarCollapsed={sidebarCollapsed}
+            onSidebarCollapsedChange={setSidebarCollapsed}
+          />
 
           <main className="flex-1 overflow-hidden bg-background">
             <ScrollArea className="h-full">

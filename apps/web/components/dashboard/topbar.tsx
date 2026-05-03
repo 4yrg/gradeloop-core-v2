@@ -2,9 +2,12 @@
 
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Search, Bell, Menu, LayoutGrid, Check, X } from "lucide-react";
+import Link from "next/link";
+import { Search, Bell, Menu, LayoutGrid, Check, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +20,7 @@ import { useAuthStore } from "@/lib/stores/authStore";
 import { useUIStore } from "@/lib/stores/uiStore";
 import { useNotificationStore } from "@/lib/stores/notificationStore";
 import { useNotifications } from "@/lib/hooks/use-notifications";
+import { useLogoutMutation } from "@/lib/hooks/useAuthMutation";
 import type { Notification } from "@/types/notification.types";
 
 function formatTimeAgo(dateString: string): string {
@@ -67,14 +71,17 @@ function getNotificationRoute(notification: Notification): string | null {
 
 interface TopbarProps {
   onMenuClick?: () => void;
+  sidebarCollapsed?: boolean;
+  onSidebarCollapsedChange?: (collapsed: boolean) => void;
   className?: string;
 }
 
-export function Topbar({ onMenuClick, className }: TopbarProps) {
+export function Topbar({ onMenuClick, sidebarCollapsed, onSidebarCollapsedChange, className }: TopbarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const pageTitle = useUIStore((s) => s.pageTitle);
+  const { mutate: logout, isLoading: isLoggingOut } = useLogoutMutation();
 
   useNotifications();
 
@@ -90,6 +97,16 @@ export function Topbar({ onMenuClick, className }: TopbarProps) {
     : "Dashboard";
 
   const currentPath = pageTitle || pathDerivedTitle;
+
+  const displayName = user?.full_name || user?.email || "—";
+  const initials = user?.full_name
+    ? user.full_name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase()
+    : user?.email?.slice(0, 2).toUpperCase() || "??";
 
   return (
     <header
@@ -108,17 +125,37 @@ export function Topbar({ onMenuClick, className }: TopbarProps) {
           <Menu className="h-5 w-5" />
         </Button>
 
-        <div className="hidden md:flex items-center gap-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <LayoutGrid className="h-5 w-5" />
-          </div>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onSidebarCollapsedChange?.(!sidebarCollapsed)}
+            className="h-10 w-10 rounded-xl hover:bg-accent transition-colors"
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {sidebarCollapsed ? (
+              <ChevronRight className="h-5 w-5" />
+            ) : (
+              <ChevronLeft className="h-5 w-5" />
+            )}
+          </Button>
           <div>
-            <h1 className="text-lg font-bold font-heading">{currentPath}</h1>
+            <h1 className="text-lg font-bold font-[family-name:var(--font-red-hat-display)]">{currentPath}</h1>
             <p className="text-xs text-muted-foreground flex items-center gap-2">
-              <span className="flex h-2 w-2 rounded-full bg-emerald-500"></span>
+              <span className="flex h-2 w-2 rounded-full bg-primary"></span>
               Workspace Active
             </p>
           </div>
+        </div>
+      </div>
+
+      <div className="hidden md:flex flex-1 max-w-md mx-8">
+        <div className="relative w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search..."
+            className="w-full pl-10 bg-muted/50 border-0 rounded-xl font-[family-name:var(--font-red-hat-display)]"
+          />
         </div>
       </div>
 
@@ -143,7 +180,7 @@ export function Topbar({ onMenuClick, className }: TopbarProps) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-80 rounded-xl shadow-lg border-border">
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-              <h4 className="font-semibold font-heading">Notifications</h4>
+              <h4 className="font-semibold font-[family-name:var(--font-red-hat-display)]">Notifications</h4>
               {unreadCount > 0 && (
                 <Button
                   variant="ghost"
@@ -222,6 +259,44 @@ export function Topbar({ onMenuClick, className }: TopbarProps) {
                 </p>
               </div>
             )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              className="relative h-9 w-9 rounded-full hover:bg-accent hover:text-accent-foreground transition-colors p-0"
+            >
+              <Avatar className="h-9 w-9 ring-2 ring-primary/20">
+                <AvatarFallback className="bg-primary/20 text-primary text-sm font-medium">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <span className="sr-only">Profile</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56 rounded-xl shadow-lg border-border">
+            <div className="px-3 py-2">
+              <p className="text-sm font-medium font-[family-name:var(--font-red-hat-display)]">{displayName}</p>
+              <p className="text-xs text-muted-foreground">{user?.email}</p>
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/profile" className="flex w-full cursor-pointer items-center">
+                Profile
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem>Settings</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => logout()}
+              disabled={isLoggingOut}
+              className="text-red-600 gap-2 cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+              {isLoggingOut ? "Logging out…" : "Log out"}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
