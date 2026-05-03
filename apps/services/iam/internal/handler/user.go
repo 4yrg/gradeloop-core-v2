@@ -57,6 +57,10 @@ func (h *UserHandler) GetUsers(c fiber.Ctx) error {
 	}
 
 	userType := c.Query("user_type", "all")
+	// Don't filter by user_type if "all" is passed
+	if userType == "all" {
+		userType = ""
+	}
 	search := c.Query("search", "")
 
 	response, err := h.userService.GetUsers(c.RequestCtx(), page, limit, userType, search)
