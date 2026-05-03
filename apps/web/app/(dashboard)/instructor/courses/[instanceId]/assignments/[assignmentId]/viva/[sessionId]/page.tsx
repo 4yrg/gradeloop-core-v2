@@ -169,7 +169,12 @@ function CodeBlock({ code }: { code: string }) {
     );
 }
 
-function QuestionCard({ item }: { item: GradedQA }) {
+function QuestionCard({ item, sessionId, onScoreUpdated }: { item: GradedQA; sessionId: string; onScoreUpdated: () => void }) {
+    const { addToast } = useToast();
+    const [editing, setEditing] = React.useState(false);
+    const [editScore, setEditScore] = React.useState<number | null>(item.score);
+    const [editJustification, setEditJustification] = React.useState<string>(item.score_justification ?? "");
+    const [saving, setSaving] = React.useState(false);
     const max = item.max_score ?? 10;
     const pct = item.score !== null && max > 0 ? (item.score / max) * 100 : 0;
 
@@ -177,6 +182,30 @@ function QuestionCard({ item }: { item: GradedQA }) {
         pct >= 80 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400" :
         pct >= 60 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400" :
         "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400";
+
+    async function handleSave() {
+        if (editScore === null) return;
+        try {
+            setSaving(true);
+            const result = await ivasApi.updateQuestionScore(sessionId, item.sequence_num, {
+                new_score: editScore,
+                new_score_justification: editJustification || undefined,
+            });
+            setEditing(false);
+            // Update local item references so the display updates immediately
+            item.score = result.graded_qa.find(q => q.sequence_num === item.sequence_num)?.score ?? editScore;
+            item.score_justification = result.graded_qa.find(q => q.sequence_num === item.sequence_num)?.score_justification ?? editJustification;
+            onScoreUpdated();
+        } catch (err) {
+            addToast({
+                title: "Update failed",
+                variant: "error",
+                description: err instanceof Error ? err.message : "Could not save score.",
+            });
+        } finally {
+            setSaving(false);
+        }
+    }
 
     return (
         <div className="border border-border/60 rounded-xl p-5 space-y-4">
@@ -188,12 +217,72 @@ function QuestionCard({ item }: { item: GradedQA }) {
                     </span>
                     <p className="text-sm font-medium leading-snug">{item.question_text}</p>
                 </div>
-                {item.score !== null && (
-                    <div className={`rounded-full px-3 py-1.5 text-sm font-bold shrink-0 ${scoreColor}`}>
-                        {item.score}/{max}
+                {item.score !== null && !editing && (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        <div className={`rounded-full px-3 py-1.5 text-sm font-bold ${scoreColor}`}>
+                            {item.score}/{max}
+                        </div>
+                        <Button size="sm" variant="ghost" onClick={() => {
+                            setEditScore(item.score);
+                            setEditJustification(item.score_justification ?? "");
+                            setEditing(true);
+                        }} className="gap-1 h-7 w-7 p-0">
+                            <Edit2 className="h-3.5 w-3.5" />
+                        </Button>
                     </div>
                 )}
             </div>
+
+            {/* Edit mode: score + justification inputs */}
+            {editing && (
+                <div className="space-y-3 border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/10 rounded-lg p-4">
+                    <div>
+                        <p className="text-xs text-muted-foreground mb-1 font-medium">Score</p>
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="number"
+                                min={0}
+                                max={max}
+                                step={0.1}
+                                value={editScore ?? 0}
+                                onChange={e => {
+                                    const val = parseFloat(e.target.value);
+                                    if (!isNaN(val) && val >= 0 && val <= max) {
+                                        setEditScore(val);
+                                    }
+                                }}
+                                className="w-20 h-9 rounded-md border border-input bg-background px-2 text-sm text-center"
+                                autoFocus
+                            />
+                            <span className="text-sm text-muted-foreground">/ {max}</span>
+                        </div>
+                    </div>
+                    <div>
+                        <p className="text-xs text-muted-foreground mb-1 font-medium">Grading rationale</p>
+                        <textarea
+                            value={editJustification}
+                            onChange={e => setEditJustification(e.target.value)}
+                            rows={3}
+                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y"
+                        />
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            size="sm"
+                            onClick={() => void handleSave()}
+                            disabled={saving || editScore === null}
+                            className="gap-1"
+                        >
+                            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                            {saving ? "Saving…" : "Save"}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditing(false)} className="gap-1">
+                            <X className="h-3.5 w-3.5" />
+                            Cancel
+                        </Button>
+                    </div>
+                </div>
+            )}
 
             {/* Answer */}
             {item.response_text && (
@@ -205,8 +294,8 @@ function QuestionCard({ item }: { item: GradedQA }) {
                 </div>
             )}
 
-            {/* Justification */}
-            {item.score_justification && (
+            {/* Justification (when not editing) */}
+            {!editing && item.score_justification && (
                 <div className="border-l-2 border-amber-400 pl-3.5">
                     <p className="text-xs text-muted-foreground mb-1 font-medium">Grading rationale</p>
                     <p className="text-sm italic text-amber-700 dark:text-amber-400 leading-relaxed">
@@ -506,6 +595,15 @@ export default function InstructorVivaReviewPage() {
         return () => { mounted = false; };
     }, [sessionId]);
 
+    async function handleQuestionScoreUpdated() {
+        try {
+            const refreshed = await ivasApi.getSessionDetails(sessionId);
+            setDetails(refreshed);
+        } catch (err) {
+            // Silently fail — the QuestionCard already shows a save success state
+        }
+    }
+
     async function handleRegrade() {
         if (!details || regrading) return;
         setRegrading(true);
@@ -746,7 +844,7 @@ export default function InstructorVivaReviewPage() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {graded_qa.map((item: GradedQA) => (
-                            <QuestionCard key={item.sequence_num} item={item} />
+                            <QuestionCard key={item.sequence_num} item={item} sessionId={sessionId} onScoreUpdated={handleQuestionScoreUpdated} />
                         ))}
                     </CardContent>
                 </Card>

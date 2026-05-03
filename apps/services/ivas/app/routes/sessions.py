@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from app.logging_config import get_logger
 from app.schemas.session import (
     GradedQAOut,
+    QuestionScoreUpdate,
     SessionCreate,
     SessionDetailOut,
     SessionOut,
@@ -86,6 +87,52 @@ async def delete_session(session_id: UUID) -> None:
     deleted = await db.delete_session(session_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Session not found.")
+
+
+@router.patch("/{session_id}/questions/{sequence_num}/score", response_model=SessionDetailOut)
+async def update_question_score(
+    session_id: UUID,
+    sequence_num: int,
+    body: QuestionScoreUpdate,
+) -> SessionDetailOut:
+    """Edit the AI-assigned score and justification for a single question.
+
+    Cascades the edit into session total (sum of all per-question scores)
+    and per-competency averages so every aggregate stays consistent.
+    """
+    db = _get_db()
+
+    session = await db.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found.")
+    if session.get("status") != "completed":
+        raise HTTPException(status_code=400, detail="Can only edit scores of completed sessions.")
+
+    updated = await db.update_question_score(
+        session_id, sequence_num, body.new_score, body.new_score_justification,
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="Question not found for this session.")
+
+    graded_rows = await db.list_graded_qa(session_id)
+
+    total = sum(float(r["score"] or 0) for r in graded_rows)
+    max_possible = sum(float(r["max_score"] or 0) for r in graded_rows)
+    await db.update_session_score(session_id, total, max_possible)
+
+    await _derive_competency_scores_from_graded_qa(db, session_id, graded_rows)
+
+    session = await db.get_session(session_id)
+    transcripts = await db.list_transcripts(session_id)
+    graded_out = _build_graded_qa_list(graded_rows)
+    voice_events = await db.list_voice_auth_events(session_id)
+
+    return SessionDetailOut(
+        session=SessionOut(**session),
+        transcripts=[TranscriptOut(**t) for t in transcripts],
+        graded_qa=graded_out,
+        voice_auth_events=[VoiceAuthEventOut(**v) for v in voice_events],
+    )
 
 
 @router.post("/{session_id}/regrade", response_model=SessionOut)
@@ -259,6 +306,59 @@ async def _select_fresh_plan(
     except Exception as exc:
         logger.warning("regrade_select_fresh_failed", error=str(exc))
         return []
+
+
+def _build_graded_qa_list(graded_rows: list[dict]) -> list[GradedQAOut]:
+    return [
+        GradedQAOut(
+            sequence_num=g["sequence_num"],
+            question_text=g["question_text"],
+            response_text=g.get("response_text"),
+            score=float(g["score"]) if g.get("score") is not None else None,
+            max_score=float(g["max_score"]) if g.get("max_score") is not None else 10.0,
+            score_justification=g.get("score_justification"),
+        )
+        for g in graded_rows
+    ]
+
+
+async def _derive_competency_scores_from_graded_qa(
+    db,
+    sid: UUID,
+    graded_rows: list[dict],
+) -> None:
+    """Derive per-competency avg scores from graded_qa rows (used after manual edits)."""
+    from collections import defaultdict
+
+    # graded_rows already includes qi.competency (competency name).
+    by_comp_name: dict[str, list[float]] = defaultdict(list)
+    for r in graded_rows:
+        comp_name = r.get("competency")
+        score = r.get("score")
+        if comp_name and score is not None:
+            by_comp_name[comp_name].append(float(score))
+
+    for comp_name, scores in by_comp_name.items():
+        comp = await db.get_competency_by_name(comp_name)
+        if not comp:
+            continue
+        avg = sum(scores) / len(scores)
+        try:
+            session = await db.get_session(sid)
+            student_id = (session or {}).get("student_id", "")
+            if student_id:
+                from uuid import UUID as _UUID
+
+                await db.upsert_competency_score(
+                    student_id=student_id,
+                    competency_id=_UUID(comp["id"]),
+                    session_id=sid,
+                    score=round(avg, 1),
+                    is_override=False,
+                    override_by=None,
+                )
+        except Exception as exc:
+            logger.warning("derive_competency_edit_failed", comp_name=comp_name, error=str(exc))
 
 
 @router.get("/{session_id}/details", response_model=SessionDetailOut)

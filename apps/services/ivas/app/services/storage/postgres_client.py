@@ -492,6 +492,35 @@ class PostgresClient:
             )
             return [dict(r) for r in rows]
 
+    async def update_question_score(
+        self,
+        session_id: UUID,
+        sequence_num: int,
+        new_score: float,
+        new_score_justification: str | None = None,
+    ) -> dict | None:
+        """Update the score and justification for a single question in a session."""
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                UPDATE student_responses
+                SET score = $3, score_justification = $4
+                WHERE id = (
+                    SELECT sr.id
+                    FROM student_responses sr
+                    JOIN question_instances qi ON sr.question_instance_id = qi.id
+                    WHERE qi.session_id = $1 AND qi.sequence_num = $2
+                    LIMIT 1
+                )
+                RETURNING id
+                """,
+                session_id,
+                sequence_num,
+                new_score,
+                new_score_justification,
+            )
+            return dict(row) if row else None
+
     async def list_graded_qa(self, session_id: UUID) -> list[dict]:
         """Return a list of graded Q&A rows (question joined with response).
 
@@ -503,6 +532,7 @@ class PostgresClient:
                 SELECT
                     qi.sequence_num,
                     qi.question_text,
+                    qi.competency,
                     qi.max_score,
                     sr.response_text,
                     sr.score,

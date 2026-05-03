@@ -29,6 +29,7 @@ import type {
     GenerateCompetenciesRequest,
     GenerateCompetenciesResponse,
     OverrideScoreRequest,
+    QuestionScoreUpdate,
 } from "@/types/ivas";
 
 const IVAS_WS_URL =
@@ -173,6 +174,11 @@ export const ivasApi = {
         ivasRequest<VivaSession>(
             `/sessions/${encodeURIComponent(sessionId)}/regrade`,
             { method: "POST" }
+        ),
+    updateQuestionScore: (sessionId: string, sequenceNum: number, body: QuestionScoreUpdate) =>
+        ivasRequest<SessionDetail>(
+            `/sessions/${encodeURIComponent(sessionId)}/questions/${sequenceNum}/score`,
+            { method: "PATCH", body: JSON.stringify(body) }
         ),
 
     // --- Voice Enrollment ---

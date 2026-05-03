@@ -347,3 +347,12 @@ export interface ChatMessage {
     /** True while transcript is still streaming for this message. */
     streaming?: boolean;
 }
+
+// ============================================================
+// Per-question score editing
+// ============================================================
+
+export interface QuestionScoreUpdate {
+    new_score: number;
+    new_score_justification?: string;
+}

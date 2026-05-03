@@ -94,6 +94,11 @@ class GradedQAOut(BaseModel):
     score_justification: str | None = None
 
 
+class QuestionScoreUpdate(BaseModel):
+    new_score: float
+    new_score_justification: str | None = None
+
+
 class SessionDetailOut(BaseModel):
     session: SessionOut
     transcripts: list[TranscriptOut] = []
