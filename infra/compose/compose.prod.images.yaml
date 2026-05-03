@@ -380,6 +380,9 @@ services:
     <<: *ghcr_image
     container_name: gradeloop-email
     restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     environment:
       - SERVER_PORT=8082
       - GRA_DB_HOST=postgres

@@ -326,6 +326,11 @@ services:
       target: dev
     container_name: gradeloop-email
     restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    env_file:
+      - ../../.env.development
     environment:
       - SERVER_PORT=${EMAIL_SVC_PORT:-8082}
       - GRA_DB_HOST=gradeloop-postgres
@@ -335,11 +340,6 @@ services:
       - EMAIL_SVC_DB_NAME=${EMAIL_SVC_DB_NAME:-email_db}
       - RABBITMQ_URL=amqp://guest:guest@gradeloop-rabbitmq:5672/
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-gradeloop_secret_key_change_me}
-      - SMTP_HOST=${SMTP_HOST:-localhost}
-      - SMTP_PORT=${SMTP_PORT:-1025}
-      - SMTP_USER=${SMTP_USER:-}
-      - SMTP_PASS=${SMTP_PASS:-}
-      - EMAIL_FROM=${EMAIL_FROM:-noreply@gradeloop.com}
     ports:
       - "8082:8082"
     depends_on:
