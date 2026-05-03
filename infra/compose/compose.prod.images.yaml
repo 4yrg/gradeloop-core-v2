@@ -245,6 +245,7 @@ services:
     restart: unless-stopped
     environment:
       - SERVER_PORT=8081
+      - FRONTEND_URL=${FRONTEND_URL:-https://app.gradeloop.space}
       - GRA_DB_HOST=postgres
       - GRA_DB_PORT=5432
       - GRA_DB_USER=${GRA_DB_USER:-postgres}
