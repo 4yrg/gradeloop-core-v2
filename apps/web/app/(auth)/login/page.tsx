@@ -12,7 +12,6 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import Image from "next/image";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -23,8 +22,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { authApi } from "@/lib/api/auth";
 import { handleApiError } from "@/lib/api/axios";
 import { useAuthStore } from "@/lib/stores/authStore";
-
-const GRADELOOP_LOGO = "https://lh3.googleusercontent.com/aida/ADBb0ugP-d8dy1zHENxaDQSUeqpN4tKVRw5B7yneXKScqh04MJAais1yPb1ZVvJTYTbUC9qwaEkTr3KNGm5nNblhQHVQOr29l9hTkKd3J_4qPhKh13pmeqzjY5RFA9s8Y1lPZMup1lNZ80NWlPqz_ZE7jNhy0vijcXezOYx1gXcMQJfi4pDlgikaJSqQPu1c0loq-K-_0G4zk1J_XeNxUdxBmN5qRnz1UniV2wryZVt9Zlb7zyej31lRGvs-CllWLJ7g00vFDnj3PSfCdg";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -44,178 +41,137 @@ export default function LoginPage() {
     const password = formData.get("password") as string;
 
     try {
-      console.log("[Login] Starting request for:", email);
-
-      const response = await authApi.login({
-        email,
-        password,
-      });
-
-      console.log("[Login] Response received:", response);
-
-      if (!response.access_token) {
-        throw new Error("No access token received from server");
-      }
-
+      const response = await authApi.login({ email, password });
+      if (!response.access_token) throw new Error("No access token received from server");
       setSession(response.access_token);
-      console.log("[Login] Session updated in store");
-
-      const path = useAuthStore.getState().getRedirectPath();
-      console.log("[Login] Redirecting to:", path);
-
-      router.push(path);
+      router.push(useAuthStore.getState().getRedirectPath());
       toast.success("Successfully signed in!");
     } catch (err) {
-      console.error("[Login] Exception:", err);
       const errorMessage = handleApiError(err);
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
-      console.log("[Login] Process ended");
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="w-full max-w-[440px] bg-white rounded-xl border border-slate-200/60 shadow-xl shadow-slate-200/40 p-10 relative overflow-hidden">
-      {/* Glassmorphism Accent */}
-      <div className="absolute -top-20 -right-20 w-40 h-40 bg-primary-container/10 rounded-full blur-3xl" />
-
-      <div className="flex flex-col items-center mb-10">
-        <img
-          alt="Gradeloop System Logo"
-          className="w-20 h-20 mb-6 object-contain"
-          src={GRADELOOP_LOGO}
-        />
-        <h1 className="font-[family-name:var(--font-space-grotesk)] text-3xl font-semibold text-on-surface mb-2">
-          Welcome Back
-        </h1>
-        <p className="text-on-surface-variant font-[family-name:var(--font-inter)] text-center">
-          Continue your journey toward technical mastery.
-        </p>
-      </div>
-
-      <form className="space-y-6" onSubmit={handleSubmit}>
-        {error && (
-          <div className="flex items-center gap-2 rounded-xl border border-error/20 bg-error/5 p-4 text-error">
-            <p className="text-sm font-medium">{error}</p>
+    <div className="w-full max-w-[480px] animate-in fade-in zoom-in-95 duration-500">
+      <div className="bg-auth-card border border-auth-card-border/60 rounded-2xl shadow-2xl shadow-black/20 p-8 md:p-12 relative overflow-hidden">
+        {/* Subtle Gradient Overlay */}
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-auth-button to-transparent opacity-50" />
+        
+        <div className="flex flex-col items-center mb-10 text-center">
+          <div className="w-16 h-16 mb-6 p-3 bg-auth-bg rounded-xl border border-auth-card-border flex items-center justify-center">
+            <img alt="Gradeloop Logo" src="/logo.png" className="w-full h-full object-contain" />
           </div>
-        )}
-
-        <div>
-          <Label
-            htmlFor="email"
-            className="block text-xs font-semibold text-on-surface-variant mb-2 ml-1 uppercase tracking-wider"
-          >
-            Email Address
-          </Label>
-          <div className="relative">
-            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-outline" />
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              placeholder="name@company.com"
-              required
-              disabled={isLoading}
-              className="w-full pl-12 pr-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary-container focus:border-primary-container outline-none transition-all font-[family-name:var(--font-inter)]"
-              autoComplete="email"
-            />
-          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground font-heading mb-3">
+            Welcome Back
+          </h1>
+          <p className="text-sm text-muted-foreground max-w-[280px]">
+            Enter your credentials to access your workspace.
+          </p>
         </div>
 
-        <div>
-          <div className="flex justify-between items-center mb-2">
-            <Label
-              htmlFor="password"
-              className="text-xs font-semibold text-on-surface-variant ml-1 uppercase tracking-wider"
-            >
-              Password
-            </Label>
-            <Link
-              href="/forgot-password"
-              className="text-xs font-semibold text-secondary hover:underline"
-            >
-              FORGOT?
-            </Link>
-          </div>
-          <div className="relative">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-outline" />
-            <Input
-              id="password"
-              name="password"
-              type={showPassword ? "text" : "password"}
-              placeholder="••••••••"
-              required
-              disabled={isLoading}
-              className="w-full pl-12 pr-12 py-3 bg-surface-container-lowest border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary-container focus:border-primary-container outline-none transition-all font-[family-name:var(--font-inter)]"
-              autoComplete="current-password"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface transition-colors outline-none"
-              disabled={isLoading}
-            >
-              {showPassword ? (
-                <EyeOff className="h-5 w-5" />
-              ) : (
-                <Eye className="h-5 w-5" />
-              )}
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 py-2">
-          <Checkbox
-            id="remember"
-            className="w-4 h-4 rounded border-outline-variant text-primary-container focus:ring-primary-container"
-          />
-          <label
-            htmlFor="remember"
-            className="text-sm text-on-surface-variant select-none cursor-pointer font-[family-name:var(--font-inter)]"
-          >
-            Keep me logged in
-          </label>
-        </div>
-
-        <Button
-          type="submit"
-          className="w-full py-4 bg-primary-container text-on-primary-container font-[family-name:var(--font-space-grotesk)] font-semibold rounded-lg shadow-lg shadow-primary-container/20 active:scale-[0.98] transition-all duration-200"
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <span className="flex items-center gap-2">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              Signing in...
-            </span>
-          ) : (
-            <span className="flex items-center gap-2">
-              Sign In to Dashboard <ArrowRight className="h-4 w-4" />
-            </span>
+        <form className="space-y-6" onSubmit={handleSubmit}>
+          {error && (
+            <div className="flex items-center gap-3 rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-destructive animate-in slide-in-from-top-2">
+              <span className="text-sm font-medium">{error}</span>
+            </div>
           )}
-        </Button>
-      </form>
 
-      <div className="mt-8 pt-8 border-t border-slate-100 flex flex-col items-center">
-        <p className="text-sm text-on-surface-variant mb-4 font-[family-name:var(--font-inter)]">
-          Or sign in with
-        </p>
-        <div className="flex gap-4 w-full">
-          <button
-            type="button"
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-outline-variant rounded-lg hover:bg-slate-50 transition-colors font-[family-name:var(--font-space-grotesk)] text-sm"
+          <div className="space-y-2">
+            <Label htmlFor="email" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">
+              Email Address
+            </Label>
+            <div className="relative">
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="name@company.com"
+                required
+                disabled={isLoading}
+                className="h-12 pl-12 bg-auth-bg/50 border-auth-card-border focus:ring-auth-button/20 focus:border-auth-button transition-all rounded-xl"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex justify-between items-center px-1">
+              <Label htmlFor="password" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                Password
+              </Label>
+              <Link href="/forgot-password" className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 hover:text-emerald-400 transition-colors">
+                Forgot password?
+              </Link>
+            </div>
+            <div className="relative">
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••"
+                required
+                disabled={isLoading}
+                className="h-12 pl-12 pr-12 bg-auth-bg/50 border-auth-card-border focus:ring-auth-button/20 focus:border-auth-button transition-all rounded-xl"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
+                disabled={isLoading}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 py-1">
+            <Checkbox id="remember" className="border-auth-card-border data-[state=checked]:bg-auth-button data-[state=checked]:text-auth-button-foreground" />
+            <label htmlFor="remember" className="text-sm text-muted-foreground font-medium cursor-pointer select-none">
+              Keep me logged in
+            </label>
+          </div>
+
+          <Button
+            type="submit"
+            disabled={isLoading}
+            className="w-full h-12 bg-auth-button text-auth-button-foreground hover:bg-auth-button-hover font-heading font-bold rounded-xl shadow-lg shadow-auth-button/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
           >
-            <Terminal className="h-5 w-5 text-on-surface" />
-            <span>Github</span>
-          </button>
-          <button
-            type="button"
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-outline-variant rounded-lg hover:bg-slate-50 transition-colors font-[family-name:var(--font-space-grotesk)] text-sm"
-          >
-            <Code className="h-5 w-5 text-on-surface" />
-            <span>Stack</span>
-          </button>
+            {isLoading ? (
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            ) : (
+              <>Sign In to Dashboard <ArrowRight className="h-4 w-4" /></>
+            )}
+          </Button>
+        </form>
+
+        <div className="mt-10">
+          <div className="relative flex items-center justify-center mb-8">
+            <div className="absolute w-full h-[1px] bg-auth-card-border" />
+            <span className="relative px-4 bg-auth-card text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              Or continue with
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Button variant="outline" className="h-11 rounded-xl border-auth-card-border bg-auth-bg/30 hover:bg-auth-bg/60 text-xs font-bold font-heading gap-2">
+              <Terminal className="h-4 w-4" /> GITHUB
+            </Button>
+            <Button variant="outline" className="h-11 rounded-xl border-auth-card-border bg-auth-bg/30 hover:bg-auth-bg/60 text-xs font-bold font-heading gap-2">
+              <Code className="h-4 w-4" /> SSO
+            </Button>
+          </div>
+
+          <p className="mt-10 text-center text-sm text-muted-foreground">
+            Don&apos;t have an account?{" "}
+            <Link href="/register" className="text-emerald-500 font-bold hover:underline transition-all">
+              Start for free
+            </Link>
+          </p>
         </div>
       </div>
     </div>

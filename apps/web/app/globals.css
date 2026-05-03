@@ -139,9 +139,17 @@
 
         /* --- Surface Tint --- */
         --surface-tint: 152 71% 27%;
-        /* #006d3d */
         /* --- Core Surface Layers --- */
         --background: 0 0% 100%;
+
+        /* --- Auth UI Tokens --- */
+        --auth-bg: 220 33% 98%;
+        --auth-card: 0 0% 100%;
+        --auth-card-border: 220 13% 91%;
+        --auth-button: 152 62% 51%;
+        --auth-button-hover: 152 62% 45%;
+        --auth-button-foreground: 152 73% 10%;
+
         /* Pure white canvas */
         --foreground: 224 71.4% 4.1%;
         /* Deep navy text */
@@ -403,6 +411,14 @@
         --inverse-on-surface: 224 44% 10%;
 
         --surface-tint: 152 71% 60%;
+        
+        /* --- Auth UI Tokens - Dark --- */
+        --auth-bg: 222 47% 4%;
+        --auth-card: 222 47% 6%;
+        --auth-card-border: 222 47% 12%;
+        --auth-button: 152 62% 51%;
+        --auth-button-hover: 152 62% 60%;
+        --auth-button-foreground: 152 73% 10%;
 
         /* --- Error --- */
         --error: 0 100% 63%;
@@ -734,6 +750,14 @@
 
     /* Surface Tint */
     --color-surface-tint: hsl(var(--surface-tint));
+
+    /* Auth UI Colors */
+    --color-auth-bg: hsl(var(--auth-bg));
+    --color-auth-card: hsl(var(--auth-card));
+    --color-auth-card-border: hsl(var(--auth-card-border));
+    --color-auth-button: hsl(var(--auth-button));
+    --color-auth-button-hover: hsl(var(--auth-button-hover));
+    --color-auth-button-foreground: hsl(var(--auth-button-foreground));
 
     /* Secondary / Muted - Legacy (keeping for compatibility) */
     --color-muted: hsl(var(--muted));
