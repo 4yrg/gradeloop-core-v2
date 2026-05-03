@@ -365,6 +365,7 @@ jobs:
       SMTP_USER: ${{ secrets.SMTP_USER }}
       SMTP_PASS: ${{ secrets.SMTP_PASS }}
       EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+      JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -374,7 +375,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           command_timeout: 30m
           timeout: 120s
-          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN,SMTP_HOST,SMTP_PORT,SMTP_USER,SMTP_PASS,EMAIL_FROM
+          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN,SMTP_HOST,SMTP_PORT,SMTP_USER,SMTP_PASS,EMAIL_FROM,JWT_SECRET_KEY
           script: |
             set -e
 
