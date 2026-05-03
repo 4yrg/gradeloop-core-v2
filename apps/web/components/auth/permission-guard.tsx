@@ -4,7 +4,7 @@
  * PermissionGuard – conditionally renders children based on user type access.
  *
  * Note: This component now uses user types instead of fine-grained permissions.
- * Use 'admin' or 'super_admin' for admin access, 'instructor' for instructor access, etc.
+ * Use 'admin' for admin access, 'instructor' for instructor access, etc.
  *
  * By default, ANY of the provided user types is sufficient (`requireAll = false`).
  * Pass `requireAll` to enforce that ALL listed types must be present.

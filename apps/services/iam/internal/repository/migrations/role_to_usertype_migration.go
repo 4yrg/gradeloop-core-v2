@@ -22,7 +22,6 @@ func MigrateRoleToUserType(db *gorm.DB) error {
 	// Migration mapping from role names to user types
 	// This should match your existing role names in the database
 	roleMapping := map[string]string{
-		"super_admin": "super_admin",
 		"admin":       "admin",
 		"student":     "student",
 		"employee":    "instructor", // Map employee to instructor

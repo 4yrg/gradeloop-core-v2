@@ -62,27 +62,22 @@ func RequireUserType(allowedUserTypes ...string) fiber.Handler {
 	}
 }
 
-// RequireAdmin creates a middleware that requires admin or super_admin access
+// RequireAdmin creates a middleware that requires admin access
 func RequireAdmin() fiber.Handler {
-	return RequireUserType(domain.UserTypeAdmin, domain.UserTypeSuperAdmin)
+	return RequireUserType(domain.UserTypeAdmin)
 }
 
-// RequireSuperAdmin creates a middleware that requires super_admin access
-func RequireSuperAdmin() fiber.Handler {
-	return RequireUserType(domain.UserTypeSuperAdmin)
-}
-
-// RequireInstructor creates a middleware that requires instructor, admin or super_admin access
+// RequireInstructor creates a middleware that requires instructor or admin access
 func RequireInstructor() fiber.Handler {
-	return RequireUserType(domain.UserTypeInstructor, domain.UserTypeAdmin, domain.UserTypeSuperAdmin)
+	return RequireUserType(domain.UserTypeInstructor, domain.UserTypeAdmin)
 }
 
 // RequireStudent creates a middleware that requires student access (or higher)
 func RequireStudent() fiber.Handler {
-	return RequireUserType(domain.UserTypeStudent, domain.UserTypeInstructor, domain.UserTypeAdmin, domain.UserTypeSuperAdmin)
+	return RequireUserType(domain.UserTypeStudent, domain.UserTypeInstructor, domain.UserTypeAdmin)
 }
 
-// RequireNonStudent creates a middleware that requires instructor/admin/super_admin access (excludes students)
+// RequireNonStudent creates a middleware that requires instructor or admin access (excludes students)
 func RequireNonStudent() fiber.Handler {
-	return RequireUserType(domain.UserTypeInstructor, domain.UserTypeAdmin, domain.UserTypeSuperAdmin)
+	return RequireUserType(domain.UserTypeInstructor, domain.UserTypeAdmin)
 }

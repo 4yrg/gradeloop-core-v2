@@ -13,7 +13,7 @@ interface InstructorGuardProps {
  * Protects routes under /instructor.
  *
  * - Unauthenticated users → /login
- * - Admin / super_admin → /admin  (admins have their own dashboard)
+ * - Admin → /admin  (admins have their own dashboard)
  * - instructor → render children
  * - Any other user type (e.g. student) → access-denied screen
  */
@@ -23,7 +23,7 @@ export function InstructorGuard({ children }: InstructorGuardProps) {
 
     const userType = user?.user_type?.toLowerCase().trim() ?? "";
     const isInstructor = userType === "instructor";
-    const isAdmin = userType === "admin" || userType === "super_admin";
+    const isAdmin = userType === "admin";
 
     useEffect(() => {
         if (!isHydrated || isLoading) return;

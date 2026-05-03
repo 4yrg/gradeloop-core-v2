@@ -11,41 +11,11 @@ import (
 )
 
 func Seed(db *gorm.DB) error {
-	log.Println("Seeding super admin...")
-	superAdminEmail := "superadmin@gradeloop.com"
-	superAdminPassword := "Strong#Pass123!"
-
-	var user domain.User
-	if err := db.Where("email = ?", superAdminEmail).First(&user).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			hashedPassword, err := bcrypt.GenerateFromPassword([]byte(superAdminPassword), bcrypt.DefaultCost)
-			if err != nil {
-				return fmt.Errorf("failed to hash password: %w", err)
-			}
-
-			user = domain.User{
-				ID:           uuid.New(),
-				Email:        superAdminEmail,
-				PasswordHash: string(hashedPassword),
-				UserType:     "super_admin",
-				IsActive:     true,
-			}
-
-			if err := db.Create(&user).Error; err != nil {
-				return fmt.Errorf("failed to create super admin: %w", err)
-			}
-			log.Printf("Created super admin user: %s", superAdminEmail)
-		} else {
-			return fmt.Errorf("failed to check super admin: %w", err)
-		}
-	} else {
-		log.Printf("Super admin already exists: %s", superAdminEmail)
-	}
-
 	log.Println("Seeding admin...")
 	adminEmail := "admin@gradeloop.com"
 	adminPassword := "Strong#Pass123!"
 
+	var user domain.User
 	if err := db.Where("email = ?", adminEmail).First(&user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			hashedPassword, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
@@ -56,6 +26,7 @@ func Seed(db *gorm.DB) error {
 			user = domain.User{
 				ID:           uuid.New(),
 				Email:        adminEmail,
+				FullName:     "System Admin",
 				PasswordHash: string(hashedPassword),
 				UserType:     "admin",
 				IsActive:     true,

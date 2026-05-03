@@ -15,7 +15,7 @@ interface AdminGuardProps {
  * - Unauthenticated users → /login
  * - Instructor → /instructor  (instructors have their own dashboard)
  * - Student → /student  (students have their own dashboard)
- * - admin / super_admin → render children
+ * - admin → render children
  * - Any other user type → access-denied screen
  */
 export function AdminGuard({ children }: AdminGuardProps) {
@@ -23,7 +23,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
     const { user, isHydrated, isLoading, isAuthenticated } = useAuthStore();
 
     const userType = user?.user_type?.toLowerCase().trim() ?? "";
-    const isAdmin = userType === "admin" || userType === "super_admin";
+    const isAdmin = userType === "admin";
     const isInstructor = userType === "instructor";
     const isStudent = userType === "student";
 
@@ -58,7 +58,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
     // Redirect in-flight
     if (!isAuthenticated || isInstructor || isStudent) return null;
 
-    // Wrong user type (not admin or super_admin)
+    // Wrong user type (not admin)
     if (!isAdmin) {
         return (
             <div className="flex h-screen flex-col items-center justify-center gap-4 text-zinc-400">

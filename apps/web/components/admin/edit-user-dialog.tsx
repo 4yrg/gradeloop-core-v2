@@ -53,7 +53,7 @@ export function EditUserDialog({ user, open, onOpenChange, onSuccess }: Props) {
     }
   }, [user, open]);
 
-  // User type determines the account category (student, instructor, admin, super_admin).
+  // User type determines the account category (student, instructor, admin).
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!user) return;

@@ -403,8 +403,8 @@ func (s *bulkImportService) validateRow(ctx context.Context, row dto.ImportUserR
 		errors = append(errors, "User Type is required")
 	} else {
 		lType := strings.ToLower(row.UserType)
-		if lType != "student" && lType != "instructor" && lType != "admin" && lType != "super_admin" {
-			errors = append(errors, "Invalid User Type (must be student, instructor, admin, or super_admin)")
+		if lType != "student" && lType != "instructor" && lType != "admin" {
+			errors = append(errors, "Invalid User Type (must be student, instructor, or admin)")
 		}
 
 		if lType == "student" && row.StudentID == "" {

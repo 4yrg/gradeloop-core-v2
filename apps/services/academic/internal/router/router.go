@@ -25,7 +25,7 @@ type Config struct {
 	JWTSecretKey            []byte
 }
 
-// requireAdminRole is a custom middleware that checks for super_admin OR admin user types
+// requireAdminRole is a custom middleware that checks for admin user types
 func requireAdminRole() fiber.Handler {
 	return func(c fiber.Ctx) error {
 		userType, ok := c.Locals("user_type").(string)
@@ -33,12 +33,12 @@ func requireAdminRole() fiber.Handler {
 			return utils.ErrForbidden("No user type found")
 		}
 
-		// Check if user has super_admin or admin user type
-		if userType == "super_admin" || userType == "admin" {
+		// Check if user has admin user type
+		if userType == "admin" {
 			return c.Next()
 		}
 
-		return utils.ErrForbidden("Requires super_admin or admin user type")
+		return utils.ErrForbidden("Requires admin user type")
 	}
 }
 
@@ -51,8 +51,8 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	// Protected routes (require authentication)
 	protected := api.Group("", middleware.AuthMiddleware(cfg.JWTSecretKey))
 
-	// Faculty routes - Super Admin only
-	faculties := protected.Group("/faculties", middleware.RequireUserType("super_admin"))
+	// Faculty routes - Admin only
+	faculties := protected.Group("/faculties", middleware.RequireUserType("admin"))
 	faculties.Post("/", cfg.FacultyHandler.CreateFaculty)
 	faculties.Get("/", cfg.FacultyHandler.ListFaculties)
 	faculties.Get("/:id", cfg.FacultyHandler.GetFaculty)
@@ -60,7 +60,7 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	faculties.Patch("/:id/deactivate", cfg.FacultyHandler.DeactivateFaculty)
 	faculties.Get("/:id/leaders", cfg.FacultyHandler.GetFacultyLeaders)
 
-	// Department routes - Super Admin OR Admin
+	// Department routes - Admin only
 	departments := protected.Group("/departments", requireAdminRole())
 	departments.Post("/", cfg.DepartmentHandler.CreateDepartment)
 	departments.Get("/", cfg.DepartmentHandler.ListDepartments)
@@ -70,11 +70,11 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	departments.Put("/:id", cfg.DepartmentHandler.UpdateDepartment)
 	departments.Patch("/:id/deactivate", cfg.DepartmentHandler.DeactivateDepartment)
 
-	// Faculty departments endpoint - Super Admin OR Admin
+	// Faculty departments endpoint - Admin only
 	facultiesAdmin := protected.Group("/faculties", requireAdminRole())
 	facultiesAdmin.Get("/:id/departments", cfg.DepartmentHandler.ListDepartmentsByFaculty)
 
-	// Degree routes - Super Admin OR Admin
+	// Degree routes - Admin only
 	degrees := protected.Group("/degrees", requireAdminRole())
 	degrees.Post("/", cfg.DegreeHandler.CreateDegree)
 	degrees.Get("/", cfg.DegreeHandler.ListDegrees)
@@ -84,7 +84,7 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	// List specializations for a degree
 	degrees.Get("/:id/specializations", cfg.SpecializationHandler.ListSpecializationsByDegree)
 
-	// Specialization routes - Super Admin OR Admin
+	// Specialization routes - Admin only
 	specializations := protected.Group("/specializations", requireAdminRole())
 	specializations.Post("/", cfg.SpecializationHandler.CreateSpecialization)
 	specializations.Get("/:id", cfg.SpecializationHandler.GetSpecialization)
@@ -92,7 +92,7 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	specializations.Patch("/:id/deactivate", cfg.SpecializationHandler.DeactivateSpecialization)
 
 	// ─────────────────────────────────────────────────────────────────────────
-	// Batch / Group routes - Super Admin OR Admin
+	// Batch / Group routes - Admin only
 	// NOTE: /batches/tree must be registered BEFORE /batches/:id to avoid
 	// Fiber treating "tree" as a UUID parameter.
 	// ─────────────────────────────────────────────────────────────────────────
@@ -171,13 +171,13 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	semesters.Patch("/:id/deactivate", cfg.SemesterHandler.DeactivateSemester)
 
 	// ─────────────────────────────────────────────────────────────────────────
-	// Instructor-scoped routes (instructor + admin + super_admin)
+	// Instructor-scoped routes (instructor + admin)
 	// PathPrefix: /api/v1/instructor-courses — routed by Traefik to academic-service
 	// NOTE: static sub-paths (/me, /batches) must be registered BEFORE /:id
 	// so that Fiber doesn't interpret them as UUID parameters.
 	// ─────────────────────────────────────────────────────────────────────────────
 	instructorCourses := protected.Group("/instructor-courses",
-		middleware.RequireAnyUserType("instructor", "admin", "super_admin"))
+		middleware.RequireAnyUserType("instructor", "admin"))
 	instructorCourses.Get("/me", cfg.InstructorHandler.GetMyCourses)
 	// Static paths before /:id
 	instructorCourses.Get("/batches", cfg.InstructorHandler.ListAvailableBatches)
@@ -192,11 +192,11 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	instructorCourses.Delete("/:id/enrolled-batches/:batchID", cfg.InstructorHandler.UnenrollBatch)
 
 	// ─────────────────────────────────────────────────────────────────────────
-	// Student-scoped routes (student + admin + super_admin)
+	// Student-scoped routes (student + admin)
 	// PathPrefix: /api/v1/student-courses — routed by Traefik to academic-service
 	// ─────────────────────────────────────────────────────────────────────────
 	studentCourses := protected.Group("/student-courses",
-		middleware.RequireAnyUserType("student", "admin", "super_admin"))
+		middleware.RequireAnyUserType("student", "admin"))
 	studentCourses.Get("/me", cfg.StudentHandler.GetMyCourses)
 	studentCourses.Get("/:id", cfg.StudentHandler.GetCourseInstance)
 	studentCourses.Get("/:id/instructors", cfg.StudentHandler.GetCourseInstructors)

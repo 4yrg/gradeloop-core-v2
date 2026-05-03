@@ -22,7 +22,7 @@ export interface PaginatedResponse<T> {
 export interface ListUsersParams {
   page?: number;
   limit?: number;
-  /** Filter by user type: "all" | "student" | "instructor" | "admin" | "super_admin" */
+  /** Filter by user type: "all" | "student" | "instructor" | "admin" */
   user_type?: string;
   /** Filter by role ID */
   role_id?: string;
@@ -34,7 +34,7 @@ export interface ListUsersParams {
 export interface CreateUserRequest {
   full_name: string;
   email: string;
-  /** "student" | "instructor" | "admin" | "super_admin" */
+  /** "student" | "instructor" | "admin" */
   user_type: string;
   student_id?: string;
   designation?: string;

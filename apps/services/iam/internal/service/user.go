@@ -63,8 +63,8 @@ func NewUserService(
 }
 
 func (s *userService) CreateUser(ctx context.Context, req *dto.CreateUserRequest, actorUserType string) (*dto.CreateUserResponse, error) {
-	// Check if actor has permission to create users (only admin and super_admin)
-	if actorUserType != "admin" && actorUserType != "super_admin" {
+	// Check if actor has permission to create users (only admin)
+	if actorUserType != "admin" {
 		return nil, ErrUnauthorized
 	}
 

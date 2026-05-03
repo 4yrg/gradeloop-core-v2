@@ -129,7 +129,6 @@ func (m *Migrator) migrateUsersToUserType() error {
 			RoleName string
 			UserType string
 		}{
-			{"super_admin", "super_admin"},
 			{"admin", "admin"},
 			{"employee", "instructor"},
 			{"instructor", "instructor"},

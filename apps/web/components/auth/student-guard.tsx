@@ -13,7 +13,7 @@ interface StudentGuardProps {
  * Protects routes under /student.
  *
  * - Unauthenticated users → /login
- * - Admin / super_admin  → /admin
+ * - Admin  → /admin
  * - instructor → /instructor
  * - student → render children
  * - Any other user type → access-denied screen
@@ -25,7 +25,7 @@ export function StudentGuard({ children }: StudentGuardProps) {
     const userType = user?.user_type?.toLowerCase().trim() ?? "";
 
     const isStudent = userType === "student";
-    const isAdmin = userType === "admin" || userType === "super_admin";
+    const isAdmin = userType === "admin";
     const isInstructor = userType === "instructor";
 
     useEffect(() => {

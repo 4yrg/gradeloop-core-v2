@@ -61,7 +61,7 @@ import type {
   EnrollBatchResult,
 } from "@/types/academics.types";
 
-// ── Faculties (super_admin only) ──────────────────────────────────────────────
+// ── Faculties (admin only) ──────────────────────────────────────────────
 
 export const facultiesApi = {
   list: async (includeInactive = false): Promise<Faculty[]> => {
