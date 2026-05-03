@@ -178,7 +178,7 @@ services:
     command: kong start
     environment:
       - KONG_DATABASE=off
-      - KONG_DECLARATIVE_CONFIG=/usr/local/kong/declarative/kong.yml
+      - KONG_DECLARATIVE_CONFIG=/usr/local/kong/declarative/kong.dev.yaml
       - KONG_PROXY_ACCESS_LOG=/dev/stdout
       - KONG_ADMIN_ACCESS_LOG=/dev/stdout
       - KONG_ADMIN_LISTEN=0.0.0.0:8001
@@ -223,8 +223,8 @@ services:
       - MINIO_ACCESS_KEY=root
       - MINIO_SECRET_KEY=root
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-gradeloop_secret_key_change_me}
-    expose:
-      - "8081"
+    ports:
+      - "8081:8081"
     depends_on:
       postgres:
         condition: service_healthy
@@ -259,8 +259,8 @@ services:
       - ACADEMIC_SVC_DB_NAME=${ACADEMIC_SVC_DB_NAME:-academic_db}
       - IAM_SERVICE_URL=http://gradeloop-iam:8081
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-gradeloop_secret_key_change_me}
-    expose:
-      - "8083"
+    ports:
+      - "8083:8083"
     depends_on:
       postgres:
         condition: service_healthy
@@ -298,8 +298,8 @@ services:
       - MINIO_SECRET_KEY=root
       - RABBITMQ_URL=amqp://guest:guest@gradeloop-rabbitmq:5672/
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-gradeloop_secret_key_change_me}
-    expose:
-      - "8084"
+    ports:
+      - "8084:8084"
     depends_on:
       postgres:
         condition: service_healthy
@@ -340,8 +340,8 @@ services:
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASS=${SMTP_PASS:-}
       - EMAIL_FROM=${EMAIL_FROM:-noreply@gradeloop.com}
-    expose:
-      - "8082"
+    ports:
+      - "8082:8082"
     depends_on:
       postgres:
         condition: service_healthy
@@ -378,8 +378,8 @@ services:
       - IAM_SERVICE_URL=http://gradeloop-iam:8081
       - REDIS_URL=redis://:${REDIS_PASSWORD:-redis_pass}@gradeloop-redis:6379/1
       - PYTHONPATH=/app:/packages/python
-    expose:
-      - "8101"
+    ports:
+      - "8101:8101"
     depends_on:
       postgres:
         condition: service_healthy
@@ -411,8 +411,8 @@ services:
     volumes:
       - ../../apps/services/acafs:/app
       - ../../packages/python:/packages/python
-    expose:
-      - "8102"
+    ports:
+      - "8102:8102"
     depends_on:
       postgres:
         condition: service_healthy
@@ -443,8 +443,8 @@ services:
     volumes:
       - ../../apps/services/keystroke:/app
       - ../../packages/python:/packages/python
-    expose:
-      - "8103"
+    ports:
+      - "8103:8103"
     depends_on:
       postgres-keystroke:
         condition: service_healthy
@@ -474,8 +474,8 @@ services:
     volumes:
       - ../../apps/services/cipas-syntactics:/app
       - ../../packages/python:/packages/python
-    expose:
-      - "8106"
+    ports:
+      - "8106:8106"
     depends_on:
       postgres:
         condition: service_healthy
@@ -503,8 +503,8 @@ services:
     volumes:
       - ../../apps/services/cipas-semantics:/app
       - ../../packages/python:/packages/python
-    expose:
-      - "8105"
+    ports:
+      - "8105:8105"
     depends_on:
       postgres:
         condition: service_healthy
@@ -532,8 +532,8 @@ services:
     volumes:
       - ../../apps/services/cipas-ai:/app
       - ../../packages/python:/packages/python
-    expose:
-      - "8104"
+    ports:
+      - "8104:8104"
     depends_on:
       postgres:
         condition: service_healthy
@@ -569,8 +569,8 @@ services:
       - REDIS_URL=redis://:${REDIS_PASSWORD:-redis_pass}@gradeloop-redis:6379/0
       - IAM_SERVICE_URL=http://gradeloop-iam:8081
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-gradeloop_secret_key_change_me}
-    expose:
-      - "8086"
+    ports:
+      - "8086:8086"
     depends_on:
       postgres:
         condition: service_healthy
@@ -594,8 +594,8 @@ services:
     environment:
       - SERVER_PORT=${CIPAS_XAI_SVC_PORT:-8085}
       - LLM_API_KEY=${LLM_API_KEY:-placeholder_key_change_me}
-    expose:
-      - "8085"
+    ports:
+      - "8085:8085"
     networks:
       - gradeloop-network
     healthcheck:

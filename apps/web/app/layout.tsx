@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { Inter, Montserrat } from "next/font/google";
+import { Inter, Montserrat, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Toaster, ToastProvider } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -13,6 +14,11 @@ const inter = Inter({
 const montserrat = Montserrat({
   subsets: ["latin"],
   variable: "--font-montserrat",
+});
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-space-grotesk",
 });
 
 export const metadata: Metadata = {
@@ -26,7 +32,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${montserrat.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${montserrat.variable} ${spaceGrotesk.variable}`} suppressHydrationWarning>
       <body
         className="antialiased"
         suppressHydrationWarning
@@ -40,6 +46,7 @@ export default function RootLayout({
           <ToastProvider>
             <AuthProvider>{children}</AuthProvider>
             <Toaster />
+            <Sonner position="bottom-right" richColors />
           </ToastProvider>
         </ThemeProvider>
       </body>

@@ -523,6 +523,9 @@ services:
       key_claim_name: kid
       claims_to_verify:
       - exp
+      key_claim_name: kid
+      claims_to_verify:
+      - exp
   - name: rate-limiting
     config:
       minute: 120
@@ -530,7 +533,7 @@ services:
       fault_tolerant: true
       hide_client_headers: false
 - name: iam-service
-  url: http://iam:8081
+  url: http://gradeloop-iam:8081
   routes:
   - name: iam-auth
     paths:
@@ -593,7 +596,7 @@ services:
       fault_tolerant: true
       hide_client_headers: false
 - name: iam-login
-  url: http://iam:8081
+  url: http://gradeloop-iam:8081
   routes:
   - name: iam-login-route
     paths:
