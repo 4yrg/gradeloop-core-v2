@@ -54,22 +54,27 @@ export function ConfirmDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className={cn("sm:max-w-md", className)}>
                 <DialogHeader>
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-4 p-1">
                         {variant === "destructive" && (
-                            <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                            <div className="h-10 w-10 rounded-full bg-error/10 flex items-center justify-center shrink-0">
+                                <AlertTriangle className="h-5 w-5 text-error" />
+                            </div>
                         )}
-                        <DialogTitle>{title}</DialogTitle>
+                        <div className="space-y-1">
+                            <DialogTitle className="text-xl font-serif">{title}</DialogTitle>
+                            {typeof description === "string" ? (
+                                <DialogDescription className="text-sm leading-relaxed">{description}</DialogDescription>
+                            ) : (
+                                description
+                            )}
+                        </div>
                     </div>
-                    {typeof description === "string" ? (
-                        <DialogDescription>{description}</DialogDescription>
-                    ) : (
-                        description
-                    )}
                 </DialogHeader>
-                <DialogFooter className="gap-2 sm:gap-0">
+                <DialogFooter className="gap-2 sm:gap-2 mt-2">
                     <Button
                         type="button"
-                        variant="outline"
+                        variant="ghost"
+                        className="rounded-full"
                         onClick={() => onOpenChange(false)}
                         disabled={isLoading || isConfirming}
                     >
@@ -78,6 +83,7 @@ export function ConfirmDialog({
                     <Button
                         type="button"
                         variant={variant === "destructive" ? "destructive" : "default"}
+                        className="rounded-full px-6"
                         onClick={handleConfirm}
                         disabled={isLoading || isConfirming}
                     >

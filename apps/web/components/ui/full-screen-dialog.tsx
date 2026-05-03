@@ -17,7 +17,7 @@ const FullScreenDialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/80 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-50 bg-black/40 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className,
     )}
     {...props}
@@ -40,15 +40,15 @@ const FullScreenDialogContent = React.forwardRef<
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay
         className={cn(
-          "fixed inset-0 z-50 bg-black/80 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+          "fixed inset-0 z-50 bg-black/40 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         )}
         {...props}
       />
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
-          "fixed inset-4 z-50 flex flex-col overflow-hidden rounded-xl bg-background shadow-2xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:inset-8 lg:inset-12",
-          isMaximized && "inset-0 rounded-none",
+          "fixed inset-4 z-50 flex flex-col overflow-hidden rounded-2xl border border-border/50 bg-background shadow-2xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:inset-8 lg:inset-12",
+          isMaximized && "inset-0 rounded-none border-none",
           className,
         )}
         {...props}
@@ -74,7 +74,7 @@ const FullScreenDialogHeader = ({
 }) => (
   <div
     className={cn(
-      "flex items-center justify-between border-b px-6 py-4",
+      "flex items-center justify-between border-b border-border/50 px-6 py-4",
       className,
     )}
     {...props}
@@ -84,7 +84,7 @@ const FullScreenDialogHeader = ({
       {showMaximize && (
         <button
           onClick={onMaximize}
-          className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
         >
           {isMaximized ? (
             <Minimize2 className="h-4 w-4" />
@@ -94,7 +94,7 @@ const FullScreenDialogHeader = ({
         </button>
       )}
       <DialogPrimitive.Close asChild>
-        <button className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground hover:bg-destructive hover:text-destructive-foreground transition-colors">
+        <button className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-destructive hover:text-destructive-foreground transition-colors">
           <X className="h-4 w-4" />
         </button>
       </DialogPrimitive.Close>
