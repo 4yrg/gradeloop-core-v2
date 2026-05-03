@@ -3,13 +3,13 @@
 import * as React from "react";
 import { UserCog } from "lucide-react";
 import {
-  SideDialog,
-  SideDialogContent,
-  SideDialogDescription,
-  SideDialogFooter,
-  SideDialogHeader,
-  SideDialogTitle,
-} from "@/components/ui/side-dialog";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -42,18 +42,15 @@ export function EditUserDialog({ user, open, onOpenChange, onSuccess }: Props) {
   });
   const [submitting, setSubmitting] = React.useState(false);
 
-  // Populate form from user
   React.useEffect(() => {
     if (user && open) {
       setValues({
         is_active: user.is_active,
         user_type: user.user_type || "student",
       });
-
     }
   }, [user, open]);
 
-  // User type determines the account category (student, instructor, admin).
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!user) return;
@@ -70,7 +67,6 @@ export function EditUserDialog({ user, open, onOpenChange, onSuccess }: Props) {
         payload,
       );
 
-      // Merge response with original user
       const finalUser: UserListItem = {
         ...user,
         id: updated.id,
@@ -95,45 +91,43 @@ export function EditUserDialog({ user, open, onOpenChange, onSuccess }: Props) {
   if (!user) return null;
 
   return (
-    <SideDialog open={open} onOpenChange={onOpenChange}>
-      <SideDialogContent className="max-w-md">
-        <SideDialogHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
-              <UserCog className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+              <UserCog className="h-5 w-5 text-muted-foreground" />
             </div>
             <div>
-              <SideDialogTitle>Edit User</SideDialogTitle>
-              <SideDialogDescription>
+              <DialogTitle>Edit User</DialogTitle>
+              <DialogDescription>
                 Editing <strong>{user.full_name || "No Name"}</strong>
-              </SideDialogDescription>
+              </DialogDescription>
             </div>
           </div>
-        </SideDialogHeader>
+        </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-          {/* Read-only info */}
-          <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 space-y-1">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="rounded-lg border border-border bg-muted/50 px-4 py-3 space-y-1">
             <div className="flex justify-between text-sm">
-              <span className="text-zinc-500">Full Name</span>
+              <span className="text-muted-foreground">Full Name</span>
               <span className="font-medium">{user.full_name || "No Name"}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-zinc-500">Email</span>
+              <span className="text-muted-foreground">Email</span>
               <span className="font-medium truncate max-w-[200px]">
                 {user.email}
               </span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-zinc-500">User Type</span>
+              <span className="text-muted-foreground">User Type</span>
               <span className="font-medium capitalize">
                 {user.user_type}
               </span>
             </div>
           </div>
 
-          {/* User Type */}
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="eu-user-type">User Type</Label>
             <SelectNative
               id="eu-user-type"
@@ -151,13 +145,12 @@ export function EditUserDialog({ user, open, onOpenChange, onSuccess }: Props) {
             </SelectNative>
           </div>
 
-          {/* Active status */}
-          <div className="flex items-center justify-between rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-3">
+          <div className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
             <div className="space-y-0.5">
               <Label htmlFor="eu-active" className="text-sm font-medium">
                 Active
               </Label>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="text-xs text-muted-foreground">
                 Inactive users cannot log in.
               </p>
             </div>
@@ -171,7 +164,7 @@ export function EditUserDialog({ user, open, onOpenChange, onSuccess }: Props) {
             />
           </div>
 
-          <SideDialogFooter className="pt-2">
+          <DialogFooter>
             <Button
               type="button"
               variant="outline"
@@ -183,9 +176,9 @@ export function EditUserDialog({ user, open, onOpenChange, onSuccess }: Props) {
             <Button type="submit" disabled={submitting}>
               {submitting ? "Saving…" : "Save Changes"}
             </Button>
-          </SideDialogFooter>
+          </DialogFooter>
         </form>
-      </SideDialogContent>
-    </SideDialog>
+      </DialogContent>
+    </Dialog>
   );
 }

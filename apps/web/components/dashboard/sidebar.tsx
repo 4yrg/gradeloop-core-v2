@@ -13,7 +13,6 @@ import {
   School,
   Users2,
   ClipboardList,
-  UserCog,
   Mic2,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -52,7 +51,6 @@ const adminNavItems: NavItem[] = [
     icon: Users,
     subItems: [
       { title: "Users", href: "/admin/users", icon: Users },
-      { title: "Roles & Permissions", href: "/admin/roles", icon: UserCog },
       {
         title: "Groups & Batches",
         href: "/admin/academics/groups",
