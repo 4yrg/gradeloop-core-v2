@@ -97,7 +97,7 @@ function getActivityIcon(action: string) {
       <KeyRound className="h-4 w-4 text-purple-600 dark:text-purple-400" />
     );
   if (lower.includes("create") || lower.includes("add"))
-    return <UserCog className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />;
+    return <UserCog className="h-4 w-4 text-primary dark:text-primary-fixed" />;
   return <AlertCircle className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />;
 }
 
@@ -114,8 +114,8 @@ function getActivityColor(action: string) {
   if (lower.includes("password") || lower.includes("credential"))
     return "bg-purple-50 dark:bg-purple-900/20";
   if (lower.includes("create") || lower.includes("add"))
-    return "bg-indigo-50 dark:bg-indigo-900/20";
-  return "bg-zinc-50 dark:bg-zinc-900/20";
+    return "bg-primary/10 dark:bg-primary/20";
+  return "bg-muted/30 dark:bg-muted/10";
 }
 
 export function UserProfileSideDialog({
@@ -166,14 +166,14 @@ export function UserProfileSideDialog({
         {/* Profile Header */}
         <div className="flex flex-col gap-4 pb-4">
           <div className="flex items-start gap-4">
-            <Avatar className="h-20 w-20 text-xl shrink-0">
-              <AvatarFallback className="bg-gradient-to-br from-zinc-200 to-zinc-300 dark:from-zinc-700 dark:to-zinc-800">
+            <Avatar className="h-20 w-20 text-xl shrink-0 rounded-2xl border-4 border-background shadow-lg">
+              <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/40 text-primary font-bold">
                 {getInitials(user.full_name, user.email)}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">
+                <h2 className="text-2xl font-black text-foreground font-serif tracking-tight">
                   {user.full_name || "No Name"}
                 </h2>
                 <Badge variant={roleBadgeVariant(user.user_type)} className="capitalize">
@@ -183,10 +183,10 @@ export function UserProfileSideDialog({
                   {user.is_active ? "Active" : "Inactive"}
                 </Badge>
               </div>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+              <p className="text-sm text-muted-foreground mt-1 font-medium">
                 {user.email}
               </p>
-              <div className="flex items-center gap-4 mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+              <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <User className="h-3 w-3" />
                   User Type: {user.user_type || "N/A"}
@@ -214,19 +214,19 @@ export function UserProfileSideDialog({
         <div className="flex-1 overflow-y-auto space-y-6">
           {/* Account Details */}
           <div>
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 mb-3 flex items-center gap-2">
+            <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2 uppercase tracking-widest opacity-70">
               <User className="h-4 w-4" />
               Account Details
             </h3>
             <div className="grid gap-3">
               <div className="flex items-center gap-3 text-sm">
                 <div className="w-32 shrink-0">
-                  <span className="text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wide">
+                  <span className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest">
                     Email Address
                   </span>
                 </div>
-                <div className="flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
-                  <Mail className="h-4 w-4 text-zinc-400" />
+                <div className="flex items-center gap-2 text-foreground font-medium">
+                  <Mail className="h-4 w-4 text-muted-foreground/60" />
                   {user.email}
                 </div>
               </div>
@@ -277,8 +277,8 @@ export function UserProfileSideDialog({
 
           {/* Activity & Audit Log */}
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-2 uppercase tracking-widest opacity-70">
                 <ActivityIcon className="h-4 w-4" />
                 Activity & Audit Log
               </h3>
@@ -295,33 +295,33 @@ export function UserProfileSideDialog({
                 <Skeleton className="h-16 w-full" />
               </div>
             ) : apiError ? (
-              <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
-                <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">{apiError}</p>
+              <div className="text-center py-10 text-muted-foreground bg-muted/20 rounded-xl border border-dashed border-border/50">
+                <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                <p className="text-sm font-medium">{apiError}</p>
               </div>
             ) : activities.length > 0 ? (
               <div className="space-y-3">
                 {activities.map((activity) => (
                   <div
                     key={activity.id}
-                    className={`p-3 rounded-lg border border-zinc-100 dark:border-zinc-800 ${getActivityColor(activity.action)}`}
+                    className={`p-4 rounded-xl border border-border/50 transition-colors hover:border-primary/30 ${getActivityColor(activity.action)}`}
                   >
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-4">
                       <div
-                        className={`p-1.5 rounded-full bg-white dark:bg-zinc-900 shadow-sm shrink-0`}
+                        className={`p-2 rounded-full bg-background shadow-sm shrink-0 border border-border/50`}
                       >
                         {getActivityIcon(activity.action)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                          <p className="text-sm font-bold text-foreground">
                             {activity.action}
                           </p>
-                          <span className="text-xs text-zinc-500 dark:text-zinc-400 shrink-0">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider shrink-0">
                             {formatRelativeTime(activity.created_at)}
                           </span>
                         </div>
-                        <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">
+                        <p className="text-sm text-muted-foreground/80 mt-1 leading-relaxed">
                           {activity.description}
                         </p>
                         {activity.metadata &&
@@ -353,7 +353,7 @@ export function UserProfileSideDialog({
           <Button
             variant="outline"
             size="sm"
-            className="gap-1.5"
+            className="gap-2 rounded-full px-4 shadow-sm"
             onClick={() => {
               onOpenChange(false);
               onEdit(user);
@@ -365,7 +365,7 @@ export function UserProfileSideDialog({
           <Button
             variant="outline"
             size="sm"
-            className="gap-1.5"
+            className="gap-2 rounded-full px-4 shadow-sm"
             onClick={() => {
               onOpenChange(false);
               onRevokeSessions(user);
@@ -377,7 +377,7 @@ export function UserProfileSideDialog({
           <Button
             variant="outline"
             size="sm"
-            className="gap-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 border-red-200 dark:border-red-800"
+            className="gap-2 rounded-full px-4 shadow-sm text-error hover:text-error hover:bg-error/10 border-error/20"
             onClick={() => {
               onOpenChange(false);
               onDelete(user);

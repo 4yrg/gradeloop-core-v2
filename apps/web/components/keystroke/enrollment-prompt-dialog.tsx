@@ -79,18 +79,19 @@ export function KeystrokeEnrollmentPrompt() {
     return (
         <Dialog open={open} onOpenChange={(v) => { if (!v) handleLater(); }}>
             <DialogContent className="max-w-md" onInteractOutside={(e) => e.preventDefault()}>
-                <DialogHeader>
-                    <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-                        <Fingerprint className="h-7 w-7 text-primary" />
+                <DialogHeader className="space-y-4">
+                    <div className="mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 shadow-inner">
+                        <Fingerprint className="h-8 w-8 text-primary" />
                     </div>
-                    <DialogTitle className="text-center text-xl">
-                        Set Up Keystroke Security
-                    </DialogTitle>
-                    <DialogDescription className="text-center leading-relaxed">
-                        GradeLoop uses keystroke biometrics to verify your identity
-                        during assignments. Enrolment takes less than&nbsp;5&nbsp;minutes
-                        and significantly improves academic integrity monitoring.
-                    </DialogDescription>
+                    <div className="space-y-2">
+                        <DialogTitle className="text-center text-2xl font-black font-serif tracking-tight">
+                            Secure Your Account
+                        </DialogTitle>
+                        <DialogDescription className="text-center text-sm leading-relaxed max-w-[90%] mx-auto">
+                            GradeLoop uses keystroke biometrics to verify your identity
+                            during assignments. Setup takes less than 5 minutes.
+                        </DialogDescription>
+                    </div>
                 </DialogHeader>
 
                 {/* Feature highlights */}
@@ -114,25 +115,27 @@ export function KeystrokeEnrollmentPrompt() {
                     ].map(({ icon: Icon, title, desc }) => (
                         <div
                             key={title}
-                            className="flex items-start gap-3 rounded-lg border border-border/50 bg-muted/30 px-3 py-2.5"
+                            className="flex items-start gap-4 rounded-2xl border border-border/50 bg-muted/20 px-4 py-3 transition-colors hover:bg-muted/30"
                         >
-                            <Icon className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                            <div className="mt-0.5 rounded-full bg-primary/10 p-1.5">
+                                <Icon className="h-4 w-4 text-primary" />
+                            </div>
                             <div>
-                                <p className="text-sm font-semibold leading-tight">{title}</p>
-                                <p className="text-xs text-muted-foreground">{desc}</p>
+                                <p className="text-sm font-bold leading-tight text-foreground">{title}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
                             </div>
                         </div>
                     ))}
                 </div>
 
-                <DialogFooter className="flex-col gap-2 sm:flex-col">
-                    <Button className="w-full" onClick={handleEnrollNow}>
-                        <Fingerprint className="mr-2 h-4 w-4" />
+                <DialogFooter className="flex-col gap-2 sm:flex-col pt-4 border-t border-border/40">
+                    <Button className="w-full rounded-full h-11 text-base font-bold shadow-lg shadow-primary/20" onClick={handleEnrollNow}>
+                        <Fingerprint className="mr-2 h-5 w-5" />
                         Enroll Now
                     </Button>
                     <Button
                         variant="ghost"
-                        className="w-full text-muted-foreground"
+                        className="w-full rounded-full text-muted-foreground hover:text-foreground"
                         onClick={handleLater}
                     >
                         Later — remind me from my profile

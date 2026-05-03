@@ -370,8 +370,10 @@ export function PhaseRecorderDialog({
             >
                 <DialogHeader>
                     <div className="flex items-center justify-between gap-3">
-                        <DialogTitle className="flex items-center gap-2 text-lg">
-                            <Fingerprint className="h-5 w-5 text-primary" />
+                        <DialogTitle className="flex items-center gap-3 text-2xl font-black font-serif tracking-tight">
+                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                <Fingerprint className="h-6 w-6 text-primary" />
+                            </div>
                             {content.title}
                         </DialogTitle>
                         {/* Countdown badge — stress phase */}
@@ -480,9 +482,9 @@ export function PhaseRecorderDialog({
                             {eventCount} / {MIN_EVENTS}
                         </span>
                     </div>
-                    <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                    <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden shadow-inner">
                         <div
-                            className="h-full rounded-full bg-primary transition-all duration-500"
+                            className="h-full rounded-full bg-primary transition-all duration-500 shadow-[0_0_8px_rgba(38,208,124,0.3)]"
                             style={{ width: `${progressPct}%` }}
                         />
                     </div>
@@ -510,10 +512,11 @@ export function PhaseRecorderDialog({
                     </div>
                 )}
 
-                <DialogFooter className="gap-2">
+                <DialogFooter className="gap-2 pt-6 border-t border-border/40">
                     <Button
                         variant="ghost"
                         onClick={onClose}
+                        className="rounded-full px-6"
                         disabled={isSubmitting || submitted}
                     >
                         Cancel
@@ -521,7 +524,7 @@ export function PhaseRecorderDialog({
                     <Button
                         onClick={handleSubmit}
                         disabled={!canSubmit}
-                        className="min-w-[120px]"
+                        className="min-w-[140px] rounded-full px-8 shadow-lg shadow-primary/20"
                     >
                         {isSubmitting ? (
                             <>

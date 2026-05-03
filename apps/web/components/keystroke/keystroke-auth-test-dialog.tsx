@@ -248,36 +248,36 @@ export function KeystrokeAuthTestDialog({ open, onClose }: Props) {
         <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
             <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto gap-0 p-0">
                 {/* Header */}
-                <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/60">
+                <DialogHeader className="px-8 pt-8 pb-6 border-b border-border/50 bg-muted/20">
                     <div className="flex items-center justify-between gap-3">
-                        <DialogTitle className="flex items-center gap-2 text-lg">
-                            <Fingerprint className="h-5 w-5 text-primary" />
-                            Keystroke Identity Test
+                        <DialogTitle className="flex items-center gap-3 text-2xl font-black font-serif tracking-tight">
+                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                <Fingerprint className="h-6 w-6 text-primary" />
+                            </div>
+                            Identity Test
                         </DialogTitle>
                         <Button
                             variant="ghost"
                             size="sm"
                             onClick={handleReset}
-                            className="h-7 gap-1.5 text-xs"
+                            className="h-8 rounded-full gap-1.5 text-xs font-bold hover:bg-muted"
                         >
                             <RotateCcw className="h-3 w-3" />
                             Reset
                         </Button>
                     </div>
-                    <DialogDescription className="text-sm leading-relaxed">
-                        Type in the editor. The system analyses your keystroke rhythm
-                        and identifies the best-matching enrolled student — no passwords needed.
+                    <DialogDescription className="text-sm leading-relaxed mt-2">
+                        The system analyses your keystroke rhythm and identifies you from our enrolled database — no passwords needed.
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="px-6 py-4 space-y-5">
                     {/* Info tip */}
-                    <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50/60 px-3 py-2.5 text-xs text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-400">
-                        <Info className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
-                        <p>
+                    <div className="flex items-start gap-3 rounded-2xl border border-info-border bg-info-muted/30 px-4 py-3 text-xs text-info-muted-foreground">
+                        <Info className="h-4 w-4 flex-shrink-0 mt-0.5 text-info" />
+                        <p className="leading-relaxed">
                             Analysis runs automatically after <strong>{MIN_EVENTS_TO_ANALYZE}</strong> keystrokes
                             and refreshes every <strong>{REANALYZE_EVERY}</strong> new keys.
-                            All enrolled users are compared — the closest match is shown first.
                         </p>
                     </div>
 
@@ -300,9 +300,9 @@ export function KeystrokeAuthTestDialog({ open, onClose }: Props) {
                                 {eventCount}{!ready && <span className="text-muted-foreground"> / {MIN_EVENTS_TO_ANALYZE} needed</span>}
                             </span>
                         </div>
-                        <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                        <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden shadow-inner">
                             <div
-                                className={`h-full rounded-full transition-all duration-300 ${ready ? "bg-emerald-500" : "bg-primary"}`}
+                                className="h-full rounded-full bg-primary transition-all duration-500 shadow-[0_0_8px_rgba(38,208,124,0.3)]"
                                 style={{ width: `${progressPct}%` }}
                             />
                         </div>

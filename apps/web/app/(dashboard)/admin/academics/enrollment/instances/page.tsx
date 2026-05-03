@@ -379,7 +379,7 @@ export default function CourseInstancesPage() {
 
             {/* Create dialog */}
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-                <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden rounded-2xl border-border/50 shadow-2xl">
+                <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden">
                     <div className="bg-muted/30 px-6 py-4 border-b border-border/50">
                         <DialogHeader>
                             <DialogTitle className="flex items-center gap-2 text-xl font-serif">
