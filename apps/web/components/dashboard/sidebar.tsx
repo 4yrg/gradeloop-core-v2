@@ -2,39 +2,28 @@
 
 import * as React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
   BookOpen,
   Settings,
-  GraduationCap,
   LogOut,
   School,
   Users2,
   ClipboardList,
-  ChevronLeft,
-  ChevronRight,
   UserCog,
   Mic2,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/lib/stores/authStore";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAssignmentCreateStore } from "@/lib/stores/assignmentCreateStore";
 import { useUIStore } from "@/lib/stores/uiStore";
 import { useLogoutMutation } from "@/lib/hooks/useAuthMutation";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface SubNavLink {
   title: string;
@@ -209,7 +198,7 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
       {/* Primary Sidebar */}
       <div
         className={cn(
-          "relative z-20 flex flex-col items-center border-r bg-sidebar text-sidebar-foreground py-4 transition-all duration-300",
+          "relative z-20 flex flex-col items-center bg-sidebar text-sidebar-foreground py-4 transition-all duration-300",
           isPrimaryCollapsed ? "w-16" : "w-64 items-start",
         )}
         onMouseEnter={() => setIsHovered(true)}
@@ -224,13 +213,19 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
         >
           <Link
             href={homeHref}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm transition-transform hover:scale-105"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0f172a] text-white shadow-sm transition-transform hover:scale-105 overflow-hidden"
           >
-            <GraduationCap className="h-6 w-6" />
+            <Image
+              src="/logo.png"
+              alt="Gradeloop"
+              width={36}
+              height={36}
+              className="h-full w-full object-cover"
+            />
           </Link>
           {!isPrimaryCollapsed && (
             <div className="ml-3 flex flex-col justify-center overflow-hidden">
-              <span className="font-bold text-lg leading-tight truncate">
+              <span className="font-bold text-lg leading-tight truncate font-[family-name:var(--font-red-hat-display)] text-white">
                 Gradeloop
               </span>
             </div>
@@ -260,7 +255,7 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
                       : "justify-start px-4 gap-3",
                     isActive
                       ? "bg-primary/10 text-primary font-semibold"
-                      : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                      : "text-white/70 hover:bg-white/5 hover:text-white",
                   )}
                   title={isPrimaryCollapsed ? item.title : undefined}
                 >
@@ -274,87 +269,32 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
           })}
         </nav>
 
-        {/* Bottom Primary Actions */}
+        {/* Bottom Primary Actions - Logout only */}
         <div
           className={cn(
             "mt-auto w-full",
             isPrimaryCollapsed
-              ? "px-2 flex flex-col items-center gap-2"
+              ? "px-2 flex flex-col items-center"
               : "px-4",
           )}
         >
-          <div
+          <Button
+            variant="ghost"
             className={cn(
-              "flex items-center gap-1 w-full",
-              isPrimaryCollapsed ? "flex-col" : "flex-row",
+              "h-12 w-full rounded-xl text-white/70 hover:text-red-400 hover:bg-red-500/10",
+              isPrimaryCollapsed
+                ? "w-12 p-0 justify-center"
+                : "justify-start px-4 gap-3",
             )}
+            onClick={() => logout()}
+            disabled={isLoggingOut}
+            title="Log out"
           >
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className={cn(
-                    "h-12 rounded-xl hover:bg-sidebar-accent border-0",
-                    isPrimaryCollapsed
-                      ? "w-12 p-0 justify-center"
-                      : "flex-1 min-w-0 px-3 justify-start gap-3",
-                  )}
-                >
-                  <Avatar className="h-8 w-8 ring-2 ring-primary/20 shrink-0">
-                    <AvatarFallback className="bg-primary/20 text-xs text-primary">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-                  {!isPrimaryCollapsed && (
-                    <div className="flex flex-col items-start overflow-hidden text-left flex-1 min-w-0">
-                      <span className="text-sm font-medium text-foreground truncate w-full">
-                        {displayName}
-                      </span>
-                      <span className="text-xs text-muted-foreground truncate w-full">
-                        {roleLabel}
-                      </span>
-                    </div>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                side="right"
-                className="w-56 mb-2 ml-2"
-              >
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link
-                    href="/profile"
-                    className="flex w-full cursor-pointer items-center"
-                  >
-                    Profile
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem>Settings</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => logout()}
-                  disabled={isLoggingOut}
-                  className="text-red-600 gap-2 cursor-pointer"
-                >
-                  <LogOut className="h-4 w-4" />
-                  {isLoggingOut ? "Logging out…" : "Log out"}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 shrink-0 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-              onClick={() => logout()}
-              disabled={isLoggingOut}
-              title="Log out"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
+            <LogOut className="h-5 w-5" />
+            {!isPrimaryCollapsed && (
+              <span className="truncate">{isLoggingOut ? "Logging out…" : "Log out"}</span>
+            )}
+          </Button>
         </div>
       </div>
       {/* Secondary Sidebar Area — only for subItems (course/instructor) or student viva when no store-driven sidebar */}
@@ -362,11 +302,11 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
         <div className={cn("relative transition-all duration-300 z-10 w-64")}>
           <div
             className={cn(
-              "absolute inset-y-0 left-0 flex flex-col border-r bg-sidebar-background transition-all duration-300 h-full w-64 items-start",
+              "absolute inset-y-0 left-0 flex flex-col bg-[#1e293b] transition-all duration-300 h-full w-64 items-start",
             )}
           >
             <div className={cn("flex h-16 items-center w-full px-6")}>
-              <h2 className="text-lg font-semibold tracking-tight text-foreground font-heading">
+              <h2 className="text-lg font-semibold tracking-tight text-white font-heading">
                 {isCreateAssignment ? "Create Assignment" : isStudentInVivaSection ? "Viva" : activeRoot?.title || "Overview"}
               </h2>
             </div>
@@ -421,7 +361,7 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
                               {step.title}
                             </span>
                             {step.description && (
-                              <span className="text-xs text-muted-foreground line-clamp-1">
+                              <span className="text-xs text-white/60 line-clamp-1">
                                 {step.description}
                               </span>
                             )}
@@ -430,76 +370,30 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
                       );
                     })}
                   </div>
-                ) : (
-                  /* Contextual Sub-navigation */
-                  <div className="flex flex-col gap-1 w-full">
-                    {isStudentInVivaSection ? (
-                      <>
-                        {[
-                          { title: "My Sessions", href: "/student/assessments/my-sessions" },
-                          { title: "Voice Enrollment", href: "/student/assessments/voice-enrollment" },
-                          { title: "Competencies", href: "/student/assessments/competencies" },
-                        ].map((subItem) => {
-                          const isChildActive = pathname === subItem.href || pathname.startsWith(subItem.href + "/");
-                          return (
-                            <Link key={subItem.href} href={subItem.href} className="w-full text-left">
-                              <Button
-                                variant="ghost"
-                                className={cn(
-                                  "h-10 w-full flex items-center rounded-lg transition-colors justify-start px-3",
-                                  isChildActive
-                                    ? "bg-primary/10 text-primary font-medium"
-                                    : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
-                                )}
-                              >
-                                <span className="truncate text-sm">{subItem.title}</span>
-                              </Button>
-                            </Link>
-                          );
-                        })}
-                      </>
-                    ) : (
-                      activeRoot.subItems!.map((subItem) => {
-                        const isChildActive = pathname === subItem.href || pathname.startsWith(subItem.href + "/");
-                        return (
-                          <Link key={subItem.title} href={subItem.href} className="w-full text-left">
-                            <Button
-                              variant="ghost"
-                              className={cn(
-                                "h-10 w-full flex items-center rounded-lg transition-colors justify-start px-3",
-                                isChildActive
-                                  ? "bg-primary/10 text-primary font-medium"
-                                  : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
-                              )}
-                            >
-                              <span className="truncate text-sm">{subItem.title}</span>
-                            </Button>
-                          </Link>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
+) : (
+                    activeRoot.subItems!.map((subItem) => {
+                      const isChildActive = pathname === subItem.href || pathname.startsWith(subItem.href + "/");
+                      return (
+                        <Link key={subItem.title} href={subItem.href} className="w-full text-left">
+                          <Button
+                            variant="ghost"
+                            className={cn(
+                              "h-10 w-full flex items-center rounded-lg transition-colors justify-start px-3",
+                              isChildActive
+                                ? "bg-primary/10 text-primary font-medium"
+                                : "text-white/60 hover:bg-white/5 hover:text-white"
+                            )}
+                          >
+                            <span className="truncate text-sm text-white">{subItem.title}</span>
+                          </Button>
+                        </Link>
+                      );
+                    })
+                  )}
               </div>
             </ScrollArea>
           </div>
         </div>
-      )}
-
-      {/* Toggle Sidebar Button */}
-      {!hasSecondaryContent && (
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => onCollapsedChange(!collapsed)}
-          className="absolute -right-3 top-6 z-50 h-6 w-6 rounded-full border bg-background text-foreground shadow-sm hover:bg-accent transition-all duration-300 flex items-center justify-center p-0"
-        >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <ChevronLeft className="h-4 w-4" />
-          )}
-        </Button>
       )}
     </div>
   );
