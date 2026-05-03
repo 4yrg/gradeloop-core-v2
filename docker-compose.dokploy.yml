@@ -258,6 +258,50 @@ services:
       - gradeloop-network
 
   # =============================================================================
+  # Notification Service (Go Fiber)
+  # =============================================================================
+  notification-service:
+    build:
+      context: .
+      dockerfile: apps/services/notification/Dockerfile
+      target: production
+    container_name: gradeloop-notification-service
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - APP_ENV=production
+      - SERVER_PORT=${NOTIFICATION_SVC_PORT:-8086}
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${GRA_DB_USER}
+      - DB_PASSWORD=${GRA_DB_PASSWORD}
+      - DB_NAME=${NOTIFICATION_SVC_DB_NAME:-notification_db}
+      - DB_SSLMODE=${GRA_DB_SSLMODE}
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - REDIS_URL=redis://:redis_pass@redis:6379/0
+      - IAM_SERVICE_URL=http://iam-service:8081
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - FRONTEND_URL=${FRONTEND_URL}
+    expose:
+      - "8086"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+    networks:
+      - gradeloop-network
+
+  # =============================================================================
   # Academic Service (Go Fiber)
   # =============================================================================
   academic-service:

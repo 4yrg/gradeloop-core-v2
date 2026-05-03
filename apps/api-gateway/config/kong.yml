@@ -474,7 +474,7 @@ services:
       fault_tolerant: true
       hide_client_headers: false
 - name: notification-service
-  url: http://notification:8086
+  url: http://notification-service:8086
   routes:
   - name: notification-sse
     paths:
