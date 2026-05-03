@@ -8,6 +8,15 @@ const NOTIFICATION_SSE_URL =
   process.env.NEXT_PUBLIC_NOTIFICATION_SSE_URL ||
   `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"}/notifications/stream`;
 
+const isTokenExpired = (token: string): boolean => {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return Date.now() >= payload.exp * 1000;
+  } catch {
+    return true;
+  }
+};
+
 export function useNotifications() {
   const accessToken = useAuthStore((s) => s.accessToken);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -67,12 +76,18 @@ export function useNotifications() {
       es.close();
       eventSourceRef.current = null;
 
-      // Reconnect after 5 seconds
+      // Check if token is expired before reconnecting
+      if (accessToken && isTokenExpired(accessToken)) {
+        console.warn("Token expired, stopping SSE reconnect");
+        return;
+      }
+
+      // Reconnect after 5 seconds (only if token is valid)
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
       reconnectTimeoutRef.current = setTimeout(() => {
-        if (isAuthenticated && accessToken) {
+        if (isAuthenticated && accessToken && !isTokenExpired(accessToken)) {
           if (connectRef.current) {
             connectRef.current();
           }
