@@ -13,7 +13,6 @@ import {
 import {
     BarChart3,
     Loader2,
-    AlertCircle,
     ChevronDown,
     ChevronUp,
     BookOpen,
