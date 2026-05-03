@@ -187,7 +187,7 @@ export default function UsersPage() {
         page,
         limit: PAGE_LIMIT,
         search: debouncedSearch || undefined,
-        user_type: userTypeFilter === "all" ? undefined : userTypeFilter,
+        user_type: userTypeFilter === "all" ? "all" : userTypeFilter,
       });
 
       // Debug logging
