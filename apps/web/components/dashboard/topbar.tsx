@@ -3,7 +3,7 @@
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Search, Bell, Menu, LayoutGrid, Check, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Bell, Menu, X, ChevronLeft, ChevronRight, LayoutDashboard, Users, School, Settings, BookOpen, ClipboardList, Mic2 } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,47 @@ import { useNotificationStore } from "@/lib/stores/notificationStore";
 import { useNotifications } from "@/lib/hooks/use-notifications";
 import { useLogoutMutation } from "@/lib/hooks/useAuthMutation";
 import type { Notification } from "@/types/notification.types";
+
+interface SubNavLink {
+  title: string;
+  href: string;
+}
+
+interface NavItem {
+  title: string;
+  href: string;
+  subItems?: SubNavLink[];
+}
+
+const adminNavItems: NavItem[] = [
+  { title: "Dashboard", href: "/admin" },
+  { title: "Users Management", href: "/admin/users", subItems: [
+    { title: "Users", href: "/admin/users" },
+    { title: "Groups & Batches", href: "/admin/academics/groups" },
+  ]},
+  { title: "Academics", href: "/admin/academics", subItems: [
+    { title: "Faculties", href: "/admin/academics/faculties" },
+    { title: "Departments", href: "/admin/academics/departments" },
+    { title: "Degrees", href: "/admin/academics/degrees" },
+    { title: "Specializations", href: "/admin/academics/specializations" },
+    { title: "Courses", href: "/admin/academics/courses" },
+    { title: "Semesters", href: "/admin/academics/semesters" },
+  ]},
+  { title: "Settings", href: "/admin/settings" },
+];
+
+const instructorNavItems: NavItem[] = [
+  { title: "Dashboard", href: "/instructor" },
+  { title: "My Courses", href: "/instructor/courses" },
+  { title: "Settings", href: "/instructor/settings" },
+];
+
+const studentNavItems: NavItem[] = [
+  { title: "Dashboard", href: "/student" },
+  { title: "My Courses", href: "/student/courses" },
+  { title: "Submissions", href: "/student/submissions" },
+  { title: "Viva", href: "/student/assessments/my-sessions" },
+];
 
 function formatTimeAgo(dateString: string): string {
   const date = new Date(dateString);
@@ -82,6 +123,21 @@ export function Topbar({ onMenuClick, sidebarCollapsed, onSidebarCollapsedChange
   const user = useAuthStore((s) => s.user);
   const pageTitle = useUIStore((s) => s.pageTitle);
   const { mutate: logout, isLoading: isLoggingOut } = useLogoutMutation();
+
+  // Determine user role and nav items
+  const userType = user?.user_type?.toLowerCase().trim() ?? "";
+  const isInstructor = userType === "instructor";
+  const isStudent = userType === "student";
+  const navItems = isInstructor ? instructorNavItems : isStudent ? studentNavItems : adminNavItems;
+
+  // Find active parent nav item based on pathname
+  const activeNavItem = navItems.find((item) => {
+    if (pathname === item.href) return true;
+    if (item.subItems?.some((sub) => pathname.startsWith(sub.href))) return true;
+    return false;
+  });
+
+  const activeSubItems = activeNavItem?.subItems;
 
   useNotifications();
 
@@ -147,6 +203,31 @@ export function Topbar({ onMenuClick, sidebarCollapsed, onSidebarCollapsedChange
             </p>
           </div>
         </div>
+
+        {/* Sub-navigation */}
+        {activeSubItems && activeSubItems.length > 0 && (
+          <div className="hidden lg:flex items-center gap-1 ml-8">
+            {activeSubItems.map((subItem) => {
+              const isActive = pathname === subItem.href || pathname.startsWith(subItem.href + "/");
+              return (
+                <Link key={subItem.href} href={subItem.href}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      "h-8 px-3 rounded-lg text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    {subItem.title}
+                  </Button>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div className="hidden md:flex flex-1 max-w-md mx-8">

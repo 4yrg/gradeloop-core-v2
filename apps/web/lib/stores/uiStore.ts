@@ -30,6 +30,10 @@ interface UIState {
     pageTitle: string | null;
     setPageTitle: (title: string | null) => void;
 
+    /** Active parent nav item (for showing sub-items in topbar instead of secondary sidebar) */
+    activeNavItem: string | null;
+    setActiveNavItem: (item: string | null) => void;
+
     /** Currently visible config (top of the stack, or null) */
     secondarySidebar: SecondarySidebarConfig | null;
     /** Force-set the sidebar (admin/legacy usage — does not touch the stack) */
@@ -52,6 +56,9 @@ interface UIState {
 export const useUIStore = create<UIState>((set) => ({
     pageTitle: null,
     setPageTitle: (title) => set({ pageTitle: title }),
+
+    activeNavItem: null,
+    setActiveNavItem: (item) => set({ activeNavItem: item }),
 
     secondarySidebar: null,
     setSecondarySidebar: (config) => set({ secondarySidebar: config }),
