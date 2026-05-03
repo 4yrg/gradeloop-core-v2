@@ -24,7 +24,7 @@ jobs:
 
       - name: Run golangci-lint
         run: |
-          for service in academic assessment email iam notification keystroke; do
+          for service in academic assessment email iam notification cipas-xai; do
             if [ -d "apps/services/$service" ]; then
               echo "Linting $service..."
               cd "apps/services/$service"
@@ -49,8 +49,8 @@ jobs:
 
       - name: Run ruff
         run: |
-          for service in acafs keystroke cipas-syntactics ivas; do
-            if [ -d "apps/services/$service" ] && [ -f "apps/services/$service/pyproject.toml" ]; then
+          for service in acafs keystroke cipas-ai cipas-semantics cipas-syntactics ivas; do
+            if [ -d "apps/services/$service" ] && [ -f "apps/services/$service/pyproject.toml" -o -f "apps/services/$service/requirements.txt" ]; then
               echo "Linting $service..."
               cd "apps/services/$service"
               ruff check . --fix || exit 1
