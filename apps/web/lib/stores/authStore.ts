@@ -178,6 +178,11 @@ export const useAuthStore = create<AuthState>()(
         return !!u && u.user_type === "admin";
       },
 
+      isSuperAdmin: () => {
+        const u = get().user;
+        return !!u && u.user_type === "superadmin";
+      },
+
       isInstructor: () => {
         const u = get().user;
         return !!u && u.user_type === "instructor";

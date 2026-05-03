@@ -16,6 +16,7 @@ import {
   UserCheck,
   UserX,
   FileUp,
+  LucideIcon,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -111,7 +112,7 @@ function StatCard({
 }: {
   title: string;
   value: string;
-  icon: any;
+  icon: LucideIcon;
   variant?: "default" | "success" | "info" | "warning";
 }) {
   const variantStyles = {
