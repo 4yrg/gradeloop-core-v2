@@ -45,7 +45,7 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	users.Get("/:id", cfg.UserHandler.GetUserByID)
 	users.Post("/", middleware.RequireAdmin(), cfg.UserHandler.CreateUser)
 	users.Put("/:id", middleware.RequireAdmin(), cfg.UserHandler.UpdateUser)
-	users.Delete("/:id", middleware.RequireSuperAdmin(), cfg.UserHandler.DeleteUser)
+	users.Delete("/:id", middleware.RequireAdmin(), cfg.UserHandler.DeleteUser)
 	users.Post("/:id/restore", middleware.RequireAdmin(), cfg.UserHandler.RestoreUser)
 
 	// Bulk import routes

@@ -9,7 +9,7 @@ export interface User {
   id: string; // user_id claim
   email: string;
   full_name: string;
-  user_type: string; // 'student', 'instructor', 'admin', or 'super_admin'
+  user_type: string; // 'student', 'instructor', or 'admin'
 }
 
 // ── User type constants ───────────────────────────────────────────────────────
@@ -18,8 +18,7 @@ export const USER_TYPES = {
   STUDENT: "student",
   INSTRUCTOR: "instructor",
   ADMIN: "admin",
-  SUPER_ADMIN: "super_admin",
-} as const;
+} as const
 
 export const USER_TYPES_ARRAY = Object.values(USER_TYPES);
 

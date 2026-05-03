@@ -246,8 +246,8 @@ func (s *authService) getUserByID(ctx context.Context, userID uuid.UUID) (*dto.U
 }
 
 func (s *authService) RevokeUserSessions(ctx context.Context, userID uuid.UUID, actorUserType string) (*dto.RevokeUserSessionsResponse, error) {
-	// Check if actor has permission to manage user sessions (only admin and super_admin)
-	if actorUserType != "admin" && actorUserType != "super_admin" {
+	// Check if actor has permission to manage user sessions (only admin)
+	if actorUserType != "admin" {
 		return nil, ErrUnauthorized
 	}
 

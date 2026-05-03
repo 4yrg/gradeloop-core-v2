@@ -13,7 +13,7 @@ import (
 type Claims struct {
 	UserID   string `json:"user_id"`   // UUID string from IAM
 	Email    string `json:"email"`     // Email from IAM (used as identifier)
-	UserType string `json:"user_type"` // User type: student, instructor, admin, super_admin
+	UserType string `json:"user_type"` // User type: student, instructor, admin
 	jwt.RegisteredClaims
 }
 
@@ -100,17 +100,12 @@ func RequireAnyUserType(userTypes ...string) fiber.Handler {
 	}
 }
 
-// RequireAdmin requires admin or super_admin access
+// RequireAdmin requires admin access
 func RequireAdmin() fiber.Handler {
-	return RequireAnyUserType("admin", "super_admin")
+	return RequireAnyUserType("admin")
 }
 
-// RequireSuperAdmin requires super_admin access
-func RequireSuperAdmin() fiber.Handler {
-	return RequireUserType("super_admin")
-}
-
-// RequireInstructor requires instructor, admin, or super_admin access
+// RequireInstructor requires instructor or admin access
 func RequireInstructor() fiber.Handler {
-	return RequireAnyUserType("instructor", "admin", "super_admin")
+	return RequireAnyUserType("instructor", "admin")
 }

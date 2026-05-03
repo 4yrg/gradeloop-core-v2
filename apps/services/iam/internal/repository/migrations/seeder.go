@@ -23,9 +23,6 @@ func NewSeeder(db *gorm.DB, logger *zap.Logger) *Seeder {
 }
 
 func (s *Seeder) Seed() error {
-	if err := s.seedSuperAdmin(); err != nil {
-		return fmt.Errorf("seeding super_admin: %w", err)
-	}
 	if err := s.seedAdmin(); err != nil {
 		return fmt.Errorf("seeding admin: %w", err)
 	}
@@ -71,41 +68,6 @@ func (s *Seeder) seedDevUser(email, fullName, userType string) error {
 	}
 
 	s.logger.Info("created dev user", zap.String("email", email), zap.String("type", userType))
-	return nil
-}
-
-func (s *Seeder) seedSuperAdmin() error {
-	email := "superadmin@gradeloop.com"
-	password := "Strong#Pass123!"
-
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return fmt.Errorf("hashing password: %w", err)
-	}
-
-	var existingUser domain.User
-	if err := s.db.Where("email = ?", email).First(&existingUser).Error; err == nil {
-		s.logger.Info("super admin already exists", zap.String("email", email))
-		return nil
-	} else if err != gorm.ErrRecordNotFound {
-		return fmt.Errorf("checking for existing user: %w", err)
-	}
-
-	user := domain.User{
-		ID:                      uuid.New(),
-		Email:                   email,
-		FullName:                "Super Admin",
-		PasswordHash:            string(hashedPassword),
-		UserType:                "super_admin",
-		IsActive:                true,
-		IsPasswordResetRequired: false,
-	}
-
-	if err := s.db.Create(&user).Error; err != nil {
-		return fmt.Errorf("creating super admin user: %w", err)
-	}
-
-	s.logger.Info("created super admin user", zap.String("email", email))
 	return nil
 }
 

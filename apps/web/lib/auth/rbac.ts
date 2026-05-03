@@ -9,7 +9,6 @@
 // User type → dashboard route mapping
 // ---------------------------------------------------------------------------
 export const USER_TYPE_DASHBOARD_MAP: Record<string, string> = {
-  super_admin: '/admin',
   admin: '/admin',
   instructor: '/instructor',
   student: '/student',
@@ -17,7 +16,6 @@ export const USER_TYPE_DASHBOARD_MAP: Record<string, string> = {
 
 // ---------------------------------------------------------------------------
 // Helpers
-// ---------------------------------------------------------------------------
 
 /**
  * Returns the default dashboard path for the user's type.
@@ -32,17 +30,12 @@ export function hasUserType(userUserType: string, checkType: string): boolean {
   return userUserType.toLowerCase() === checkType.toLowerCase();
 }
 
-/** Returns true when user has admin access (admin or super_admin). */
+/** Returns true when user has admin access. */
 export function hasAdminAccess(userType: string): boolean {
-  return userType === 'admin' || userType === 'super_admin';
+  return userType === 'admin';
 }
 
-/** Returns true when user is super admin. */
-export function isSuperAdmin(userType: string): boolean {
-  return userType === 'super_admin';
-}
-
-/** Returns true when user has instructor access (instructor, admin, or super_admin). */
+/** Returns true when user has instructor access (instructor or admin). */
 export function hasInstructorAccess(userType: string): boolean {
   return userType === 'instructor' || hasAdminAccess(userType);
 }

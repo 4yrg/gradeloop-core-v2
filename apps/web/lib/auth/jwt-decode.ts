@@ -10,7 +10,7 @@ export interface IamTokenClaims {
   /** UUID of the authenticated user */
   user_id: string;
   email: string;
-  /** User type: 'student', 'instructor', 'admin', or 'super_admin' */
+  /** User type: 'student', 'instructor', or 'admin' */
   user_type: string;
   full_name: string;
   /** Expiry unix timestamp */

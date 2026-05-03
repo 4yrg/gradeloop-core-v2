@@ -30,7 +30,7 @@ type GetUsersResponse struct {
 }
 
 type UpdateUserRequest struct {
-	UserType *string `json:"user_type" validate:"omitempty,oneof=student instructor admin super_admin"`
+	UserType *string `json:"user_type" validate:"omitempty,oneof=student instructor admin"`
 	IsActive *bool   `json:"is_active"`
 }
 

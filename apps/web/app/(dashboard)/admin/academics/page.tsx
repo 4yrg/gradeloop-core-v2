@@ -34,7 +34,7 @@ export default function AcademicsOverviewPage() {
 
     setLoading(true);
     Promise.allSettled([
-      isSuperAdmin ? facultiesApi.list(true) : Promise.reject('not_super_admin'),
+      canAccess ? facultiesApi.list(true) : Promise.reject('not_admin'),
       departmentsApi.list(true),
       degreesApi.list(true),
       coursesApi.list(true),

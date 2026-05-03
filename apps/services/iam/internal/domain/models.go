@@ -12,7 +12,6 @@ const (
 	UserTypeStudent    = "student"
 	UserTypeInstructor = "instructor"
 	UserTypeAdmin      = "admin"
-	UserTypeSuperAdmin = "super_admin"
 )
 
 // Valid user types
@@ -20,7 +19,6 @@ var ValidUserTypes = []string{
 	UserTypeStudent,
 	UserTypeInstructor,
 	UserTypeAdmin,
-	UserTypeSuperAdmin,
 }
 
 type User struct {
@@ -90,14 +88,9 @@ func IsValidUserType(userType string) bool {
 	return false
 }
 
-// HasAdminAccess returns true if the user has admin or super_admin access
+// HasAdminAccess returns true if the user has admin access
 func (u *User) HasAdminAccess() bool {
-	return u.UserType == UserTypeAdmin || u.UserType == UserTypeSuperAdmin
-}
-
-// IsSuperAdmin returns true if the user is a super admin
-func (u *User) IsSuperAdmin() bool {
-	return u.UserType == UserTypeSuperAdmin
+	return u.UserType == UserTypeAdmin
 }
 
 // IsStudent returns true if the user is a student

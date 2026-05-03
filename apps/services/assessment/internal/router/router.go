@@ -19,7 +19,7 @@ type Config struct {
 }
 
 // requireAdminRole is a route-level middleware that allows access only to
-// users whose user type is "super_admin" or "admin".
+// users whose user type is "admin".
 func requireAdminRole() fiber.Handler {
 	return func(c fiber.Ctx) error {
 		userType, ok := c.Locals("user_type").(string)
@@ -27,11 +27,11 @@ func requireAdminRole() fiber.Handler {
 			return utils.ErrForbidden("no user type found")
 		}
 
-		if userType == "super_admin" || userType == "admin" {
+		if userType == "admin" {
 			return c.Next()
 		}
 
-		return utils.ErrForbidden("requires super_admin or admin user type")
+		return utils.ErrForbidden("requires admin user type")
 	}
 }
 
@@ -66,9 +66,9 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	})
 
 	// ── Assignments ───────────────────────────────────────────────────────────
-	// Read operations (GET) — accessible to instructor, admin, super_admin.
-	// Mutation operations (POST/PATCH/DELETE) — require super_admin or admin.
-	assignmentsRead := protected.Group("/assignments", middleware.RequireAnyUserType("instructor", "admin", "super_admin"))
+	// Read operations (GET) — accessible to instructor, admin.
+	// Mutation operations (POST/PATCH/DELETE) — require admin.
+	assignmentsRead := protected.Group("/assignments", middleware.RequireAnyUserType("instructor", "admin"))
 	assignmentsWrite := protected.Group("/assignments", requireAdminRole())
 
 	// POST   /api/v1/assignments                                  — create (admin only)
@@ -124,10 +124,10 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	submissions.Put("/:id", cfg.SubmissionHandler.UpdateSubmission)
 
 	// ── Instructor-scoped routes ────────────────────────────────────────────
-	// Accessible to instructor + admin + super_admin.
+	// Accessible to instructor + admin.
 	// PathPrefix: /api/v1/instructor-assignments — routed by Traefik
 	// PathPrefix: /api/v1/instructor-submissions — routed by Traefik
-	requireInstructorOrAdmin := middleware.RequireAnyUserType("instructor", "admin", "super_admin")
+	requireInstructorOrAdmin := middleware.RequireAnyUserType("instructor", "admin")
 
 	instructorAssignments := protected.Group("/instructor-assignments", requireInstructorOrAdmin)
 	instructorAssignments.Get("/me", cfg.InstructorHandler.GetMyAssignments)
@@ -141,10 +141,10 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	instructorSubmissions.Get("/assignment/:id", cfg.InstructorHandler.GetSubmissions)
 
 	// ── Student-scoped routes ────────────────────────────────────────────────
-	// Accessible to student + admin + super_admin.
+	// Accessible to student + admin.
 	// PathPrefix: /api/v1/student-assignments — routed by Traefik
 	// PathPrefix: /api/v1/student-submissions — routed by Traefik
-	requireStudentOrAdmin := middleware.RequireAnyUserType("student", "admin", "super_admin")
+	requireStudentOrAdmin := middleware.RequireAnyUserType("student", "admin")
 
 	studentAssignments := protected.Group("/student-assignments", requireStudentOrAdmin)
 	// NOTE: GET /student-assignments/me/latest must be registered BEFORE

@@ -7,7 +7,6 @@ import { decodeJwtPayload } from "@/lib/auth/jwt-decode";
 // User type → dashboard path map
 // ---------------------------------------------------------------------------
 const USER_TYPE_DASHBOARD_MAP: Record<string, string> = {
-  super_admin: "/admin",
   admin: "/admin",
   instructor: "/instructor",
   student: "/student",
@@ -176,12 +175,7 @@ export const useAuthStore = create<AuthState>()(
 
       hasAdminAccess: () => {
         const u = get().user;
-        return !!u && (u.user_type === "admin" || u.user_type === "super_admin");
-      },
-
-      isSuperAdmin: () => {
-        const u = get().user;
-        return !!u && u.user_type === "super_admin";
+        return !!u && u.user_type === "admin";
       },
 
       isInstructor: () => {

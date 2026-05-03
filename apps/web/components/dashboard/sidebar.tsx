@@ -138,8 +138,7 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
   const userType = user?.user_type?.toLowerCase().trim() ?? "";
   const isInstructor = userType === "instructor";
   const isStudent = userType === "student";
-  const isAdmin = userType === "admin" || userType === "super_admin";
-  console.log("isAdmin", isAdmin); // Suppressing unused warning but keeping logic if needed later
+  const isAdmin = userType === "admin";
 
   const navItems = isInstructor
     ? instructorNavItems
@@ -153,7 +152,7 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
       ? "/student"
       : "/admin";
 
-  const roleLabel = isInstructor ? "Instructor" : isStudent ? "Student" : "Admin";
+  const roleLabel = isInstructor ? "Instructor" : isStudent ? "Student" : "Institute Admin";
 
   const displayName = user?.full_name || user?.email || "—";
   const initials = user?.full_name
@@ -315,7 +314,7 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
                 {isCreateAssignment ? (
                   <div className="w-full flex flex-col gap-4 mt-2 relative">
                     {/* Vertical Progress Line */}
-                    <div className="absolute left-[15px] top-6 bottom-6 w-0.5 bg-border -z-10" />
+                    <div className="absolute left-[15px] top-6 bottom-6 w-0.5 bg-white/20 -z-10" />
                     <div
                       className="absolute left-[15px] top-6 w-0.5 bg-primary -z-10 transition-all duration-300"
                       style={{ height: `calc(${((currentStep - 1) / (steps.length - 1)) * 100}% - 12px)` }}
@@ -346,7 +345,7 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
                                 ? "border-primary bg-primary text-primary-foreground"
                                 : isCurrent
                                   ? "border-primary text-primary ring-4 ring-primary/20"
-                                  : "border-muted-foreground/30 text-muted-foreground group-hover:border-muted-foreground/50"
+                                  : "border-white/20 text-white/50 group-hover:border-white/40"
                             )}
                           >
                             {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : stepNumber}
@@ -355,7 +354,7 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
                             <span
                               className={cn(
                                 "text-sm font-semibold transition-colors",
-                                isCurrent || isCompleted ? "text-foreground" : "text-muted-foreground group-hover:text-foreground/80"
+                                isCurrent || isCompleted ? "text-white" : "text-white/60 group-hover:text-white/80"
                               )}
                             >
                               {step.title}

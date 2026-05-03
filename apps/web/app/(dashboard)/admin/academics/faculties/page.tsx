@@ -176,7 +176,7 @@ export default function FacultiesPage() {
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editTarget, setEditTarget] = React.useState<Faculty | null>(null);
 
-  // ── Role guard — super_admin only for this page ───────────────────────────
+  // ── Role guard — admin only for this page ────────────────────────────
   React.useEffect(() => {
     if (!canAccess) router.replace('/admin');
   }, [canAccess, router]);
@@ -273,11 +273,11 @@ export default function FacultiesPage() {
         </div>
       </div>
 
-      {/* Super-admin notice for plain admin */}
+      {/* Admin notice for plain admin */}
       {!isSuperAdmin && (
         <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-blue-400">
           <Landmark className="h-4 w-4 shrink-0" />
-          <span>Faculty management requires <strong>super_admin</strong> privileges. You can view faculties but cannot create or modify them.</span>
+          <span>Faculty management requires <strong>admin</strong> privileges. You can view faculties but cannot create or modify them.</span>
         </div>
       )}
 
