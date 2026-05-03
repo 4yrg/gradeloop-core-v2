@@ -22,7 +22,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SelectNative } from "@/components/ui/select-native";
 import {
   Table,
   TableBody,
@@ -129,8 +128,8 @@ function StatCard({
           <Icon className="h-6 w-6" />
         </div>
         <div>
-          <p className="text-2xl font-bold tracking-tight">{value}</p>
-          <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">{title}</p>
+          <p className="text-2xl font-[family-name:var(--font-red-hat-display)] font-bold tracking-tight">{value}</p>
+          <p className="text-xs font-[family-name:var(--font-red-hat-display)] font-semibold text-zinc-500 uppercase tracking-wider">{title}</p>
         </div>
       </CardContent>
     </Card>
@@ -254,7 +253,7 @@ export default function UsersPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">User Directory</h1>
+          <h1 className="text-2xl font-[family-name:var(--font-red-hat-display)] font-bold tracking-tight">User Directory</h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
             Manage roles, monitor activity, and configure account status for all system participants.
           </p>
@@ -262,14 +261,14 @@ export default function UsersPage() {
         <div className="flex items-center gap-3">
           <Button
             variant="outline"
-            className="gap-2 shadow-sm font-semibold"
+            className="gap-2 shadow-sm font-[family-name:var(--font-red-hat-display)] font-semibold"
             onClick={() => setImportOpen(true)}
           >
             <FileUp className="h-4 w-4" />
             Bulk Import
           </Button>
           <Button
-            className="bg-primary hover:bg-primary/90 text-white font-bold gap-2 shadow-sm"
+            className="bg-primary hover:bg-primary/90 text-white font-[family-name:var(--font-red-hat-display)] font-bold gap-2 shadow-sm"
             onClick={() => setCreateOpen(true)}
           >
             <Plus className="h-4 w-4" />
@@ -313,25 +312,25 @@ export default function UsersPage() {
             />
           </div>
           <div className="flex items-center gap-2">
-            <SelectNative
+            <select
               value={userTypeFilter}
               onChange={(e) => setUserTypeFilter(e.target.value)}
-              className="h-10 w-40"
+              className="h-10 w-40 rounded-md border border-zinc-200 bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <option value="all">All Types</option>
               <option value="student">Student</option>
               <option value="instructor">Instructor</option>
               <option value="admin">Admin</option>
-            </SelectNative>
-            <SelectNative
+            </select>
+            <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-10 w-32"
+              className="h-10 w-32 rounded-md border border-zinc-200 bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <option value="">All Status</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
-            </SelectNative>
+            </select>
             <Button
               variant="ghost"
               size="icon"

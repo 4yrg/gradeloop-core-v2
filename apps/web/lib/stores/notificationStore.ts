@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { axiosInstance } from "@/lib/api/axios";
+import { useAuthStore } from "@/lib/stores/authStore";
 import type {
   Notification,
   UnreadCountResponse,
@@ -31,6 +32,13 @@ export const useNotificationStore = create<NotificationState>()((set) => ({
   isLoading: false,
 
   fetchNotifications: async (page = 1) => {
+    // Don't try to fetch if not authenticated
+    const isAuthenticated = useAuthStore.getState().isAuthenticated;
+    if (!isAuthenticated) {
+      set({ isLoading: false });
+      return;
+    }
+    
     set({ isLoading: true });
     try {
       const { data } = await axiosInstance.get<ListNotificationsResponse>(
@@ -44,13 +52,17 @@ export const useNotificationStore = create<NotificationState>()((set) => ({
   },
 
   fetchUnreadCount: async () => {
+    // Don't try to fetch if not authenticated
+    const isAuthenticated = useAuthStore.getState().isAuthenticated;
+    if (!isAuthenticated) return;
+    
     try {
       const { data } = await axiosInstance.get<UnreadCountResponse>(
         "/notifications/unread-count",
       );
       set({ unreadCount: data.count });
     } catch {
-      // silently ignore
+      // silently ignore but don't retry infinitely
     }
   },
 
