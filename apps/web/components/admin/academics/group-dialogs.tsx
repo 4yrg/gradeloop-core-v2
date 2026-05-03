@@ -6,13 +6,13 @@
 import * as React from 'react';
 import { Users2, Info } from 'lucide-react';
 import {
-    SideDialog,
-    SideDialogContent,
-    SideDialogDescription,
-    SideDialogFooter,
-    SideDialogHeader,
-    SideDialogTitle,
-} from '@/components/ui/side-dialog';
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -117,21 +117,21 @@ export function CreateGroupDialog({
     }
 
     return (
-        <SideDialog open={open} onOpenChange={onOpenChange}>
-            <SideDialogContent className="max-w-md">
-                <SideDialogHeader>
-                    <SideDialogTitle className="flex items-center gap-2">
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-md">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
                         <Users2 className="h-5 w-5 text-primary" />
                         {parentBatch ? 'Create Sub-batch' : 'Create New Batch'}
-                    </SideDialogTitle>
-                    <SideDialogDescription>
+                    </DialogTitle>
+                    <DialogDescription>
                         {parentBatch ? (
                             <>Creating nested group under <span className="font-bold text-foreground">{parentBatch.name}</span>.</>
                         ) : (
                             'Define a new student intake or academic group.'
                         )}
-                    </SideDialogDescription>
-                </SideDialogHeader>
+                    </DialogDescription>
+                </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-6 flex-1 overflow-y-auto pr-2">
                     <div className="space-y-4">
@@ -223,14 +223,14 @@ export function CreateGroupDialog({
                     </div>
                 </form>
 
-                <SideDialogFooter>
+                <DialogFooter>
                     <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
                     <Button onClick={handleSubmit} disabled={submitting} className="min-w-[120px]">
                         {submitting ? 'Creating...' : 'Create Batch'}
                     </Button>
-                </SideDialogFooter>
-            </SideDialogContent>
-        </SideDialog>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
 
@@ -300,17 +300,17 @@ export function EditGroupDialog({
     }
 
     return (
-        <SideDialog open={open} onOpenChange={onOpenChange}>
-            <SideDialogContent className="max-w-md">
-                <SideDialogHeader>
-                    <SideDialogTitle className="flex items-center gap-2">
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-md">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
                         <Users2 className="h-5 w-5 text-primary" />
                         Edit Batch Settings
-                    </SideDialogTitle>
-                    <SideDialogDescription>
+                    </DialogTitle>
+                    <DialogDescription>
                         Update details for <span className="font-bold text-foreground">{batch.name}</span> ({batch.code}).
-                    </SideDialogDescription>
-                </SideDialogHeader>
+                    </DialogDescription>
+                </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-6 flex-1 overflow-y-auto pr-2">
                     <div className="space-y-4">
@@ -361,14 +361,14 @@ export function EditGroupDialog({
                     </div>
                 </form>
 
-                <SideDialogFooter>
+                <DialogFooter>
                     <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
                     <Button onClick={handleSubmit} disabled={submitting} className="min-w-[120px]">
                         {submitting ? 'Saving...' : 'Save Changes'}
                     </Button>
-                </SideDialogFooter>
-            </SideDialogContent>
-        </SideDialog>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
 

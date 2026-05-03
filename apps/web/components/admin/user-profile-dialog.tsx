@@ -20,11 +20,11 @@ import {
   UserCog,
 } from "lucide-react";
 import {
-  SideDialog,
-  SideDialogContent,
-  SideDialogHeader,
-  SideDialogTitle,
-} from "@/components/ui/side-dialog";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -157,11 +157,11 @@ export function UserProfileSideDialog({
   if (!user) return null;
 
   return (
-    <SideDialog open={open} onOpenChange={onOpenChange}>
-      <SideDialogContent className="max-w-xl">
-        <SideDialogHeader>
-          <SideDialogTitle>User Profile</SideDialogTitle>
-        </SideDialogHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>User Profile</DialogTitle>
+        </DialogHeader>
 
         {/* Profile Header */}
         <div className="flex flex-col gap-4 pb-4">
@@ -387,8 +387,8 @@ export function UserProfileSideDialog({
             Delete
           </Button>
         </div>
-      </SideDialogContent>
-    </SideDialog>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -2,18 +2,18 @@
 
 /**
  * Course dialogs: Create + Edit (with Prerequisites management)
- * Uses SideDialog for consistent layout with user management UIs.
+ * Uses Dialog for consistent layout with user management UIs.
  */
 import * as React from 'react';
 import { BookOpen, X, Plus, Loader2 } from 'lucide-react';
 import {
-  SideDialog,
-  SideDialogContent,
-  SideDialogDescription,
-  SideDialogFooter,
-  SideDialogHeader,
-  SideDialogTitle,
-} from '@/components/ui/side-dialog';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -141,17 +141,17 @@ export function CreateCourseDialog({
   }
 
   return (
-    <SideDialog open={open} onOpenChange={onOpenChange}>
-      <SideDialogContent>
-        <SideDialogHeader>
-          <SideDialogTitle className="flex items-center gap-2">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
             <BookOpen className="h-5 w-5 text-primary" />
             Create Course
-          </SideDialogTitle>
-          <SideDialogDescription>
+          </DialogTitle>
+          <DialogDescription>
             Add a new course to the catalogue.
-          </SideDialogDescription>
-        </SideDialogHeader>
+          </DialogDescription>
+        </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 flex-1">
           <div className="grid grid-cols-2 gap-3">
@@ -265,17 +265,17 @@ export function CreateCourseDialog({
             )}
           </div>
 
-          <SideDialogFooter>
+          <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={submitting}>
               {submitting ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Creating…</> : 'Create Course'}
             </Button>
-          </SideDialogFooter>
+          </DialogFooter>
         </form>
-      </SideDialogContent>
-    </SideDialog>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -387,19 +387,19 @@ export function EditCourseDialog({
   );
 
   return (
-    <SideDialog open={open} onOpenChange={onOpenChange}>
-      <SideDialogContent>
-        <SideDialogHeader>
-          <SideDialogTitle className="flex items-center gap-2">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
             <BookOpen className="h-5 w-5 text-primary" />
             Edit Course
-          </SideDialogTitle>
-          <SideDialogDescription>
+          </DialogTitle>
+          <DialogDescription>
             Update details for <strong>{course.title}</strong>.
             <br />
             <span className="font-mono text-xs text-muted-foreground">{course.code}</span>
-          </SideDialogDescription>
-        </SideDialogHeader>
+          </DialogDescription>
+        </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 flex-1">
           <div className="grid grid-cols-2 gap-3">
@@ -516,16 +516,16 @@ export function EditCourseDialog({
             )}
           </div>
 
-          <SideDialogFooter>
+          <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={submitting}>
               {submitting ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Saving…</> : 'Save Changes'}
             </Button>
-          </SideDialogFooter>
+          </DialogFooter>
         </form>
-      </SideDialogContent>
-    </SideDialog>
+      </DialogContent>
+    </Dialog>
   );
 }

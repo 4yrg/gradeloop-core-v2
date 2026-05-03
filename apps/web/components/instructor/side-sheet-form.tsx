@@ -1,11 +1,11 @@
 import * as React from "react";
 import {
-    SideDialog,
-    SideDialogContent,
-    SideDialogDescription,
-    SideDialogHeader,
-    SideDialogTitle,
-} from "@/components/ui/side-dialog";
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 interface SideSheetFormProps {
@@ -26,16 +26,16 @@ export function SideSheetForm({
     className,
 }: SideSheetFormProps) {
     return (
-        <SideDialog open={open} onOpenChange={onOpenChange}>
-            <SideDialogContent className={cn("sm:max-w-2xl", className)}>
-                <SideDialogHeader>
-                    <SideDialogTitle>{title}</SideDialogTitle>
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className={cn("sm:max-w-2xl", className)}>
+                <DialogHeader>
+                    <DialogTitle>{title}</DialogTitle>
                     {description && (
-                        <SideDialogDescription>{description}</SideDialogDescription>
+                        <DialogDescription>{description}</DialogDescription>
                     )}
-                </SideDialogHeader>
+                </DialogHeader>
                 {children}
-            </SideDialogContent>
-        </SideDialog>
+            </DialogContent>
+        </Dialog>
     );
 }

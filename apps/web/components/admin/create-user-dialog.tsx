@@ -1,23 +1,23 @@
 'use client';
 
 import * as React from 'react';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, User, Mail, Shield, Badge } from 'lucide-react';
 import {
-  SideDialog,
-  SideDialogContent,
-  SideDialogDescription,
-  SideDialogFooter,
-  SideDialogHeader,
-  SideDialogTitle,
-} from '@/components/ui/side-dialog';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { SelectNative } from '@/components/ui/select-native';
 import { usersApi, handleApiError } from '@/lib/api/users';
 import { toast } from '@/lib/hooks/use-toast';
 import type { CreateUserRequest, CreateUserResponse, FormErrors } from '@/types/admin.types';
 import { USER_TYPES } from '@/types/auth.types';
+import { cn } from '@/lib/utils/cn';
 
 interface Props {
   open: boolean;
@@ -30,6 +30,12 @@ const EMPTY: CreateUserRequest = {
   email: '',
   user_type: 'student',
 };
+
+const USER_TYPE_OPTIONS = [
+  { value: 'student', label: 'Student', icon: User },
+  { value: 'instructor', label: 'Instructor', icon: Shield },
+  { value: 'admin', label: 'Administrator', icon: Shield },
+];
 
 function validate(values: CreateUserRequest): FormErrors {
   const errors: FormErrors = {};
@@ -52,7 +58,6 @@ export function CreateUserDialog({ open, onOpenChange, onSuccess }: Props) {
   const [errors, setErrors] = React.useState<FormErrors>({});
   const [submitting, setSubmitting] = React.useState(false);
 
-  // Reset form when dialog opens
   React.useEffect(() => {
     if (open) {
       setValues(EMPTY);
@@ -87,131 +92,140 @@ export function CreateUserDialog({ open, onOpenChange, onSuccess }: Props) {
   }
 
   return (
-    <SideDialog open={open} onOpenChange={onOpenChange}>
-      <SideDialogContent className="max-w-md">
-        <SideDialogHeader>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
-              <UserPlus className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Create User</DialogTitle>
+          <DialogDescription>
+            Fill in the details to register a new system member.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="cu-fullname">
+                FULL NAME <span className="text-red-500">*</span>
+              </Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="cu-fullname"
+                  placeholder="John Doe"
+                  value={values.full_name}
+                  onChange={(e) => set('full_name', e.target.value)}
+                  autoComplete="off"
+                  disabled={submitting}
+                  className="pl-10"
+                />
+              </div>
+              {errors.full_name && (
+                <p className="text-xs text-red-500">{errors.full_name}</p>
+              )}
             </div>
-            <div>
-              <SideDialogTitle>Create User</SideDialogTitle>
-              <SideDialogDescription>
-                Add a new user to the system.
-              </SideDialogDescription>
+
+            <div className="space-y-2">
+              <Label htmlFor="cu-email">
+                EMAIL ADDRESS <span className="text-red-500">*</span>
+              </Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="cu-email"
+                  type="email"
+                  placeholder="john@gradeloop.com"
+                  value={values.email}
+                  onChange={(e) => set('email', e.target.value)}
+                  autoComplete="off"
+                  disabled={submitting}
+                  className="pl-10"
+                />
+              </div>
+              {errors.email && (
+                <p className="text-xs text-red-500">{errors.email}</p>
+              )}
             </div>
           </div>
-        </SideDialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-          {/* Full Name */}
-          <div className="space-y-1.5">
-            <Label htmlFor="cu-fullname">
-              Full Name <span className="text-red-500">*</span>
+          <div className="space-y-2">
+            <Label>
+              USER TYPE <span className="text-red-500">*</span>
             </Label>
-            <Input
-              id="cu-fullname"
-              placeholder="e.g. John Doe"
-              value={values.full_name}
-              onChange={(e) => set('full_name', e.target.value)}
-              autoComplete="off"
-              disabled={submitting}
-            />
-            {errors.full_name && (
-              <p className="text-xs text-red-500">{errors.full_name}</p>
-            )}
-          </div>
-
-          {/* Email */}
-          <div className="space-y-1.5">
-            <Label htmlFor="cu-email">
-              Email <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="cu-email"
-              type="email"
-              placeholder="john@example.com"
-              value={values.email}
-              onChange={(e) => set('email', e.target.value)}
-              autoComplete="off"
-              disabled={submitting}
-            />
-            {errors.email && (
-              <p className="text-xs text-red-500">{errors.email}</p>
-            )}
-          </div>
-
-          {/* User Type */}
-          <div className="space-y-1.5">
-            <Label htmlFor="cu-user-type">
-              User Type <span className="text-red-500">*</span>
-            </Label>
-            <SelectNative
-              id="cu-user-type"
-              value={values.user_type}
-              onChange={(e) => set('user_type', e.target.value)}
-              disabled={submitting}
-            >
-              <option value={USER_TYPES.STUDENT} className="capitalize">
-                {USER_TYPES.STUDENT}
-              </option>
-              <option value={USER_TYPES.INSTRUCTOR} className="capitalize">
-                {USER_TYPES.INSTRUCTOR}
-              </option>
-              <option value={USER_TYPES.ADMIN} className="capitalize">
-                {USER_TYPES.ADMIN}
-              </option>
-              <option value={USER_TYPES.SUPER_ADMIN} className="capitalize">
-                Super Admin
-              </option>
-            </SelectNative>
+            <div className="grid grid-cols-3 gap-3">
+              {USER_TYPE_OPTIONS.map((option) => {
+                const Icon = option.icon;
+                const isSelected = values.user_type === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => set('user_type', option.value)}
+                    disabled={submitting}
+                    className={cn(
+                      'flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all',
+                      isSelected
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border hover:border-muted-foreground hover:bg-muted/50'
+                    )}
+                  >
+                    <Icon className={cn('h-5 w-5', isSelected ? 'text-primary' : 'text-muted-foreground')} />
+                    <span className="text-sm font-medium">{option.label}</span>
+                  </button>
+                );
+              })}
+            </div>
             {errors.user_type && (
               <p className="text-xs text-red-500">{errors.user_type}</p>
             )}
           </div>
 
-          {/* Student ID (only for student type) */}
           {values.user_type === 'student' && (
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label htmlFor="cu-studentid">
-                Student ID <span className="text-red-500">*</span>
+                STUDENT ID <span className="text-red-500">*</span>
               </Label>
-              <Input
-                id="cu-studentid"
-                placeholder="e.g. STU-2024-001"
-                value={values.student_id ?? ''}
-                onChange={(e) => set('student_id', e.target.value)}
-                autoComplete="off"
-                disabled={submitting}
-              />
+              <div className="relative">
+                <Badge className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="cu-studentid"
+                  placeholder="GL-0000"
+                  value={values.student_id ?? ''}
+                  onChange={(e) => set('student_id', e.target.value)}
+                  autoComplete="off"
+                  disabled={submitting}
+                  className="pl-10"
+                />
+              </div>
               {errors.student_id && (
                 <p className="text-xs text-red-500">{errors.student_id}</p>
               )}
             </div>
           )}
 
-          {/* Designation (only for instructor type) */}
           {values.user_type === 'instructor' && (
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label htmlFor="cu-designation">
-                Designation <span className="text-red-500">*</span>
+                DESIGNATION <span className="text-red-500">*</span>
               </Label>
-              <Input
-                id="cu-designation"
-                placeholder="e.g. Lecturer"
-                value={values.designation ?? ''}
-                onChange={(e) => set('designation', e.target.value)}
-                autoComplete="off"
-                disabled={submitting}
-              />
+              <div className="relative">
+                <Badge className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="cu-designation"
+                  placeholder="Lecturer"
+                  value={values.designation ?? ''}
+                  onChange={(e) => set('designation', e.target.value)}
+                  autoComplete="off"
+                  disabled={submitting}
+                  className="pl-10"
+                />
+              </div>
               {errors.designation && (
                 <p className="text-xs text-red-500">{errors.designation}</p>
               )}
             </div>
           )}
 
-
-          <SideDialogFooter className="pt-2">
+          <DialogFooter>
             <Button
               type="button"
               variant="outline"
@@ -223,9 +237,9 @@ export function CreateUserDialog({ open, onOpenChange, onSuccess }: Props) {
             <Button type="submit" disabled={submitting}>
               {submitting ? 'Creating…' : 'Create User'}
             </Button>
-          </SideDialogFooter>
+          </DialogFooter>
         </form>
-      </SideDialogContent>
-    </SideDialog>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -2,13 +2,13 @@
 
 import * as React from "react";
 import {
-    SideDialog,
-    SideDialogContent,
-    SideDialogDescription,
-    SideDialogFooter,
-    SideDialogHeader,
-    SideDialogTitle,
-} from "@/components/ui/side-dialog";
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -106,18 +106,14 @@ export function CreateRoleDialog({
     }
 
     return (
-        <SideDialog open={open} onOpenChange={onOpenChange}>
-            <SideDialogContent className="max-w-xl">
-                <SideDialogHeader>
-                    <div className="flex items-center justify-between w-full">
-                        <div>
-                            <SideDialogTitle>Create Role</SideDialogTitle>
-                            <SideDialogDescription>
-                                Define permissions and access levels for this new role.
-                            </SideDialogDescription>
-                        </div>
-                    </div>
-                </SideDialogHeader>
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-xl">
+                <DialogHeader>
+                    <DialogTitle>Create Role</DialogTitle>
+                    <DialogDescription>
+                        Define permissions and access levels for this new role.
+                    </DialogDescription>
+                </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
                     <div className="space-y-6 flex-1 overflow-y-auto pr-2 pb-4">
@@ -239,7 +235,7 @@ export function CreateRoleDialog({
                         </div>
                     </div>
 
-                    <SideDialogFooter className="pt-4 mt-auto">
+                    <DialogFooter className="pt-4 mt-auto">
                         <Button
                             type="button"
                             variant="outline"
@@ -251,9 +247,9 @@ export function CreateRoleDialog({
                         <Button type="submit" disabled={submitting}>
                             {submitting ? "Saving…" : "Save Role"}
                         </Button>
-                    </SideDialogFooter>
+                    </DialogFooter>
                 </form>
-            </SideDialogContent>
-        </SideDialog>
+            </DialogContent>
+        </Dialog>
     );
 }

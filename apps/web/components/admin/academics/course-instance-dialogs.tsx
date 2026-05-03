@@ -2,7 +2,7 @@
 
 /**
  * Course Instance dialogs: Create (2-step) + Edit (with Settings section)
- * Uses SideDialog + brand tokens from globals.css
+ * Uses Dialog + brand tokens from globals.css
  */
 import * as React from "react";
 import {
@@ -21,13 +21,13 @@ import {
   Trash2,
 } from "lucide-react";
 import {
-  SideDialog,
-  SideDialogContent,
-  SideDialogDescription,
-  SideDialogFooter,
-  SideDialogHeader,
-  SideDialogTitle,
-} from "@/components/ui/side-dialog";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -669,17 +669,17 @@ export function CreateCourseInstanceDialog({
   const taIds = tas.map((t) => t.id);
 
   return (
-    <SideDialog open={open} onOpenChange={onOpenChange}>
-      <SideDialogContent>
-        <SideDialogHeader>
-          <SideDialogTitle className="flex items-center gap-2">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-primary" />
             Create Course Instance
-          </SideDialogTitle>
-          <SideDialogDescription>
+          </DialogTitle>
+          <DialogDescription>
             Setup details for the new academic session
-          </SideDialogDescription>
-        </SideDialogHeader>
+          </DialogDescription>
+        </DialogHeader>
 
         {/* Step Indicator */}
         <StepIndicator step={step} steps={STEP_LABELS} />
@@ -786,7 +786,7 @@ export function CreateCourseInstanceDialog({
                 </div>
               </div>
 
-              <SideDialogFooter>
+              <DialogFooter>
                 <Button
                   type="button"
                   variant="outline"
@@ -797,7 +797,7 @@ export function CreateCourseInstanceDialog({
                 <Button type="button" onClick={handleNext} className="gap-1.5">
                   Next <ChevronRight className="h-3.5 w-3.5" />
                 </Button>
-              </SideDialogFooter>
+              </DialogFooter>
             </>
           )}
 
@@ -911,7 +911,7 @@ export function CreateCourseInstanceDialog({
                 </div>
               </div>
 
-              <SideDialogFooter>
+              <DialogFooter>
                 <Button
                   type="button"
                   variant="outline"
@@ -937,12 +937,12 @@ export function CreateCourseInstanceDialog({
                     </>
                   )}
                 </Button>
-              </SideDialogFooter>
+              </DialogFooter>
             </>
           )}
         </form>
-      </SideDialogContent>
-    </SideDialog>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1262,19 +1262,19 @@ export function EditCourseInstanceDialog({
   };
 
   return (
-    <SideDialog open={open} onOpenChange={onOpenChange}>
-      <SideDialogContent className="flex flex-col max-h-[90vh]">
-        <SideDialogHeader>
-          <SideDialogTitle className="flex items-center gap-2">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex flex-col max-h-[90vh]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-primary" />
             Edit Course Instance
-          </SideDialogTitle>
-          <SideDialogDescription>
+          </DialogTitle>
+          <DialogDescription>
             {semesterName && batchName
               ? `${semesterName} — ${batchName}`
               : `Instance ${instance.id.slice(0, 8)}`}
-          </SideDialogDescription>
-        </SideDialogHeader>
+          </DialogDescription>
+        </DialogHeader>
 
         {/* Instance overview card */}
         <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 mb-2 shrink-0">
@@ -1415,7 +1415,7 @@ export function EditCourseInstanceDialog({
                 </div>
               </div>
 
-              <SideDialogFooter>
+              <DialogFooter>
                 <Button
                   type="button"
                   variant="outline"
@@ -1441,7 +1441,7 @@ export function EditCourseInstanceDialog({
                     </>
                   )}
                 </Button>
-              </SideDialogFooter>
+              </DialogFooter>
             </TabsContent>
 
             {/* Students Tab */}
@@ -1787,8 +1787,8 @@ export function EditCourseInstanceDialog({
             </TabsContent>
           </div>
         </Tabs>
-      </SideDialogContent>
-    </SideDialog>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1928,18 +1928,18 @@ export function EnrollStudentsDialog({
   }
 
   return (
-    <SideDialog open={open} onOpenChange={onOpenChange}>
-      <SideDialogContent>
-        <SideDialogHeader>
-          <SideDialogTitle className="flex items-center gap-2">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5 text-primary" />
             Enroll Students
-          </SideDialogTitle>
-          <SideDialogDescription>
+          </DialogTitle>
+          <DialogDescription>
             Search for students and add them individually to this course
             instance.
-          </SideDialogDescription>
-        </SideDialogHeader>
+          </DialogDescription>
+        </DialogHeader>
 
         <div className="flex flex-col gap-4 flex-1 overflow-y-auto">
           {/* ── Search input ── */}
@@ -2050,7 +2050,7 @@ export function EnrollStudentsDialog({
           )}
         </div>
 
-        <SideDialogFooter>
+        <DialogFooter>
           <Button
             type="button"
             variant="outline"
@@ -2080,9 +2080,9 @@ export function EnrollStudentsDialog({
               </>
             )}
           </Button>
-        </SideDialogFooter>
-      </SideDialogContent>
-    </SideDialog>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -2169,14 +2169,14 @@ export function AddBatchToInstanceDialog({
   };
 
   return (
-    <SideDialog open={open} onOpenChange={onOpenChange}>
-      <SideDialogContent>
-        <SideDialogHeader>
-          <SideDialogTitle>Add Batch to Course</SideDialogTitle>
-          <SideDialogDescription>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add Batch to Course</DialogTitle>
+          <DialogDescription>
             Select a batch to enroll all its students in this course instance.
-          </SideDialogDescription>
-        </SideDialogHeader>
+          </DialogDescription>
+        </DialogHeader>
 
         <div className="space-y-4 flex-1">
           <SectionHeader
@@ -2246,7 +2246,7 @@ export function AddBatchToInstanceDialog({
           )}
         </div>
 
-        <SideDialogFooter>
+        <DialogFooter>
           <Button
             type="button"
             variant="outline"
@@ -2273,9 +2273,9 @@ export function AddBatchToInstanceDialog({
               </>
             )}
           </Button>
-        </SideDialogFooter>
-      </SideDialogContent>
-    </SideDialog>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -2397,14 +2397,14 @@ export function AddIndividualStudentDialog({
   }
 
   return (
-    <SideDialog open={open} onOpenChange={onOpenChange}>
-      <SideDialogContent>
-        <SideDialogHeader>
-          <SideDialogTitle>Add Individual Students</SideDialogTitle>
-          <SideDialogDescription>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add Individual Students</DialogTitle>
+          <DialogDescription>
             Search and add students individually to this course instance.
-          </SideDialogDescription>
-        </SideDialogHeader>
+          </DialogDescription>
+        </DialogHeader>
 
         <div className="space-y-4 flex-1">
           <SectionHeader
@@ -2519,7 +2519,7 @@ export function AddIndividualStudentDialog({
           )}
         </div>
 
-        <SideDialogFooter>
+        <DialogFooter>
           <Button
             type="button"
             variant="outline"
@@ -2549,8 +2549,8 @@ export function AddIndividualStudentDialog({
               </>
             )}
           </Button>
-        </SideDialogFooter>
-      </SideDialogContent>
-    </SideDialog>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

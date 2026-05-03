@@ -11,12 +11,12 @@ import {
     Loader2,
 } from 'lucide-react';
 import {
-    SideDialog as Dialog,
-    SideDialogContent as DialogContent,
-    SideDialogDescription as DialogDescription,
-    SideDialogHeader as DialogHeader,
-    SideDialogTitle as DialogTitle,
-} from '@/components/ui/side-dialog';
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
