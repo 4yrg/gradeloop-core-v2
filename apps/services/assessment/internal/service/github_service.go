@@ -277,10 +277,10 @@ func (s *gitHubService) CommitFile(ctx context.Context, orgName, repoName, fileP
 }
 
 type GitCommitInfo struct {
-	SHA      string    `json:"sha"`
-	Message  string    `json:"message"`
-	Date     time.Time `json:"date"`
-	Author   struct {
+	SHA     string    `json:"sha"`
+	Message string    `json:"message"`
+	Date    time.Time `json:"date"`
+	Author  struct {
 		Login string `json:"login"`
 		Name  string `json:"name"`
 	} `json:"author"`
@@ -335,15 +335,15 @@ func (s *gitHubService) SubmitAssignment(ctx context.Context, repo *domain.GitHu
 	tagName := fmt.Sprintf("submission-v%d", nextVersion)
 
 	version := &domain.GitHubSubmissionVersion{
-		GitHubRepoID:   repo.ID,
+		GitHubRepoID:  repo.ID,
 		AssignmentID:  assignmentID,
-		UserID:         userID,
-		Version:        nextVersion,
-		CommitSHA:      latestCommit.SHA,
+		UserID:        userID,
+		Version:       nextVersion,
+		CommitSHA:     latestCommit.SHA,
 		CommitMessage: latestCommit.Message,
-		TagName:        tagName,
-		GradingStatus:  "pending",
-		SubmittedAt:    time.Now(),
+		TagName:       tagName,
+		GradingStatus: "pending",
+		SubmittedAt:   time.Now(),
 	}
 
 	if err := s.githubRepo.CreateVersion(version); err != nil {
@@ -362,7 +362,7 @@ func (s *gitHubService) createTag(ctx context.Context, orgName, repoName, tagNam
 		"tag":     tagName,
 		"message": message,
 		"object": map[string]string{
-			"sha": "HEAD",
+			"sha":  "HEAD",
 			"type": "commit",
 		},
 	}

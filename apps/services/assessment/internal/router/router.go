@@ -9,15 +9,15 @@ import (
 
 // Config holds all handler dependencies required to set up routes.
 type Config struct {
-	HealthHandler      *handler.HealthHandler
-	AssignmentHandler  *handler.AssignmentHandler
-	SubmissionHandler  *handler.SubmissionHandler
-	GroupHandler       *handler.GroupHandler
-	InstructorHandler  *handler.InstructorHandler
-	StudentHandler     *handler.StudentHandler
-	GitHubHandler      *handler.GitHubHandler
-	WebhookHandler     *handler.WebhookHandler
-	JWTSecretKey       []byte
+	HealthHandler     *handler.HealthHandler
+	AssignmentHandler *handler.AssignmentHandler
+	SubmissionHandler *handler.SubmissionHandler
+	GroupHandler      *handler.GroupHandler
+	InstructorHandler *handler.InstructorHandler
+	StudentHandler    *handler.StudentHandler
+	GitHubHandler     *handler.GitHubHandler
+	WebhookHandler    *handler.WebhookHandler
+	JWTSecretKey      []byte
 }
 
 // requireAdminRole is a route-level middleware that allows access only to

@@ -56,13 +56,13 @@ type JWTConfig struct {
 
 // GitHubConfig holds GitHub OAuth and App configuration.
 type GitHubConfig struct {
-	ClientID     string
-	ClientSecret string
-	RedirectURL  string
-	AppID        string
+	ClientID         string
+	ClientSecret     string
+	RedirectURL      string
+	AppID            string
 	AppWebhookSecret string
-	OrgName      string
-	EncryptionKey string
+	OrgName          string
+	EncryptionKey    string
 }
 
 // Load reads configuration from environment variables.

@@ -65,9 +65,9 @@ func (h *GradingCallbackHandler) HandleGradingCallback(c fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"message":   "Grade received",
-		"version":   version.Version,
-		"score":     req.Score,
-		"status":    req.Status,
+		"message": "Grade received",
+		"version": version.Version,
+		"score":   req.Score,
+		"status":  req.Status,
 	})
 }

@@ -32,8 +32,8 @@ type GitHubPushEvent struct {
 	Before     string `json:"before"`
 	After      string `json:"after"`
 	Repository struct {
-		Name   string `json:"name"`
-		Owner  struct {
+		Name  string `json:"name"`
+		Owner struct {
 			Login string `json:"login"`
 		} `json:"owner"`
 	} `json:"repository"`
@@ -97,11 +97,11 @@ func (h *WebhookHandler) handlePushEvent(c fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"status":    "received",
-		"event":      "push",
-		"repo":       event.Repository.Name,
-		"commits":    len(event.Commits),
-		"after":      event.After,
+		"status":  "received",
+		"event":   "push",
+		"repo":    event.Repository.Name,
+		"commits": len(event.Commits),
+		"after":   event.After,
 	})
 }
 
@@ -109,11 +109,11 @@ func (h *WebhookHandler) handleWorkflowRunEvent(c fiber.Ctx) error {
 	var event struct {
 		Action      string `json:"action"`
 		WorkflowRun struct {
-			ID          int    `json:"id"`
-			Conclusion  string `json:"conclusion"`
-			HeadBranch  string `json:"head_branch"`
-			HeadSHA     string `json:"head_sha"`
-			RunNumber   int    `json:"run_number"`
+			ID         int    `json:"id"`
+			Conclusion string `json:"conclusion"`
+			HeadBranch string `json:"head_branch"`
+			HeadSHA    string `json:"head_sha"`
+			RunNumber  int    `json:"run_number"`
 		} `json:"workflow_run"`
 		Repository struct {
 			Name string `json:"name"`
