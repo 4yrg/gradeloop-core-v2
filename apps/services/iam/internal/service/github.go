@@ -197,9 +197,9 @@ func (s *GitHubService) DecryptToken(encryptedToken string) (string, error) {
 	return string(ciphertext), nil
 }
 
-func (s *GitHubService) LinkGitHubToUser(user *domain.User, githubToken string) error {
-	user.GitHubUsername = user.GitHubUsername
-	user.GitHubID = &user.GitHubUsername
+func (s *GitHubService) LinkGitHubToUser(user *domain.User, githubUser *dto.GitHubUserResponse, githubToken string) error {
+	user.GitHubUsername = githubUser.Login
+	user.GitHubID = &githubUser.ID
 
 	encryptedToken, err := s.EncryptToken(githubToken)
 	if err != nil {
