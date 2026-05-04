@@ -73,7 +73,7 @@ class Settings(BaseSettings):
     ast_max_lines: int = Field(default=5000, alias="AST_MAX_LINES")
     ast_timeout_seconds: int = Field(default=2, alias="AST_TIMEOUT_SECONDS")
 
-    # ── LLM: OpenRouter API Key only ─────────────────────────────────────────────
+    # ── LLM: OpenRouter (Pass 1 reasoning + Pass 2 grading + Socratic chat) ─────
     openrouter_api_key: str = Field(
         default="SET_YOUR_API_KEY_HERE",
         alias="ACAFS_OPENROUTER_API_KEY",
@@ -88,16 +88,6 @@ class Settings(BaseSettings):
     openrouter_grader_model: str = "qwen/qwen3-coder:free"
     # Base URL (standard OpenRouter endpoint)
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
-
-    # ── LLM: Gemini (Pass-2 structured grading) ───────────────────────────────
-    gemini_api_key: str = Field(
-        default="SET_YOUR_API_KEY_HERE",
-        alias="GEMINI_API_KEY",
-    )
-    gemini_grader_model: str = Field(
-        default="gemini-2.5-flash",
-        alias="GEMINI_GRADER_MODEL",
-    )
 
     # ── Judge0 (test-case execution) ──────────────────────────────────────────
     judge0_url: str = Field(
