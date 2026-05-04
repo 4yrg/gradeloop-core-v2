@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CodeIDE } from "@/components/ide";
+import { GitHubCodeIDE } from "@/components/ide";
 import { studentAssessmentsApi, acafsApi } from "@/lib/api/assessments";
 import {
     detectAICode,
@@ -230,54 +230,15 @@ export default function StudentAttemptPage() {
     // Clear topbar title when leaving this page
     React.useEffect(() => () => { setPageTitle(null); }, [setPageTitle]);
 
-    const handleSubmit = async (code: string, languageId: number) => {
+const handleSubmit = async (versionId: string) => {
         if (!assignment) return;
         try {
             setIsSubmitting(true);
             setError(null);
-            const submission = await studentAssessmentsApi.submit({
-                assignment_id: assignment.id,
-                language: LANGUAGE_ID_TO_NAME[languageId] ?? "python",
-                language_id: languageId,
-                code,
-            });
+            const submission = await studentAssessmentsApi.getSubmission(versionId);
             setSubmittedVersion(submission.version);
-            // Trigger grade polling for this new submission
             setGradedSubmissionId(submission.id);
             toast.success(`Submitted successfully! Version ${submission.version}`);
-
-            // Run CIPAS analysis in the background (fire-and-forget)
-            setSubmissionAnalysis(null);
-            setIsAnalyzing(true);
-            // Fetch sample answer from the assignment service for semantic similarity.
-            const sampleAnswerPromise = studentAssessmentsApi
-                .getAssignmentSampleAnswer(assignment.id)
-                .then(sa => (sa?.code ? getSemanticSimilarity(code, sa.code) : null))
-                .catch(() => null);
-            Promise.allSettled([
-                detectAICode(code),
-                sampleAnswerPromise,
-            ]).then(([aiRes, semRes]) => {
-                setIsAnalyzing(false);
-                const aiResult = aiRes.status === "fulfilled" ? aiRes.value : null;
-                const semScore = semRes.status === "fulfilled" ? semRes.value : null;
-                if (aiResult) {
-                    const analysis = {
-                        aiLikelihood: aiResult.ai_likelihood,
-                        humanLikelihood: aiResult.human_likelihood,
-                        semanticSimilarityScore: semScore,
-                    };
-                    setSubmissionAnalysis(analysis);
-                    // Persist to assessment service
-                    saveSubmissionAnalysis(submission.id, {
-                        ai_likelihood: aiResult.ai_likelihood,
-                        human_likelihood: aiResult.human_likelihood,
-                        is_ai_generated: aiResult.is_ai_generated,
-                        ai_confidence: aiResult.confidence,
-                        semantic_similarity_score: semScore,
-                    }).catch(() => { /* best-effort */ });
-                }
-            });
         } catch (err) {
             const msg = handleApiError(err);
             setError(msg);
@@ -452,23 +413,12 @@ export default function StudentAttemptPage() {
 
                 {/* IDE */}
                 <div className="flex-1 overflow-hidden">
-                    <CodeIDE
+                    <GitHubCodeIDE
                         assignmentId={assignment.id}
                         assignmentTitle={assignment.title}
-                        assignmentDescription={assignment.description}
                         userId={user?.id ?? "anonymous"}
-                        initialCode={initialCode}
-                        initialLanguage={languageId}
-                        lockLanguage={true}
                         readOnly={isReadOnly}
                         showSubmitButton={!isReadOnly && (!isOverdue || assignment.allow_late_submissions)}
-                        showAIAssistant={assignment.enable_ai_assistant}
-                        showGradePanel={true}
-                        grade={grade}
-                        isGrading={isGrading}
-                        gradingFailed={gradingTimedOut}
-                        submissionAnalysis={submissionAnalysis}
-                        isAnalyzing={isAnalyzing}
                         onSubmit={handleSubmit}
                     />
                 </div>
