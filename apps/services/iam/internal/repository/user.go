@@ -120,7 +120,7 @@ func (r *userRepository) GetUsers(ctx context.Context, offset, limit int, userTy
 	db := r.db.WithContext(ctx)
 
 	// Apply filters
-	if userType != "" {
+	if userType != "" && userType != "all" {
 		db = db.Where("users.user_type = ?", userType)
 	}
 
@@ -143,7 +143,7 @@ func (r *userRepository) CountUsers(ctx context.Context, userType string, search
 	db := r.db.WithContext(ctx).Model(&domain.User{})
 
 	// Apply filters
-	if userType != "" {
+	if userType != "" && userType != "all" {
 		db = db.Where("users.user_type = ?", userType)
 	}
 
