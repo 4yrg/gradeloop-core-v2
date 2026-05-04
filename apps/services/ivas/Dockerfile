@@ -74,11 +74,14 @@ COPY models/ ./models/
 RUN groupadd --system ivas && useradd --system --gid ivas ivas \
     && chown -R ivas:ivas /app
 
+RUN mkdir -p /tmp/numba_cache && chown ivas:ivas /tmp/numba_cache
+
 USER ivas
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    CUDA_VISIBLE_DEVICES=""
+    CUDA_VISIBLE_DEVICES="" \
+    NUMBA_CACHE_DIR=/tmp/numba_cache
 
 EXPOSE 8101
 
