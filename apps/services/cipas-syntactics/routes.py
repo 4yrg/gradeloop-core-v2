@@ -114,19 +114,30 @@ def _get_tiered_pipeline() -> TieredPipeline:
 def _load_syntactic_model() -> SyntacticClassifier | None:
     global _syntactic_model
     if _syntactic_model is None:
-        try:
-            model_path = get_model_path("type3_xgb.pkl")
-            if model_path.exists():
-                _syntactic_model = SyntacticClassifier.load("type3_xgb.pkl")
-                logger.info("Type-3 XGBoost model loaded successfully")
-            else:
-                logger.warning(
-                    "Type-3 model not found (type3_xgb.pkl). "
-                    "Run 'poetry run python train.py' to train it."
-                )
-        except Exception as exc:
-            logger.warning(f"Could not load Type-3 model: {exc}")
-            _syntactic_model = None
+        model_names = ["type3_xgb.pkl", "clone_detector_xgb.pkl"]
+        for model_name in model_names:
+            try:
+                model_path = get_model_path(model_name)
+                if model_path.exists():
+                    _syntactic_classifier = SyntacticClassifier.load(model_name)
+                    logger.info(f"Type-3 XGBoost model loaded successfully: {model_name}")
+                    _syntactic_model = _syntactic_classifier
+                    break
+                else:
+                    logger.warning(f"Model not found: {model_name}")
+            except Exception as exc:
+                exc_msg = str(exc)
+                if "invalid load key" in exc_msg.lower() or "xgboost" in exc_msg.lower():
+                    logger.warning(
+                        f"Model {model_name} version mismatch (XGBoost): trying next model..."
+                    )
+                else:
+                    logger.warning(f"Could not load {model_name}: {exc}")
+        if _syntactic_model is None:
+            logger.error(
+                "Type-3 models unavailable. "
+                "Fix: Re-train the model with current XGBoost version."
+            )
     return _syntactic_model
 
 
@@ -135,11 +146,16 @@ def _get_model_status() -> dict[str, ModelStatus]:
     model_path = get_model_path("type3_xgb.pkl")
     available = model_path.exists()
     loaded = _syntactic_model is not None and _syntactic_model.is_trained
+    error = None
+    if not available:
+        error = "Model file not found — run train.py"
+    elif _syntactic_model is None:
+        error = "Model version mismatch (XGBoost) — re-train with current version"
     models["syntactic_type3"] = ModelStatus(
         model_name="type3_xgb.pkl",
         available=available,
         loaded=loaded,
-        error=None if available else "Model file not found — run train.py",
+        error=error,
     )
     return models
 
