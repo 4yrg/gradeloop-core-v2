@@ -35,7 +35,7 @@ go run ./cmd/main.go
 
 ### 3. Test the Endpoint
 
-#### Reason for Clone Detection (TYPE-1 to TYPE-4)
+#### Reason for Clone Detection
 
 Requires at least 2 code snippets.
 
@@ -43,7 +43,7 @@ Requires at least 2 code snippets.
 curl -X POST http://localhost:8085/api/v1/cipas-xai/reason \
   -H "Content-Type: application/json" \
   -d '{
-    "type": "TYPE-2",
+    "type": "TYPE-02",
     "code": [
       "function add(a, b) { return a + b; }",
       "function sum(x, y) { return x + y; }"
@@ -51,7 +51,7 @@ curl -X POST http://localhost:8085/api/v1/cipas-xai/reason \
   }'
 ```
 
-#### Reason for AI Detection (TYPE-AI)
+#### Reason for AI Detection
 
 Requires exactly 1 code snippet.
 
@@ -76,7 +76,7 @@ Explain why code matches a specific detection type.
 
 ```json
 {
-  "type": "TYPE-1" | "TYPE-2" | "TYPE-3" | "TYPE-4" | "TYPE-AI",
+  "type": "TYPE-01" | "TYPE-02" | "TYPE-03" | "TYPE-04" | "TYPE-AI",
   "code": ["snippet1", "snippet2", "..."]
 }
 ```
@@ -85,7 +85,7 @@ Explain why code matches a specific detection type.
 
 ```json
 {
-  "reason": "The snippets are Type-2 clones because they share identical structural logic (a simple binary addition) but differ only in identifier names ('add' vs 'sum' and 'a,b' vs 'x,y')."
+  "reason": "The snippets are Renamed Clones because they share identical structural logic but differ only in identifier names ('add' vs 'sum' and 'a,b' vs 'x,y')."
 }
 ```
 

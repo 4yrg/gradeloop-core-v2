@@ -47,12 +47,16 @@ func (h *ReasonHandler) Reason(c fiber.Ctx) error {
 	// Validation
 	req.Type = strings.ToUpper(req.Type)
 	validTypes := map[string]bool{
-		"TYPE-1": true, "TYPE-2": true, "TYPE-3": true, "TYPE-4": true, "TYPE-AI": true,
+		"TYPE-01": true,
+		"TYPE-02": true,
+		"TYPE-03": true,
+		"TYPE-04": true,
+		"TYPE-AI": true,
 	}
 
 	if !validTypes[req.Type] {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid type. Must be one of: TYPE-1, TYPE-2, TYPE-3, TYPE-4, TYPE-AI",
+			"error": "Invalid type. Must be one of: TYPE-01, TYPE-02, TYPE-03, TYPE-04, TYPE-AI",
 		})
 	}
 
@@ -65,7 +69,7 @@ func (h *ReasonHandler) Reason(c fiber.Ctx) error {
 	} else {
 		if len(req.Code) < 2 {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "Clone detection reasoning (TYPE-1 to TYPE-4) requires at least two code snippets",
+				"error": "Clone detection reasoning (TYPE-01 to TYPE-04) requires at least two code snippets",
 			})
 		}
 	}

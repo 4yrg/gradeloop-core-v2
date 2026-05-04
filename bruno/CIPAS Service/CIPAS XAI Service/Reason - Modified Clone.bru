@@ -1,0 +1,21 @@
+meta {
+  name: Reason - Modified Clone
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{CIPAS_XAI_URL_V1}}/reason
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "type": "TYPE-03",
+    "code": [
+      "function fetchData(url) {\n  return fetch(url).then(res => res.json());\n}",
+      "function fetchData(url) {\n  console.log('Fetching from:', url);\n  return fetch(url).then(res => {\n    if (!res.ok) throw new Error('Failed');\n    return res.json();\n  });\n}"
+    ]
+  }
+}

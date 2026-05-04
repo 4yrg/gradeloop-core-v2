@@ -1,0 +1,21 @@
+meta {
+  name: Reason - Semantic Clone
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{CIPAS_XAI_URL_V1}}/reason
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "type": "TYPE-04",
+    "code": [
+      "function findMax(arr) {\n  let max = arr[0];\n  for(let i=1; i<arr.length; i++) {\n    if(arr[i] > max) max = arr[i];\n  }\n  return max;\n}",
+      "const findMax = (arr) => arr.reduce((acc, val) => val > acc ? val : acc, arr[0]);"
+    ]
+  }
+}

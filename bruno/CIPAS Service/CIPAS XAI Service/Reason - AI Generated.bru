@@ -1,0 +1,20 @@
+meta {
+  name: Reason - AI Generated
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{CIPAS_XAI_URL_V1}}/reason
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "type": "TYPE-AI",
+    "code": [
+      "/**\n * Calculates the Fibonacci sequence up to a given number of terms.\n * This function uses a simple iterative approach for optimal performance.\n *\n * @param {number} n - The number of terms to generate.\n * @returns {number[]} The generated Fibonacci sequence.\n */\nfunction generateFibonacci(n) {\n  if (n <= 0) return [];\n  if (n === 1) return [0];\n\n  const sequence = [0, 1];\n  \n  while (sequence.length < n) {\n    const nextNumber = sequence[sequence.length - 1] + sequence[sequence.length - 2];\n    sequence.push(nextNumber);\n  }\n\n  return sequence;\n}"
+    ]
+  }
+}

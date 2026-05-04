@@ -2,7 +2,7 @@ package dto
 
 // ReasonRequest represents the request body for the reason endpoint
 type ReasonRequest struct {
-	Type string   `json:"type"` // TYPE-1, TYPE-2, TYPE-3, TYPE-4, TYPE-AI
+	Type string   `json:"type"` // TYPE-01, TYPE-02, TYPE-03, TYPE-04, TYPE-AI
 	Code []string `json:"code"`
 }
 
