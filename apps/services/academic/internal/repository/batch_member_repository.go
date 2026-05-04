@@ -14,6 +14,8 @@ type BatchMemberRepository interface {
 	AddMembers(members []domain.BatchMember) error
 	GetMembers(batchID uuid.UUID) ([]domain.BatchMember, error)
 	GetMember(batchID, userID uuid.UUID) (*domain.BatchMember, error)
+	GetBatchesByUserID(userID uuid.UUID) ([]uuid.UUID, error)
+	GetMembersByBatchID(batchID uuid.UUID) ([]uuid.UUID, error)
 	RemoveMember(batchID, userID uuid.UUID) error
 }
 
@@ -66,6 +68,26 @@ func (r *batchMemberRepository) GetMember(batchID, userID uuid.UUID) (*domain.Ba
 	}
 
 	return &member, nil
+}
+
+// GetBatchesByUserID returns all batch IDs that the given user belongs to.
+func (r *batchMemberRepository) GetBatchesByUserID(userID uuid.UUID) ([]uuid.UUID, error) {
+	var batchIDs []uuid.UUID
+	err := r.db.
+		Model(&domain.BatchMember{}).
+		Where("user_id = ?", userID).
+		Pluck("batch_id", &batchIDs).Error
+	return batchIDs, err
+}
+
+// GetMembersByBatchID returns all user IDs belonging to the given batch.
+func (r *batchMemberRepository) GetMembersByBatchID(batchID uuid.UUID) ([]uuid.UUID, error) {
+	var userIDs []uuid.UUID
+	err := r.db.
+		Model(&domain.BatchMember{}).
+		Where("batch_id = ?", batchID).
+		Pluck("user_id", &userIDs).Error
+	return userIDs, err
 }
 
 // RemoveMember hard-deletes the membership row identified by the composite key.

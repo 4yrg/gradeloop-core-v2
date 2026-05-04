@@ -76,3 +76,11 @@ func ErrConflict(message string) *AppError {
 func ErrForbidden(message string) *AppError {
 	return NewAppError(http.StatusForbidden, message, nil)
 }
+
+func IsConflict(err error) bool {
+	var appErr *AppError
+	if errors.As(err, &appErr) {
+		return appErr.Code == http.StatusConflict
+	}
+	return false
+}
