@@ -34,6 +34,9 @@ func (m *Migrator) Run() error {
 		&domain.AssignmentRubricCriterion{},
 		&domain.AssignmentTestCase{},
 		&domain.AssignmentSampleAnswer{},
+		&domain.GitHubRepo{},
+		&domain.GitHubSubmissionVersion{},
+		&domain.AssignmentGitHubConfig{},
 	); err != nil {
 		return fmt.Errorf("auto migrate tables: %w", err)
 	}
@@ -216,6 +219,52 @@ func (m *Migrator) Run() error {
 		ALTER TABLE assignments DROP COLUMN IF EXISTS sample_answer
 	`).Error; err != nil {
 		m.logger.Warn("failed to drop legacy assignments.sample_answer column", zap.Error(err))
+	}
+
+	// ── GitHub Integration indexes ─────────────────────────────────────────────
+
+	// Index for fast lookup of student repos by assignment
+	if err := m.db.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_github_repos_assignment_user
+		ON github_repos(assignment_id, user_id)
+	`).Error; err != nil {
+		m.logger.Warn("failed to create index idx_github_repos_assignment_user", zap.Error(err))
+	}
+
+	// Index for fast lookup of submission versions by repo
+	if err := m.db.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_github_versions_repo
+		ON github_submission_versions(github_repo_id, version)
+	`).Error; err != nil {
+		m.logger.Warn("failed to create index idx_github_versions_repo", zap.Error(err))
+	}
+
+	// Index for fetching submission versions by user and assignment
+	if err := m.db.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_github_versions_user_assignment
+		ON github_submission_versions(user_id, assignment_id, version DESC)
+	`).Error; err != nil {
+		m.logger.Warn("failed to create index idx_github_versions_user_assignment", zap.Error(err))
+	}
+
+	// Drop legacy storage_path column from submissions (replaced by GitHub)
+	if err := m.db.Exec(`
+		ALTER TABLE submissions DROP COLUMN IF EXISTS storage_path
+	`).Error; err != nil {
+		m.logger.Warn("failed to drop legacy storage_path column", zap.Error(err))
+	}
+
+	// Add GitHub columns to submissions if not exist
+	if err := m.db.Exec(`
+		ALTER TABLE submissions ADD COLUMN IF NOT EXISTS github_repo_id UUID
+	`).Error; err != nil {
+		m.logger.Warn("failed to add github_repo_id column to submissions", zap.Error(err))
+	}
+
+	if err := m.db.Exec(`
+		ALTER TABLE submissions ADD COLUMN IF NOT EXISTS commit_sha VARCHAR(255)
+	`).Error; err != nil {
+		m.logger.Warn("failed to add commit_sha column to submissions", zap.Error(err))
 	}
 
 	m.logger.Info("migrations completed successfully")

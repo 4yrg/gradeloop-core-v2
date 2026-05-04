@@ -11,6 +11,7 @@ import {
   Code,
   Eye,
   EyeOff,
+  GitBranch,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -30,6 +31,20 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleGitHubLogin = async () => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/v1/auth/github`, {
+        credentials: "include",
+      });
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
+      toast.error("Failed to initiate GitHub login");
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -71,6 +86,28 @@ export default function LoginPage() {
           <p className="text-sm text-muted-foreground max-w-[280px]">
             Enter your credentials to access your workspace.
           </p>
+        </div>
+
+        {/* GitHub Login Option */}
+        <div className="mb-6">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={handleGitHubLogin}
+          >
+            <GitBranch className="mr-2 h-4 w-4" />
+            Continue with GitHub
+          </Button>
+        </div>
+
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">Or continue with email</span>
+          </div>
         </div>
 
         <form className="space-y-6" onSubmit={handleSubmit}>

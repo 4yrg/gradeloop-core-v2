@@ -13,6 +13,7 @@ type AuthHandler struct {
 	authService        service.AuthService
 	userService        service.UserService
 	passwordService    service.PasswordService
+	githubService      *service.GitHubService
 	cookieSecure       bool
 	cookieSameSite     string
 	refreshTokenExpiry time.Duration
@@ -22,6 +23,7 @@ func NewAuthHandler(
 	authService service.AuthService,
 	userService service.UserService,
 	passwordService service.PasswordService,
+	githubService *service.GitHubService,
 	cookieSecure bool,
 	cookieSameSite string,
 	refreshTokenExpiryDays int64,
@@ -30,6 +32,7 @@ func NewAuthHandler(
 		authService:        authService,
 		userService:        userService,
 		passwordService:    passwordService,
+		githubService:      githubService,
 		cookieSecure:       cookieSecure,
 		cookieSameSite:     cookieSameSite,
 		refreshTokenExpiry: time.Duration(refreshTokenExpiryDays) * 24 * time.Hour,
@@ -45,6 +48,9 @@ func (h *AuthHandler) RegisterRoutes(app *fiber.App) {
 	auth.Post("/forgot-password", h.ForgotPassword)
 	auth.Post("/reset-password", h.ResetPassword)
 	auth.Post("/change-password", h.ChangePassword)
+
+	auth.Get("/github", h.GetGitHubAuthURL)
+	auth.Get("/github/callback", h.GitHubCallback)
 }
 
 // RegisterAdminRoutes registers admin-only routes
@@ -216,6 +222,66 @@ func (h *AuthHandler) RevokeUserSessions(c fiber.Ctx) error {
 	}
 
 	return c.JSON(response)
+}
+
+func (h *AuthHandler) GetGitHubAuthURL(c fiber.Ctx) error {
+	url := h.githubService.GetAuthURL()
+	return c.JSON(dto.GitHubAuthURLResponse{URL: url})
+}
+
+func (h *AuthHandler) GitHubCallback(c fiber.Ctx) error {
+	code := c.Query("code")
+	if code == "" {
+		return fiber.NewError(fiber.StatusBadRequest, "No code provided")
+	}
+
+	tokenResp, err := h.githubService.ExchangeCodeForToken(c.RequestCtx(), code)
+	if err != nil {
+		return fiber.NewError(fiber.StatusUnauthorized, "Failed to exchange code for token")
+	}
+
+	githubUser, err := h.githubService.GetGitHubUser(c.RequestCtx(), tokenResp.AccessToken)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Failed to get GitHub user")
+	}
+
+	email, err := h.githubService.GetUserEmail(c.RequestCtx(), tokenResp.AccessToken)
+	if err != nil {
+		email = githubUser.Email
+	}
+
+	user, err := h.userService.FindByEmail(email)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "No account found. Please register first or link GitHub in profile.")
+	}
+
+	if err := h.githubService.LinkGitHubToUser(user, tokenResp.AccessToken); err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Failed to link GitHub account")
+	}
+
+	if err := h.userService.Update(user); err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Failed to save GitHub info")
+	}
+
+	authResponse, err := h.authService.LoginWithUser(c.RequestCtx(), user)
+	if err != nil {
+		return handleAuthError(err)
+	}
+
+	cookie := new(fiber.Cookie)
+	cookie.Name = "refresh_token"
+	cookie.Value = authResponse.RefreshToken
+	cookie.Path = "/"
+	cookie.Expires = time.Now().Add(h.refreshTokenExpiry)
+	cookie.HTTPOnly = true
+	cookie.Secure = h.cookieSecure
+	cookie.SameSite = h.cookieSameSite
+
+	c.Cookie(cookie)
+
+	authResponse.RefreshToken = ""
+
+	return c.JSON(authResponse)
 }
 
 func handleAuthError(err error) error {

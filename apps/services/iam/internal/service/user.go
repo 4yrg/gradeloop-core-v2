@@ -30,6 +30,8 @@ type UserService interface {
 	GetUserByID(ctx context.Context, userID string) (*dto.UserResponse, error)
 	GetUsersByIDs(ctx context.Context, ids []string) (*dto.GetUsersResponse, error)
 	UpdateAvatar(ctx context.Context, userID string, avatarURL string) (*dto.UpdateAvatarResponse, error)
+	FindByEmail(email string) (*domain.User, error)
+	Update(user *domain.User) error
 }
 
 type userService struct {
@@ -441,4 +443,12 @@ func (s *userService) UpdateAvatar(ctx context.Context, id string, avatarURL str
 		AvatarURL: user.AvatarURL,
 		Message:   "Avatar updated successfully",
 	}, nil
+}
+
+func (s *userService) FindByEmail(email string) (*domain.User, error) {
+	return s.userRepo.GetUserByEmail(context.Background(), email)
+}
+
+func (s *userService) Update(user *domain.User) error {
+	return s.userRepo.UpdateUser(context.Background(), user)
 }

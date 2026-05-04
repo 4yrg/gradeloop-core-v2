@@ -34,6 +34,9 @@ type User struct {
 	IsPasswordResetRequired bool           `gorm:"not null;default:false" json:"is_password_reset_required"`
 	EmailVerified           bool           `gorm:"not null;default:false" json:"email_verified"`
 	PasswordSetAt           *time.Time     `json:"password_set_at,omitempty"`
+	GitHubID                *string        `gorm:"size:100;index" json:"github_id,omitempty"`
+	GitHubUsername          string         `gorm:"size:255" json:"github_username,omitempty"`
+	GitHubTokenEncrypted    string         `gorm:"size:500" json:"-"`
 	DeletedAt               gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 	CreatedAt               time.Time      `json:"created_at"`
 	UpdatedAt               time.Time      `json:"updated_at"`
@@ -101,4 +104,9 @@ func (u *User) IsStudent() bool {
 // IsInstructor returns true if the user is an instructor
 func (u *User) IsInstructor() bool {
 	return u.UserType == UserTypeInstructor
+}
+
+// HasGitHub returns true if user has linked GitHub account
+func (u *User) HasGitHub() bool {
+	return u.GitHubID != nil && *u.GitHubID != ""
 }
