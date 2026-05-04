@@ -190,6 +190,21 @@ func run() error {
 	githubRepo := repository.NewGitHubRepository(db.DB)
 	githubService := service.NewGitHubService(githubRepo, db.DB, logger)
 
+	// Code Storage (SeaweedFS) service
+	codeRepoRepo := repository.NewCodeRepository(db.DB)
+	seaweedStorage, err := storage.NewSeaweedGitStorage(
+		cfg.MinIO.Endpoint,
+		cfg.MinIO.AccessKey,
+		cfg.MinIO.SecretKey,
+		cfg.MinIO.BucketName,
+		cfg.MinIO.UseSSL,
+		logger,
+	)
+	if err != nil {
+		logger.Warn("connecting to seaweed storage failed, code storage may not work", zap.Error(err))
+	}
+	codeStorageService := service.NewCodeStorageService(codeRepoRepo, seaweedStorage, db.DB, logger)
+
 	// ── Handlers ─────────────────────────────────────────────────────────────
 	healthHandler := handler.NewHealthHandler()
 	assignmentHandler := handler.NewAssignmentHandler(assignmentService, logger)
@@ -198,6 +213,7 @@ func run() error {
 	instructorHandler := handler.NewInstructorHandler(assignmentService, submissionService, academicClient, logger)
 	studentHandler := handler.NewStudentHandler(assignmentService, submissionService, academicClient, logger)
 	githubHandler := handler.NewGitHubHandler(githubService, assignmentRepo)
+	codeHandler := handler.NewCodeHandler(codeStorageService, assignmentRepo)
 	webhookHandler := handler.NewWebhookHandler(githubService, os.Getenv("APP_GITHUB_WEBHOOK_SECRET"))
 	// ── Fiber app ────────────────────────────────────────────────────────────
 	app := fiber.New(fiber.Config{
@@ -216,14 +232,15 @@ func run() error {
 
 	// ── Routes ───────────────────────────────────────────────────────────────
 	router.SetupRoutes(app, router.Config{
-		HealthHandler:     healthHandler,
+		HealthHandler:      healthHandler,
 		AssignmentHandler: assignmentHandler,
 		SubmissionHandler: submissionHandler,
 		GroupHandler:      groupHandler,
 		InstructorHandler: instructorHandler,
 		StudentHandler:    studentHandler,
 		GitHubHandler:     githubHandler,
-		WebhookHandler:    webhookHandler,
+		CodeHandler:       codeHandler,
+		WebhookHandler:   webhookHandler,
 		JWTSecretKey:      []byte(cfg.JWT.SecretKey),
 	})
 

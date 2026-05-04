@@ -5,12 +5,14 @@ import { FolderOpen, FileCode, File, ChevronRight, ChevronDown, Loader2, Refresh
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { githubApi, type GitHubFile } from "@/lib/api/github";
+import { codeStorageApi, type CodeFile } from "@/lib/api/code-storage";
 
 interface FileExplorerProps {
     assignmentId: string;
     onFileSelect: (path: string, content: string, sha: string) => void;
     currentFilePath?: string;
     readOnly?: boolean;
+    useCodeStorage?: boolean;
 }
 
 interface TreeNode {
@@ -22,14 +24,14 @@ interface TreeNode {
     isOpen?: boolean;
 }
 
-export function FileExplorer({ assignmentId, onFileSelect, currentFilePath, readOnly = false }: FileExplorerProps) {
+export function FileExplorer({ assignmentId, onFileSelect, currentFilePath, readOnly = false, useCodeStorage = false }: FileExplorerProps) {
     const [files, setFiles] = useState<TreeNode[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set([""]));
     const [fileCache, setFileCache] = useState<Map<string, { content: string; sha: string }>>(new Map());
 
-    const transformToTree = (fileList: GitHubFile[]): TreeNode[] => {
+    const transformToTreeGitHub = (fileList: GitHubFile[]): TreeNode[] => {
         return fileList.map((file) => ({
             name: file.name,
             path: file.path,
@@ -38,12 +40,26 @@ export function FileExplorer({ assignmentId, onFileSelect, currentFilePath, read
         }));
     };
 
+    const transformToTreeCode = (fileList: CodeFile[]): TreeNode[] => {
+        return fileList.map((file) => ({
+            name: file.name,
+            path: file.path,
+            type: file.is_folder ? "dir" : "file",
+            sha: file.sha,
+        }));
+    };
+
     const loadRootFiles = async () => {
         try {
             setLoading(true);
             setError(null);
-            const fileList = await githubApi.getFiles(assignmentId, "");
-            setFiles(transformToTree(fileList));
+            if (useCodeStorage) {
+                const fileList = await codeStorageApi.getFiles(assignmentId, "");
+                setFiles(transformToTreeCode(fileList));
+            } else {
+                const fileList = await githubApi.getFiles(assignmentId, "");
+                setFiles(transformToTreeGitHub(fileList));
+            }
         } catch (err) {
             setError("Failed to load files");
             console.error(err);
@@ -56,7 +72,7 @@ export function FileExplorer({ assignmentId, onFileSelect, currentFilePath, read
         loadRootFiles();
     }, [assignmentId]);
 
-    const toggleDir = async (path: string) => {
+const toggleDir = async (path: string) => {
         const newExpanded = new Set(expandedDirs);
         if (newExpanded.has(path)) {
             newExpanded.delete(path);
@@ -67,11 +83,21 @@ export function FileExplorer({ assignmentId, onFileSelect, currentFilePath, read
 
         if (!fileCache.has(path)) {
             try {
-                const fileList = await githubApi.getFiles(assignmentId, path);
-                const node = findNode(files, path);
-                if (node) {
-                    node.children = transformToTree(fileList);
-                    setFiles([...files]);
+                let fileList;
+                if (useCodeStorage) {
+                    fileList = await codeStorageApi.getFiles(assignmentId, path);
+                    const node = findNode(files, path);
+                    if (node) {
+                        node.children = transformToTreeCode(fileList);
+                        setFiles([...files]);
+                    }
+                } else {
+                    fileList = await githubApi.getFiles(assignmentId, path);
+                    const node = findNode(files, path);
+                    if (node) {
+                        node.children = transformToTreeGitHub(fileList);
+                        setFiles([...files]);
+                    }
                 }
             } catch (err) {
                 console.error("Failed to load directory:", err);
@@ -97,7 +123,12 @@ export function FileExplorer({ assignmentId, onFileSelect, currentFilePath, read
             let cached = fileCache.get(node.path);
             if (!cached) {
                 try {
-                    const result = await githubApi.getFileContent(assignmentId, node.path);
+                    let result;
+                    if (useCodeStorage) {
+                        result = await codeStorageApi.getFileContent(assignmentId, node.path);
+                    } else {
+                        result = await githubApi.getFileContent(assignmentId, node.path);
+                    }
                     cached = result;
                     setFileCache(new Map(fileCache).set(node.path, result));
                 } catch (err) {

@@ -152,6 +152,17 @@ jobs:
                   fi
                 done
 
+                # Clean up stale containers (created/exited state) to avoid name conflicts
+                echo "Checking for stale containers..."
+                for c in $($COMPOSE_CMD -p $COMPOSE_PROJECT -f $COMPOSE_FILE ps -q 2>/dev/null); do
+                  state=$($RUNTIME inspect --format='{{.State.Status}}' "$c" 2>/dev/null || echo "unknown")
+                  if [ "$state" = "created" ] || [ "$state" = "exited" ]; then
+                    name=$($RUNTIME inspect --format='{{.Name}}' "$c" 2>/dev/null | sed 's/^\///')
+                    echo "Removing stale container: $name ($state)"
+                    $RUNTIME rm -f "$c" || true
+                  fi
+                done
+
                 # Start services
                 echo "Starting infrastructure services..."
                 $COMPOSE_CMD -p $COMPOSE_PROJECT -f $COMPOSE_FILE up -d

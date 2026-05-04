@@ -14,6 +14,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { githubApi, type GitHubCommitRequest } from "@/lib/api/github";
+import { codeStorageApi, type CodeCommitRequest } from "@/lib/api/code-storage";
 import { toast } from "sonner";
 
 interface CommitDialogProps {
@@ -25,6 +26,7 @@ interface CommitDialogProps {
     sha?: string;
     onCommitSuccess: (sha: string) => void;
     mode: "save" | "submit";
+    useCodeStorage?: boolean;
 }
 
 export function CommitDialog({
@@ -36,6 +38,7 @@ export function CommitDialog({
     sha,
     onCommitSuccess,
     mode,
+    useCodeStorage = false,
 }: CommitDialogProps) {
     const [message, setMessage] = useState("");
     const [isCommitting, setIsCommitting] = useState(false);
@@ -48,21 +51,41 @@ export function CommitDialog({
 
         try {
             setIsCommitting(true);
-            const req: GitHubCommitRequest = {
-                file_path: filePath,
-                content,
-                message,
-                sha: sha || undefined,
-            };
 
-            const result = await githubApi.commitFile(assignmentId, req);
-            if (result.success) {
-                toast.success(mode === "submit" ? "Changes submitted!" : "Changes saved!");
-                onCommitSuccess(result.sha);
-                setMessage("");
-                onOpenChange(false);
+            if (useCodeStorage) {
+                const req: CodeCommitRequest = {
+                    file_path: filePath,
+                    content,
+                    message,
+                    sha: sha || undefined,
+                };
+
+                const result = await codeStorageApi.saveFile(assignmentId, req);
+                if (result.success) {
+                    toast.success(mode === "submit" ? "Changes submitted!" : "Changes saved!");
+                    onCommitSuccess(result.sha);
+                    setMessage("");
+                    onOpenChange(false);
+                } else {
+                    toast.error(result.message || "Failed to commit");
+                }
             } else {
-                toast.error(result.message || "Failed to commit");
+                const req: GitHubCommitRequest = {
+                    file_path: filePath,
+                    content,
+                    message,
+                    sha: sha || undefined,
+                };
+
+                const result = await githubApi.commitFile(assignmentId, req);
+                if (result.success) {
+                    toast.success(mode === "submit" ? "Changes submitted!" : "Changes saved!");
+                    onCommitSuccess(result.sha);
+                    setMessage("");
+                    onOpenChange(false);
+                } else {
+                    toast.error(result.message || "Failed to commit");
+                }
             }
         } catch (err) {
             console.error("Commit failed:", err);

@@ -2,13 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { GitHubCodeIDE } from "@/components/ide";
+import { SeaweedCodeIDE } from "@/components/ide";
 import { studentAssessmentsApi } from "@/lib/api/assessments";
-import {
-  detectAICode,
-  getSemanticSimilarity,
-  saveSubmissionAnalysis,
-} from "@/lib/api/cipas-client";
 import type { AIDetectionResponse } from "@/types/cipas";
 import type { AssignmentResponse } from "@/types/assessments.types";
 import { Loader2, AlertCircle, ArrowLeft, BrainCircuit } from "lucide-react";
@@ -92,67 +87,9 @@ export default function StudentIDEPage() {
     fetchAssignment();
   }, [assignmentId]);
 
-  const handleSubmit = async (code: string, language: number) => {
-    setPendingSubmission({ code, language });
-    setAiResult(null);
-    setSemanticScore(null);
-    setIsAnalyzing(true);
-    setShowSubmitDialog(true);
-
-    // Run AI detection and semantic similarity in parallel — failures are
-    // surfaced as null so they never block the submission flow.
-    const [aiRes, semRes] = await Promise.allSettled([
-      detectAICode(code),
-      // Fetch the sample answer from its dedicated table endpoint, then compute
-      // semantic similarity only when a sample answer is configured.
-      studentAssessmentsApi
-        .getAssignmentSampleAnswer(assignmentId)
-        .then(sa => (sa?.code ? getSemanticSimilarity(code, sa.code) : null))
-        .catch(() => null),
-    ]);
-
-    setAiResult(aiRes.status === "fulfilled" ? aiRes.value : null);
-    setSemanticScore(semRes.status === "fulfilled" ? semRes.value : null);
-    setIsAnalyzing(false);
-  };
-
   const confirmSubmit = async () => {
-    if (!pendingSubmission || !assignmentId) return;
-
-    try {
-      setIsSubmitting(true);
-
-      const response = await studentAssessmentsApi.submit({
-        assignment_id: assignmentId,
-        language: LANGUAGE_ID_TO_NAME[pendingSubmission.language] ?? "python",
-        language_id: pendingSubmission.language,
-        code: pendingSubmission.code,
-      });
-
-      // Persist the analysis so the instructor can view it
-      if (response?.id) {
-        saveSubmissionAnalysis(response.id, {
-          ai_likelihood: aiResult?.ai_likelihood ?? 0,
-          human_likelihood: aiResult?.human_likelihood ?? 1,
-          is_ai_generated: aiResult?.is_ai_generated ?? false,
-          ai_confidence: aiResult?.confidence ?? 0,
-          semantic_similarity_score: semanticScore,
-        }).catch(console.error);
-      }
-
-      toast.success("Solution submitted successfully!");
-      setShowSubmitDialog(false);
-
-      // Redirect to submissions page or assignment details
-      setTimeout(() => {
-        router.push(`/student/assignments/${assignmentId}`);
-      }, 1500);
-    } catch (err) {
-      console.error("Failed to submit:", err);
-      toast.error("Failed to submit solution. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
+    setShowSubmitDialog(false);
+    router.push(`/student/assignments/${assignmentId}`);
   };
 
   const handleBack = () => {
@@ -219,11 +156,11 @@ export default function StudentIDEPage() {
 
         {/* IDE Container */}
         <div className="flex-1 overflow-hidden">
-          <GitHubCodeIDE
+          <SeaweedCodeIDE
             assignmentId={assignmentId}
             assignmentTitle={assignment.title}
             showSubmitButton={true}
-            onSubmit={(versionId) => {
+            onSubmit={() => {
               toast.success("Assignment submitted successfully!");
               router.push(`/student/assignments/${assignmentId}`);
             }}
