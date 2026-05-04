@@ -197,6 +197,36 @@ services:
           - /api/v1/student-submissions
         strip_path: false
         preserve_host: false
+      - name: assessment-github-repos
+        paths:
+          - /api/v1/github/repos
+        strip_path: false
+        preserve_host: false
+      - name: assessment-github-files
+        paths:
+          - /api/v1/github
+        strip_path: false
+        preserve_host: false
+      - name: assessment-github-submit
+        paths:
+          - /api/v1/github/submit
+        strip_path: false
+        preserve_host: false
+      - name: assessment-github-versions
+        paths:
+          - /api/v1/github/versions
+        strip_path: false
+        preserve_host: false
+      - name: assessment-github-commits
+        paths:
+          - /api/v1/github/commits
+        strip_path: false
+        preserve_host: false
+      - name: assessment-github-config
+        paths:
+          - /api/v1/github/config
+        strip_path: false
+        preserve_host: false
       - name: assessment-docs
         paths:
           - /docs/assessment
