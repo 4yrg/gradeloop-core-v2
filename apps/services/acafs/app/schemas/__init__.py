@@ -8,6 +8,12 @@ from .chat import (
     ChatResponse,
     ChatSessionModel,
 )
+from .evaluation_request import (
+    EvaluationRequest,
+    EvaluationResponse,
+    RubricCriterionInput,
+    TestCaseInput,
+)
 from .grade import CriterionScore, GradeOverrideRequest, SubmissionGrade
 from .submission_event import (
     ASTBlueprint,
@@ -28,6 +34,11 @@ __all__ = [
     "RubricCriterion",
     "SubmissionEvent",
     "TestCaseResult",
+    # evaluation request
+    "EvaluationRequest",
+    "EvaluationResponse",
+    "RubricCriterionInput",
+    "TestCaseInput",
     # grade
     "CriterionScore",
     "GradeOverrideRequest",

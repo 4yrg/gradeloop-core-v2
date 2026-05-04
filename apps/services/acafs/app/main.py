@@ -5,6 +5,7 @@ import signal
 import sys
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from datetime import datetime
 from threading import Thread
 from uuid import UUID
 
@@ -18,11 +19,14 @@ from app.schemas import (
     ChatMessageResponse,
     ChatRequest,
     ChatResponse,
+    EvaluationRequest,
+    EvaluationResponse,
     GradeOverrideRequest,
     SubmissionEvent,
 )
 from app.services.feedback.socratic_chat import SocraticChatService
 from app.services.messaging.rabbitmq_consumer import RabbitMQConsumer
+from app.services.messaging.rabbitmq_publisher import RabbitMQPublisher
 from app.services.storage.minio_client import MinIOClient
 from app.services.storage.postgres_client import PostgresClient
 from app.workers.eval_worker import EvaluationWorker
@@ -31,6 +35,7 @@ logger = get_logger(__name__)
 
 # Global state
 consumer: RabbitMQConsumer | None = None
+publisher: RabbitMQPublisher | None = None
 worker: EvaluationWorker | None = None
 postgres_client: PostgresClient | None = None
 chat_service: SocraticChatService | None = None
@@ -87,7 +92,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
 
     Handles startup and shutdown events.
     """
-    global worker, postgres_client, chat_service
+    global worker, postgres_client, chat_service, publisher
 
     # Startup
     settings = get_settings()
@@ -124,6 +129,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     # Initialize Socratic chat service
     chat_service = SocraticChatService(settings=settings)
 
+    # Initialize RabbitMQ publisher for submitting evaluation requests
+    publisher = RabbitMQPublisher(settings=settings)
+    publisher.connect()
+
     # Start RabbitMQ consumer in background thread.
     # Pass the running event loop so the consumer dispatches coroutines onto
     # the same loop that owns the asyncpg pool.
@@ -140,6 +149,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
 
     if consumer:
         consumer.stop()
+
+    if publisher:
+        publisher.close()
 
     if worker:
         worker.close()
@@ -249,6 +261,78 @@ async def supported_languages() -> JSONResponse:
         content={
             "languages": languages,
             "count": len(languages),
+        },
+    )
+
+
+@api_router.post(
+    "/evaluate",
+    tags=["evaluation"],
+    response_model=EvaluationResponse,
+    summary="Submit code for evaluation",
+    description=(
+        "Submits a code submission for async evaluation via the grading pipeline. "
+        "The submission is queued to RabbitMQ and processed by the evaluation worker."
+    ),
+)
+async def evaluate_code(request: EvaluationRequest) -> JSONResponse:
+    """Submit code for evaluation."""
+    global publisher
+
+    if publisher is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service not ready. Publisher not initialized.",
+        )
+
+    # Convert request to submission event
+    submission_event = {
+        "submission_id": str(request.submission_id),
+        "assignment_id": str(request.assignment_id),
+        "code": request.code,
+        "language": request.language,
+        "language_id": request.language_id,
+        "storage_path": f"submissions/{request.submission_id}",
+        "user_id": request.user_id,
+        "username": request.username,
+        "ip_address": request.ip_address,
+        "user_agent": request.user_agent,
+        "enqueued_at": datetime.utcnow().isoformat(),
+        "assessment_type": request.assessment_type,
+        "assignment_title": request.assignment_title,
+        "assignment_description": request.assignment_description,
+        "objective": request.objective,
+        "rubric": (
+            [r.model_dump() for r in request.rubric]
+            if request.rubric
+            else None
+        ),
+        "test_cases": (
+            [tc.model_dump() for tc in request.test_cases]
+            if request.test_cases
+            else None
+        ),
+        "sample_answer": request.sample_answer,
+    }
+
+    success = publisher.publish(
+        routing_key=settings.rabbitmq_routing_key,
+        message=submission_event,
+    )
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to queue submission for evaluation.",
+        )
+
+    return JSONResponse(
+        status_code=status.HTTP_202_ACCEPTED,
+        content={
+            "status": "queued",
+            "message": "Submission queued for evaluation",
+            "submission_id": str(request.submission_id),
+            "enqueued_at": datetime.utcnow().isoformat(),
         },
     )
 
