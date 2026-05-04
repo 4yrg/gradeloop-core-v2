@@ -48,11 +48,7 @@ async function ivasRequest<T>(path: string, options: { method?: string; body?: s
 // Multipart form request (for voice enrollment)
 async function ivasFormRequest<T>(path: string, formData: FormData): Promise<T> {
     const url = `/ivas${path}`;
-    const response = await axiosInstance.post<T>(url, formData, {
-        headers: {
-            "Content-Type": "multipart/form-data",
-        },
-    });
+    const response = await axiosInstance.post<T>(url, formData);
     return response.data;
 }
 
