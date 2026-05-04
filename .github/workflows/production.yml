@@ -263,6 +263,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          no-cache: ${{ matrix.service == 'cipas-syntactics' }}
           provenance: true
           sbom: true
 
