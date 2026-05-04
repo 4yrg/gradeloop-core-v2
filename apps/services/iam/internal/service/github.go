@@ -402,10 +402,10 @@ func (s *GitHubService) CreateOrUpdateFile(ctx context.Context, orgName, repoNam
 }
 
 type GitCommit struct {
-	SHA      string    `json:"sha"`
-	Message  string    `json:"message"`
-	Date     time.Time `json:"date"`
-	Author   struct {
+	SHA     string    `json:"sha"`
+	Message string    `json:"message"`
+	Date    time.Time `json:"date"`
+	Author  struct {
 		Login string `json:"login"`
 		Name  string `json:"name"`
 	} `json:"author"`

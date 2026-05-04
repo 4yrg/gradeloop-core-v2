@@ -186,10 +186,10 @@ type GitHubFileResponse struct {
 }
 
 type GitHubCommitRequest struct {
-	FilePath    string `json:"file_path"`
-	Content     string `json:"content"`
-	Message     string `json:"message"`
-	SHA         string `json:"sha,omitempty"`
+	FilePath string `json:"file_path"`
+	Content  string `json:"content"`
+	Message  string `json:"message"`
+	SHA      string `json:"sha,omitempty"`
 }
 
 type GitHubCommitResponse struct {
@@ -203,19 +203,19 @@ type GitHubSubmitRequest struct {
 }
 
 type GitHubVersionResponse struct {
-	ID              uuid.UUID  `json:"id"`
-	GitHubRepoID    uuid.UUID  `json:"github_repo_id"`
-	AssignmentID   uuid.UUID  `json:"assignment_id"`
-	UserID          uuid.UUID  `json:"user_id"`
-	Version         int        `json:"version"`
-	CommitSHA       string     `json:"commit_sha"`
-	CommitMessage   string     `json:"commit_message"`
-	TagName         string     `json:"tag_name"`
-	Grade           *float64   `json:"grade,omitempty"`
-	GradedAt        *time.Time `json:"graded_at,omitempty"`
-	GradingStatus   string     `json:"grading_status"`
-	GradingError    string     `json:"grading_error,omitempty"`
-	SubmittedAt     time.Time  `json:"submitted_at"`
+	ID            uuid.UUID  `json:"id"`
+	GitHubRepoID  uuid.UUID  `json:"github_repo_id"`
+	AssignmentID  uuid.UUID  `json:"assignment_id"`
+	UserID        uuid.UUID  `json:"user_id"`
+	Version       int        `json:"version"`
+	CommitSHA     string     `json:"commit_sha"`
+	CommitMessage string     `json:"commit_message"`
+	TagName       string     `json:"tag_name"`
+	Grade         *float64   `json:"grade,omitempty"`
+	GradedAt      *time.Time `json:"graded_at,omitempty"`
+	GradingStatus string     `json:"grading_status"`
+	GradingError  string     `json:"grading_error,omitempty"`
+	SubmittedAt   time.Time  `json:"submitted_at"`
 }
 
 type ListGitHubVersionsResponse struct {
@@ -224,9 +224,9 @@ type ListGitHubVersionsResponse struct {
 }
 
 type GitHubConfigRequest struct {
-	GitHubOrg      string `json:"github_org"`
-	UseGitHub      bool   `json:"use_github"`
-	WorkflowFileID string `json:"workflow_file_id,omitempty"`
+	GitHubOrg       string `json:"github_org"`
+	UseGitHub       bool   `json:"use_github"`
+	WorkflowFileID  string `json:"workflow_file_id,omitempty"`
 	StarterCodeRepo string `json:"starter_code_repo,omitempty"`
 }
 

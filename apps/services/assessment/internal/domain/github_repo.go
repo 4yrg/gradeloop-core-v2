@@ -12,14 +12,14 @@ type GitHubRepo struct {
 	AssignmentID uuid.UUID `gorm:"type:uuid;not null;index"                       json:"assignment_id"`
 	UserID       uuid.UUID `gorm:"type:uuid;not null;index"                       json:"user_id"`
 
-	OrgName   string `gorm:"type:varchar(255);not null" json:"org_name"`
-	RepoName  string `gorm:"type:varchar(255);not null" json:"repo_name"`
-	RepoURL   string `gorm:"type:varchar(500)"          json:"repo_url"`
-	CloneURL  string `gorm:"type:varchar(500)"          json:"clone_url"`
-	HTMLURL   string `gorm:"type:varchar(500)"          json:"html_url"`
+	OrgName  string `gorm:"type:varchar(255);not null" json:"org_name"`
+	RepoName string `gorm:"type:varchar(255);not null" json:"repo_name"`
+	RepoURL  string `gorm:"type:varchar(500)"          json:"repo_url"`
+	CloneURL string `gorm:"type:varchar(500)"          json:"clone_url"`
+	HTMLURL  string `gorm:"type:varchar(500)"          json:"html_url"`
 
-	LanguageID int       `gorm:"not null;default:71" json:"language_id"`
-	Language   string    `gorm:"type:varchar(50)"   json:"language"`
+	LanguageID int    `gorm:"not null;default:71" json:"language_id"`
+	Language   string `gorm:"type:varchar(50)"   json:"language"`
 
 	IsActive bool      `gorm:"not null;default:true" json:"is_active"`
 	UsedAt   time.Time `json:"used_at"`
@@ -43,15 +43,15 @@ type GitHubSubmissionVersion struct {
 	AssignmentID uuid.UUID `gorm:"type:uuid;not null;index"                       json:"assignment_id"`
 	UserID       uuid.UUID `gorm:"type:uuid;not null;index"                       json:"user_id"`
 
-	Version     int       `gorm:"not null" json:"version"`
-	CommitSHA   string    `gorm:"type:varchar(255);not null" json:"commit_sha"`
-	CommitMessage string  `gorm:"type:text" json:"commit_message"`
-	TagName     string    `gorm:"type:varchar(255)" json:"tag_name"`
+	Version       int    `gorm:"not null" json:"version"`
+	CommitSHA     string `gorm:"type:varchar(255);not null" json:"commit_sha"`
+	CommitMessage string `gorm:"type:text" json:"commit_message"`
+	TagName       string `gorm:"type:varchar(255)" json:"tag_name"`
 
-	Grade         *float64 `gorm:"type:decimal(5,2)" json:"grade,omitempty"`
+	Grade         *float64   `gorm:"type:decimal(5,2)" json:"grade,omitempty"`
 	GradedAt      *time.Time `gorm:"type:timestamp" json:"graded_at,omitempty"`
-	GradingStatus string    `gorm:"type:varchar(50);default:'pending'" json:"grading_status"`
-	GradingError  string    `gorm:"type:text" json:"grading_error,omitempty"`
+	GradingStatus string     `gorm:"type:varchar(50);default:'pending'" json:"grading_status"`
+	GradingError  string     `gorm:"type:text" json:"grading_error,omitempty"`
 
 	SubmittedAt time.Time `json:"submitted_at"`
 	CreatedAt   time.Time `json:"created_at"`

@@ -9,8 +9,8 @@ import (
 )
 
 type GitHubHandler struct {
-	githubService    service.GitHubService
-	assignmentRepo   repository.AssignmentRepository
+	githubService  service.GitHubService
+	assignmentRepo repository.AssignmentRepository
 }
 
 func NewGitHubHandler(githubService service.GitHubService, assignmentRepo repository.AssignmentRepository) *GitHubHandler {
@@ -243,19 +243,19 @@ func (h *GitHubHandler) SubmitAssignment(c fiber.Ctx) error {
 	}
 
 	return c.JSON(dto.GitHubVersionResponse{
-		ID:              version.ID,
-		GitHubRepoID:    version.GitHubRepoID,
-		AssignmentID:   version.AssignmentID,
-		UserID:          version.UserID,
-		Version:         version.Version,
-		CommitSHA:       version.CommitSHA,
-		CommitMessage:   version.CommitMessage,
-		TagName:         version.TagName,
-		Grade:           version.Grade,
-		GradedAt:        version.GradedAt,
-		GradingStatus:   version.GradingStatus,
-		GradingError:    version.GradingError,
-		SubmittedAt:     version.SubmittedAt,
+		ID:            version.ID,
+		GitHubRepoID:  version.GitHubRepoID,
+		AssignmentID:  version.AssignmentID,
+		UserID:        version.UserID,
+		Version:       version.Version,
+		CommitSHA:     version.CommitSHA,
+		CommitMessage: version.CommitMessage,
+		TagName:       version.TagName,
+		Grade:         version.Grade,
+		GradedAt:      version.GradedAt,
+		GradingStatus: version.GradingStatus,
+		GradingError:  version.GradingError,
+		SubmittedAt:   version.SubmittedAt,
 	})
 }
 
@@ -278,19 +278,19 @@ func (h *GitHubHandler) GetVersions(c fiber.Ctx) error {
 	result := make([]dto.GitHubVersionResponse, len(versions))
 	for i, v := range versions {
 		result[i] = dto.GitHubVersionResponse{
-			ID:              v.ID,
-			GitHubRepoID:    v.GitHubRepoID,
-			AssignmentID:   v.AssignmentID,
-			UserID:          v.UserID,
-			Version:         v.Version,
-			CommitSHA:       v.CommitSHA,
-			CommitMessage:   v.CommitMessage,
-			TagName:         v.TagName,
-			Grade:           v.Grade,
-			GradedAt:        v.GradedAt,
-			GradingStatus:   v.GradingStatus,
-			GradingError:    v.GradingError,
-			SubmittedAt:     v.SubmittedAt,
+			ID:            v.ID,
+			GitHubRepoID:  v.GitHubRepoID,
+			AssignmentID:  v.AssignmentID,
+			UserID:        v.UserID,
+			Version:       v.Version,
+			CommitSHA:     v.CommitSHA,
+			CommitMessage: v.CommitMessage,
+			TagName:       v.TagName,
+			Grade:         v.Grade,
+			GradedAt:      v.GradedAt,
+			GradingStatus: v.GradingStatus,
+			GradingError:  v.GradingError,
+			SubmittedAt:   v.SubmittedAt,
 		}
 	}
 
@@ -324,9 +324,9 @@ func (h *GitHubHandler) GetCommits(c fiber.Ctx) error {
 	}
 
 	type commitResponse struct {
-		SHA      string `json:"sha"`
-		Message  string `json:"message"`
-		Date     string `json:"date"`
+		SHA     string `json:"sha"`
+		Message string `json:"message"`
+		Date    string `json:"date"`
 	}
 
 	result := make([]commitResponse, len(commits))
