@@ -266,7 +266,6 @@ services:
           policy: local
           fault_tolerant: true
           hide_client_headers: false
-      - name: jwt
   - name: cipas-ai-service
     url: http://cipas-ai:8104
     routes:
