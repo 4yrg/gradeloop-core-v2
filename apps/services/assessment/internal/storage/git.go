@@ -75,7 +75,7 @@ func (s *SeaweedGitStorage) filesPath(assignmentID, userID string) string {
 
 func (s *SeaweedGitStorage) RepoExists(ctx context.Context, assignmentID, userID string) (bool, error) {
 	prefix := s.gitPath(assignmentID, userID, "")
-	
+
 	objCh := s.client.ListObjects(ctx, s.bucketName, minio.ListObjectsOptions{
 		Prefix:    prefix,
 		MaxKeys:   1,
@@ -91,10 +91,10 @@ func (s *SeaweedGitStorage) RepoExists(ctx context.Context, assignmentID, userID
 
 func (s *SeaweedGitStorage) InitRepo(ctx context.Context, assignmentID, userID string) error {
 	repoPath := s.repoPath(assignmentID, userID)
-	
+
 	emptyContent := []byte("")
 	reader := bytes.NewReader(emptyContent)
-	
+
 	_, err := s.client.PutObject(ctx, s.bucketName, repoPath+"/.git/HEAD", reader, 0, minio.PutObjectOptions{})
 	if err != nil {
 		return fmt.Errorf("creating repo: %w", err)
@@ -115,7 +115,7 @@ func (s *SeaweedGitStorage) ListFiles(ctx context.Context, assignmentID, userID,
 	}
 
 	var files []FileInfo
-	
+
 	objCh := s.client.ListObjects(ctx, s.bucketName, minio.ListObjectsOptions{
 		Prefix:    prefix,
 		Recursive: false,
@@ -125,12 +125,12 @@ func (s *SeaweedGitStorage) ListFiles(ctx context.Context, assignmentID, userID,
 		if obj.Err != nil {
 			return nil, fmt.Errorf("listing objects: %w", obj.Err)
 		}
-		
+
 		name := obj.Key
 		if len(name) > len(prefix) {
 			name = name[len(prefix)+1:]
 		}
-		
+
 		if name == "" {
 			continue
 		}
@@ -148,7 +148,7 @@ func (s *SeaweedGitStorage) ListFiles(ctx context.Context, assignmentID, userID,
 
 func (s *SeaweedGitStorage) GetFile(ctx context.Context, assignmentID, userID, filePath string) (string, error) {
 	objectName := s.filesPath(assignmentID, userID) + "/" + filePath
-	
+
 	obj, err := s.client.GetObject(ctx, s.bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
 		return "", fmt.Errorf("getting file: %w", err)
@@ -165,9 +165,9 @@ func (s *SeaweedGitStorage) GetFile(ctx context.Context, assignmentID, userID, f
 
 func (s *SeaweedGitStorage) SaveFile(ctx context.Context, assignmentID, userID, filePath, content string) (string, error) {
 	objectName := s.filesPath(assignmentID, userID) + "/" + filePath
-	
+
 	reader := bytes.NewReader([]byte(content))
-	
+
 	info, err := s.client.PutObject(ctx, s.bucketName, objectName, reader, int64(len(content)), minio.PutObjectOptions{
 		ContentType: "text/plain; charset=utf-8",
 	})
@@ -185,7 +185,7 @@ func (s *SeaweedGitStorage) SaveFile(ctx context.Context, assignmentID, userID, 
 
 func (s *SeaweedGitStorage) DeleteFile(ctx context.Context, assignmentID, userID, filePath string) error {
 	objectName := s.filesPath(assignmentID, userID) + "/" + filePath
-	
+
 	err := s.client.RemoveObject(ctx, s.bucketName, objectName, minio.RemoveObjectOptions{})
 	if err != nil {
 		return fmt.Errorf("deleting file: %w", err)
@@ -195,18 +195,18 @@ func (s *SeaweedGitStorage) DeleteFile(ctx context.Context, assignmentID, userID
 }
 
 type CommitInfo struct {
-	SHA      string
-	Message  string
-	Author   string
-	Date     time.Time
-	Files    []string
+	SHA     string
+	Message string
+	Author  string
+	Date    time.Time
+	Files   []string
 }
 
 func (s *SeaweedGitStorage) GetCommits(ctx context.Context, assignmentID, userID string) ([]CommitInfo, error) {
 	prefix := s.gitPath(assignmentID, userID, "commits/")
-	
+
 	var commits []CommitInfo
-	
+
 	objCh := s.client.ListObjects(ctx, s.bucketName, minio.ListObjectsOptions{
 		Prefix:    prefix,
 		Recursive: false,
@@ -231,10 +231,10 @@ func (s *SeaweedGitStorage) GetCommits(ctx context.Context, assignmentID, userID
 
 func (s *SeaweedGitStorage) SaveCommit(ctx context.Context, assignmentID, userID, sha, message, author string, files []string) error {
 	commitPath := s.gitPath(assignmentID, userID, "commits/") + sha
-	
+
 	content := fmt.Sprintf("message: %s\nauthor: %s\ndate: %s\nfiles: %s", message, author, time.Now().Format(time.RFC3339), joinStrings(files))
 	reader := bytes.NewReader([]byte(content))
-	
+
 	_, err := s.client.PutObject(ctx, s.bucketName, commitPath, reader, int64(len(content)), minio.PutObjectOptions{})
 	if err != nil {
 		return fmt.Errorf("saving commit: %w", err)
@@ -250,7 +250,7 @@ func (s *SeaweedGitStorage) SaveCommit(ctx context.Context, assignmentID, userID
 
 func (s *SeaweedGitStorage) GetCommit(ctx context.Context, assignmentID, userID, sha string) (*CommitInfo, error) {
 	commitPath := s.gitPath(assignmentID, userID, "commits/") + sha
-	
+
 	obj, err := s.client.GetObject(ctx, s.bucketName, commitPath, minio.GetObjectOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("getting commit: %w", err)
@@ -272,7 +272,7 @@ func (s *SeaweedGitStorage) GetCommit(ctx context.Context, assignmentID, userID,
 
 func (s *SeaweedGitStorage) GetLatestCommitSHA(ctx context.Context, assignmentID, userID string) (string, error) {
 	headPath := s.gitPath(assignmentID, userID, "HEAD")
-	
+
 	obj, err := s.client.GetObject(ctx, s.bucketName, headPath, minio.GetObjectOptions{})
 	if err != nil {
 		return "", nil
@@ -289,7 +289,7 @@ func (s *SeaweedGitStorage) GetLatestCommitSHA(ctx context.Context, assignmentID
 
 func (s *SeaweedGitStorage) UpdateHead(ctx context.Context, assignmentID, userID, sha string) error {
 	headPath := s.gitPath(assignmentID, userID, "HEAD")
-	
+
 	reader := bytes.NewReader([]byte(sha))
 	_, err := s.client.PutObject(ctx, s.bucketName, headPath, reader, int64(len(sha)), minio.PutObjectOptions{})
 	if err != nil {
@@ -301,7 +301,7 @@ func (s *SeaweedGitStorage) UpdateHead(ctx context.Context, assignmentID, userID
 
 func (s *SeaweedGitStorage) SaveVersion(ctx context.Context, assignmentID, userID, version, message string, files []string) error {
 	sha := generateSHA(message, assignmentID, userID, version)
-	
+
 	err := s.SaveCommit(ctx, assignmentID, userID, sha, message, "system", files)
 	if err != nil {
 		return err
@@ -370,7 +370,7 @@ func parseCommitData(content string, commit *CommitInfo) {
 	fmt.Sscanf(content, "message: %s\nauthor: %s\ndate: %s\nfiles: %s", &message, &author, &date, &files)
 	commit.Message = message
 	commit.Author = author
-	
+
 	if t, err := time.Parse(time.RFC3339, date); err == nil {
 		commit.Date = t
 	}

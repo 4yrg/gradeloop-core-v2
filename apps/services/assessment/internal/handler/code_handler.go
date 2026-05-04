@@ -223,16 +223,16 @@ func (h *CodeHandler) SubmitAssignment(c fiber.Ctx) error {
 	}
 
 	return c.JSON(dto.CodeVersionResponse{
-		ID:              version.ID,
-		CodeRepoID:      version.CodeRepoID,
-		AssignmentID:   version.AssignmentID,
-		UserID:          version.UserID,
-		Version:         version.Version,
-		CommitSHA:       version.CommitSHA,
-		CommitMessage:   version.CommitMessage,
-		TagName:         version.TagName,
-		GradingStatus:   version.GradingStatus,
-		SubmittedAt:     version.SubmittedAt,
+		ID:            version.ID,
+		CodeRepoID:    version.CodeRepoID,
+		AssignmentID:  version.AssignmentID,
+		UserID:        version.UserID,
+		Version:       version.Version,
+		CommitSHA:     version.CommitSHA,
+		CommitMessage: version.CommitMessage,
+		TagName:       version.TagName,
+		GradingStatus: version.GradingStatus,
+		SubmittedAt:   version.SubmittedAt,
 	})
 }
 
@@ -255,19 +255,19 @@ func (h *CodeHandler) GetVersions(c fiber.Ctx) error {
 	var response []dto.CodeVersionResponse
 	for _, v := range versions {
 		response = append(response, dto.CodeVersionResponse{
-			ID:              v.ID,
-			CodeRepoID:      v.CodeRepoID,
-			AssignmentID:   v.AssignmentID,
-			UserID:          v.UserID,
-			Version:         v.Version,
-			CommitSHA:       v.CommitSHA,
-			CommitMessage:   v.CommitMessage,
-			TagName:         v.TagName,
-			Grade:           v.Grade,
-			GradedAt:        v.GradedAt,
-			GradingStatus:   v.GradingStatus,
-			GradingError:    v.GradingError,
-			SubmittedAt:     v.SubmittedAt,
+			ID:            v.ID,
+			CodeRepoID:    v.CodeRepoID,
+			AssignmentID:  v.AssignmentID,
+			UserID:        v.UserID,
+			Version:       v.Version,
+			CommitSHA:     v.CommitSHA,
+			CommitMessage: v.CommitMessage,
+			TagName:       v.TagName,
+			Grade:         v.Grade,
+			GradedAt:      v.GradedAt,
+			GradingStatus: v.GradingStatus,
+			GradingError:  v.GradingError,
+			SubmittedAt:   v.SubmittedAt,
 		})
 	}
 
@@ -297,10 +297,10 @@ func (h *CodeHandler) GetCommits(c fiber.Ctx) error {
 	var response []dto.CodeCommitResponse
 	for _, c := range commits {
 		response = append(response, dto.CodeCommitResponse{
-			SHA:      c.SHA,
-			Message:  c.Message,
-			Author:   c.Author,
-			Date:     c.Date,
+			SHA:     c.SHA,
+			Message: c.Message,
+			Author:  c.Author,
+			Date:    c.Date,
 		})
 	}
 

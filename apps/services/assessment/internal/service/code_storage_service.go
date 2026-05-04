@@ -37,18 +37,18 @@ type CodeFileInfo struct {
 }
 
 type CodeCommitInfo struct {
-	SHA      string    `json:"sha"`
-	Message  string    `json:"message"`
-	Author   string    `json:"author"`
-	Date     time.Time `json:"date"`
-	Files    []string  `json:"files"`
+	SHA     string    `json:"sha"`
+	Message string    `json:"message"`
+	Author  string    `json:"author"`
+	Date    time.Time `json:"date"`
+	Files   []string  `json:"files"`
 }
 
 type codeStorageService struct {
-	codeRepoRepo  repository.CodeRepository
-	storage       *storage.SeaweedGitStorage
-	db            *gorm.DB
-	logger        *zap.Logger
+	codeRepoRepo repository.CodeRepository
+	storage      *storage.SeaweedGitStorage
+	db           *gorm.DB
+	logger       *zap.Logger
 }
 
 func NewCodeStorageService(codeRepoRepo repository.CodeRepository, storage *storage.SeaweedGitStorage, db *gorm.DB, logger *zap.Logger) CodeStorageService {
@@ -179,15 +179,15 @@ func (s *codeStorageService) SubmitAssignment(ctx context.Context, repo *domain.
 	}
 
 	version := &domain.CodeVersion{
-		CodeRepoID:   repo.ID,
-		AssignmentID: assignmentID,
-		UserID:       userID,
-		Version:      newVersion,
-		CommitSHA:    sha,
+		CodeRepoID:    repo.ID,
+		AssignmentID:  assignmentID,
+		UserID:        userID,
+		Version:       newVersion,
+		CommitSHA:     sha,
 		CommitMessage: message,
-		TagName:      fmt.Sprintf("v%d", newVersion),
+		TagName:       fmt.Sprintf("v%d", newVersion),
 		GradingStatus: "pending",
-		SubmittedAt:  time.Now(),
+		SubmittedAt:   time.Now(),
 	}
 
 	if err := s.codeRepoRepo.CreateVersion(version); err != nil {

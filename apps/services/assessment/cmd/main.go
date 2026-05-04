@@ -232,7 +232,7 @@ func run() error {
 
 	// ── Routes ───────────────────────────────────────────────────────────────
 	router.SetupRoutes(app, router.Config{
-		HealthHandler:      healthHandler,
+		HealthHandler:     healthHandler,
 		AssignmentHandler: assignmentHandler,
 		SubmissionHandler: submissionHandler,
 		GroupHandler:      groupHandler,
@@ -240,7 +240,7 @@ func run() error {
 		StudentHandler:    studentHandler,
 		GitHubHandler:     githubHandler,
 		CodeHandler:       codeHandler,
-		WebhookHandler:   webhookHandler,
+		WebhookHandler:    webhookHandler,
 		JWTSecretKey:      []byte(cfg.JWT.SecretKey),
 	})
 

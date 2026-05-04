@@ -34,27 +34,27 @@ type CodeSaveFileRequest struct {
 }
 
 type CodeCommitResponse struct {
-	Success bool   `json:"success"`
-	SHA     string `json:"sha"`
-	Message string `json:"message"`
-	Author  string `json:"author,omitempty"`
+	Success bool      `json:"success"`
+	SHA     string    `json:"sha"`
+	Message string    `json:"message"`
+	Author  string    `json:"author,omitempty"`
 	Date    time.Time `json:"date,omitempty"`
 }
 
 type CodeVersionResponse struct {
-	ID              uuid.UUID  `json:"id"`
-	CodeRepoID      uuid.UUID  `json:"code_repo_id"`
-	AssignmentID    uuid.UUID  `json:"assignment_id"`
-	UserID          uuid.UUID  `json:"user_id"`
-	Version         int        `json:"version"`
-	CommitSHA       string     `json:"commit_sha"`
-	CommitMessage   string     `json:"commit_message"`
-	TagName         string     `json:"tag_name"`
-	Grade           *float64   `json:"grade,omitempty"`
-	GradedAt        *time.Time `json:"graded_at,omitempty"`
-	GradingStatus   string     `json:"grading_status"`
-	GradingError    string     `json:"grading_error,omitempty"`
-	SubmittedAt     time.Time  `json:"submitted_at"`
+	ID            uuid.UUID  `json:"id"`
+	CodeRepoID    uuid.UUID  `json:"code_repo_id"`
+	AssignmentID  uuid.UUID  `json:"assignment_id"`
+	UserID        uuid.UUID  `json:"user_id"`
+	Version       int        `json:"version"`
+	CommitSHA     string     `json:"commit_sha"`
+	CommitMessage string     `json:"commit_message"`
+	TagName       string     `json:"tag_name"`
+	Grade         *float64   `json:"grade,omitempty"`
+	GradedAt      *time.Time `json:"graded_at,omitempty"`
+	GradingStatus string     `json:"grading_status"`
+	GradingError  string     `json:"grading_error,omitempty"`
+	SubmittedAt   time.Time  `json:"submitted_at"`
 }
 
 type CodeSubmitRequest struct {

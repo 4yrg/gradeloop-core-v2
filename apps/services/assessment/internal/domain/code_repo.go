@@ -66,9 +66,9 @@ type AssignmentCodeConfig struct {
 	ID           uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	AssignmentID uuid.UUID `gorm:"type:uuid;not null;uniqueIndex"                 json:"assignment_id"`
 
-	UseSeaweedFS  bool   `gorm:"not null;default:true"  json:"use_seaweedfs"`
-	StarterCode   string `gorm:"type:text"              json:"starter_code,omitempty"`
-	StarterFiles  string `gorm:"type:text"              json:"starter_files,omitempty"`
+	UseSeaweedFS bool   `gorm:"not null;default:true"  json:"use_seaweedfs"`
+	StarterCode  string `gorm:"type:text"              json:"starter_code,omitempty"`
+	StarterFiles string `gorm:"type:text"              json:"starter_files,omitempty"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
