@@ -73,29 +73,21 @@ class Settings(BaseSettings):
     ast_max_lines: int = Field(default=5000, alias="AST_MAX_LINES")
     ast_timeout_seconds: int = Field(default=2, alias="AST_TIMEOUT_SECONDS")
 
-    # ── LLM: OpenRouter (Pass-1 reasoning + Pass-2 grading + Socratic chat) ──
+    # ── LLM: OpenRouter API Key only ─────────────────────────────────────────────
     openrouter_api_key: str = Field(
         default="SET_YOUR_API_KEY_HERE",
-        alias="OPENROUTER_API_KEY",
+        alias="ACAFS_OPENROUTER_API_KEY",
     )
-    openrouter_model: str = Field(
-        default="arcee-ai/trinity-large-preview:free",
-        alias="OPENROUTER_MODEL",
-    )
-    openrouter_base_url: str = Field(
-        default="https://openrouter.ai/api/v1",
-        alias="OPENROUTER_BASE_URL",
-    )
-    # Pass-1 deep reasoning model — Qwen3 VL 235B thinking by default
-    openrouter_reasoner_model: str = Field(
-        default="qwen/qwen3-vl-235b-a22b-thinking",
-        alias="OPENROUTER_REASONER_MODEL",
-    )
-    # Pass-2 structured grading model — Qwen3 235B (non-thinking) by default
-    openrouter_grader_model: str = Field(
-        default="qwen/qwen3-235b-a22b",
-        alias="OPENROUTER_GRADER_MODEL",
-    )
+
+    # ── Hardcoded OpenRouter Models ─────────────────────────────────────────────
+    # Socratic chat model
+    openrouter_model: str = "minimax/minimax-m2.5:free"
+    # Pass-1 deep reasoning model
+    openrouter_reasoner_model: str = "qwen/qwen3-coder:free"
+    # Pass-2 structured grading model
+    openrouter_grader_model: str = "qwen/qwen3-coder:free"
+    # Base URL (standard OpenRouter endpoint)
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
 
     # ── LLM: Gemini (Pass-2 structured grading) ───────────────────────────────
     gemini_api_key: str = Field(
