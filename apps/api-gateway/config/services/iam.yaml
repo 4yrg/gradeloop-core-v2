@@ -41,6 +41,9 @@ services:
             - http://localhost:80
             - http://localhost:8080
             - http://localhost:443
+            - https://app.gradeloop.space
+            - https://api.gradeloop.space
+            - https://gradeloop.space
           methods:
             - GET
             - POST
@@ -83,6 +86,9 @@ services:
             - http://localhost:80
             - http://localhost:8080
             - http://localhost:443
+            - https://app.gradeloop.space
+            - https://api.gradeloop.space
+            - https://gradeloop.space
           methods:
             - GET
             - POST

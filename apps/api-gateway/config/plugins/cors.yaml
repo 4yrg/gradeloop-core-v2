@@ -11,6 +11,8 @@ plugins:
         - http://localhost:3000
         - http://localhost:80
         - http://localhost:443
+        - https://app.gradeloop.space
+        - https://api.gradeloop.space
       methods:
         - GET
         - POST

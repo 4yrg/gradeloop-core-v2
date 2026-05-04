@@ -43,6 +43,16 @@ services:
           - /api/v1/student-submissions
         strip_path: false
         preserve_host: false
+      - name: assessment-code
+        paths:
+          - /api/v1/code
+        strip_path: false
+        preserve_host: false
+      - name: assessment-github
+        paths:
+          - /api/v1/github
+        strip_path: false
+        preserve_host: false
       - name: assessment-docs
         paths:
           - /docs/assessment
@@ -56,6 +66,9 @@ services:
             - http://localhost:80
             - http://localhost:8080
             - http://localhost:443
+            - https://app.gradeloop.space
+            - https://api.gradeloop.space
+            - https://gradeloop.space
           methods:
             - GET
             - POST
