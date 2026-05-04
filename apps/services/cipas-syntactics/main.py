@@ -29,7 +29,9 @@ from routes import (
     cluster_assignment,
     compare_codes,
     compare_codes_batch,
+    compare_segments,
     create_annotation,
+    detect_moved_blocks_endpoint,
     export_similarity_report_csv,
     get_annotation_stats,
     get_annotations,
@@ -58,6 +60,10 @@ from schemas import (
     HealthResponse,
     IndexStatusResponse,
     IngestionResponse,
+    MovedBlocksRequest,
+    MovedBlocksResult,
+    SegmentCompareRequest,
+    SegmentComparisonResult,
     SimilarityReportMetadata,
     SubmissionIngestRequest,
     TemplateRegisterRequest,
@@ -858,6 +864,51 @@ async def cluster_assignment_endpoint(request: AssignmentClusterRequest):
             exc,
         )
     return response
+
+
+# ── Segment Comparison & Moved Block Detection Endpoints ────────────────────────────────────────
+
+
+@api_router.post(
+    "/segments/compare",
+    response_model=SegmentComparisonResult,
+    tags=["Comparison"],
+    summary="Compare all segments between two submissions",
+    responses={
+        200: {"description": "Segment comparison completed"},
+        500: {"description": "Comparison failed"},
+    },
+)
+async def compare_segments_endpoint(request: SegmentCompareRequest):
+    """
+    Compare all code segments from submission A against all segments from submission B.
+
+    This implements the all-to-all segment comparison for detailed clone detection.
+    Each segment from the first submission is compared against every segment from
+    the second submission, identifying which specific code blocks are similar.
+    """
+    return compare_segments(request)
+
+
+@api_router.post(
+    "/compare/moved-blocks",
+    response_model=MovedBlocksResult,
+    tags=["Comparison"],
+    summary="Detect rearranged code blocks",
+    responses={
+        200: {"description": "Moved block detection completed"},
+        500: {"description": "Detection failed"},
+    },
+)
+async def detect_moved_blocks_api_endpoint(request: MovedBlocksRequest):
+    """
+    Detect code blocks that appear in both submissions but in different positions.
+
+    This identifies rearranged code (a Type-3 variant where blocks are re-ordered).
+    Returns blocks with position mappings between the two submissions, showing which
+    blocks were moved and their new positions.
+    """
+    return detect_moved_blocks_endpoint(request)
 
 
 # ── Similarity Reports & Annotations ────────────────────────────────────────

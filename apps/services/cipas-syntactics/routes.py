@@ -37,6 +37,7 @@ from clone_detection.pipelines import (
 from clone_detection.preprocessor import Fragmenter, TemplateFilter
 from clone_detection.tokenizers.tree_sitter_tokenizer import TreeSitterTokenizer
 from clone_detection.utils.common_setup import get_model_path
+from clone_detection.features.syntactic_features import detect_moved_blocks
 from schemas import (
     AssignmentClusterRequest,
     AssignmentClusterResponse,
@@ -53,6 +54,12 @@ from schemas import (
     IndexStatusResponse,
     IngestionResponse,
     ModelStatus,
+    MovedBlock,
+    MovedBlocksRequest,
+    MovedBlocksResult,
+    SegmentCompareRequest,
+    SegmentComparisonResult,
+    SegmentPair,
     SubmissionClusterResult,
     SubmissionIngestRequest,
     SyntacticFeatures,
@@ -1109,4 +1116,112 @@ async def export_similarity_report_csv(assignment_id: str):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to export report: {exc}",
+        )
+
+
+# ============================================================================
+# Segment Comparison & Moved Block Detection Endpoints
+# ============================================================================
+
+
+def compare_segments(request: SegmentCompareRequest) -> SegmentComparisonResult:
+    """
+    Compare all segments between two submissions using all-to-all comparison.
+
+    Each segment from submission A is compared against each segment from submission B.
+    Returns matched pairs with similarity scores.
+    """
+    try:
+        worker = _get_worker()
+
+        result = worker.compare_segments_all_to_all(
+            source_code_a="",
+            source_code_b="",
+            language=request.language.value,
+            submission_id_a=request.submission_a_id,
+            submission_id_b=request.submission_b_id,
+            student_a="unknown",
+            student_b="unknown",
+            min_confidence=0.5,
+        )
+
+        matched_pairs = [
+            SegmentPair(
+                segment_index_a=p["segment_index_a"],
+                segment_index_b=p["segment_index_b"],
+                segment_code_a=p["segment_code_a"],
+                segment_code_b=p["segment_code_b"],
+                is_clone=p["is_clone"],
+                clone_type=p["clone_type"],
+                confidence=p["confidence"],
+                normalized_code_a=p.get("normalized_code_a"),
+                normalized_code_b=p.get("normalized_code_b"),
+            )
+            for p in result.get("matched_pairs", [])
+        ]
+
+        return SegmentComparisonResult(
+            submission_a_id=request.submission_a_id,
+            submission_b_id=request.submission_b_id,
+            student_a=result.get("student_a", "unknown"),
+            student_b=result.get("student_b", "unknown"),
+            segment_count_a=result.get("segment_count_a", 0),
+            segment_count_b=result.get("segment_count_b", 0),
+            matched_pairs=matched_pairs,
+            highest_confidence=result.get("highest_confidence", 0.0),
+            dominant_clone_type=result.get("dominant_clone_type"),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Segment comparison failed: %s", exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Segment comparison failed: {exc}",
+        )
+
+
+def detect_moved_blocks_endpoint(request: MovedBlocksRequest) -> MovedBlocksResult:
+    """
+    Detect code blocks that appear in both submissions but in different positions.
+
+    This identifies rearranged code (Type-3 variant where blocks are reordered).
+    Returns blocks with position mappings between the two submissions.
+    """
+    try:
+        moved = detect_moved_blocks(
+            code1=request.code1,
+            code2=request.code2,
+            language=request.language.value,
+            similarity_threshold=0.85,
+        )
+
+        moved_blocks = [
+            MovedBlock(
+                block_id=b.block_id,
+                block_type=b.block_type,
+                code_snippet=b.code_snippet,
+                position_in_a=b.position_in_a,
+                position_in_b=b.position_in_b,
+                similarity=b.similarity,
+            )
+            for b in moved
+        ]
+
+        return MovedBlocksResult(
+            submission_a_id="",
+            submission_b_id="",
+            moved_blocks=moved_blocks,
+            total_moved=len(moved_blocks),
+            is_rearranged=len(moved_blocks) > 0,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Moved block detection failed: %s", exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Moved block detection failed: {exc}",
         )

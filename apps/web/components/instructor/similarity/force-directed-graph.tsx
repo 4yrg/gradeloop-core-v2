@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import * as d3 from "d3";
-import type { CollusionGroup, CollusionEdge } from "@/types/cipas";
+import type { CollusionGroup, CollusionEdge, StudentDetails } from "@/types/cipas";
 
 interface ForceDirectedGraphProps {
   cluster: CollusionGroup;
+  studentDetails?: Record<string, StudentDetails>;
   onEdgeClick?: (edge: CollusionEdge) => void;
   onNodeClick?: (studentId: string) => void;
   width?: number;
@@ -15,6 +16,7 @@ interface ForceDirectedGraphProps {
 interface GraphNode extends d3.SimulationNodeDatum {
   id: string;
   label: string;
+  details?: StudentDetails;
 }
 
 interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
@@ -31,12 +33,15 @@ const CLONE_TYPE_COLORS = {
 
 export function ForceDirectedGraph({
   cluster,
+  studentDetails = {},
   onEdgeClick,
   onNodeClick,
   width = 600,
   height = 400,
 }: ForceDirectedGraphProps) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const [hoveredNode, setHoveredNode] = useState<StudentDetails | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   useEffect(() => {
     if (!svgRef.current || !cluster || cluster.member_ids.length === 0) {
@@ -49,7 +54,8 @@ export function ForceDirectedGraph({
     // Prepare data
     const nodes: GraphNode[] = cluster.member_ids.map((id) => ({
       id,
-      label: id.substring(0, 8), // Show first 8 chars as label
+      label: studentDetails[id]?.full_name?.substring(0, 8) ?? id.substring(0, 8),
+      details: studentDetails[id],
     }));
 
     const links: GraphLink[] = cluster.edges.map((edge) => ({
@@ -169,11 +175,17 @@ export function ForceDirectedGraph({
           onNodeClick(d.id);
         }
       })
-      .on("mouseover", function () {
+      .on("mouseover", function (event, d) {
         d3.select(this).attr("r", 25).attr("fill", "#1e6fcc");
+        // Show tooltip with student details
+        if (studentDetails[d.id]) {
+          setHoveredNode(studentDetails[d.id]);
+          setTooltipPos({ x: event.pageX, y: event.pageY });
+        }
       })
       .on("mouseout", function () {
         d3.select(this).attr("r", 20).attr("fill", "#137fec");
+        setHoveredNode(null);
       });
 
     // Add node labels
@@ -208,7 +220,7 @@ export function ForceDirectedGraph({
     return () => {
       simulation.stop();
     };
-  }, [cluster, onEdgeClick, onNodeClick, width, height]);
+  }, [cluster, studentDetails, onEdgeClick, onNodeClick, width, height]);
 
   return (
     <div className="relative w-full h-full flex flex-col">
@@ -216,6 +228,31 @@ export function ForceDirectedGraph({
         ref={svgRef}
         className="w-full h-full bg-slate-50 dark:bg-slate-950/50 rounded-lg border border-slate-200 dark:border-slate-800"
       />
+      {/* Tooltip for student details */}
+      {hoveredNode && (
+        <div
+          className="fixed z-50 bg-white dark:bg-slate-900 p-3 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 text-sm"
+          style={{
+            left: tooltipPos.x + 15,
+            top: tooltipPos.y + 15,
+            minWidth: 180,
+          }}
+        >
+          <div className="font-semibold text-slate-900 dark:text-slate-100">
+            {hoveredNode.full_name}
+          </div>
+          {hoveredNode.student_number && (
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+              {hoveredNode.student_number}
+            </div>
+          )}
+          {hoveredNode.email && (
+            <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
+              {hoveredNode.email}
+            </div>
+          )}
+        </div>
+      )}
       {/* Legend */}
       <div className="absolute bottom-4 right-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm p-3 rounded-lg border border-slate-200 dark:border-slate-800 text-[10px] flex gap-4 shadow-sm">
         <div className="flex items-center gap-1.5">

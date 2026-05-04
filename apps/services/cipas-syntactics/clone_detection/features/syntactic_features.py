@@ -19,6 +19,7 @@ improved recall by capturing deeper structural similarities.
 """
 
 from collections import Counter
+from dataclasses import dataclass
 
 import numpy as np
 from rapidfuzz import fuzz
@@ -1185,3 +1186,200 @@ def calculate_pairwise_features_from_code(
             idx += 1
 
     return features, extractor.get_feature_names()
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Rearranged/Moved Block Detection
+# ──────────────────────────────────────────────────────────────────────────
+
+
+@dataclass
+class MovedBlockInfo:
+    """Information about a moved code block."""
+
+    block_id: str
+    block_type: str
+    code_snippet: str
+    position_in_a: int
+    position_in_b: int
+    similarity: float
+
+
+def detect_moved_blocks(
+    code1: str,
+    code2: str,
+    language: str = "java",
+    similarity_threshold: float = 0.85,
+) -> list[MovedBlockInfo]:
+    """
+    Detect code blocks that appear in both submissions but in different positions.
+    This identifies rearranged code (Type-3 variant where blocks are reordered).
+
+    Algorithm:
+        1. Extract structural blocks from both codes using tree-sitter
+        2. For each block in code1, find matching blocks in code2 (by blinded structure)
+        3. If positions differ, mark as "moved"
+
+    Args:
+        code1: First code snippet
+        code2: Second code snippet
+        language: Programming language
+        similarity_threshold: Minimum similarity to consider blocks as matching
+
+    Returns:
+        List of MovedBlockInfo with position mappings
+    """
+    tokenizer = TreeSitterTokenizer()
+
+    try:
+        blocks1 = _extract_structural_blocks(code1, language, tokenizer)
+        blocks2 = _extract_structural_blocks(code2, language, tokenizer)
+    except Exception:
+        return []
+
+    if not blocks1 or not blocks2:
+        return []
+
+    moved_blocks: list[MovedBlockInfo] = []
+    matched_in_b: set[int] = set()
+
+    for idx_a, block_a in enumerate(blocks1):
+        best_match_idx = -1
+        best_similarity = 0.0
+
+        for idx_b, block_b in enumerate(blocks2):
+            if idx_b in matched_in_b:
+                continue
+
+            sim = _calculate_block_similarity(
+                block_a["blinded"], block_b["blinded"]
+            )
+            if sim > best_similarity:
+                best_similarity = sim
+                best_match_idx = idx_b
+
+        if best_match_idx >= 0 and best_similarity >= similarity_threshold:
+            if best_match_idx != idx_a:
+                moved_blocks.append(
+                    MovedBlockInfo(
+                        block_id=block_a["id"],
+                        block_type=block_a["type"],
+                        code_snippet=block_a["source"],
+                        position_in_a=idx_a,
+                        position_in_b=best_match_idx,
+                        similarity=best_similarity,
+                    )
+                )
+                matched_in_b.add(best_match_idx)
+
+    return moved_blocks
+
+
+def _extract_structural_blocks(
+    code: str, language: str, tokenizer: TreeSitterTokenizer
+) -> list[dict]:
+    """
+    Extract structural blocks from source code using tree-sitter.
+
+    Returns list of blocks with:
+        - id: unique identifier
+        - type: block type (function, method, class, etc.)
+        - source: original source code
+        - blinded: abstracted version for comparison
+    """
+    blocks: list[dict] = []
+
+    try:
+        tree = tokenizer.parsers.get(language)
+        if tree is None:
+            return []
+
+        code_bytes = code.encode("utf-8", errors="ignore")
+        parsed_tree = tree.parse(code_bytes)
+
+        _traverse_and_extract_blocks(
+            parsed_tree.root_node, language, code, blocks
+        )
+    except Exception:
+        pass
+
+    blocks.sort(key=lambda b: b["start_line"])
+    return blocks
+
+
+def _traverse_and_extract_blocks(node, language: str, code: str, blocks: list[dict]):
+    """Recursively traverse AST and extract structural blocks."""
+
+    block_types = {
+        "java": [
+            "method_declaration",
+            "class_declaration",
+            "constructor_declaration",
+            "field_declaration",
+        ],
+        "python": [
+            "function_definition",
+            "class_definition",
+        ],
+        "c": [
+            "function_definition",
+            "struct_specifier",
+        ],
+    }
+
+    relevant_types = block_types.get(language, block_types.get("java", []))
+
+    if node.type in relevant_types:
+        start_line = node.start_point.row
+        end_line = node.end_point.row
+        lines = code.splitlines()[start_line : end_line + 1] if start_line < len(code.splitlines()) else []
+        source = "\n".join(lines)
+
+        blinded = _blind_code(source, language)
+
+        blocks.append({
+            "id": f"{node.type}_{start_line}",
+            "type": node.type,
+            "source": source,
+            "blinded": blinded,
+            "start_line": start_line,
+        })
+
+    for child in node.children:
+        _traverse_and_extract_blocks(child, language, code, blocks)
+
+
+def _blind_code(code: str, language: str) -> str:
+    """
+    Blind identifiers and literals for structural comparison.
+    Replaces names with generic placeholders.
+    """
+    blinded = code
+
+    import re
+
+    blinded = re.sub(r'\b[int|long|double|float|char|boolean|void|String]\s+([A-Z][a-zA-Z0-9_]*)\s*\(?', 'TYPE ', blinded)
+    blinded = re.sub(r'\b([a-z][a-zA-Z0-9_]*)\s*\(?', 'FUNC ', blinded)
+    blinded = re.sub(r'\b([A-Z][a-zA-Z0-9_]*)\s*[=;]', 'VAR ', blinded)
+    blinded = re.sub(r'\b\d+\b', 'NUM', blinded)
+    blinded = re.sub(r'"[^"]*"', 'STR', blinded)
+    blinded = re.sub(r"'[^']*'", 'CHR', blinded)
+
+    return blinded
+
+
+def _calculate_block_similarity(blinded1: str, blinded2: str) -> float:
+    """
+    Calculate similarity between two blinded code blocks.
+    Uses Jaccard on tokens for structural comparison.
+    """
+    tokens1 = set(blinded1.split())
+    tokens2 = set(blinded2.split())
+
+    if not tokens1 or not tokens2:
+        return 0.0
+
+    intersection = len(tokens1 & tokens2)
+    union = len(tokens1 | tokens2)
+
+    return intersection / union if union > 0 else 0.0
