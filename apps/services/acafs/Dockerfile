@@ -7,10 +7,7 @@ FROM python:3.11-alpine AS builder
 WORKDIR /app
 
 RUN apk add --no-cache \
-    gcc \
     libpq-dev \
-    g++ \
-    curl \
     && rm -rf /var/cache/apk/*
 
 ENV PYTHONDONTWRITEBYTECODE=1 \

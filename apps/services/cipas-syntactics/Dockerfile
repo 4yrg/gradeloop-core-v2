@@ -14,10 +14,7 @@ RUN if [ -f /etc/apt/sources.list ]; then \
     fi \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
-    build-essential \
-    curl \
-    git \
-    cmake \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
