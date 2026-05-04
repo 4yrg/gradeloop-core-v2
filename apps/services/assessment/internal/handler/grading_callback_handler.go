@@ -3,7 +3,6 @@ package handler
 import (
 	"time"
 
-	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/dto"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/service"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -43,18 +42,18 @@ func (h *GradingCallbackHandler) HandleGradingCallback(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid assignment ID")
 	}
 
-	versions, err := h.githubService.GetSubmissionVersionsByCommit(c.Context(), assignmentID, req.CommitSHA)
+	versions, err := h.githubService.GetSubmissionVersionsByCommit(c.RequestCtx(), assignmentID, req.CommitSHA)
 	if err != nil || len(versions) == 0 {
 		return fiber.NewError(fiber.StatusNotFound, "No submission found for this commit")
 	}
 
-	version := versions[0]
+	version := &versions[0]
 
 	grade := float64(req.Score)
 	version.Grade = &grade
 	version.GradingStatus = req.Status
-	version.GradedAt = new(time.Time)
-	*version.GradedAt = time.Now()
+	now := time.Now()
+	version.GradedAt = &now
 
 	if req.Feedback != "" {
 		version.GradingError = req.Feedback

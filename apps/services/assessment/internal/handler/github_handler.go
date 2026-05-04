@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/domain"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/dto"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/repository"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/assessment/internal/service"
@@ -49,7 +48,7 @@ func (h *GitHubHandler) GetRepo(c fiber.Ctx) error {
 
 	assignment, _ := h.assignmentRepo.GetAssignmentByID(assignmentID)
 
-	repo, err := h.githubService.GetOrCreateStudentRepo(c.Context(), assignmentID, userID, assignment)
+	repo, err := h.githubService.GetOrCreateStudentRepo(c.RequestCtx(), assignmentID, userID, assignment)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Failed to get repo")
 	}
@@ -88,7 +87,7 @@ func (h *GitHubHandler) CreateOrGetRepo(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusNotFound, "Assignment not found")
 	}
 
-	repo, err := h.githubService.GetOrCreateStudentRepo(c.Context(), req.AssignmentID, userID, assignment)
+	repo, err := h.githubService.GetOrCreateStudentRepo(c.RequestCtx(), req.AssignmentID, userID, assignment)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Failed to create repo")
 	}
@@ -124,12 +123,12 @@ func (h *GitHubHandler) GetFiles(c fiber.Ctx) error {
 
 	assignment, _ := h.assignmentRepo.GetAssignmentByID(assignmentID)
 
-	repo, err := h.githubService.GetOrCreateStudentRepo(c.Context(), assignmentID, userID, assignment)
+	repo, err := h.githubService.GetOrCreateStudentRepo(c.RequestCtx(), assignmentID, userID, assignment)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Failed to get repo")
 	}
 
-	files, err := h.githubService.GetRepoFiles(c.Context(), repo.OrgName, repo.RepoName, path)
+	files, err := h.githubService.GetRepoFiles(c.RequestCtx(), repo.OrgName, repo.RepoName, path)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Failed to get files")
 	}
@@ -165,12 +164,12 @@ func (h *GitHubHandler) GetFileContent(c fiber.Ctx) error {
 
 	assignment, _ := h.assignmentRepo.GetAssignmentByID(assignmentID)
 
-	repo, err := h.githubService.GetOrCreateStudentRepo(c.Context(), assignmentID, userID, assignment)
+	repo, err := h.githubService.GetOrCreateStudentRepo(c.RequestCtx(), assignmentID, userID, assignment)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Failed to get repo")
 	}
 
-	content, sha, err := h.githubService.GetFileContent(c.Context(), repo.OrgName, repo.RepoName, filePath)
+	content, sha, err := h.githubService.GetFileContent(c.RequestCtx(), repo.OrgName, repo.RepoName, filePath)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Failed to get file content")
 	}
@@ -199,12 +198,12 @@ func (h *GitHubHandler) CommitFile(c fiber.Ctx) error {
 
 	assignment, _ := h.assignmentRepo.GetAssignmentByID(assignmentID)
 
-	repo, err := h.githubService.GetOrCreateStudentRepo(c.Context(), assignmentID, userID, assignment)
+	repo, err := h.githubService.GetOrCreateStudentRepo(c.RequestCtx(), assignmentID, userID, assignment)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Failed to get repo")
 	}
 
-	err = h.githubService.CommitFile(c.Context(), repo.OrgName, repo.RepoName, req.FilePath, req.Content, req.Message, req.SHA)
+	err = h.githubService.CommitFile(c.RequestCtx(), repo.OrgName, repo.RepoName, req.FilePath, req.Content, req.Message, req.SHA)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Failed to commit")
 	}
@@ -233,12 +232,12 @@ func (h *GitHubHandler) SubmitAssignment(c fiber.Ctx) error {
 
 	assignment, _ := h.assignmentRepo.GetAssignmentByID(assignmentID)
 
-	repo, err := h.githubService.GetOrCreateStudentRepo(c.Context(), assignmentID, userID, assignment)
+	repo, err := h.githubService.GetOrCreateStudentRepo(c.RequestCtx(), assignmentID, userID, assignment)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Failed to get repo")
 	}
 
-	version, err := h.githubService.SubmitAssignment(c.Context(), repo, userID, assignmentID, req.Message)
+	version, err := h.githubService.SubmitAssignment(c.RequestCtx(), repo, userID, assignmentID, req.Message)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Failed to submit")
 	}
@@ -271,7 +270,7 @@ func (h *GitHubHandler) GetVersions(c fiber.Ctx) error {
 		return fiber.ErrUnauthorized
 	}
 
-	versions, err := h.githubService.GetSubmissionVersions(c.Context(), userID, assignmentID)
+	versions, err := h.githubService.GetSubmissionVersions(c.RequestCtx(), userID, assignmentID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Failed to get versions")
 	}
@@ -314,12 +313,12 @@ func (h *GitHubHandler) GetCommits(c fiber.Ctx) error {
 
 	assignment, _ := h.assignmentRepo.GetAssignmentByID(assignmentID)
 
-	repo, err := h.githubService.GetOrCreateStudentRepo(c.Context(), assignmentID, userID, assignment)
+	repo, err := h.githubService.GetOrCreateStudentRepo(c.RequestCtx(), assignmentID, userID, assignment)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Failed to get repo")
 	}
 
-	commits, err := h.githubService.GetCommitHistory(c.Context(), repo.OrgName, repo.RepoName)
+	commits, err := h.githubService.GetCommitHistory(c.RequestCtx(), repo.OrgName, repo.RepoName)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Failed to get commits")
 	}

@@ -17,6 +17,7 @@ import (
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/config"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/domain"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/iam/internal/dto"
+	"github.com/google/uuid"
 )
 
 type GitHubService struct {

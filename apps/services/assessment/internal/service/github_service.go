@@ -21,14 +21,26 @@ import (
 type GitHubService interface {
 	CreateStudentRepo(ctx context.Context, assignmentID, userID uuid.UUID, assignment *domain.Assignment) (*domain.GitHubRepo, error)
 	GetOrCreateStudentRepo(ctx context.Context, assignmentID, userID uuid.UUID, assignment *domain.Assignment) (*domain.GitHubRepo, error)
-	GetRepoFiles(ctx context.Context, orgName, repoName, path string) ([]repository.GitHubContent, error)
+	GetRepoFiles(ctx context.Context, orgName, repoName, path string) ([]GitHubContent, error)
 	GetFileContent(ctx context.Context, orgName, repoName, filePath string) (content string, sha string, err error)
 	CommitFile(ctx context.Context, orgName, repoName, filePath, content, message, sha string) error
 	SubmitAssignment(ctx context.Context, repo *domain.GitHubRepo, userID, assignmentID uuid.UUID, message string) (*domain.GitHubSubmissionVersion, error)
 	GetSubmissionVersions(ctx context.Context, userID, assignmentID uuid.UUID) ([]domain.GitHubSubmissionVersion, error)
+	GetSubmissionVersionsByCommit(ctx context.Context, assignmentID uuid.UUID, commitSHA string) ([]domain.GitHubSubmissionVersion, error)
+	UpdateVersion(version *domain.GitHubSubmissionVersion) error
 	GetCommitHistory(ctx context.Context, orgName, repoName string) ([]GitCommitInfo, error)
 	TriggerGrading(ctx context.Context, orgName, repoName, workflowFileName string) error
 	CloneAndGrade(ctx context.Context, orgName, repoName string) (string, error)
+}
+
+type GitHubContent struct {
+	Name        string `json:"name"`
+	Path        string `json:"path"`
+	SHA         string `json:"sha"`
+	Size        int    `json:"size"`
+	Type        string `json:"type"`
+	Content     string `json:"content,omitempty"`
+	DownloadURL string `json:"download_url,omitempty"`
 }
 
 type gitHubService struct {
@@ -141,16 +153,6 @@ func (s *gitHubService) createRepo(ctx context.Context, orgName, repoName, descr
 	}
 
 	return fmt.Sprintf("https://github.com/%s/%s", orgName, repoName), nil
-}
-
-type GitHubContent struct {
-	Name        string `json:"name"`
-	Path        string `json:"path"`
-	SHA         string `json:"sha"`
-	Size        int    `json:"size"`
-	Type        string `json:"type"`
-	Content     string `json:"content,omitempty"`
-	DownloadURL string `json:"download_url,omitempty"`
 }
 
 func (s *gitHubService) GetRepoFiles(ctx context.Context, orgName, repoName, path string) ([]GitHubContent, error) {
