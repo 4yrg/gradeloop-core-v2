@@ -135,8 +135,7 @@ def _load_syntactic_model() -> SyntacticClassifier | None:
                     logger.warning(f"Could not load {model_name}: {exc}")
         if _syntactic_model is None:
             logger.error(
-                "Type-3 models unavailable. "
-                "Fix: Re-train the model with current XGBoost version."
+                "Type-3 models unavailable. Fix: Re-train the model with current XGBoost version."
             )
     return _syntactic_model
 
