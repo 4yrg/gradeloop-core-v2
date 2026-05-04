@@ -12,13 +12,15 @@ import {
   Shield,
   Mic,
   MicOff,
+  Mic2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toaster";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ivasApi } from "@/lib/ivas-api";
-import type { VivaSession, WsMessageIncoming, ChatMessage } from "@/types/ivas";
+import { useAuthStore } from "@/lib/stores/authStore";
+import type { VivaSession, WsMessageIncoming, ChatMessage, VoiceProfileStatus } from "@/types/ivas";
 import { AudioVisualizer } from "@/components/assessments/viva/audio-visualizer";
 import { VivaTranscript } from "@/components/assessments/viva/viva-transcript";
 
@@ -83,6 +85,11 @@ export default function VivaSessionPage() {
   const [currentTip, setCurrentTip] = React.useState(VIVA_TIPS[0]);
   const tipIntervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Voice enrollment check
+  const user = useAuthStore((s) => s.user);
+  const [voiceProfile, setVoiceProfile] = React.useState<VoiceProfileStatus | null>(null);
+  const [voiceProfileLoading, setVoiceProfileLoading] = React.useState(true);
+
   // Load session info
   React.useEffect(() => {
     let mounted = true;
@@ -105,6 +112,30 @@ export default function VivaSessionPage() {
     load();
     return () => { mounted = false; };
   }, [sessionId]);
+
+  // Check voice enrollment status
+  React.useEffect(() => {
+    if (!user?.id) {
+      setVoiceProfileLoading(false);
+      return;
+    }
+    let mounted = true;
+    async function checkVoiceProfile() {
+      try {
+        setVoiceProfileLoading(true);
+        const profile = await ivasApi.getVoiceProfile(user!.id);
+        if (mounted) setVoiceProfile(profile);
+      } catch {
+        // Profile doesn't exist yet — that's fine, voiceProfile stays null
+      } finally {
+        if (mounted) setVoiceProfileLoading(false);
+      }
+    }
+    checkVoiceProfile();
+    return () => { mounted = false; };
+  }, [user?.id]);
+
+  const voiceEnrolled = voiceProfile ? voiceProfile.is_complete : false;
 
   // Poll session status while grading is in progress
   React.useEffect(() => {
@@ -660,6 +691,33 @@ export default function VivaSessionPage() {
   // --- State A: Disconnected / Error ---
   const isDisconnected = connectionState === "disconnected" || connectionState === "error";
   if (isDisconnected) {
+    if (!voiceProfileLoading && !voiceEnrolled) {
+      return (
+        <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
+          <Card className="max-w-md border-red-200 dark:border-red-900 bg-red-50/50 dark:bg-red-950/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base text-red-700 dark:text-red-400">
+                <ShieldCheck className="h-5 w-5" />
+                Voice Enrollment Required
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-red-600 dark:text-red-400">
+                You must enroll your voice identity before starting a viva. This ensures the person speaking during the examination is you.
+              </p>
+              <Button
+                onClick={() => router.push("/student/assessments/voice-enrollment")}
+                className="gap-2"
+              >
+                <Mic2 className="h-4 w-4" />
+                Enroll Your Voice
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-8rem)] max-w-3xl mx-auto text-center animate-in fade-in duration-300">
         <div className="mb-8">
