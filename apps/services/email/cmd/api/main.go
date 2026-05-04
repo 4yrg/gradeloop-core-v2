@@ -2,7 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
+	nethttp "net/http"
+	"os"
+	"time"
 
 	"github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/config"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/email/internal/delivery/http"
@@ -17,6 +21,43 @@ import (
 )
 
 func main() {
+	// Handle health check command
+	if len(os.Args) > 1 && os.Args[1] == "health" {
+		if err := healthCheck(); err != nil {
+			fmt.Fprintf(os.Stderr, "Health check failed: %v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	if err := run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error starting application: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func healthCheck() error {
+	cfg := config.LoadConfig()
+
+	url := fmt.Sprintf("http://localhost:%s/health", cfg.App.Port)
+	client := &nethttp.Client{
+		Timeout: 3 * time.Second,
+	}
+
+	resp, err := client.Get(url)
+	if err != nil {
+		return fmt.Errorf("health check request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusOK {
+		return fmt.Errorf("unhealthy status: %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
+func run() error {
 	// 1. Load Config
 	cfg := config.LoadConfig()
 
@@ -72,5 +113,5 @@ func main() {
 	})
 
 	log.Printf("Email Service starting on port %s", cfg.App.Port)
-	log.Fatal(app.Listen(":" + cfg.App.Port))
+	return app.Listen(":" + cfg.App.Port)
 }
