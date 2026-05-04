@@ -20,6 +20,8 @@ type EnrollmentService interface {
 	GetEnrollments(instanceID uuid.UUID) ([]domain.Enrollment, error)
 	GetEnrollmentsDetailed(ctx context.Context, instanceID uuid.UUID, token string) ([]dto.EnrollmentResponse, error)
 	GetMyEnrollments(userID uuid.UUID) ([]domain.Enrollment, error)
+	AutoEnrollBatchMembers(courseInstanceID, batchID uuid.UUID, username, ipAddress, userAgent string) error
+	AutoEnrollStudentInBatchCourses(userID, batchID uuid.UUID, username, ipAddress, userAgent string) error
 	RemoveEnrollment(instanceID, userID uuid.UUID, username, ipAddress, userAgent string) error
 }
 
@@ -369,5 +371,93 @@ func (s *enrollmentService) GetMyEnrollments(userID uuid.UUID) ([]domain.Enrollm
 		return nil, utils.ErrInternal("failed to list student enrollments", err)
 	}
 
+	// Fetch all course instances assigned to the student's batches
+	batchIDs, err := s.batchMemberRepo.GetBatchesByUserID(userID)
+	if err != nil {
+		s.logger.Warn("failed to fetch student batches for enrollment fallback", zap.Error(err))
+		return enrollments, nil
+	}
+
+	if len(batchIDs) == 0 {
+		return enrollments, nil
+	}
+
+	// Map existing enrollments for quick lookup
+	enrolledMap := make(map[uuid.UUID]bool)
+	for _, e := range enrollments {
+		enrolledMap[e.CourseInstanceID] = true
+	}
+
+	for _, bID := range batchIDs {
+		instances, err := s.courseInstanceRepo.ListByBatch(bID)
+		if err != nil {
+			s.logger.Warn("failed to fetch batch course instances", zap.Error(err), zap.String("batch_id", bID.String()))
+			continue
+		}
+
+		for _, inst := range instances {
+			if !enrolledMap[inst.ID] {
+				// Add a "virtual" enrollment for dashboard visibility
+				enrollments = append(enrollments, domain.Enrollment{
+					CourseInstanceID: inst.ID,
+					UserID:           userID,
+					Status:           domain.EnrollmentStatusEnrolled, // Default status
+				})
+				enrolledMap[inst.ID] = true
+			}
+		}
+	}
+
 	return enrollments, nil
+}
+
+// AutoEnrollBatchMembers enrolls all students of a batch into a specific course instance.
+func (s *enrollmentService) AutoEnrollBatchMembers(courseInstanceID, batchID uuid.UUID, username, ipAddress, userAgent string) error {
+	userIDs, err := s.batchMemberRepo.GetMembersByBatchID(batchID)
+	if err != nil {
+		return err
+	}
+
+	for _, userID := range userIDs {
+		_, err := s.EnrollStudent(&dto.EnrollmentRequest{
+			CourseInstanceID: courseInstanceID,
+			UserID:           userID,
+			Status:           domain.EnrollmentStatusEnrolled,
+		}, username, ipAddress, userAgent)
+
+		if err != nil {
+			// If already enrolled, ignore conflict
+			if utils.IsConflict(err) {
+				continue
+			}
+			s.logger.Warn("failed to auto-enroll student", zap.Error(err), zap.String("user_id", userID.String()))
+		}
+	}
+
+	return nil
+}
+
+// AutoEnrollStudentInBatchCourses enrolls a student into all course instances assigned to a specific batch.
+func (s *enrollmentService) AutoEnrollStudentInBatchCourses(userID, batchID uuid.UUID, username, ipAddress, userAgent string) error {
+	instances, err := s.courseInstanceRepo.ListByBatch(batchID)
+	if err != nil {
+		return err
+	}
+
+	for _, inst := range instances {
+		_, err := s.EnrollStudent(&dto.EnrollmentRequest{
+			CourseInstanceID: inst.ID,
+			UserID:           userID,
+			Status:           domain.EnrollmentStatusEnrolled,
+		}, username, ipAddress, userAgent)
+
+		if err != nil {
+			if utils.IsConflict(err) {
+				continue
+			}
+			s.logger.Warn("failed to auto-enroll student in batch course", zap.Error(err), zap.String("instance_id", inst.ID.String()))
+		}
+	}
+
+	return nil
 }

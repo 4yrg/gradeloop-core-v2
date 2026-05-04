@@ -237,8 +237,8 @@ services:
   # =============================================================================
   iam:
     build:
-      context: ../../apps/services/iam
-      dockerfile: Dockerfile
+      context: ../../
+      dockerfile: apps/services/iam/Dockerfile
       target: production
     container_name: gradeloop-iam
     restart: unless-stopped
@@ -275,8 +275,8 @@ services:
   # =============================================================================
   academic:
     build:
-      context: ../../apps/services/academic
-      dockerfile: Dockerfile
+      context: ../../
+      dockerfile: apps/services/academic/Dockerfile
       target: production
     container_name: gradeloop-academic
     restart: unless-stopped
@@ -310,8 +310,8 @@ services:
   # =============================================================================
   assessment:
     build:
-      context: ../../apps/services/assessment
-      dockerfile: Dockerfile
+      context: ../../
+      dockerfile: apps/services/assessment/Dockerfile
       target: production
     container_name: gradeloop-assessment
     restart: unless-stopped
@@ -348,8 +348,8 @@ services:
   # =============================================================================
   email:
     build:
-      context: ../../apps/services/email
-      dockerfile: Dockerfile
+      context: ../../
+      dockerfile: apps/services/email/Dockerfile
       target: production
     container_name: gradeloop-email
     restart: unless-stopped
@@ -522,8 +522,8 @@ services:
   # =============================================================================
   cipas-xai:
     build:
-      context: ../../apps/services/cipas-xai
-      dockerfile: Dockerfile
+      context: ../../
+      dockerfile: apps/services/cipas-xai/Dockerfile
       target: production
     container_name: gradeloop-cipas-xai
     restart: unless-stopped

@@ -18,32 +18,36 @@ type BatchMemberService interface {
 	AddMembersToBatch(req *dto.BulkAddBatchMembersRequest, username, ipAddress, userAgent string) error
 	GetBatchMembers(batchID uuid.UUID) ([]domain.BatchMember, error)
 	GetBatchMembersDetailed(ctx context.Context, batchID uuid.UUID, token string) ([]dto.BatchMemberDetailResponse, error)
+	IsMember(batchID, userID uuid.UUID) (bool, error)
 	RemoveBatchMember(batchID, userID uuid.UUID, username, ipAddress, userAgent string) error
 }
 
 // batchMemberService is the concrete implementation.
 type batchMemberService struct {
-	batchRepo       repository.BatchRepository
-	batchMemberRepo repository.BatchMemberRepository
-	auditClient     *client.AuditClient
-	iamClient       *client.IAMClient
-	logger          *zap.Logger
+	batchRepo         repository.BatchRepository
+	batchMemberRepo   repository.BatchMemberRepository
+	enrollmentService EnrollmentService
+	auditClient       *client.AuditClient
+	iamClient         *client.IAMClient
+	logger            *zap.Logger
 }
 
 // NewBatchMemberService wires all dependencies together.
 func NewBatchMemberService(
 	batchRepo repository.BatchRepository,
 	batchMemberRepo repository.BatchMemberRepository,
+	enrollmentService EnrollmentService,
 	auditClient *client.AuditClient,
 	iamClient *client.IAMClient,
 	logger *zap.Logger,
 ) BatchMemberService {
 	return &batchMemberService{
-		batchRepo:       batchRepo,
-		batchMemberRepo: batchMemberRepo,
-		auditClient:     auditClient,
-		iamClient:       iamClient,
-		logger:          logger,
+		batchRepo:         batchRepo,
+		batchMemberRepo:   batchMemberRepo,
+		enrollmentService: enrollmentService,
+		auditClient:       auditClient,
+		iamClient:         iamClient,
+		logger:            logger,
 	}
 }
 
@@ -130,6 +134,12 @@ func (s *batchMemberService) AddBatchMember(
 		zap.String("batch_id", req.BatchID.String()),
 		zap.String("user_id", req.UserID.String()),
 	)
+
+	// 7. Auto-enroll student in existing batch courses
+	if err := s.enrollmentService.AutoEnrollStudentInBatchCourses(req.UserID, req.BatchID, username, ipAddress, userAgent); err != nil {
+		s.logger.Warn("failed to auto-enroll student in batch courses", zap.Error(err), zap.String("user_id", req.UserID.String()))
+	}
+
 	return member, nil
 }
 
@@ -194,6 +204,13 @@ func (s *batchMemberService) AddMembersToBatch(
 		userAgent,
 	); auditErr != nil {
 		s.logger.Warn("failed to write audit log", zap.Error(auditErr))
+	}
+
+	// 5. Auto-enroll students in existing batch courses
+	for _, userID := range req.UserIDs {
+		if err := s.enrollmentService.AutoEnrollStudentInBatchCourses(userID, req.BatchID, username, ipAddress, userAgent); err != nil {
+			s.logger.Warn("failed to auto-enroll student in batch courses (bulk)", zap.Error(err), zap.String("user_id", userID.String()))
+		}
 	}
 
 	return nil
@@ -275,6 +292,15 @@ func (s *batchMemberService) GetBatchMembersDetailed(ctx context.Context, batchI
 	}
 
 	return results, nil
+}
+
+// IsMember checks if a user is an active member of a batch.
+func (s *batchMemberService) IsMember(batchID, userID uuid.UUID) (bool, error) {
+	member, err := s.batchMemberRepo.GetMember(batchID, userID)
+	if err != nil {
+		return false, err
+	}
+	return member != nil && member.Status == domain.BatchMemberStatusActive, nil
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

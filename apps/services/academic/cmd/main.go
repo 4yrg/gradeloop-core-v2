@@ -144,10 +144,10 @@ func run() error {
 	enrollmentRepo := repository.NewEnrollmentRepository(db.DB)
 
 	// Initialize services for enrollment management
-	batchMemberService := service.NewBatchMemberService(batchRepo, batchMemberRepo, auditClient, iamClient, logger)
-	courseInstanceService := service.NewCourseInstanceService(batchRepo, courseInstanceRepo, auditClient, logger)
-	courseInstructorService := service.NewCourseInstructorService(courseInstanceRepo, courseInstructorRepo, auditClient, logger)
 	enrollmentService := service.NewEnrollmentService(courseInstanceRepo, batchMemberRepo, enrollmentRepo, auditClient, iamClient, logger)
+	batchMemberService := service.NewBatchMemberService(batchRepo, batchMemberRepo, enrollmentService, auditClient, iamClient, logger)
+	courseInstanceService := service.NewCourseInstanceService(batchRepo, courseInstanceRepo, enrollmentService, auditClient, logger)
+	courseInstructorService := service.NewCourseInstructorService(courseInstanceRepo, courseInstructorRepo, auditClient, logger)
 
 	// Initialize handlers
 	healthHandler := handler.NewHealthHandler()
@@ -171,7 +171,7 @@ func run() error {
 	instructorHandler := handler.NewInstructorHandler(courseInstructorService, enrollmentService, courseService, batchService, batchMemberService, iamClient, logger)
 
 	// Initialize handler for student-scoped endpoints
-	studentHandler := handler.NewStudentHandler(enrollmentService, courseInstructorService, courseService, semesterService, batchService, iamClient, logger)
+	studentHandler := handler.NewStudentHandler(enrollmentService, courseInstructorService, courseService, semesterService, batchService, batchMemberService, iamClient, logger)
 
 	app := fiber.New(fiber.Config{
 		AppName:      "academic-service",
