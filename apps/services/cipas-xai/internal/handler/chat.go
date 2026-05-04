@@ -24,13 +24,6 @@ func NewChatHandler(chatService *service.ChatService, logger *zap.Logger) *ChatH
 	}
 }
 
-// RegisterRoutes registers chat routes
-func (h *ChatHandler) RegisterRoutes(app *fiber.App) {
-	api := app.Group("/api/v1")
-	api.Post("/chat", h.Chat)
-	api.Post("/chat/stream", h.ChatStream)
-}
-
 // Chat handles non-streaming chat requests
 // @Summary Send a chat message and get complete response
 // @Description Send a chat message to the LLM and receive the complete response

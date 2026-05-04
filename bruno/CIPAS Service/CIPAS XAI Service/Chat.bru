@@ -1,0 +1,27 @@
+meta {
+  name: Chat
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{CIPAS_XAI_URL_V1}}/chat
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a helpful assistant."
+      },
+      {
+        "role": "user",
+        "content": "Hello! How can you help me today?"
+      }
+    ],
+    "model": "gemini-pro"
+  }
+}

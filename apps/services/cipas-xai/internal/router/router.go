@@ -10,11 +10,18 @@ type Config struct {
 }
 
 func SetupRoutes(app *fiber.App, cfg Config) {
-	// Register chat routes
-	cfg.ChatHandler.RegisterRoutes(app)
+	// API V1 Group
+	v1 := app.Group("/api/v1")
+
+	// CIPAS XAI Service Group
+	xai := v1.Group("/cipas-xai")
+
+	// Chat routes
+	xai.Post("/chat", cfg.ChatHandler.Chat)
+	xai.Post("/chat/stream", cfg.ChatHandler.ChatStream)
 
 	// Root endpoint for health check
-	app.Get("/", func(c fiber.Ctx) error {
+	xai.Get("/", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"service": "cipas-xai",
 			"version": "1.0.0",
@@ -23,7 +30,7 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	})
 
 	// Health check endpoint
-	app.Get("/health", func(c fiber.Ctx) error {
+	xai.Get("/health", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"status": "healthy",
 		})
