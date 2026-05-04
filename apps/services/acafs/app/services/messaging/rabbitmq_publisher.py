@@ -1,7 +1,6 @@
 """RabbitMQ publisher for submitting evaluation requests."""
 
 import json
-from datetime import datetime
 
 import pika
 from pika.adapters.blocking_connection import BlockingChannel
