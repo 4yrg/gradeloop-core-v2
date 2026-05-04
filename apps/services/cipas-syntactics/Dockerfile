@@ -14,17 +14,17 @@ RUN if [ -f /etc/apt/sources.list ]; then \
     fi \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
-    build-essential \
-    curl \
-    git \
-    cmake \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-COPY requirements.txt ./
+# Copy shared packages first (from root context)
+COPY packages/python/ ./packages/python/
+
+COPY apps/services/cipas-syntactics/requirements.txt ./
 
 RUN pip install --no-cache-dir -r requirements.txt \
     && pip uninstall -y nvidia-nccl-cu12 nvidia-cuda-runtime-cu12 nvidia-cudnn-cu12 nvidia-cublas-cu12 \
@@ -33,9 +33,9 @@ RUN pip install --no-cache-dir -r requirements.txt \
     && find /usr/local/lib/python3.11/site-packages -name "*.pyc" -delete \
     && find /usr/local/lib/python3.11/site-packages -name "__pycache__" -delete
 
-COPY main.py routes.py schemas.py database.py ./
-COPY clone_detection/ ./clone_detection/
-COPY repositories/ ./repositories/
+COPY apps/services/cipas-syntactics/main.py apps/services/cipas-syntactics/routes.py apps/services/cipas-syntactics/schemas.py apps/services/cipas-syntactics/database.py ./
+COPY apps/services/cipas-syntactics/clone_detection/ ./clone_detection/
+COPY apps/services/cipas-syntactics/repositories/ ./repositories/
 
 RUN python -c "from clone_detection.tokenizers.tree_sitter_tokenizer import TreeSitterTokenizer; TreeSitterTokenizer(); print('Tree-sitter parsers loaded successfully')" 2>/dev/null || true
 
@@ -43,12 +43,13 @@ FROM builder AS development
 
 WORKDIR /app
 
-COPY main.py routes.py schemas.py database.py ./
-COPY clone_detection/ ./clone_detection/
-COPY repositories/ ./repositories/
+COPY apps/services/cipas-syntactics/main.py apps/services/cipas-syntactics/routes.py apps/services/cipas-syntactics/schemas.py apps/services/cipas-syntactics/database.py ./
+COPY apps/services/cipas-syntactics/clone_detection/ ./clone_detection/
+COPY apps/services/cipas-syntactics/repositories/ ./repositories/
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app:/app/packages/python \
     CUDA_VISIBLE_DEVICES=""
 
 EXPOSE 8106
@@ -73,6 +74,7 @@ RUN if [ -f /etc/apt/sources.list ]; then \
 
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
+COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/main.py /app/routes.py /app/schemas.py /app/database.py ./
 COPY --from=builder /app/clone_detection ./clone_detection
 COPY --from=builder /app/repositories ./repositories
@@ -85,6 +87,7 @@ USER cipas-syntactics
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app:/app/packages/python \
     CUDA_VISIBLE_DEVICES=""
 
 EXPOSE 8106

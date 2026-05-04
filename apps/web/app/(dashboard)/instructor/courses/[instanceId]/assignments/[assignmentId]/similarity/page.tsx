@@ -40,7 +40,6 @@ import {
 export default function SimilarityOverviewPage() {
   const params = useParams();
   const assignmentId = params.assignmentId as string;
-  const instanceId = params.instanceId as string;
 
   const [report, setReport] = React.useState<AssignmentClusterResponse | null>(null);
   const [assignment, setAssignment] = React.useState<AssignmentResponse | null>(null);
@@ -789,7 +788,6 @@ export default function SimilarityOverviewPage() {
         cluster={diffSheetCluster}
         initialEdge={diffSheetEdge}
         assignmentId={assignmentId}
-        instanceId={instanceId}
         open={diffSheetOpen}
         onClose={() => setDiffSheetOpen(false)}
       />

@@ -400,3 +400,124 @@ class SimilarityReportMetadata(BaseModel):
     processing_time_seconds: float | None = None
     created_at: str = Field(..., description="ISO timestamp")
     updated_at: str = Field(..., description="ISO timestamp")
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Student Details for Graph Nodes
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class StudentDetails(BaseModel):
+    """Student profile details for graph node display."""
+
+    student_id: str = Field(..., description="Student unique identifier")
+    full_name: str = Field(..., description="Full name of the student")
+    student_number: str | None = Field(None, description="Student number (e.g., S12345)")
+    email: str | None = Field(None, description="Email address")
+    avatar_url: str | None = Field(None, description="URL to profile picture")
+
+
+class CollusionGroupSchemaExtended(BaseModel):
+    """Extended collusion group with student details."""
+
+    group_id: int
+    member_ids: list[str]
+    member_count: int
+    max_confidence: float
+    dominant_type: str
+    edge_count: int
+    edges: list[CollusionEdgeSchema] = Field(default_factory=list)
+    student_details: dict[str, StudentDetails] = Field(
+        default_factory=dict,
+        description="Map of student_id to student details for each node",
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Segment Comparison Schemas
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class SegmentPair(BaseModel):
+    """A pair of code segments that were compared."""
+
+    segment_index_a: int = Field(..., description="Index of segment in submission A")
+    segment_index_b: int = Field(..., description="Index of segment in submission B")
+    segment_code_a: str = Field(..., description="Source code of segment A")
+    segment_code_b: str = Field(..., description="Source code of segment B")
+    is_clone: bool = Field(..., description="Whether these segments are clones")
+    clone_type: str | None = Field(None, description="Type of clone detected")
+    confidence: float = Field(..., description="Confidence score (0-1)")
+    normalized_code_a: str | None = Field(None, description="Normalized code A")
+    normalized_code_b: str | None = Field(None, description="Normalized code B")
+
+
+class SegmentComparisonResult(BaseModel):
+    """Result of all-to-all segment comparison between two submissions."""
+
+    submission_a_id: str = Field(..., description="First submission ID")
+    submission_b_id: str = Field(..., description="Second submission ID")
+    student_a: str = Field(..., description="Student A ID")
+    student_b: str = Field(..., description="Student B ID")
+    segment_count_a: int = Field(..., description="Number of segments in submission A")
+    segment_count_b: int = Field(..., description="Number of segments in submission B")
+    matched_pairs: list[SegmentPair] = Field(
+        default_factory=list,
+        description="All segment pairs that are clones or have high similarity",
+    )
+    highest_confidence: float = Field(
+        default=0.0,
+        description="Highest confidence among all segment pairs",
+    )
+    dominant_clone_type: str | None = Field(None, description="Most common clone type")
+
+
+class SegmentCompareRequest(BaseModel):
+    """Request to compare all segments between two submissions."""
+
+    submission_a_id: str = Field(..., description="First submission ID")
+    submission_b_id: str = Field(..., description="Second submission ID")
+    language: LanguageEnum = Field(default=LanguageEnum.JAVA)
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Rearranged/Moved Block Detection Schemas
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class MovedBlock(BaseModel):
+    """A code block that appears in both submissions but in different positions."""
+
+    block_id: str = Field(..., description="Unique identifier for this block")
+    block_type: str = Field(..., description="Type of block (function, method, etc.)")
+    code_snippet: str = Field(..., description="Source code of the block")
+    position_in_a: int = Field(..., description="Position index in submission A")
+    position_in_b: int = Field(..., description="Position index in submission B")
+    similarity: float = Field(..., description="Structural similarity of the block")
+
+
+class MovedBlocksResult(BaseModel):
+    """Result of detecting rearranged code blocks between two submissions."""
+
+    submission_a_id: str
+    submission_b_id: str
+    moved_blocks: list[MovedBlock] = Field(
+        default_factory=list,
+        description="Blocks found in different positions in each submission",
+    )
+    total_moved: int = Field(
+        default=0,
+        description="Total number of moved blocks",
+    )
+    is_rearranged: bool = Field(
+        default=False,
+        description="True if any blocks have been rearranged",
+    )
+
+
+class MovedBlocksRequest(BaseModel):
+    """Request to detect moved blocks between two code submissions."""
+
+    code1: str = Field(..., description="First code snippet")
+    code2: str = Field(..., description="Second code snippet")
+    language: LanguageEnum = Field(default=LanguageEnum.JAVA)

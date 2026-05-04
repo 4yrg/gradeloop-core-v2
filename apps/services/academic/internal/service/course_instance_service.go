@@ -23,6 +23,7 @@ type CourseInstanceService interface {
 type courseInstanceService struct {
 	batchRepo          repository.BatchRepository
 	courseInstanceRepo repository.CourseInstanceRepository
+	enrollmentService  EnrollmentService
 	auditClient        *client.AuditClient
 	logger             *zap.Logger
 }
@@ -31,12 +32,14 @@ type courseInstanceService struct {
 func NewCourseInstanceService(
 	batchRepo repository.BatchRepository,
 	courseInstanceRepo repository.CourseInstanceRepository,
+	enrollmentService EnrollmentService,
 	auditClient *client.AuditClient,
 	logger *zap.Logger,
 ) CourseInstanceService {
 	return &courseInstanceService{
 		batchRepo:          batchRepo,
 		courseInstanceRepo: courseInstanceRepo,
+		enrollmentService:  enrollmentService,
 		auditClient:        auditClient,
 		logger:             logger,
 	}
@@ -137,6 +140,12 @@ func (s *courseInstanceService) CreateCourseInstance(
 		zap.String("id", instance.ID.String()),
 		zap.String("batch_id", req.BatchID.String()),
 	)
+
+	// 7. Auto-enroll batch members
+	if err := s.enrollmentService.AutoEnrollBatchMembers(instance.ID, req.BatchID, username, ipAddress, userAgent); err != nil {
+		s.logger.Warn("failed to auto-enroll batch members", zap.Error(err), zap.String("instance_id", instance.ID.String()))
+	}
+
 	return instance, nil
 }
 

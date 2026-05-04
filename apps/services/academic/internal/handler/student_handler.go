@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/client"
+	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/domain"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/dto"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/service"
 	"github.com/4yrg/gradeloop-core-v2/apps/services/academic/internal/utils"
@@ -20,6 +21,7 @@ type StudentHandler struct {
 	courseService           service.CourseService
 	semesterService         service.SemesterService
 	batchService            service.BatchService
+	batchMemberService      service.BatchMemberService
 	iamClient               *client.IAMClient
 	logger                  *zap.Logger
 }
@@ -31,6 +33,7 @@ func NewStudentHandler(
 	courseService service.CourseService,
 	semesterService service.SemesterService,
 	batchService service.BatchService,
+	batchMemberService service.BatchMemberService,
 	iamClient *client.IAMClient,
 	logger *zap.Logger,
 ) *StudentHandler {
@@ -40,6 +43,7 @@ func NewStudentHandler(
 		courseService:           courseService,
 		semesterService:         semesterService,
 		batchService:            batchService,
+		batchMemberService:      batchMemberService,
 		iamClient:               iamClient,
 		logger:                  logger,
 	}
@@ -175,6 +179,16 @@ func (h *StudentHandler) GetCourseInstance(c fiber.Ctx) error {
 		}
 	}
 
+	// Fallback: Check if student is in the batch assigned to this course instance
+	instance, err := h.courseInstructorService.GetCourseInstance(instanceID)
+	if err == nil && instance != nil {
+		isMember, err := h.batchMemberService.IsMember(instance.BatchID, userID)
+		if err == nil && isMember {
+			resp := h.buildEnrollmentResponse(instanceID, domain.EnrollmentStatusEnrolled, "")
+			return c.Status(fiber.StatusOK).JSON(resp)
+		}
+	}
+
 	return utils.ErrNotFound("enrollment not found")
 }
 
@@ -209,6 +223,18 @@ func (h *StudentHandler) GetCourseInstructors(c fiber.Ctx) error {
 			break
 		}
 	}
+
+	if !enrolled {
+		// Fallback: Check if student is in the batch assigned to this course instance
+		instance, err := h.courseInstructorService.GetCourseInstance(instanceID)
+		if err == nil && instance != nil {
+			isMember, err := h.batchMemberService.IsMember(instance.BatchID, userID)
+			if err == nil && isMember {
+				enrolled = true
+			}
+		}
+	}
+
 	if !enrolled {
 		return utils.ErrForbidden("you are not enrolled in this course instance")
 	}

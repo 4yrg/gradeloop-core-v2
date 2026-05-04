@@ -14,26 +14,27 @@ RUN if [ -f /etc/apt/sources.list ]; then \
     fi \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
-    git \
     libpq-dev \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+# Copy shared packages first (from root context)
+COPY packages/python/ ./packages/python/
+
+COPY apps/services/cipas-semantics/requirements.txt .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY api/ ./api/
-COPY model/ ./model/
+COPY apps/services/cipas-semantics/api/ ./api/
+COPY apps/services/cipas-semantics/model/ ./model/
 
 FROM builder AS development
 
 WORKDIR /app
 
-COPY api/ ./api/
-COPY model/ ./model/
+COPY apps/services/cipas-semantics/api/ ./api/
+COPY apps/services/cipas-semantics/model/ ./model/
 
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app:/app/packages/python
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV DEVICE=cpu
@@ -62,6 +63,7 @@ RUN if [ -f /etc/apt/sources.list ]; then \
 
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
+COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/api ./api
 COPY --from=builder /app/model ./model
 
@@ -75,7 +77,7 @@ ENV PYTHONUNBUFFERED=1
 ENV DEVICE=cpu
 ENV USE_CUDA=false
 ENV API_PORT=8105
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app:/app/packages/python
 
 EXPOSE 8105
 

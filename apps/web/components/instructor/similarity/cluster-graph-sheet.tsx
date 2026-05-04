@@ -13,11 +13,12 @@ import { Badge } from "@/components/ui/badge";
 import { SimilarityBadge, SimilarityScore } from "./similarity-badge";
 import { ForceDirectedGraph } from "./force-directed-graph";
 import { GitCompare, Users, Link2 } from "lucide-react";
-import type { CollusionGroup, CollusionEdge } from "@/types/cipas";
+import type { CollusionGroup, CollusionEdge, StudentDetails } from "@/types/cipas";
 import { cn } from "@/lib/utils";
 
 interface ClusterGraphSheetProps {
   cluster: CollusionGroup | null;
+  studentDetails?: Record<string, StudentDetails>;
   open: boolean;
   onClose: () => void;
   onCompare: (cluster: CollusionGroup, edge: CollusionEdge) => void;
@@ -25,6 +26,7 @@ interface ClusterGraphSheetProps {
 
 export function ClusterGraphSheet({
   cluster,
+  studentDetails = {},
   open,
   onClose,
   onCompare,
@@ -81,7 +83,11 @@ export function ClusterGraphSheet({
         <div className="relative w-full aspect-square rounded-xl overflow-hidden">
           <ForceDirectedGraph
             cluster={cluster}
+            studentDetails={studentDetails}
             onEdgeClick={(edge) => onCompare(cluster, edge)}
+            onNodeClick={() => {
+              // Could open student detail panel here
+            }}
             width={600}
             height={600}
           />

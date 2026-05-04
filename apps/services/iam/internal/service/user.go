@@ -195,6 +195,11 @@ func (s *userService) GetUsers(ctx context.Context, page, limit int, userType st
 	}
 	offset := (page - 1) * limit
 
+	// Treat 'all' as no filter
+	if userType == "all" {
+		userType = ""
+	}
+
 	users, err := s.userRepo.GetUsers(ctx, offset, limit, userType, search)
 	if err != nil {
 		return nil, fmt.Errorf("fetching users: %w", err)

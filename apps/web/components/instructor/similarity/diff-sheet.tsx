@@ -19,10 +19,8 @@ import type { SubmissionResponse } from "@/types/assessments.types";
 
 interface DiffSheetProps {
   cluster: CollusionGroup | null;
-  /** The edge to focus on by default (optional — first edge used as fallback) */
   initialEdge?: CollusionEdge | null;
   assignmentId: string;
-  instanceId: string;
   open: boolean;
   onClose: () => void;
 }
@@ -31,7 +29,6 @@ export function DiffSheet({
   cluster,
   initialEdge,
   assignmentId,
-  instanceId,
   open,
   onClose,
 }: DiffSheetProps) {

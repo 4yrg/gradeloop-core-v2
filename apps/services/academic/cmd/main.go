@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -24,10 +25,43 @@ import (
 )
 
 func main() {
+	// Handle health check command
+	if len(os.Args) > 1 && os.Args[1] == "health" {
+		if err := healthCheck(); err != nil {
+			fmt.Fprintf(os.Stderr, "Health check failed: %v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error starting application: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func healthCheck() error {
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("loading config: %w", err)
+	}
+
+	url := fmt.Sprintf("http://localhost:%s/health", cfg.Server.Port)
+	client := &http.Client{
+		Timeout: 3 * time.Second,
+	}
+
+	resp, err := client.Get(url)
+	if err != nil {
+		return fmt.Errorf("health check request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unhealthy status: %d", resp.StatusCode)
+	}
+
+	return nil
 }
 
 func run() error {
@@ -110,10 +144,10 @@ func run() error {
 	enrollmentRepo := repository.NewEnrollmentRepository(db.DB)
 
 	// Initialize services for enrollment management
-	batchMemberService := service.NewBatchMemberService(batchRepo, batchMemberRepo, auditClient, iamClient, logger)
-	courseInstanceService := service.NewCourseInstanceService(batchRepo, courseInstanceRepo, auditClient, logger)
-	courseInstructorService := service.NewCourseInstructorService(courseInstanceRepo, courseInstructorRepo, auditClient, logger)
 	enrollmentService := service.NewEnrollmentService(courseInstanceRepo, batchMemberRepo, enrollmentRepo, auditClient, iamClient, logger)
+	batchMemberService := service.NewBatchMemberService(batchRepo, batchMemberRepo, enrollmentService, auditClient, iamClient, logger)
+	courseInstanceService := service.NewCourseInstanceService(batchRepo, courseInstanceRepo, enrollmentService, auditClient, logger)
+	courseInstructorService := service.NewCourseInstructorService(courseInstanceRepo, courseInstructorRepo, auditClient, logger)
 
 	// Initialize handlers
 	healthHandler := handler.NewHealthHandler()
@@ -137,7 +171,7 @@ func run() error {
 	instructorHandler := handler.NewInstructorHandler(courseInstructorService, enrollmentService, courseService, batchService, batchMemberService, iamClient, logger)
 
 	// Initialize handler for student-scoped endpoints
-	studentHandler := handler.NewStudentHandler(enrollmentService, courseInstructorService, courseService, semesterService, batchService, iamClient, logger)
+	studentHandler := handler.NewStudentHandler(enrollmentService, courseInstructorService, courseService, semesterService, batchService, batchMemberService, iamClient, logger)
 
 	app := fiber.New(fiber.Config{
 		AppName:      "academic-service",

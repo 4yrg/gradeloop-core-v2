@@ -467,7 +467,6 @@ function StudentIdCell({ studentId }: { studentId: string }) {
 }
 
 export default function InstructorVivaReviewPage() {
-    const { addToast: _addToast } = useToast();
     const params = useParams<{ sessionId: string; assignmentId: string; instanceId: string }>();
     const router = useRouter();
     const sessionId = params.sessionId;
@@ -504,7 +503,7 @@ export default function InstructorVivaReviewPage() {
             // Re-fetch full details after a short delay to let grading finish or show progress
             const refreshed = await ivasApi.getSessionDetails(sessionId);
             setDetails(refreshed);
-        } catch (_err) {
+        } catch {
             // If regrade fails, just refresh to show current state
             const refreshed = await ivasApi.getSessionDetails(sessionId);
             setDetails(refreshed);

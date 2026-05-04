@@ -155,3 +155,80 @@ export interface SimilarityScoreRequest {
 export interface SimilarityScoreResponse {
   similarity_score: number; // 0.0 – 1.0
 }
+
+// ──────────────────────────────────────────────────────────────────────────
+// Student Details for Graph Nodes
+// ──────────────────────────────────────────────────────────────────────────
+
+export interface StudentDetails {
+  student_id: string;
+  full_name: string;
+  student_number?: string;
+  email?: string;
+  avatar_url?: string;
+}
+
+export interface CollusionGroupExtended extends CollusionGroup {
+  student_details: Record<string, StudentDetails>;
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Segment Comparison Types
+// ──────────────────────────────────────────────────────────────────────────
+
+export interface SegmentPair {
+  segment_index_a: number;
+  segment_index_b: number;
+  segment_code_a: string;
+  segment_code_b: string;
+  is_clone: boolean;
+  clone_type?: string;
+  confidence: number;
+  normalized_code_a?: string;
+  normalized_code_b?: string;
+}
+
+export interface SegmentComparisonResult {
+  submission_a_id: string;
+  submission_b_id: string;
+  student_a: string;
+  student_b: string;
+  segment_count_a: number;
+  segment_count_b: number;
+  matched_pairs: SegmentPair[];
+  highest_confidence: number;
+  dominant_clone_type?: string;
+}
+
+export interface SegmentCompareRequest {
+  submission_a_id: string;
+  submission_b_id: string;
+  language?: string;
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Moved Block Detection Types
+// ──────────────────────────────────────────────────────────────────────────
+
+export interface MovedBlock {
+  block_id: string;
+  block_type: string;
+  code_snippet: string;
+  position_in_a: number;
+  position_in_b: number;
+  similarity: number;
+}
+
+export interface MovedBlocksResult {
+  submission_a_id: string;
+  submission_b_id: string;
+  moved_blocks: MovedBlock[];
+  total_moved: number;
+  is_rearranged: boolean;
+}
+
+export interface MovedBlocksRequest {
+  code1: string;
+  code2: string;
+  language?: string;
+}

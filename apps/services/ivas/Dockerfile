@@ -16,8 +16,6 @@ RUN if [ -f /etc/apt/sources.list ]; then \
     && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
-    libsndfile1 \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONDONTWRITEBYTECODE=1 \

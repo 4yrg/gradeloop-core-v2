@@ -20,11 +20,17 @@ RUN if [ -f /etc/apt/sources.list ]; then \
 
 RUN pip install --no-cache-dir --pre -U pip wheel setuptools
 
-COPY requirements.txt .
+# Copy shared packages first (from root context)
+COPY packages/python/ ./packages/python/
+
+COPY apps/services/cipas-ai/requirements.txt .
 RUN pip install --no-cache-dir --no-warn-script-location -r requirements.txt
 
-COPY src/ ./src/
-COPY model/ ./model/
+COPY apps/services/cipas-ai/src/ ./src/
+COPY apps/services/cipas-ai/model/ ./model/
+
+# Add packages to PYTHONPATH
+ENV PYTHONPATH="${PYTHONPATH}:/app/packages/python"
 
 FROM builder AS development
 
@@ -60,6 +66,7 @@ RUN if [ -f /etc/apt/sources.list ]; then \
 
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
+COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/model ./model
 
@@ -70,6 +77,7 @@ USER cipas-ai
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH="${PYTHONPATH}:/app/packages/python" \
     CIPAS_AI_MODEL_DIR=/app/model \
     CIPAS_AI_HOST=0.0.0.0 \
     CIPAS_AI_PORT=8104 \

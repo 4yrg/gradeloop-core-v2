@@ -226,10 +226,13 @@ jobs:
             context: apps/services/keystroke
           - service: cipas-ai
             context: apps/services/cipas-ai
+            build_context: .
           - service: cipas-semantics
             context: apps/services/cipas-semantics
+            build_context: .
           - service: cipas-syntactics
             context: apps/services/cipas-syntactics
+            build_context: .
     steps:
       - uses: actions/checkout@v4
 
@@ -257,12 +260,11 @@ jobs:
       - name: Build and push ${{ matrix.service }}
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.context }}
+          context: ${{ matrix.build_context || matrix.context }}
           file: ${{ matrix.context }}/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          cache-from: type=gha,scope=${{ matrix.service }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          no-cache: true
           provenance: true
           sbom: true
 
@@ -348,7 +350,8 @@ jobs:
   deploy:
     name: Deploy to Hetzner
     runs-on: ubuntu-latest
-    needs: [build-complete, build-go-services, build-python-services, build-gateway]
+    needs:
+      [build-complete, build-go-services, build-python-services, build-gateway]
     if: github.event_name != 'workflow_dispatch' || github.event.inputs.runtime == 'docker'
     environment:
       name: production
@@ -517,11 +520,12 @@ jobs:
             echo "--- Deployment Complete ---"
             echo "Commit: $SHORT_SHA"
             echo "Deployed at: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
-            
+
   deploy-podman:
     name: Deploy to Hetzner (Podman)
     runs-on: ubuntu-latest
-    needs: [build-complete, build-go-services, build-python-services, build-gateway]
+    needs:
+      [build-complete, build-go-services, build-python-services, build-gateway]
     if: github.event.inputs.runtime == 'podman'
     environment:
       name: production
