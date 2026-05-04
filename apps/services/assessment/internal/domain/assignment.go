@@ -49,6 +49,11 @@ type Assignment struct {
 	// Defaults to 71 (Python 3.8.1) when not explicitly set.
 	LanguageID int `gorm:"not null;default:71" json:"language_id"`
 
+	// GitHub Integration fields
+	GitHubOrg       string `gorm:"type:varchar(255)" json:"github_org,omitempty"`
+	UseGitHub       bool   `gorm:"not null;default:false" json:"use_github"`
+	StarterCodeRepo string `gorm:"type:varchar(255)" json:"starter_code_repo,omitempty"`
+
 	CreatedBy uuid.UUID `gorm:"type:uuid;not null" json:"created_by"`
 
 	CreatedAt time.Time `json:"created_at"`

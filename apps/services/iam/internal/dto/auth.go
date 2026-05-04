@@ -84,3 +84,28 @@ type ResetPasswordResponse struct {
 type RevokeUserSessionsResponse struct {
 	Message string `json:"message"`
 }
+
+// GitHub OAuth DTOs
+
+type GitHubAuthURLResponse struct {
+	URL string `json:"url"`
+}
+
+type GitHubCallbackRequest struct {
+	Code  string `json:"code"`
+	State string `json:"state"`
+}
+
+type GitHubAuthResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token,omitempty"`
+	ExpiresIn    int64  `json:"expires_in"`
+	IsNewUser    bool   `json:"is_new_user"`
+}
+
+type GitHubUserResponse struct {
+	ID    string `json:"id"`
+	Login string `json:"login"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}

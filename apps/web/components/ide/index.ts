@@ -6,5 +6,8 @@ export { ExecutionPanel } from "./execution-panel";
 export { StatusBar } from "./status-bar";
 export { Toolbar } from "./toolbar";
 export { AIAssistantPanel } from "./ai-assistant-panel";
+export { FileExplorer } from "./file-explorer";
+export { CommitDialog } from "./commit-dialog";
+export { GitHubCodeIDE } from "./github-code-ide";
 export * from "./types";
 export * from "./constants";

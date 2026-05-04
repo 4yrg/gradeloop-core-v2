@@ -9,13 +9,15 @@ import (
 
 // Config holds all handler dependencies required to set up routes.
 type Config struct {
-	HealthHandler     *handler.HealthHandler
-	AssignmentHandler *handler.AssignmentHandler
-	SubmissionHandler *handler.SubmissionHandler
-	GroupHandler      *handler.GroupHandler
-	InstructorHandler *handler.InstructorHandler
-	StudentHandler    *handler.StudentHandler
-	JWTSecretKey      []byte
+	HealthHandler      *handler.HealthHandler
+	AssignmentHandler  *handler.AssignmentHandler
+	SubmissionHandler  *handler.SubmissionHandler
+	GroupHandler       *handler.GroupHandler
+	InstructorHandler  *handler.InstructorHandler
+	StudentHandler     *handler.StudentHandler
+	GitHubHandler      *handler.GitHubHandler
+	WebhookHandler     *handler.WebhookHandler
+	JWTSecretKey       []byte
 }
 
 // requireAdminRole is a route-level middleware that allows access only to
@@ -172,4 +174,22 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 
 	// GET    /api/v1/groups/:id                 — get group metadata + members
 	groups.Get("/:id", cfg.GroupHandler.GetGroup)
+
+	// ── GitHub Integration ────────────────────────────────────────────────────
+	// Accessible to all authenticated users (students and instructors)
+	github := protected.Group("/github")
+	github.Get("/repos/:assignmentId", cfg.GitHubHandler.GetRepo)
+	github.Post("/repos", cfg.GitHubHandler.CreateOrGetRepo)
+	github.Get("/repos/:assignmentId/files", cfg.GitHubHandler.GetFiles)
+	github.Get("/repos/:assignmentId/files/*", cfg.GitHubHandler.GetFileContent)
+	github.Put("/repos/:assignmentId/files", cfg.GitHubHandler.CommitFile)
+	github.Post("/repos/:assignmentId/submit", cfg.GitHubHandler.SubmitAssignment)
+	github.Get("/repos/:assignmentId/versions", cfg.GitHubHandler.GetVersions)
+	github.Get("/repos/:assignmentId/commits", cfg.GitHubHandler.GetCommits)
+	github.Get("/config/:assignmentId", cfg.GitHubHandler.GetConfig)
+	github.Put("/config/:assignmentId", cfg.GitHubHandler.UpdateConfig)
+
+	// Webhook (no auth - verified by HMAC signature)
+	webhook := app.Group("")
+	webhook.Post("/api/v1/github/webhook", cfg.WebhookHandler.HandleWebhook)
 }

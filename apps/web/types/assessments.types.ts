@@ -104,6 +104,9 @@ export interface AssignmentResponse {
         plagiarism_check_enabled: boolean;
     };
     instructor_template_id?: string;
+    github_org?: string;
+    use_github?: boolean;
+    starter_code_repo?: string;
 }
 
 export interface ListAssignmentsResponse {

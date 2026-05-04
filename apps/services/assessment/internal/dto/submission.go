@@ -156,3 +156,83 @@ type GroupResponse struct {
 	Members      []string  `json:"members"`
 	CreatedAt    time.Time `json:"created_at"`
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GitHub Integration DTOs
+// ─────────────────────────────────────────────────────────────────────────────
+
+type GitHubRepoResponse struct {
+	ID           uuid.UUID `json:"id"`
+	AssignmentID uuid.UUID `json:"assignment_id"`
+	UserID       uuid.UUID `json:"user_id"`
+	OrgName      string    `json:"org_name"`
+	RepoName     string    `json:"repo_name"`
+	RepoURL      string    `json:"repo_url"`
+	CloneURL     string    `json:"clone_url"`
+	HTMLURL      string    `json:"html_url"`
+	LanguageID   int       `json:"language_id"`
+	Language     string    `json:"language"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+type GitHubFileResponse struct {
+	Name        string `json:"name"`
+	Path        string `json:"path"`
+	SHA         string `json:"sha"`
+	Size        int    `json:"size"`
+	Type        string `json:"type"`
+	Content     string `json:"content,omitempty"`
+	DownloadURL string `json:"download_url,omitempty"`
+}
+
+type GitHubCommitRequest struct {
+	FilePath    string `json:"file_path"`
+	Content     string `json:"content"`
+	Message     string `json:"message"`
+	SHA         string `json:"sha,omitempty"`
+}
+
+type GitHubCommitResponse struct {
+	Success bool   `json:"success"`
+	SHA     string `json:"sha"`
+	Message string `json:"message"`
+}
+
+type GitHubSubmitRequest struct {
+	Message string `json:"message"`
+}
+
+type GitHubVersionResponse struct {
+	ID              uuid.UUID  `json:"id"`
+	GitHubRepoID    uuid.UUID  `json:"github_repo_id"`
+	AssignmentID   uuid.UUID  `json:"assignment_id"`
+	UserID          uuid.UUID  `json:"user_id"`
+	Version         int        `json:"version"`
+	CommitSHA       string     `json:"commit_sha"`
+	CommitMessage   string     `json:"commit_message"`
+	TagName         string     `json:"tag_name"`
+	Grade           *float64   `json:"grade,omitempty"`
+	GradedAt        *time.Time `json:"graded_at,omitempty"`
+	GradingStatus   string     `json:"grading_status"`
+	GradingError    string     `json:"grading_error,omitempty"`
+	SubmittedAt     time.Time  `json:"submitted_at"`
+}
+
+type ListGitHubVersionsResponse struct {
+	Versions []GitHubVersionResponse `json:"versions"`
+	Count    int                     `json:"count"`
+}
+
+type GitHubConfigRequest struct {
+	GitHubOrg      string `json:"github_org"`
+	UseGitHub      bool   `json:"use_github"`
+	WorkflowFileID string `json:"workflow_file_id,omitempty"`
+	StarterCodeRepo string `json:"starter_code_repo,omitempty"`
+}
+
+type GitHubConfigResponse struct {
+	GitHubOrg       string `json:"github_org"`
+	UseGitHub       bool   `json:"use_github"`
+	WorkflowFileID  string `json:"workflow_file_id,omitempty"`
+	StarterCodeRepo string `json:"starter_code_repo,omitempty"`
+}

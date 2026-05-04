@@ -147,6 +147,8 @@ func run() error {
 		userService,
 	)
 
+	githubService := service.NewGitHubService(cfg.GitHub)
+
 	minioStorage, err := storage.NewMinIOStorage(
 		cfg.MinIO.Endpoint,
 		cfg.MinIO.AccessKey,
@@ -165,6 +167,7 @@ func run() error {
 		authService,
 		userService,
 		passwordService,
+		githubService,
 		cfg.JWT.CookieSecure,
 		cfg.JWT.CookieSameSite,
 		cfg.JWT.RefreshTokenExpiry,

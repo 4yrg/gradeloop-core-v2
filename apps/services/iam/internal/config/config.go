@@ -14,6 +14,7 @@ type Config struct {
 	Database        DatabaseConfig
 	JWT             JWTConfig
 	MinIO           MinIOConfig
+	GitHub          GitHubConfig
 	FrontendURL     string
 	EmailServiceURL string
 }
@@ -53,6 +54,17 @@ type JWTConfig struct {
 	CookieSameSite     string // SameSite setting for cookies
 }
 
+// GitHubConfig holds GitHub OAuth and App configuration.
+type GitHubConfig struct {
+	ClientID     string
+	ClientSecret string
+	RedirectURL  string
+	AppID        string
+	AppWebhookSecret string
+	OrgName      string
+	EncryptionKey string
+}
+
 // Load reads configuration from environment variables.
 func Load() (*Config, error) {
 	env.Load()
@@ -87,6 +99,15 @@ func Load() (*Config, error) {
 			Bucket:     getEnv("MINIO_BUCKET", "avatars"),
 			UseSSL:     getEnvAsBool("MINIO_USE_SSL", false),
 			PublicHost: getEnv("MINIO_PUBLIC_HOST", "http://localhost:9000"),
+		},
+		GitHub: GitHubConfig{
+			ClientID:         getEnv("OAUTH_GITHUB_CLIENT_ID", ""),
+			ClientSecret:     getEnv("OAUTH_GITHUB_CLIENT_SECRET", ""),
+			RedirectURL:      getEnv("OAUTH_GITHUB_REDIRECT_URL", "http://localhost:3000/auth/github/callback"),
+			AppID:            getEnv("APP_GITHUB_ID", ""),
+			AppWebhookSecret: getEnv("APP_GITHUB_WEBHOOK_SECRET", ""),
+			OrgName:          getEnv("APP_GITHUB_ORG_NAME", "gradeloop-classroom"),
+			EncryptionKey:    getEnv("APP_GITHUB_TOKEN_ENCRYPTION_KEY", "32-byte-encryption-key-here!!"),
 		},
 		FrontendURL:     getEnv("FRONTEND_URL", "http://localhost:3000"),
 		EmailServiceURL: getEnv("EMAIL_SERVICE_URL", "http://localhost:8082"),

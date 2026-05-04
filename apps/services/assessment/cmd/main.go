@@ -186,6 +186,10 @@ func run() error {
 		logger,
 	)
 
+	// GitHub service
+	githubRepo := repository.NewGitHubRepository(db.DB)
+	githubService := service.NewGitHubService(githubRepo, db.DB, logger)
+
 	// ── Handlers ─────────────────────────────────────────────────────────────
 	healthHandler := handler.NewHealthHandler()
 	assignmentHandler := handler.NewAssignmentHandler(assignmentService, logger)
@@ -193,6 +197,8 @@ func run() error {
 	groupHandler := handler.NewGroupHandler(groupService, logger)
 	instructorHandler := handler.NewInstructorHandler(assignmentService, submissionService, academicClient, logger)
 	studentHandler := handler.NewStudentHandler(assignmentService, submissionService, academicClient, logger)
+	githubHandler := handler.NewGitHubHandler(githubService, assignmentRepo)
+	webhookHandler := handler.NewWebhookHandler(githubService, os.Getenv("APP_GITHUB_WEBHOOK_SECRET"))
 	// ── Fiber app ────────────────────────────────────────────────────────────
 	app := fiber.New(fiber.Config{
 		AppName:      "assessment-service",
@@ -214,7 +220,11 @@ func run() error {
 		AssignmentHandler: assignmentHandler,
 		SubmissionHandler: submissionHandler,
 		GroupHandler:      groupHandler,
-		InstructorHandler: instructorHandler, StudentHandler: studentHandler, JWTSecretKey: []byte(cfg.JWT.SecretKey),
+		InstructorHandler: instructorHandler,
+		StudentHandler:    studentHandler,
+		GitHubHandler:     githubHandler,
+		WebhookHandler:    webhookHandler,
+		JWTSecretKey:      []byte(cfg.JWT.SecretKey),
 	})
 
 	// ── Graceful shutdown ────────────────────────────────────────────────────

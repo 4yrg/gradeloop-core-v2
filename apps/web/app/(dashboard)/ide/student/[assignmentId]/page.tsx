@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { CodeIDE } from "@/components/ide";
+import { CodeIDE, GitHubCodeIDE } from "@/components/ide";
 import { studentAssessmentsApi } from "@/lib/api/assessments";
 import {
   detectAICode,
@@ -219,13 +219,25 @@ export default function StudentIDEPage() {
 
         {/* IDE Container */}
         <div className="flex-1 overflow-hidden">
-          <CodeIDE
-            assignmentId={assignmentId}
-            showSubmitButton={true}
-            onSubmit={handleSubmit}
-            initialLanguage={assignment.language_id}
-            lockLanguage={true}
-          />
+          {assignment.use_github ? (
+            <GitHubCodeIDE
+              assignmentId={assignmentId}
+              assignmentTitle={assignment.title}
+              showSubmitButton={true}
+              onSubmit={(versionId) => {
+                toast.success("Assignment submitted successfully!");
+                router.push(`/student/assignments/${assignmentId}`);
+              }}
+            />
+          ) : (
+            <CodeIDE
+              assignmentId={assignmentId}
+              showSubmitButton={true}
+              onSubmit={handleSubmit}
+              initialLanguage={assignment.language_id}
+              lockLanguage={true}
+            />
+          )}
         </div>
       </div>
 

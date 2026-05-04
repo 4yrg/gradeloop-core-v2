@@ -28,6 +28,7 @@ var (
 
 type AuthService interface {
 	Login(ctx context.Context, email, password string) (*dto.LoginResponse, error)
+	LoginWithUser(ctx context.Context, user *domain.User) (*dto.LoginResponse, error)
 	RefreshToken(ctx context.Context, refreshToken string) (*dto.RefreshTokenResponse, error)
 	Logout(ctx context.Context, refreshToken string) error
 	RevokeUserSessions(ctx context.Context, userID uuid.UUID, actorUserType string) (*dto.RevokeUserSessionsResponse, error)
@@ -112,6 +113,52 @@ func (s *authService) Login(ctx context.Context, email, password string) (*dto.L
 	}
 
 	// Store refresh token in database
+	refreshTokenEntity := &domain.RefreshToken{
+		ID:        uuid.New(),
+		UserID:    user.ID,
+		TokenHash: tokenHash,
+		ExpiresAt: time.Now().Add(s.refreshTokenExpiry),
+	}
+
+	if err := s.authRepo.CreateRefreshToken(ctx, refreshTokenEntity); err != nil {
+		return nil, fmt.Errorf("storing refresh token: %w", err)
+	}
+
+	return &dto.LoginResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		ExpiresIn:    int64(15 * time.Minute / time.Second),
+	}, nil
+}
+
+func (s *authService) LoginWithUser(ctx context.Context, user *domain.User) (*dto.LoginResponse, error) {
+	if !user.IsActive {
+		return nil, ErrUserInactive
+	}
+
+	accessToken, _, err := jwt.GenerateAccessToken(
+		user.ID,
+		user.Email,
+		user.FullName,
+		user.UserType,
+		s.secretKey,
+		15*time.Minute,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("generating access token: %w", err)
+	}
+
+	refreshToken, err := jwt.GenerateRefreshToken()
+	if err != nil {
+		return nil, fmt.Errorf("generating refresh token: %w", err)
+	}
+
+	tokenHash := jwt.HashToken(refreshToken)
+
+	if err := s.authRepo.DeleteExpiredRefreshTokens(ctx, user.ID); err != nil {
+		fmt.Printf("warning: failed to delete expired refresh tokens: %v\n", err)
+	}
+
 	refreshTokenEntity := &domain.RefreshToken{
 		ID:        uuid.New(),
 		UserID:    user.ID,
