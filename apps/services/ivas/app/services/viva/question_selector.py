@@ -266,7 +266,7 @@ def select_questions_random(
             questions.append(
                 {
                     "question_text": template.format(name=comp["name"]),
-                    "competency_id": comp["id"],
+                    "competency_id": comp.get("competency_id") or comp.get("id"),
                     "competency_name": comp["name"],
                     "difficulty": level,
                     "sequence_num": seq,
