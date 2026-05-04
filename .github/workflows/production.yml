@@ -226,10 +226,13 @@ jobs:
             context: apps/services/keystroke
           - service: cipas-ai
             context: apps/services/cipas-ai
+            build_context: .
           - service: cipas-semantics
             context: apps/services/cipas-semantics
+            build_context: .
           - service: cipas-syntactics
             context: apps/services/cipas-syntactics
+            build_context: .
     steps:
       - uses: actions/checkout@v4
 
@@ -257,7 +260,7 @@ jobs:
       - name: Build and push ${{ matrix.service }}
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ${{ matrix.build_context || matrix.context }}
           file: ${{ matrix.context }}/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
