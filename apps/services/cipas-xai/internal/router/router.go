@@ -6,7 +6,7 @@ import (
 )
 
 type Config struct {
-	ChatHandler *handler.ChatHandler
+	ReasonHandler *handler.ReasonHandler
 }
 
 func SetupRoutes(app *fiber.App, cfg Config) {
@@ -16,9 +16,8 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	// CIPAS XAI Service Group
 	xai := v1.Group("/cipas-xai")
 
-	// Chat routes
-	xai.Post("/chat", cfg.ChatHandler.Chat)
-	xai.Post("/chat/stream", cfg.ChatHandler.ChatStream)
+	// Reasoning route
+	xai.Post("/reason", cfg.ReasonHandler.Reason)
 
 	// Root endpoint for health check
 	xai.Get("/", func(c fiber.Ctx) error {

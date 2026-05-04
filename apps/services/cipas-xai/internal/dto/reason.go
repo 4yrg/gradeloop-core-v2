@@ -1,5 +1,27 @@
 package dto
 
+// ReasonRequest represents the request body for the reason endpoint
+type ReasonRequest struct {
+	Type string   `json:"type"` // TYPE-1, TYPE-2, TYPE-3, TYPE-4, TYPE-AI
+	Code []string `json:"code"`
+}
+
+// ReasonResponse represents the response body for the reason endpoint
+type ReasonResponse struct {
+	Reason string `json:"reason"`
+}
+
+// LLMReasonResponse represents the internal structure to parse the LLM JSON response
+type LLMReasonResponse struct {
+	Reason string `json:"reason"`
+}
+
+// ChatMessage represents a single message in a conversation with an LLM
+type ChatMessage struct {
+	Role    string      `json:"role"`    // "system", "user", or "assistant"
+	Content interface{} `json:"content"` // String or array of MessageContent
+}
+
 // MessageContent represents a single content item in a message (text or image)
 type MessageContent struct {
 	Type     string    `json:"type"` // "text" or "image_url"
@@ -12,10 +34,21 @@ type ImageURL struct {
 	URL string `json:"url"`
 }
 
-// ChatMessage represents a single message in a chat conversation
-type ChatMessage struct {
-	Role    string      `json:"role"`    // "system", "user", or "assistant"
-	Content interface{} `json:"content"` // Can be string or []MessageContent
+// ChatResponse represents a raw chat response from the LLM client
+type ChatResponse struct {
+	ID      string `json:"id"`
+	Object  string `json:"object"`
+	Created int64  `json:"created"`
+	Model   string `json:"model"`
+	Content string `json:"content"`
+	Usage   Usage  `json:"usage,omitempty"`
+}
+
+// Usage represents token usage statistics
+type Usage struct {
+	PromptTokens     int `json:"prompt_tokens"`
+	CompletionTokens int `json:"completion_tokens"`
+	TotalTokens      int `json:"total_tokens"`
 }
 
 // GetContentAsString returns content as a string if it's a simple text message
@@ -57,33 +90,7 @@ func getStringValue(m map[string]interface{}, key string) string {
 	return ""
 }
 
-// ChatRequest represents the request body for chat endpoint
-type ChatRequest struct {
-	Messages     []ChatMessage     `json:"messages"`                // Array of chat messages
-	Model        string            `json:"model,omitempty"`         // Optional model override
-	Stream       bool              `json:"stream,omitempty"`        // Whether to stream the response
-	MaxTokens    int               `json:"max_tokens,omitempty"`    // Optional max tokens override
-	ExtraHeaders map[string]string `json:"extra_headers,omitempty"` // Extra headers for providers like OpenRouter
-}
-
-// ChatResponse represents a non-streaming chat response
-type ChatResponse struct {
-	ID      string `json:"id"`
-	Object  string `json:"object"`
-	Created int64  `json:"created"`
-	Model   string `json:"model"`
-	Content string `json:"content"`
-	Usage   Usage  `json:"usage,omitempty"`
-}
-
-// Usage represents token usage statistics
-type Usage struct {
-	PromptTokens     int `json:"prompt_tokens"`
-	CompletionTokens int `json:"completion_tokens"`
-	TotalTokens      int `json:"total_tokens"`
-}
-
-// StreamChunk represents a single chunk in a streaming response
+// StreamChunk represents a single chunk in a streaming response (kept for interface compatibility)
 type StreamChunk struct {
 	ID      string `json:"id"`
 	Object  string `json:"object"`

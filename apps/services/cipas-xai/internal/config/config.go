@@ -43,7 +43,7 @@ func Load() (*Config, error) {
 			Provider:     getEnv("CIPAS_XAI_LLM_PROVIDER", "openrouter"),
 			APIKey:       getEnv("CIPAS_XAI_LLM_API_KEY", ""),
 			BaseURL:      getEnv("CIPAS_XAI_LLM_BASE_URL", "https://openrouter.ai/api/v1"),
-			Model:        getEnv("CIPAS_XAI_LLM_MODEL", "z-ai/glm-4.5-air:free"),
+			Model:        getEnv("CIPAS_XAI_LLM_MODEL", "openrouter/owl-alpha"),
 			MaxTokens:    2048,
 			Temperature:  0.7,
 			Timeout:      60,

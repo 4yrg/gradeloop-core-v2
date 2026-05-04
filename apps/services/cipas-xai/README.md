@@ -1,13 +1,13 @@
 # CIPAS XAI Service
 
-A Go Fiber v3 microservice for connecting with LLM providers using OpenRouter (OpenAI-compatible) APIs. Supports both synchronous chat responses and Server-Sent Events (SSE) streaming.
+A Go Fiber v3 microservice for Explainable AI (XAI) in the CIPAS pipeline. It provides detailed reasoning for why certain code snippets are classified as plagiarism (Type-1 to Type-4) or AI-generated.
 
 ## Features
 
-- **OpenRouter Integration**: Works with hundreds of models via OpenRouter's unified API
-- **Streaming Support**: Real-time response streaming using Server-Sent Events (SSE)
-- **Fiber v3**: Built with the latest Go Fiber framework
-- **Configurable**: Easy configuration via environment variables with `CIPAS_XAI_` prefix
+- **Specialized Reasoning**: Generates professor-level technical reasoning for code clones and AI detection.
+- **Support for N-Snippets**: Can analyze and compare multiple code snippets for clone detection.
+- **JSON Response Format**: Returns structured reasoning ready for frontend display.
+- **OpenRouter Integration**: Uses `openrouter/owl-alpha` by default for high-quality reasoning.
 
 ## Quick Start
 
@@ -24,9 +24,7 @@ Edit `.env`:
 ```env
 CIPAS_XAI_SVC_PORT=8085
 CIPAS_XAI_LLM_API_KEY=your-openrouter-api-key-here
-CIPAS_XAI_LLM_BASE_URL=https://openrouter.ai/api/v1
-CIPAS_XAI_LLM_MODEL=z-ai/glm-4.5-air:free
-CIPAS_XAI_LLM_EXTRA_HEADERS=HTTP-Referer=http://localhost:3000,X-OpenRouter-Title=GradeLoop CIPAS-XAI
+CIPAS_XAI_LLM_MODEL=openrouter/owl-alpha
 ```
 
 ### 2. Run the Service
@@ -35,67 +33,51 @@ CIPAS_XAI_LLM_EXTRA_HEADERS=HTTP-Referer=http://localhost:3000,X-OpenRouter-Titl
 go run ./cmd/main.go
 ```
 
-### 3. Test the Endpoints
+### 3. Test the Endpoint
 
-#### Non-streaming Chat (Text Only)
+#### Reason for Clone Detection (TYPE-1 to TYPE-4)
+
+Requires at least 2 code snippets.
 
 ```bash
-curl -X POST http://localhost:8085/api/v1/cipas-xai/chat \
+curl -X POST http://localhost:8085/api/v1/cipas-xai/reason \
   -H "Content-Type: application/json" \
   -d '{
-    "messages": [
-      {"role": "system", "content": "You are a helpful assistant."},
-      {"role": "user", "content": "Hello!"}
+    "type": "TYPE-2",
+    "code": [
+      "function add(a, b) { return a + b; }",
+      "function sum(x, y) { return x + y; }"
     ]
   }'
 ```
 
-#### Non-streaming Chat with Image (Multi-modal)
+#### Reason for AI Detection (TYPE-AI)
+
+Requires exactly 1 code snippet.
 
 ```bash
-curl -X POST http://localhost:8085/api/v1/cipas-xai/chat \
+curl -X POST http://localhost:8085/api/v1/cipas-xai/reason \
   -H "Content-Type: application/json" \
   -d '{
-    "messages": [
-      {
-        "role": "user",
-        "content": [
-          {"type": "text", "text": "What is in this image?"},
-          {"type": "image_url", "image_url": {"url": "https://live.staticflickr.com/3851/14825276609_098cac593d_b.jpg"}}
-        ]
-      }
-    ]
-  }'
-```
-
-#### Streaming Chat (SSE)
-
-```bash
-curl -X POST http://localhost:8085/api/v1/cipas-xai/chat/stream \
-  -H "Content-Type: application/json" \
-  -d '{
-    "messages": [
-      {"role": "system", "content": "You are a helpful assistant."},
-      {"role": "user", "content": "Tell me a story"}
+    "type": "TYPE-AI",
+    "code": [
+      "// This function adds two numbers\nfunction add(a, b) {\n  return a + b;\n}"
     ]
   }'
 ```
 
 ## API Reference
 
-### POST `/api/v1/cipas-xai/chat`
+### POST `/api/v1/cipas-xai/reason`
 
-Send a chat message and receive the complete response.
+Explain why code matches a specific detection type.
 
 **Request Body:**
 
 ```json
 {
-  "messages": [
-    {"role": "system", "content": "You are a helpful assistant."},
-    {"role": "user", "content": "Hello!"}
-  ],
-  "max_tokens": 2048
+  "type": "TYPE-1" | "TYPE-2" | "TYPE-3" | "TYPE-4" | "TYPE-AI",
+  "code": ["snippet1", "snippet2", "..."]
 }
 ```
 
@@ -103,33 +85,8 @@ Send a chat message and receive the complete response.
 
 ```json
 {
-  "id": "chatcmpl-123",
-  "object": "chat.completion",
-  "created": 1677652288,
-  "model": "z-ai/glm-4.5-air:free",
-  "content": "Hello! How can I help you today?",
-  "usage": {
-    "prompt_tokens": 10,
-    "completion_tokens": 8,
-    "total_tokens": 18
-  }
+  "reason": "The snippets are Type-2 clones because they share identical structural logic (a simple binary addition) but differ only in identifier names ('add' vs 'sum' and 'a,b' vs 'x,y')."
 }
-```
-
-### POST `/api/v1/cipas-xai/chat/stream`
-
-Send a chat message and receive a streamed response via SSE.
-
-**Request Body:** Same as `/api/v1/cipas-xai/chat`
-
-**Response:** Server-Sent Events stream
-
-```
-data: {"id":"chatcmpl-123","content":"Hello","done":false}
-
-data: {"id":"chatcmpl-123","content":"! How","done":false}
-
-data: {"id":"chatcmpl-123","content":" can I help?","done":true}
 ```
 
 ## Configuration
@@ -137,42 +94,8 @@ data: {"id":"chatcmpl-123","content":" can I help?","done":true}
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `CIPAS_XAI_SVC_PORT` | Server port | `8085` |
-| `LOG_LEVEL` | Log level (debug, info, warn, error) | `info` |
-| `CIPAS_XAI_LLM_PROVIDER` | LLM provider name | `openrouter` |
 | `CIPAS_XAI_LLM_API_KEY` | API key for LLM provider | *required* |
-| `CIPAS_XAI_LLM_BASE_URL` | Base URL for LLM API | `https://openrouter.ai/api/v1` |
-| `CIPAS_XAI_LLM_MODEL` | Model to use | `z-ai/glm-4.5-air:free` |
-| `CIPAS_XAI_LLM_EXTRA_HEADERS` | Extra headers (comma-separated key=value) | `` |
-| `CIPAS_XAI_LLM_MAX_TOKENS` | Maximum tokens in response | `2048` |
-| `CIPAS_XAI_LLM_TEMPERATURE` | Response temperature (0.0-2.0) | `0.7` |
-| `CIPAS_XAI_LLM_TIMEOUT` | Request timeout in seconds | `60` |
-
-## Provider Examples
-
-### OpenRouter (Default)
-
-```env
-CIPAS_XAI_LLM_API_KEY=sk-or-...
-CIPAS_XAI_LLM_BASE_URL=https://openrouter.ai/api/v1
-CIPAS_XAI_LLM_MODEL=z-ai/glm-4.5-air:free
-CIPAS_XAI_LLM_EXTRA_HEADERS=HTTP-Referer=http://localhost:3000,X-OpenRouter-Title=GradeLoop CIPAS-XAI
-```
-
-### OpenAI
-
-```env
-CIPAS_XAI_LLM_API_KEY=sk-...
-CIPAS_XAI_LLM_BASE_URL=https://api.openai.com/v1
-CIPAS_XAI_LLM_MODEL=gpt-4o-mini
-```
-
-### Ollama (Local)
-
-```env
-CIPAS_XAI_LLM_API_KEY=ollama
-CIPAS_XAI_LLM_BASE_URL=http://localhost:11434/v1
-CIPAS_XAI_LLM_MODEL=llama2
-```
+| `CIPAS_XAI_LLM_MODEL` | Model to use | `openrouter/owl-alpha` |
 
 ## Docker
 
@@ -181,31 +104,6 @@ Build and run with Docker:
 ```bash
 docker build -t cipas-xai .
 docker run -p 8085:8085 --env-file .env cipas-xai
-```
-
-## Project Structure
-
-```
-cipas-xai/
-├── cmd/
-│   └── main.go              # Application entry point
-├── internal/
-│   ├── client/
-│   │   └── openrouter.go    # OpenRouter/OpenAI-compatible client
-│   ├── config/
-│   │   └── config.go        # Configuration management
-│   ├── dto/
-│   │   └── chat.go          # Data transfer objects
-│   ├── handler/
-│   │   └── chat.go          # HTTP handlers
-│   ├── router/
-│   │   └── router.go        # Route configuration
-│   └── service/
-│       └── chat.go          # Business logic
-├── .env.example
-├── Dockerfile
-├── go.mod
-└── go.sum
 ```
 
 ## License

@@ -552,8 +552,7 @@ services:
       - CIPAS_XAI_LLM_API_KEY=${CIPAS_XAI_LLM_API_KEY:-dummy-key-for-startup}
       - CIPAS_XAI_LLM_PROVIDER=${CIPAS_XAI_LLM_PROVIDER:-openrouter}
       - CIPAS_XAI_LLM_BASE_URL=${CIPAS_XAI_LLM_BASE_URL:-https://openrouter.ai/api/v1}
-      - CIPAS_XAI_LLM_MODEL=${CIPAS_XAI_LLM_MODEL:-z-ai/glm-4.5-air:free}
-    networks:
+      - CIPAS_XAI_LLM_MODEL=${CIPAS_XAI_LLM_MODEL:-openrouter/owl-alpha}    networks:
       - gradeloop-network
     deploy:
       resources:

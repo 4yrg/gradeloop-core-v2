@@ -56,10 +56,10 @@ func run() error {
 	)
 
 	// Initialize services
-	chatService := service.NewChatService(llmClient, logger)
+	reasonService := service.NewReasonService(llmClient, logger)
 
 	// Initialize handlers
-	chatHandler := handler.NewChatHandler(chatService, logger)
+	reasonHandler := handler.NewReasonHandler(reasonService, logger)
 
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
@@ -69,7 +69,7 @@ func run() error {
 
 	// Setup routes
 	router.SetupRoutes(app, router.Config{
-		ChatHandler: chatHandler,
+		ReasonHandler: reasonHandler,
 	})
 
 	// Graceful shutdown
