@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { GitHubCodeIDE } from "@/components/ide";
+import { SeaweedCodeIDE } from "@/components/ide";
 import { studentAssessmentsApi, acafsApi } from "@/lib/api/assessments";
 import {
     detectAICode,
@@ -413,7 +413,7 @@ const handleSubmit = async (versionId: string) => {
 
                 {/* IDE */}
                 <div className="flex-1 overflow-hidden">
-                    <GitHubCodeIDE
+                    <SeaweedCodeIDE
                         assignmentId={assignment.id}
                         assignmentTitle={assignment.title}
                         userId={user?.id ?? "anonymous"}

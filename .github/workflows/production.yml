@@ -344,7 +344,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Tags: \`latest\`, \`sha-${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
   # =============================================================================
-  # Phase 2: Deploy to Hetzner (Parallel)
+  # Phase 2: Deploy to Hetzner (Matrix - 12 parallel jobs)
   # =============================================================================
 
   deploy-infra:
@@ -362,9 +362,12 @@ jobs:
       RUNTIME: docker
       COMPOSE_FILE: "infra/compose/compose.prod.images.yaml"
       GHCR_PACKAGE_PREFIX: ${{ vars.GHCR_PACKAGE_PREFIX || '4yrg' }}
-      COMPOSE_SERVICES: "postgres,postgres-keystroke,rabbitmq,redis,seaweedfs"
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [postgres, postgres-keystroke, rabbitmq, redis, seaweedfs]
     steps:
-      - name: Deploy Infrastructure via SSH
+      - name: Deploy ${{ matrix.service }} via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -372,7 +375,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           command_timeout: 30m
           timeout: 120s
-          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN,COMPOSE_SERVICES
+          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN
           script: |
             set -e
 
@@ -380,10 +383,9 @@ jobs:
             COMPOSE_FILE="infra/compose/compose.prod.images.yaml"
             GHCR_PACKAGE_PREFIX="$GHCR_PACKAGE_PREFIX"
             SHORT_SHA=$(echo "$SHORT_SHA" | cut -c1-7)
-            COMPOSE_SERVICES="${COMPOSE_SERVICES:-postgres,postgres-keystroke,rabbitmq,redis,seaweedfs}"
+            SERVICE="${{ matrix.service }}"
 
-            echo "=== Deploying Infrastructure ==="
-            echo "Services: $COMPOSE_SERVICES"
+            echo "=== Deploying $SERVICE ==="
 
             if command -v podman >/dev/null 2>&1 && [ "$RUNTIME" = "podman" ]; then
               RUNTIME=podman
@@ -401,15 +403,9 @@ jobs:
               echo "$GHCR_TOKEN" | $RUNTIME login ghcr.io -u "$GHCR_USER" --password-stdin || true
             fi
 
-            IFS=',' read -ra SERVICES <<< "$COMPOSE_SERVICES"
-            for svc in "${SERVICES[@]}"; do
-              echo "Starting service: $svc"
-              $COMPOSE_CMD -f $COMPOSE_FILE up -d "$svc" 2>/dev/null || true
-            done
+            $COMPOSE_CMD -f $COMPOSE_FILE up -d "$SERVICE"
 
-            sleep 15
-
-            echo "=== Infrastructure Deployed ==="
+            echo "=== $SERVICE Deployed ==="
 
   deploy-core:
     name: Deploy Core Services
@@ -419,6 +415,10 @@ jobs:
     environment:
       name: production
       url: https://api.gradeloop.example.com
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [iam, email, academic, assessment, notification, cipas-xai]
     env:
       GHCR_USER: ${{ github.actor }}
       GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
@@ -426,7 +426,6 @@ jobs:
       RUNTIME: docker
       COMPOSE_FILE: "infra/compose/compose.prod.images.yaml"
       GHCR_PACKAGE_PREFIX: ${{ vars.GHCR_PACKAGE_PREFIX || '4yrg' }}
-      COMPOSE_SERVICES: "iam,email,academic,assessment,notification,cipas-xai"
       SMTP_HOST: smtp.gmail.com
       SMTP_PORT: 587
       SMTP_USER: ${{ secrets.SMTP_USER }}
@@ -444,7 +443,7 @@ jobs:
       - name: Wait for infrastructure
         run: sleep 20
 
-      - name: Deploy Core Services via SSH
+      - name: Deploy ${{ matrix.service }} via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -452,7 +451,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           command_timeout: 30m
           timeout: 120s
-          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN,COMPOSE_SERVICES
+          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN
           script: |
             set -e
 
@@ -460,10 +459,9 @@ jobs:
             COMPOSE_FILE="infra/compose/compose.prod.images.yaml"
             GHCR_PACKAGE_PREFIX="$GHCR_PACKAGE_PREFIX"
             SHORT_SHA=$(echo "$SHORT_SHA" | cut -c1-7)
-            COMPOSE_SERVICES="${COMPOSE_SERVICES:-iam,email,academic,assessment,notification,cipas-xai}"
+            SERVICE="${{ matrix.service }}"
 
-            echo "=== Deploying Core Services ==="
-            echo "Services: $COMPOSE_SERVICES"
+            echo "=== Deploying $SERVICE ==="
 
             if command -v podman >/dev/null 2>&1 && [ "$RUNTIME" = "podman" ]; then
               RUNTIME=podman
@@ -481,15 +479,9 @@ jobs:
               echo "$GHCR_TOKEN" | $RUNTIME login ghcr.io -u "$GHCR_USER" --password-stdin || true
             fi
 
-            IFS=',' read -ra SERVICES <<< "$COMPOSE_SERVICES"
-            for svc in "${SERVICES[@]}"; do
-              echo "Starting service: $svc"
-              $COMPOSE_CMD -f $COMPOSE_FILE up -d "$svc" 2>/dev/null || true
-            done
+            $COMPOSE_CMD -f $COMPOSE_FILE up -d "$SERVICE"
 
-            sleep 15
-
-            echo "=== Core Services Deployed ==="
+            echo "=== $SERVICE Deployed ==="
 
   deploy-ml:
     name: Deploy ML Services
@@ -499,6 +491,10 @@ jobs:
     environment:
       name: production
       url: https://api.gradeloop.example.com
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [ivas, acafs, keystroke, cipas-ai, cipas-semantics, cipas-syntactics]
     env:
       GHCR_USER: ${{ github.actor }}
       GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
@@ -506,14 +502,13 @@ jobs:
       RUNTIME: docker
       COMPOSE_FILE: "infra/compose/compose.prod.images.yaml"
       GHCR_PACKAGE_PREFIX: ${{ vars.GHCR_PACKAGE_PREFIX || '4yrg' }}
-      COMPOSE_SERVICES: "ivas,acafs,keystroke,cipas-ai,cipas-semantics,cipas-syntactics"
       JUDGE0_URL: ${{ secrets.JUDGE0_URL }}
       ACAFS_OPENROUTER_API_KEY: ${{ secrets.ACAFS_OPENROUTER_API_KEY }}
     steps:
       - name: Wait for infrastructure
         run: sleep 20
 
-      - name: Deploy ML Services via SSH
+      - name: Deploy ${{ matrix.service }} via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -521,7 +516,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           command_timeout: 30m
           timeout: 120s
-          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN,COMPOSE_SERVICES,JUDGE0_URL,ACAFS_OPENROUTER_API_KEY
+          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN,JUDGE0_URL,ACAFS_OPENROUTER_API_KEY
           script: |
             set -e
 
@@ -529,10 +524,9 @@ jobs:
             COMPOSE_FILE="infra/compose/compose.prod.images.yaml"
             GHCR_PACKAGE_PREFIX="$GHCR_PACKAGE_PREFIX"
             SHORT_SHA=$(echo "$SHORT_SHA" | cut -c1-7)
-            COMPOSE_SERVICES="${COMPOSE_SERVICES:-ivas,acafs,keystroke,cipas-ai,cipas-semantics,cipas-syntactics}"
+            SERVICE="${{ matrix.service }}"
 
-            echo "=== Deploying ML Services ==="
-            echo "Services: $COMPOSE_SERVICES"
+            echo "=== Deploying $SERVICE ==="
 
             if command -v podman >/dev/null 2>&1 && [ "$RUNTIME" = "podman" ]; then
               RUNTIME=podman
@@ -550,15 +544,9 @@ jobs:
               echo "$GHCR_TOKEN" | $RUNTIME login ghcr.io -u "$GHCR_USER" --password-stdin || true
             fi
 
-            IFS=',' read -ra SERVICES <<< "$COMPOSE_SERVICES"
-            for svc in "${SERVICES[@]}"; do
-              echo "Starting service: $svc"
-              $COMPOSE_CMD -f $COMPOSE_FILE up -d "$svc" 2>/dev/null || true
-            done
+            $COMPOSE_CMD -f $COMPOSE_FILE up -d "$SERVICE"
 
-            sleep 15
-
-            echo "=== ML Services Deployed ==="
+            echo "=== $SERVICE Deployed ==="
 
   deploy-gateway:
     name: Deploy Gateway
@@ -575,7 +563,6 @@ jobs:
       RUNTIME: docker
       COMPOSE_FILE: "infra/compose/compose.prod.images.yaml"
       GHCR_PACKAGE_PREFIX: ${{ vars.GHCR_PACKAGE_PREFIX || '4yrg' }}
-      COMPOSE_SERVICES: "kong-database,kong-migrations,kong-gateway"
     steps:
       - name: Wait for services
         run: sleep 30
@@ -588,7 +575,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           command_timeout: 30m
           timeout: 120s
-          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN,COMPOSE_SERVICES
+          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN
           script: |
             set -e
 
@@ -596,10 +583,8 @@ jobs:
             COMPOSE_FILE="infra/compose/compose.prod.images.yaml"
             GHCR_PACKAGE_PREFIX="$GHCR_PACKAGE_PREFIX"
             SHORT_SHA=$(echo "$SHORT_SHA" | cut -c1-7)
-            COMPOSE_SERVICES="${COMPOSE_SERVICES:-kong-database,kong-migrations,kong-gateway}"
 
             echo "=== Deploying Gateway ==="
-            echo "Services: $COMPOSE_SERVICES"
 
             if command -v podman >/dev/null 2>&1 && [ "$RUNTIME" = "podman" ]; then
               RUNTIME=podman
@@ -616,6 +601,11 @@ jobs:
             if [ -n "$GHCR_TOKEN" ] && [ -n "$GHCR_USER" ]; then
               echo "$GHCR_TOKEN" | $RUNTIME login ghcr.io -u "$GHCR_USER" --password-stdin || true
             fi
+
+            echo "Starting Kong database..."
+            $COMPOSE_CMD -f $COMPOSE_FILE up -d kong-database
+
+            sleep 10
 
             echo "Running Kong migrations..."
             $COMPOSE_CMD -f $COMPOSE_FILE up -d kong-migrations
