@@ -255,7 +255,7 @@ func (h *AuthHandler) GitHubCallback(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusNotFound, "No account found. Please register first or link GitHub in profile.")
 	}
 
-	if err := h.githubService.LinkGitHubToUser(user, tokenResp.AccessToken); err != nil {
+	if err := h.githubService.LinkGitHubToUser(user, githubUser, tokenResp.AccessToken); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Failed to link GitHub account")
 	}
 
