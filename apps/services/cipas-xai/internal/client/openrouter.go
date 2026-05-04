@@ -20,8 +20,8 @@ type LLMClient interface {
 	StreamChat(ctx context.Context, messages []dto.ChatMessage, chunkChan chan<- dto.StreamChunk) error
 }
 
-// OpenAIClient implements LLMClient for OpenAI-compatible APIs
-type OpenAIClient struct {
+// OpenRouterClient implements LLMClient for OpenAI-compatible APIs
+type OpenRouterClient struct {
 	apiKey       string
 	baseURL      string
 	model        string
@@ -32,9 +32,9 @@ type OpenAIClient struct {
 	logger       *zap.Logger
 }
 
-// NewOpenAIClient creates a new OpenAI-compatible client
-func NewOpenAIClient(apiKey, baseURL, model string, maxTokens int, temperature float64, extraHeaders map[string]string, timeout time.Duration, logger *zap.Logger) *OpenAIClient {
-	return &OpenAIClient{
+// NewOpenRouterClient creates a new OpenAI-compatible client
+func NewOpenRouterClient(apiKey, baseURL, model string, maxTokens int, temperature float64, extraHeaders map[string]string, timeout time.Duration, logger *zap.Logger) *OpenRouterClient {
+	return &OpenRouterClient{
 		apiKey:       apiKey,
 		baseURL:      baseURL,
 		model:        model,
@@ -49,7 +49,7 @@ func NewOpenAIClient(apiKey, baseURL, model string, maxTokens int, temperature f
 }
 
 // SendChat sends a chat request and returns the complete response
-func (c *OpenAIClient) SendChat(ctx context.Context, messages []dto.ChatMessage) (*dto.ChatResponse, error) {
+func (c *OpenRouterClient) SendChat(ctx context.Context, messages []dto.ChatMessage) (*dto.ChatResponse, error) {
 	// Convert messages to format suitable for API
 	apiMessages := make([]map[string]interface{}, len(messages))
 	for i, msg := range messages {
@@ -162,7 +162,7 @@ func (c *OpenAIClient) SendChat(ctx context.Context, messages []dto.ChatMessage)
 }
 
 // StreamChat sends a chat request and streams the response chunks
-func (c *OpenAIClient) StreamChat(ctx context.Context, messages []dto.ChatMessage, chunkChan chan<- dto.StreamChunk) error {
+func (c *OpenRouterClient) StreamChat(ctx context.Context, messages []dto.ChatMessage, chunkChan chan<- dto.StreamChunk) error {
 	defer close(chunkChan)
 
 	// Convert messages to format suitable for API (same as SendChat)

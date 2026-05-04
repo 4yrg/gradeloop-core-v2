@@ -44,7 +44,7 @@ func run() error {
 	)
 
 	// Initialize LLM client
-	llmClient := client.NewOpenAIClient(
+	llmClient := client.NewOpenRouterClient(
 		cfg.LLM.APIKey,
 		cfg.LLM.BaseURL,
 		cfg.LLM.Model,

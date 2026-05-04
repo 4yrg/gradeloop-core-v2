@@ -40,10 +40,10 @@ func Load() (*Config, error) {
 			Port: getEnv("CIPAS_XAI_SVC_PORT", "8085"),
 		},
 		LLM: LLMConfig{
-			Provider:     getEnv("LLM_PROVIDER", "openai"),
-			APIKey:       getEnv("LLM_API_KEY", ""),
-			BaseURL:      getEnv("LLM_BASE_URL", "https://api.openai.com/v1"),
-			Model:        getEnv("LLM_MODEL", "gpt-4o-mini"),
+			Provider:     getEnv("CIPAS_XAI_LLM_PROVIDER", "openrouter"),
+			APIKey:       getEnv("CIPAS_XAI_LLM_API_KEY", ""),
+			BaseURL:      getEnv("CIPAS_XAI_LLM_BASE_URL", "https://openrouter.ai/api/v1"),
+			Model:        getEnv("CIPAS_XAI_LLM_MODEL", "z-ai/glm-4.5-air:free"),
 			MaxTokens:    2048,
 			Temperature:  0.7,
 			Timeout:      60,
@@ -54,7 +54,7 @@ func Load() (*Config, error) {
 
 	// Load extra headers for providers like OpenRouter
 	// Format: HTTP-Referer=https://example.com,X-Title=My App
-	if extraHeadersStr := getEnv("LLM_EXTRA_HEADERS", ""); extraHeadersStr != "" {
+	if extraHeadersStr := getEnv("CIPAS_XAI_LLM_EXTRA_HEADERS", ""); extraHeadersStr != "" {
 		for _, pair := range strings.Split(extraHeadersStr, ",") {
 			parts := strings.SplitN(pair, "=", 2)
 			if len(parts) == 2 {
@@ -64,14 +64,14 @@ func Load() (*Config, error) {
 	}
 
 	// Override max tokens if provided
-	if maxTokensStr := getEnv("LLM_MAX_TOKENS", ""); maxTokensStr != "" {
+	if maxTokensStr := getEnv("CIPAS_XAI_LLM_MAX_TOKENS", ""); maxTokensStr != "" {
 		if val, err := strconv.Atoi(maxTokensStr); err == nil {
 			cfg.LLM.MaxTokens = val
 		}
 	}
 
 	// Override temperature if provided
-	if tempStr := getEnv("LLM_TEMPERATURE", ""); tempStr != "" {
+	if tempStr := getEnv("CIPAS_XAI_LLM_TEMPERATURE", ""); tempStr != "" {
 		if val, err := strconv.ParseFloat(tempStr, 64); err == nil {
 			cfg.LLM.Temperature = val
 		}
@@ -85,12 +85,12 @@ func (c *Config) Validate() error {
 	// Allow startup with dummy key (for health check / non-production)
 	if c.LLM.APIKey == "" || c.LLM.APIKey == "dummy-key-for-startup" {
 		// Log warning but don't fail - allows service to start for health checks
-		log.Println("WARNING: Using dummy LLM_API_KEY - XAI features will be limited")
+		log.Println("WARNING: Using dummy CIPAS_XAI_LLM_API_KEY - XAI features will be limited")
 		return nil
 	}
 
 	if c.LLM.Model == "" {
-		return fmt.Errorf("LLM_MODEL is required")
+		return fmt.Errorf("CIPAS_XAI_LLM_MODEL is required")
 	}
 
 	return nil
