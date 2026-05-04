@@ -9,5 +9,6 @@ export { AIAssistantPanel } from "./ai-assistant-panel";
 export { FileExplorer } from "./file-explorer";
 export { CommitDialog } from "./commit-dialog";
 export { GitHubCodeIDE } from "./github-code-ide";
+export { SeaweedCodeIDE } from "./seaweed-code-ide";
 export * from "./types";
 export * from "./constants";

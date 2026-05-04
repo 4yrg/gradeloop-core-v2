@@ -9,15 +9,16 @@ import (
 
 // Config holds all handler dependencies required to set up routes.
 type Config struct {
-	HealthHandler     *handler.HealthHandler
-	AssignmentHandler *handler.AssignmentHandler
-	SubmissionHandler *handler.SubmissionHandler
-	GroupHandler      *handler.GroupHandler
-	InstructorHandler *handler.InstructorHandler
-	StudentHandler    *handler.StudentHandler
-	GitHubHandler     *handler.GitHubHandler
-	WebhookHandler    *handler.WebhookHandler
-	JWTSecretKey      []byte
+	HealthHandler      *handler.HealthHandler
+	AssignmentHandler  *handler.AssignmentHandler
+	SubmissionHandler  *handler.SubmissionHandler
+	GroupHandler       *handler.GroupHandler
+	InstructorHandler  *handler.InstructorHandler
+	StudentHandler     *handler.StudentHandler
+	GitHubHandler      *handler.GitHubHandler
+	CodeHandler        *handler.CodeHandler
+	WebhookHandler     *handler.WebhookHandler
+	JWTSecretKey       []byte
 }
 
 // requireAdminRole is a route-level middleware that allows access only to
@@ -188,6 +189,20 @@ func SetupRoutes(app *fiber.App, cfg Config) {
 	github.Get("/repos/:assignmentId/commits", cfg.GitHubHandler.GetCommits)
 	github.Get("/config/:assignmentId", cfg.GitHubHandler.GetConfig)
 	github.Put("/config/:assignmentId", cfg.GitHubHandler.UpdateConfig)
+
+	// ── Code Storage (SeaweedFS) Integration ────────────────────────────────────
+	// Accessible to all authenticated users (students and instructors)
+	code := protected.Group("/code")
+	code.Get("/repos/:assignmentId", cfg.CodeHandler.GetRepo)
+	code.Post("/repos", cfg.CodeHandler.CreateOrGetRepo)
+	code.Get("/repos/:assignmentId/files", cfg.CodeHandler.GetFiles)
+	code.Get("/repos/:assignmentId/files/*", cfg.CodeHandler.GetFileContent)
+	code.Put("/repos/:assignmentId/files", cfg.CodeHandler.SaveFile)
+	code.Post("/repos/:assignmentId/submit", cfg.CodeHandler.SubmitAssignment)
+	code.Get("/repos/:assignmentId/versions", cfg.CodeHandler.GetVersions)
+	code.Get("/repos/:assignmentId/commits", cfg.CodeHandler.GetCommits)
+	code.Get("/config/:assignmentId", cfg.CodeHandler.GetConfig)
+	code.Put("/config/:assignmentId", cfg.CodeHandler.UpdateConfig)
 
 	// Webhook (no auth - verified by HMAC signature)
 	webhook := app.Group("")
