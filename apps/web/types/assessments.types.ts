@@ -130,6 +130,9 @@ export interface SubmissionResponse {
     judge0_job_id?: string;
     submitted_at: string;
     code?: string;
+    // GitHub integration
+    github_repo_id?: string;
+    commit_sha?: string;
     // CIPAS analysis results (populated asynchronously via PATCH /submissions/:id/analysis)
     ai_likelihood?: number;
     human_likelihood?: number;
