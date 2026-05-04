@@ -697,6 +697,7 @@ services:
             - Accept
             - Authorization
             - X-Request-ID
+            - X-Requested-With
           credentials: true
           max_age: 3600
       - name: rate-limiting
