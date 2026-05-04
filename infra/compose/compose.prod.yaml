@@ -412,6 +412,9 @@ services:
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${ACAFS_SVC_DB_NAME:-acafs_db}
       - ACAFS_OPENROUTER_API_KEY=${ACAFS_OPENROUTER_API_KEY}
       - JUDGE0_URL=${JUDGE0_URL:-http://localhost:2358}
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-seaweedfs:8333}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
     depends_on:
       postgres:
         condition: service_healthy
