@@ -15,10 +15,8 @@ import {
   ClipboardList,
   Mic2,
 } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/lib/stores/authStore";
-import { useUIStore } from "@/lib/stores/uiStore";
 import { useLogoutMutation } from "@/lib/hooks/useAuthMutation";
 import { Button } from "@/components/ui/button";
 
@@ -126,7 +124,6 @@ interface SidebarProps {
 export function Sidebar({ collapsed }: SidebarProps) {
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
-  const { setActiveNavItem } = useUIStore();
   const { mutate: logout, isLoading: isLoggingOut } = useLogoutMutation();
 
   // Determine user role from user_type, not from pathname
@@ -161,7 +158,6 @@ export function Sidebar({ collapsed }: SidebarProps) {
       return false;
     }) || navItems[0];
 
-  const [isHovered, setIsHovered] = React.useState(false);
   const isPrimaryCollapsed = collapsed;
 
   return (
@@ -172,8 +168,6 @@ export function Sidebar({ collapsed }: SidebarProps) {
           "relative z-20 flex flex-col items-center bg-sidebar text-sidebar-foreground py-4 transition-all duration-300",
           isPrimaryCollapsed ? "w-16" : "w-64 items-start",
         )}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
       >
         {/* Logo */}
         <div

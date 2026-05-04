@@ -1,6 +1,5 @@
 import { axiosInstance } from "@/lib/api/axios";
 import type {
-  Notification,
   UnreadCountResponse,
   ListNotificationsResponse,
 } from "@/types/notification.types";

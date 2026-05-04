@@ -3,7 +3,7 @@
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Search, Bell, Menu, X, ChevronLeft, ChevronRight, LayoutDashboard, Users, School, Settings, BookOpen, ClipboardList, Mic2 } from "lucide-react";
+import { Search, Bell, Menu, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

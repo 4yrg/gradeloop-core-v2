@@ -1251,9 +1251,7 @@ def detect_moved_blocks(
             if idx_b in matched_in_b:
                 continue
 
-            sim = _calculate_block_similarity(
-                block_a["blinded"], block_b["blinded"]
-            )
+            sim = _calculate_block_similarity(block_a["blinded"], block_b["blinded"])
             if sim > best_similarity:
                 best_similarity = sim
                 best_match_idx = idx_b
@@ -1297,9 +1295,7 @@ def _extract_structural_blocks(
         code_bytes = code.encode("utf-8", errors="ignore")
         parsed_tree = tree.parse(code_bytes)
 
-        _traverse_and_extract_blocks(
-            parsed_tree.root_node, language, code, blocks
-        )
+        _traverse_and_extract_blocks(parsed_tree.root_node, language, code, blocks)
     except Exception:
         pass
 
@@ -1332,18 +1328,24 @@ def _traverse_and_extract_blocks(node, language: str, code: str, blocks: list[di
     if node.type in relevant_types:
         start_line = node.start_point.row
         end_line = node.end_point.row
-        lines = code.splitlines()[start_line : end_line + 1] if start_line < len(code.splitlines()) else []
+        lines = (
+            code.splitlines()[start_line : end_line + 1]
+            if start_line < len(code.splitlines())
+            else []
+        )
         source = "\n".join(lines)
 
         blinded = _blind_code(source, language)
 
-        blocks.append({
-            "id": f"{node.type}_{start_line}",
-            "type": node.type,
-            "source": source,
-            "blinded": blinded,
-            "start_line": start_line,
-        })
+        blocks.append(
+            {
+                "id": f"{node.type}_{start_line}",
+                "type": node.type,
+                "source": source,
+                "blinded": blinded,
+                "start_line": start_line,
+            }
+        )
 
     for child in node.children:
         _traverse_and_extract_blocks(child, language, code, blocks)
@@ -1358,12 +1360,16 @@ def _blind_code(code: str, language: str) -> str:
 
     import re
 
-    blinded = re.sub(r'\b[int|long|double|float|char|boolean|void|String]\s+([A-Z][a-zA-Z0-9_]*)\s*\(?', 'TYPE ', blinded)
-    blinded = re.sub(r'\b([a-z][a-zA-Z0-9_]*)\s*\(?', 'FUNC ', blinded)
-    blinded = re.sub(r'\b([A-Z][a-zA-Z0-9_]*)\s*[=;]', 'VAR ', blinded)
-    blinded = re.sub(r'\b\d+\b', 'NUM', blinded)
-    blinded = re.sub(r'"[^"]*"', 'STR', blinded)
-    blinded = re.sub(r"'[^']*'", 'CHR', blinded)
+    blinded = re.sub(
+        r"\b[int|long|double|float|char|boolean|void|String]\s+([A-Z][a-zA-Z0-9_]*)\s*\(?",
+        "TYPE ",
+        blinded,
+    )
+    blinded = re.sub(r"\b([a-z][a-zA-Z0-9_]*)\s*\(?", "FUNC ", blinded)
+    blinded = re.sub(r"\b([A-Z][a-zA-Z0-9_]*)\s*[=;]", "VAR ", blinded)
+    blinded = re.sub(r"\b\d+\b", "NUM", blinded)
+    blinded = re.sub(r'"[^"]*"', "STR", blinded)
+    blinded = re.sub(r"'[^']*'", "CHR", blinded)
 
     return blinded
 

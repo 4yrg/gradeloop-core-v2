@@ -3,8 +3,6 @@
 import { useState, useEffect } from "react";
 import {
   Users,
-  GitCompare,
-  ArrowRightLeft,
   RefreshCw,
   AlertTriangle,
   CheckCircle2,
@@ -15,15 +13,18 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ForceDirectedGraph } from "@/components/instructor/similarity/force-directed-graph";
-import { DiffViewer } from "@/components/clone-detector/DiffViewer";
 import type {
   CollusionGroup,
-  CollusionEdge,
   StudentDetails,
   SegmentComparisonResult,
   MovedBlocksResult,
   SubmissionItem,
 } from "@/types/cipas";
+
+interface SubmissionWithDetails extends SubmissionItem {
+  full_name?: string;
+  student_number?: string;
+}
 
 const GATEWAY_URL = process.env.NEXT_PUBLIC_GATEWAY_URL || "http://localhost:8106";
 
@@ -37,7 +38,7 @@ export default function CloneDetectionTestPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [submissions, setSubmissions] = useState<SubmissionItem[]>([]);
+  const [submissions, setSubmissions] = useState<SubmissionWithDetails[]>([]);
   const [clusterData, setClusterData] = useState<SampleCluster | null>(null);
   const [segmentData, setSegmentData] = useState<SegmentComparisonResult | null>(null);
   const [movedData, setMovedData] = useState<MovedBlocksResult | null>(null);

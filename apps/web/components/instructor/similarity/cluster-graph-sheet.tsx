@@ -85,7 +85,7 @@ export function ClusterGraphSheet({
             cluster={cluster}
             studentDetails={studentDetails}
             onEdgeClick={(edge) => onCompare(cluster, edge)}
-            onNodeClick={(studentId) => {
+            onNodeClick={() => {
               // Could open student detail panel here
             }}
             width={600}

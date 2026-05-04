@@ -25,7 +25,10 @@ from clone_detection.cascade_worker import (
     InMemoryDB,
 )
 from clone_detection.collusion_graph import CollusionGraph
-from clone_detection.features.syntactic_features import SyntacticFeatureExtractor
+from clone_detection.features.syntactic_features import (
+    SyntacticFeatureExtractor,
+    detect_moved_blocks,
+)
 from clone_detection.lsh_index import MinHashIndexer
 from clone_detection.models.classifiers import SyntacticClassifier
 from clone_detection.normalizers.structural_normalizer import (
@@ -37,7 +40,6 @@ from clone_detection.pipelines import (
 from clone_detection.preprocessor import Fragmenter, TemplateFilter
 from clone_detection.tokenizers.tree_sitter_tokenizer import TreeSitterTokenizer
 from clone_detection.utils.common_setup import get_model_path
-from clone_detection.features.syntactic_features import detect_moved_blocks
 from schemas import (
     AssignmentClusterRequest,
     AssignmentClusterResponse,
@@ -1246,7 +1248,7 @@ SAMPLE_SUBMISSIONS = [
         "full_name": "Alice Smith",
         "student_number": "S12345",
         "email": "alice.smith@uni.edu",
-        "source_code": '''public class Solution {
+        "source_code": """public class Solution {
     public int add(int a, int b) {
         return a + b;
     }
@@ -1262,7 +1264,7 @@ SAMPLE_SUBMISSIONS = [
     public boolean isEven(int num) {
         return num % 2 == 0;
     }
-}''',
+}""",
     },
     {
         "submission_id": "sub_bob_001",
@@ -1270,7 +1272,7 @@ SAMPLE_SUBMISSIONS = [
         "full_name": "Bob Johnson",
         "student_number": "S12346",
         "email": "bob.johnson@uni.edu",
-        "source_code": '''public class Solution {
+        "source_code": """public class Solution {
     public int add(int a, int b) {
         return a + b;
     }
@@ -1286,7 +1288,7 @@ SAMPLE_SUBMISSIONS = [
     public boolean isEven(int num) {
         return num % 2 == 0;
     }
-}''',
+}""",
     },
     {
         "submission_id": "sub_charlie_001",
@@ -1294,7 +1296,7 @@ SAMPLE_SUBMISSIONS = [
         "full_name": "Charlie Brown",
         "student_number": "S12347",
         "email": "charlie.brown@uni.edu",
-        "source_code": '''public class Solution {
+        "source_code": """public class Solution {
     public int sum(int x, int y) {
         return x + y;
     }
@@ -1310,7 +1312,7 @@ SAMPLE_SUBMISSIONS = [
     public boolean checkEven(int n) {
         return n % 2 == 0;
     }
-}''',
+}""",
     },
     {
         "submission_id": "sub_diana_001",
@@ -1318,7 +1320,7 @@ SAMPLE_SUBMISSIONS = [
         "full_name": "Diana Prince",
         "student_number": "S12348",
         "email": "diana.prince@uni.edu",
-        "source_code": '''public class Solution {
+        "source_code": """public class Solution {
     public int calculate(int a, int b) {
         return a + b * 2;
     }
@@ -1330,7 +1332,7 @@ SAMPLE_SUBMISSIONS = [
     public boolean isPositive(int n) {
         return n > 0;
     }
-}''',
+}""",
     },
     {
         "submission_id": "sub_evan_001",
@@ -1338,7 +1340,7 @@ SAMPLE_SUBMISSIONS = [
         "full_name": "Evan Martinez",
         "student_number": "S12349",
         "email": "evan.martinez@uni.edu",
-        "source_code": '''public class Solution {
+        "source_code": """public class Solution {
     public int addNumbers(int a, int b) {
         return a + b;
     }
@@ -1354,7 +1356,7 @@ SAMPLE_SUBMISSIONS = [
     public boolean isEven(int num) {
         return num % 2 == 0;
     }
-}''',
+}""",
     },
 ]
 
@@ -1461,9 +1463,6 @@ def get_sample_segment_comparison() -> dict:
             detail="This endpoint is only available for local testing",
         )
 
-    alice_code = SAMPLE_SUBMISSIONS[0]["source_code"]
-    bob_code = SAMPLE_SUBMISSIONS[1]["source_code"]
-
     return {
         "submission_a_id": "sub_alice_001",
         "submission_b_id": "sub_bob_001",
@@ -1521,18 +1520,6 @@ def get_sample_moved_blocks() -> dict:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This endpoint is only available for local testing",
         )
-
-    code1 = '''public void process() {
-    methodA();
-    methodB();
-    methodC();
-}'''
-
-    code2 = '''public void process() {
-    methodB();
-    methodC();
-    methodA();
-}'''
 
     return {
         "submission_a_id": "sub_alice_001",

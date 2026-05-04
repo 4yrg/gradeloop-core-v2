@@ -527,7 +527,9 @@ class CascadeWorker:
                         clone_type_counts.get(detection.clone_type, 0) + 1
                     )
 
-        dominant_type = max(clone_type_counts, key=clone_type_counts.get) if clone_type_counts else None
+        dominant_type = (
+            max(clone_type_counts, key=clone_type_counts.get) if clone_type_counts else None
+        )
 
         return {
             "submission_a_id": submission_id_a,
