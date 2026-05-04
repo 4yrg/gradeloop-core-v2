@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useParams } from "next/navigation";
 import { githubApi, type GitHubVersion } from "@/lib/api/github";
-import { instructorAssessmentsApi } from "@/lib/api/assessments";
+import { assessmentsApi, instructorAssessmentsApi } from "@/lib/api/assessments";
 import { usersApi } from "@/lib/api/users";
 import type { AssignmentResponse } from "@/types/assessments.types";
 import type { UserListItem } from "@/types/auth.types";
@@ -42,7 +42,7 @@ export default function GitHubVersionsPage() {
             setIsLoading(true);
             setError(null);
 
-            const assignmentData = await instructorAssessmentsApi.getAssignment(assignmentId);
+            const assignmentData = await assessmentsApi.getAssignment(assignmentId);
             setAssignment(assignmentData);
 
             if (!assignmentData.use_github) {
