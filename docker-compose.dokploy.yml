@@ -360,16 +360,17 @@ services:
   cipas-syntactics:
     build:
       context: .
-      dockerfile: apps/services/cipas-services/cipas-syntactics/Dockerfile
+      dockerfile: apps/services/cipas-syntactics/Dockerfile
     container_name: gradeloop-cipas-syntactics
     restart: always
     env_file:
       - .env
     volumes:
-      - ./apps/services/cipas-services/cipas-syntactics/models:/app/models:ro
+      - ./apps/services/cipas-syntactics:/app:ro
     environment:
       - CIPAS_SYNTACTICS_PORT=${CIPAS_SYN_SVC_PORT:-8086}
       - CIPAS_SYNTACTICS_HOST=0.0.0.0
+      - CIPAS_LOCAL=true
       - DATABASE_URL=postgresql://${GRA_DB_USER}:${GRA_DB_PASSWORD}@postgres:5432/${CIPAS_SVC_DB_NAME:-cipas-db}?sslmode=${GRA_DB_SSLMODE}
     expose:
       - "${CIPAS_SYN_SVC_PORT:-8086}"

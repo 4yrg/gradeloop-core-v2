@@ -1,0 +1,13 @@
+# =============================================================================
+# Local Development Override for CIPAS Syntactics
+# =============================================================================
+# Usage: docker-compose -f docker-compose.dokploy.yml -f docker-compose.local.yml up cipas-syntactics
+# Or just run: docker-compose -f docker-compose.dokploy.yml -f docker-compose.local.yml up
+# =============================================================================
+
+services:
+  cipas-syntactics:
+    environment:
+      - CIPAS_LOCAL=true
+    ports:
+      - "8106:8106"
