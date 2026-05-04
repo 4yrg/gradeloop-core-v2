@@ -302,15 +302,9 @@ async def evaluate_code(request: EvaluationRequest) -> JSONResponse:
         "assignment_title": request.assignment_title,
         "assignment_description": request.assignment_description,
         "objective": request.objective,
-        "rubric": (
-            [r.model_dump() for r in request.rubric]
-            if request.rubric
-            else None
-        ),
+        "rubric": ([r.model_dump() for r in request.rubric] if request.rubric else None),
         "test_cases": (
-            [tc.model_dump() for tc in request.test_cases]
-            if request.test_cases
-            else None
+            [tc.model_dump() for tc in request.test_cases] if request.test_cases else None
         ),
         "sample_answer": request.sample_answer,
     }
