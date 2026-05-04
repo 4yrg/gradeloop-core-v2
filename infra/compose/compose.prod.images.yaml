@@ -40,10 +40,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
+          cpus: "2"
           memory: 4G
         reservations:
-          cpus: '1'
+          cpus: "1"
           memory: 2G
 
   postgres-keystroke:
@@ -68,10 +68,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 2G
         reservations:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 1G
 
   rabbitmq:
@@ -96,10 +96,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 2G
         reservations:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 1G
 
   redis:
@@ -121,10 +121,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 1G
         reservations:
-          cpus: '0.25'
+          cpus: "0.25"
           memory: 512M
 
   seaweedfs:
@@ -135,10 +135,10 @@ services:
     environment:
       - WEEAD_IDENTITY=seaweedfs
     ports:
-      - "9333:9333"   # Master
-      - "9320:9320"   # Console
-      - "8080:8080"   # Volume server
-      - "8333:8333"   # S3 API
+      - "9333:9333" # Master
+      - "9320:9320" # Console
+      - "8080:8080" # Volume server
+      - "8333:8333" # S3 API
     volumes:
       - seaweed-data:/data
     networks:
@@ -153,10 +153,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 2G
         reservations:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 1G
 
   # =============================================================================
@@ -229,10 +229,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 1G
         reservations:
-          cpus: '0.25'
+          cpus: "0.25"
           memory: 512M
 
   # =============================================================================
@@ -271,7 +271,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 1G
 
   # =============================================================================
@@ -290,6 +290,9 @@ services:
       - GRA_DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
       - GRA_DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
       - DB_NAME=${ACADEMIC_SVC_DB_NAME:-academic_db}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - FRONTEND_URL=${FRONTEND_URL:-https://app.gradeloop.space}
+      - EMAIL_SERVICE_URL=http://email:8082
       - IAM_SERVICE_URL=http://iam:8081
     depends_on:
       postgres:
@@ -301,7 +304,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 1G
 
   # =============================================================================
@@ -320,7 +323,11 @@ services:
       - GRA_DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
       - GRA_DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
       - DB_NAME=${ASSESSMENT_SVC_DB_NAME:-assessment_db}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - FRONTEND_URL=${FRONTEND_URL:-https://app.gradeloop.space}
+      - IAM_SERVICE_URL=http://iam:8081
       - ACADEMIC_SERVICE_URL=http://academic:8083
+      - EMAIL_SERVICE_URL=http://email:8082
       - MINIO_ENDPOINT=${MINIO_ENDPOINT:-seaweedfs:8333}
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
@@ -335,7 +342,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 1G
 
   # =============================================================================
@@ -370,7 +377,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 512M
 
   # =============================================================================
@@ -408,7 +415,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
 
   # =============================================================================
@@ -430,7 +437,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 2G
 
   # =============================================================================
@@ -469,7 +476,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 2G
 
   # =============================================================================
@@ -491,7 +498,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
+          cpus: "2"
           memory: 4G
 
   # =============================================================================
@@ -513,7 +520,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
+          cpus: "2"
           memory: 4G
 
   # =============================================================================
@@ -552,7 +559,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
 
 networks:

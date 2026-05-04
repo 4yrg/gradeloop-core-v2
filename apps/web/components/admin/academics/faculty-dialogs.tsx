@@ -25,6 +25,13 @@ import { facultiesApi } from "@/lib/api/academics";
 import { usersApi } from "@/lib/api/users";
 import { handleApiError } from "@/lib/api/axios";
 import { toast } from "@/lib/hooks/use-toast";
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from "@/components/ui/select";
 import type { UserListItem } from "@/types/auth.types";
 import type {
   Faculty,
@@ -171,24 +178,22 @@ function LeadersEditor({
                       Loading employees…
                     </div>
                   ) : employees.length > 0 ? (
-                    <div className="relative">
-                      <select
-                        className="flex h-9 w-full appearance-none rounded-md border border-zinc-200 bg-white px-3 py-1 pr-8 text-sm text-zinc-900 dark:text-zinc-50 shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-950 dark:border-zinc-800 dark:focus-visible:ring-zinc-300"
-                        value={leader.user_id}
-                        onChange={(e) =>
-                          setLeader(i, "user_id", e.target.value)
-                        }
-                      >
-                        <option value="">Select employee…</option>
+                    <Select
+                      value={leader.user_id}
+                      onValueChange={(val) => setLeader(i, "user_id", val)}
+                    >
+                      <SelectTrigger className="h-9 w-full">
+                        <SelectValue placeholder="Select employee…" />
+                      </SelectTrigger>
+                      <SelectContent>
                         {employees.map((emp) => (
-                          <option key={emp.id} value={emp.id}>
+                          <SelectItem key={emp.id} value={emp.id}>
                             {emp.full_name}
                             {emp.designation ? ` — ${emp.designation}` : ""}
-                          </option>
+                          </SelectItem>
                         ))}
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-2.5 top-2.5 h-4 w-4 text-zinc-400" />
-                    </div>
+                      </SelectContent>
+                    </Select>
                   ) : (
                     <Input
                       placeholder="Employee UUID"

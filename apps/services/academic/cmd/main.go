@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -24,10 +25,43 @@ import (
 )
 
 func main() {
+	// Handle health check command
+	if len(os.Args) > 1 && os.Args[1] == "health" {
+		if err := healthCheck(); err != nil {
+			fmt.Fprintf(os.Stderr, "Health check failed: %v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error starting application: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func healthCheck() error {
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("loading config: %w", err)
+	}
+
+	url := fmt.Sprintf("http://localhost:%s/health", cfg.Server.Port)
+	client := &http.Client{
+		Timeout: 3 * time.Second,
+	}
+
+	resp, err := client.Get(url)
+	if err != nil {
+		return fmt.Errorf("health check request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unhealthy status: %d", resp.StatusCode)
+	}
+
+	return nil
 }
 
 func run() error {

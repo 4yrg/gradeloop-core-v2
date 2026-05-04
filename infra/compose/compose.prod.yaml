@@ -38,10 +38,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
+          cpus: "2"
           memory: 4G
         reservations:
-          cpus: '1'
+          cpus: "1"
           memory: 2G
 
   postgres-keystroke:
@@ -66,10 +66,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 2G
         reservations:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 1G
 
   rabbitmq:
@@ -93,10 +93,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 2G
         reservations:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 1G
 
   redis:
@@ -118,10 +118,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 1G
         reservations:
-          cpus: '0.25'
+          cpus: "0.25"
           memory: 512M
 
   seaweed:
@@ -132,9 +132,9 @@ services:
     environment:
       - WEEAD_IDENTITY=seaweedfs
     ports:
-      - "9333:9333"   # S3 API
-      - "9320:9320"   # Console
-      - "8080:8080"   # Volume server
+      - "9333:9333" # S3 API
+      - "9320:9320" # Console
+      - "8080:8080" # Volume server
     volumes:
       - seaweed-data:/data
     networks:
@@ -149,10 +149,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 2G
         reservations:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 1G
 
   # =============================================================================
@@ -209,7 +209,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 1G
 
   kong-database:
@@ -267,7 +267,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 1G
 
   # =============================================================================
@@ -287,6 +287,10 @@ services:
       - DB_USER=${GRA_DB_USER:-postgres}
       - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
       - DB_NAME=${ACADEMIC_SVC_DB_NAME:-academic_db}
+      - DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - EMAIL_SERVICE_URL=http://email:8082
       - IAM_SERVICE_URL=http://iam:8081
     depends_on:
       postgres:
@@ -298,7 +302,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 1G
 
   # =============================================================================
@@ -318,7 +322,16 @@ services:
       - DB_USER=${GRA_DB_USER:-postgres}
       - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
       - DB_NAME=${ASSESSMENT_SVC_DB_NAME:-assessment_db}
+      - DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - IAM_SERVICE_URL=http://iam:8081
       - ACADEMIC_SERVICE_URL=http://academic:8083
+      - EMAIL_SERVICE_URL=http://email:8082
+      - MINIO_ENDPOINT=seaweed:9333
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
     depends_on:
       postgres:
         condition: service_healthy
@@ -327,7 +340,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 1G
 
   # =============================================================================
@@ -357,7 +370,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
 
   # =============================================================================
@@ -381,7 +394,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 2G
 
   # =============================================================================
@@ -405,7 +418,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 2G
 
   # =============================================================================
@@ -429,7 +442,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 2G
 
   # =============================================================================
@@ -453,7 +466,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
+          cpus: "2"
           memory: 4G
 
   # =============================================================================
@@ -477,7 +490,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
+          cpus: "2"
           memory: 4G
 
   # =============================================================================
@@ -501,7 +514,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 2G
 
   # =============================================================================
@@ -521,7 +534,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
 
 networks:

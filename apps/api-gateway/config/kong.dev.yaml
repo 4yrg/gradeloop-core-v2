@@ -1,726 +1,726 @@
-_format_version: '3.0'
+_format_version: "3.0"
 services:
-- name: academic-service
-  url: http://academic:8083
-  routes:
-  - name: academic-departments
-    paths:
-    - /api/v1/departments
-    strip_path: false
-    preserve_host: false
-  - name: academic-faculties
-    paths:
-    - /api/v1/faculties
-    strip_path: false
-    preserve_host: false
-  - name: academic-degrees
-    paths:
-    - /api/v1/degrees
-    strip_path: false
-    preserve_host: false
-  - name: academic-specializations
-    paths:
-    - /api/v1/specializations
-    strip_path: false
-    preserve_host: false
-  - name: academic-batches
-    paths:
-    - /api/v1/batches
-    strip_path: false
-    preserve_host: false
-  - name: academic-batch-members
-    paths:
-    - /api/v1/batch-members
-    strip_path: false
-    preserve_host: false
-  - name: academic-course-instances
-    paths:
-    - /api/v1/course-instances
-    strip_path: false
-    preserve_host: false
-  - name: academic-course-instructors
-    paths:
-    - /api/v1/course-instructors
-    strip_path: false
-    preserve_host: false
-  - name: academic-enrollments
-    paths:
-    - /api/v1/enrollments
-    strip_path: false
-    preserve_host: false
-  - name: academic-courses
-    paths:
-    - /api/v1/courses
-    strip_path: false
-    preserve_host: false
-  - name: academic-semesters
-    paths:
-    - /api/v1/semesters
-    strip_path: false
-    preserve_host: false
-  - name: academic-instructor-courses
-    paths:
-    - /api/v1/instructor-courses
-    strip_path: false
-    preserve_host: false
-  - name: academic-student-courses
-    paths:
-    - /api/v1/student-courses
-    strip_path: false
-    preserve_host: false
-  - name: academic-debug
-    paths:
-    - /api/v1/debug
-    strip_path: false
-    preserve_host: false
-  - name: academic-docs
-    paths:
-    - /docs/academic
-    strip_path: true
-    preserve_host: false
-  plugins:
-  - name: cors
-    config:
-      origins:
-      - http://localhost:3000
-      - http://localhost:80
-      - http://localhost:8080
-      - http://localhost:443
-      - https://gradeloop-core-v2-web.vercel.app
-      - https://api.gradeloop.space
-      - https://app.gradeloop.space
-      - https://gradeloop.space
-      methods:
-      - GET
-      - POST
-      - PUT
-      - DELETE
-      - PATCH
-      - OPTIONS
-      headers:
-      - Origin
-      - Content-Type
-      - Accept
-      - Authorization
-      - X-Request-ID
-      - X-Requested-With
-      credentials: true
-      max_age: 3600
+  - name: academic-service
+    url: http://gradeloop-academic:8083
+    routes:
+      - name: academic-departments
+        paths:
+          - /api/v1/departments
+        strip_path: false
+        preserve_host: false
+      - name: academic-faculties
+        paths:
+          - /api/v1/faculties
+        strip_path: false
+        preserve_host: false
+      - name: academic-degrees
+        paths:
+          - /api/v1/degrees
+        strip_path: false
+        preserve_host: false
+      - name: academic-specializations
+        paths:
+          - /api/v1/specializations
+        strip_path: false
+        preserve_host: false
+      - name: academic-batches
+        paths:
+          - /api/v1/batches
+        strip_path: false
+        preserve_host: false
+      - name: academic-batch-members
+        paths:
+          - /api/v1/batch-members
+        strip_path: false
+        preserve_host: false
+      - name: academic-course-instances
+        paths:
+          - /api/v1/course-instances
+        strip_path: false
+        preserve_host: false
+      - name: academic-course-instructors
+        paths:
+          - /api/v1/course-instructors
+        strip_path: false
+        preserve_host: false
+      - name: academic-enrollments
+        paths:
+          - /api/v1/enrollments
+        strip_path: false
+        preserve_host: false
+      - name: academic-courses
+        paths:
+          - /api/v1/courses
+        strip_path: false
+        preserve_host: false
+      - name: academic-semesters
+        paths:
+          - /api/v1/semesters
+        strip_path: false
+        preserve_host: false
+      - name: academic-instructor-courses
+        paths:
+          - /api/v1/instructor-courses
+        strip_path: false
+        preserve_host: false
+      - name: academic-student-courses
+        paths:
+          - /api/v1/student-courses
+        strip_path: false
+        preserve_host: false
+      - name: academic-debug
+        paths:
+          - /api/v1/debug
+        strip_path: false
+        preserve_host: false
+      - name: academic-docs
+        paths:
+          - /docs/academic
+        strip_path: true
+        preserve_host: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - http://localhost:3000
+            - http://localhost:80
+            - http://localhost:8080
+            - http://localhost:443
+            - https://gradeloop-core-v2-web.vercel.app
+            - https://api.gradeloop.space
+            - https://app.gradeloop.space
+            - https://gradeloop.space
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - PATCH
+            - OPTIONS
+          headers:
+            - Origin
+            - Content-Type
+            - Accept
+            - Authorization
+            - X-Request-ID
+            - X-Requested-With
+          credentials: true
+          max_age: 3600
 
-  - name: rate-limiting
-    config:
-      minute: 500
-      policy: local
-      fault_tolerant: true
-      hide_client_headers: false
-- name: acafs-service
-  url: http://acafs:8102
-  routes:
-  - name: acafs-api
-    paths:
-    - /api/v1/acafs
-    strip_path: false
-    preserve_host: false
-  - name: acafs-docs
-    paths:
-    - /docs/acafs
-    strip_path: true
-    preserve_host: false
-  plugins:
-  - name: cors
-    config:
-      origins:
-      - http://localhost:3000
-      - http://localhost:80
-      - http://localhost:8080
-      - http://localhost:443
-      - https://gradeloop-core-v2-web.vercel.app
-      - https://api.gradeloop.space
-      - https://app.gradeloop.space
-      - https://gradeloop.space
-      methods:
-      - GET
-      - POST
-      - PUT
-      - DELETE
-      - PATCH
-      - OPTIONS
-      headers:
-      - Origin
-      - Content-Type
-      - Accept
-      - Authorization
-      - X-Request-ID
-      credentials: true
-      max_age: 3600
-  - name: rate-limiting
-    config:
-      minute: 500
-      policy: local
-      fault_tolerant: true
-      hide_client_headers: false
-- name: assessment-service
-  url: http://assessment:8084
-  routes:
-  - name: assessment-assignments
-    paths:
-    - /api/v1/assignments
-    strip_path: false
-    preserve_host: false
-  - name: assessment-submissions
-    paths:
-    - /api/v1/submissions
-    strip_path: false
-    preserve_host: false
-  - name: assessment-groups
-    paths:
-    - /api/v1/groups
-    strip_path: false
-    preserve_host: false
-  - name: assessment-instructor-assignments
-    paths:
-    - /api/v1/instructor-assignments
-    strip_path: false
-    preserve_host: false
-  - name: assessment-instructor-submissions
-    paths:
-    - /api/v1/instructor-submissions
-    strip_path: false
-    preserve_host: false
-  - name: assessment-student-assignments
-    paths:
-    - /api/v1/student-assignments
-    strip_path: false
-    preserve_host: false
-  - name: assessment-student-submissions
-    paths:
-    - /api/v1/student-submissions
-    strip_path: false
-    preserve_host: false
-  - name: assessment-docs
-    paths:
-    - /docs/assessment
-    strip_path: true
-    preserve_host: false
-  plugins:
-  - name: cors
-    config:
-      origins:
-      - http://localhost:3000
-      - http://localhost:80
-      - http://localhost:8080
-      - http://localhost:443
-      - https://gradeloop-core-v2-web.vercel.app
-      - https://api.gradeloop.space
-      - https://app.gradeloop.space
-      - https://gradeloop.space
-      methods:
-      - GET
-      - POST
-      - PUT
-      - DELETE
-      - PATCH
-      - OPTIONS
-      headers:
-      - Origin
-      - Content-Type
-      - Accept
-      - Authorization
-      - X-Request-ID
-      - X-Requested-With
-      credentials: true
-      max_age: 3600
-  - name: rate-limiting
-    config:
-      minute: 500
-      policy: local
-      fault_tolerant: true
-      hide_client_headers: false
-- name: cipas-ai-service
-  url: http://cipas-ai:8104
-  routes:
-  - name: cipas-ai-api
-    paths:
-    - /api/v1/ai
-    strip_path: false
-    preserve_host: false
-  - name: cipas-ai-docs
-    paths:
-    - /docs/cipas-ai
-    strip_path: true
-    preserve_host: false
-  plugins:
-  - name: cors
-    config:
-      origins:
-      - http://localhost:3000
-      - http://localhost:80
-      - http://localhost:8080
-      - http://localhost:443
-      - https://gradeloop-core-v2-web.vercel.app
-      - https://api.gradeloop.space
-      - https://app.gradeloop.space
-      - https://gradeloop.space
-      methods:
-      - GET
-      - POST
-      - PUT
-      - DELETE
-      - PATCH
-      - OPTIONS
-      headers:
-      - Origin
-      - Content-Type
-      - Accept
-      - Authorization
-      - X-Request-ID
-      credentials: true
-      max_age: 3600
-  - name: rate-limiting
-    config:
-      minute: 500
-      policy: local
-      fault_tolerant: true
-      hide_client_headers: false
-- name: cipas-semantics-service
-  url: http://cipas-semantics:8105
-  routes:
-  - name: cipas-semantics-api
-    paths:
-    - /api/v1/semantics
-    strip_path: false
-    preserve_host: false
-  - name: cipas-semantics-docs
-    paths:
-    - /docs/cipas-semantics
-    strip_path: true
-    preserve_host: false
-  plugins:
-  - name: cors
-    config:
-      origins:
-      - http://localhost:3000
-      - http://localhost:80
-      - http://localhost:8080
-      - http://localhost:443
-      - https://gradeloop-core-v2-web.vercel.app
-      - https://api.gradeloop.space
-      - https://app.gradeloop.space
-      - https://gradeloop.space
-      methods:
-      - GET
-      - POST
-      - PUT
-      - DELETE
-      - PATCH
-      - OPTIONS
-      headers:
-      - Origin
-      - Content-Type
-      - Accept
-      - Authorization
-      - X-Request-ID
-      credentials: true
-      max_age: 3600
-  - name: rate-limiting
-    config:
-      minute: 500
-      policy: local
-      fault_tolerant: true
-      hide_client_headers: false
-- name: cipas-syntactics-service
-  url: http://cipas-syntactics:8106
-  routes:
-  - name: cipas-syntactics-api
-    paths:
-    - /api/v1/syntactics
-    strip_path: false
-    preserve_host: false
-  - name: cipas-syntactics-docs
-    paths:
-    - /docs/cipas-syntactics
-    strip_path: true
-    preserve_host: false
-  plugins:
-  - name: cors
-    config:
-      origins:
-      - http://localhost:3000
-      - http://localhost:80
-      - http://localhost:8080
-      - http://localhost:443
-      - https://gradeloop-core-v2-web.vercel.app
-      - https://api.gradeloop.space
-      - https://app.gradeloop.space
-      - https://gradeloop.space
-      methods:
-      - GET
-      - POST
-      - PUT
-      - DELETE
-      - PATCH
-      - OPTIONS
-      headers:
-      - Origin
-      - Content-Type
-      - Accept
-      - Authorization
-      - X-Request-ID
-      credentials: true
-      max_age: 3600
-  - name: rate-limiting
-    config:
-      minute: 500
-      policy: local
-      fault_tolerant: true
-      hide_client_headers: false
-- name: cipas-xai-service
-  url: http://cipas-xai:8085
-  routes:
-  - name: cipas-xai-api
-    paths:
-    - /api/v1/xai
-    strip_path: false
-    preserve_host: false
-  - name: cipas-xai-docs
-    paths:
-    - /docs/cipas-xai
-    strip_path: true
-    preserve_host: false
-  plugins:
-  - name: cors
-    config:
-      origins:
-      - http://localhost:3000
-      - http://localhost:80
-      - http://localhost:8080
-      - http://localhost:443
-      - https://gradeloop-core-v2-web.vercel.app
-      - https://api.gradeloop.space
-      - https://app.gradeloop.space
-      - https://gradeloop.space
-      methods:
-      - GET
-      - POST
-      - PUT
-      - DELETE
-      - PATCH
-      - OPTIONS
-      headers:
-      - Origin
-      - Content-Type
-      - Accept
-      - Authorization
-      - X-Request-ID
-      credentials: true
-      max_age: 3600
-  - name: rate-limiting
-    config:
-      minute: 500
-      policy: local
-      fault_tolerant: true
-      hide_client_headers: false
-- name: email-service
-  url: http://email:8082
-  routes:
-  - name: email-routes
-    paths:
-    - /api/v1/emails
-    strip_path: false
-    preserve_host: false
-  - name: email-docs
-    paths:
-    - /docs/email
-    strip_path: true
-    preserve_host: false
-  plugins:
-  - name: cors
-    config:
-      origins:
-      - http://localhost:3000
-      - http://localhost:80
-      - http://localhost:8080
-      - http://localhost:443
-      - https://gradeloop-core-v2-web.vercel.app
-      - https://api.gradeloop.space
-      - https://app.gradeloop.space
-      - https://gradeloop.space
-      - http://localhost:8101
-      - http://localhost:8102
-      - http://localhost:8103
-      - http://localhost:8104
-      - http://localhost:8105
-      - http://localhost:8106
-      methods:
-      - GET
-      - POST
-      - PUT
-      - DELETE
-      - PATCH
-      - OPTIONS
-      headers:
-      - Origin
-      - Content-Type
-      - Accept
-      - Authorization
-      - X-Request-ID
-      - X-Requested-With
-      credentials: true
-      max_age: 3600
-  - name: rate-limiting
-    config:
-      minute: 1000
-      policy: local
-      fault_tolerant: true
-      hide_client_headers: false
-- name: notification-service
-  url: http://notification:8086
-  routes:
-  - name: notification-sse
-    paths:
-    - /api/v1/notifications/stream
-    strip_path: false
-    preserve_host: false
-  - name: notification-api
-    paths:
-    - /api/v1/notifications
-    strip_path: false
-    preserve_host: false
-  - name: notification-unread-count
-    paths:
-    - /api/v1/notifications/unread-count
-    strip_path: false
-    preserve_host: false
-  plugins:
-  - name: cors
-    config:
-      origins:
-      - http://localhost:3000
-      - http://localhost:80
-      - http://localhost:8080
-      - http://localhost:443
-      - https://gradeloop-core-v2-web.vercel.app
-      - https://api.gradeloop.space
-      - https://app.gradeloop.space
-      - https://gradeloop.space
-      methods:
-      - GET
-      - POST
-      - PUT
-      - DELETE
-      - PATCH
-      - OPTIONS
-      headers:
-      - Origin
-      - Content-Type
-      - Accept
-      - Authorization
-      - X-Request-ID
-      credentials: true
-      max_age: 3600
-  - name: rate-limiting
-    config:
-      minute: 120
-      policy: local
-      fault_tolerant: true
-      hide_client_headers: false
-- name: iam-service
-  url: http://gradeloop-iam:8081
-  routes:
-  - name: iam-auth
-    paths:
-    - /api/v1/auth
-    strip_path: false
-    preserve_host: false
-  - name: iam-users
-    paths:
-    - /api/v1/users
-    strip_path: false
-    preserve_host: false
-  - name: iam-admin
-    paths:
-    - /api/v1/admin
-    strip_path: false
-    preserve_host: false
-  - name: iam-tokens
-    paths:
-    - /api/v1/tokens
-    strip_path: false
-    preserve_host: false
-  - name: iam-docs
-    paths:
-    - /docs/iam
-    strip_path: true
-    preserve_host: false
-  plugins:
-  - name: cors
-    config:
-      origins:
-      - http://localhost:3000
-      - http://localhost:80
-      - http://localhost:8080
-      - http://localhost:443
-      - https://gradeloop-core-v2-web.vercel.app
-      - https://api.gradeloop.space
-      - https://app.gradeloop.space
-      - https://gradeloop.space
-      methods:
-      - GET
-      - POST
-      - PUT
-      - DELETE
-      - PATCH
-      - OPTIONS
-      headers:
-      - Origin
-      - Content-Type
-      - Accept
-      - Authorization
-      - X-Request-ID
-      - X-Requested-With
-      - X-HTTP-Method-Override
-      credentials: true
-      max_age: 3600
-  - name: rate-limiting
-    config:
-      minute: 1000
-      policy: local
-      fault_tolerant: true
-      hide_client_headers: false
-- name: iam-login
-  url: http://gradeloop-iam:8081
-  routes:
-  - name: iam-login-route
-    paths:
-    - /api/v1/auth/login
-    strip_path: false
-    preserve_host: false
-  plugins:
-  - name: cors
-    config:
-      origins:
-      - http://localhost:3000
-      - http://localhost:80
-      - http://localhost:8080
-      - http://localhost:443
-      - https://gradeloop-core-v2-web.vercel.app
-      - https://api.gradeloop.space
-      - https://app.gradeloop.space
-      - https://gradeloop.space
-      methods:
-      - GET
-      - POST
-      - OPTIONS
-      headers:
-      - Origin
-      - Content-Type
-      - Accept
-      - Authorization
-      credentials: true
-  - name: rate-limiting
-    config:
-      minute: 20
-      policy: local
-      fault_tolerant: true
-      hide_client_headers: false
-- name: ivas-service
-  url: http://ivas:8101
-  routes:
-  - name: ivas-api
-    paths:
-    - /api/v1/ivas
-    strip_path: false
-    preserve_host: false
-  - name: ivas-websocket
-    paths:
-    - /ws/ivas
-    strip_path: false
-    preserve_host: false
-  - name: ivas-docs
-    paths:
-    - /docs/ivas
-    strip_path: true
-    preserve_host: false
-  plugins:
-  - name: cors
-    config:
-      origins:
-      - http://localhost:3000
-      - http://localhost:3001
-      - http://localhost:80
-      - http://localhost:8080
-      - http://localhost:443
-      - https://gradeloop-core-v2-web.vercel.app
-      - https://api.gradeloop.space
-      - https://app.gradeloop.space
-      - https://gradeloop.space
-      methods:
-      - GET
-      - POST
-      - PUT
-      - DELETE
-      - PATCH
-      - OPTIONS
-      headers:
-      - Origin
-      - Content-Type
-      - Accept
-      - Authorization
-      - X-Request-ID
-      credentials: true
-      max_age: 3600
-  - name: rate-limiting
-    config:
-      minute: 100
-      policy: local
-      fault_tolerant: true
-      hide_client_headers: false
-- name: keystroke-service
-  url: http://keystroke:8103
-  routes:
-  - name: keystroke-api
-    paths:
-    - /api/keystroke
-    strip_path: false
-    preserve_host: false
-  - name: keystroke-ws
-    paths:
-    - /ws/monitor
-    strip_path: false
-    preserve_host: false
-  - name: keystroke-docs
-    paths:
-    - /docs/keystroke
-    strip_path: true
-    preserve_host: false
-  plugins:
-  - name: cors
-    config:
-      origins:
-      - http://localhost:3000
-      - http://localhost:80
-      - http://localhost:8080
-      - http://localhost:443
-      - https://gradeloop-core-v2-web.vercel.app
-      - https://api.gradeloop.space
-      - https://app.gradeloop.space
-      - https://gradeloop.space
-      methods:
-      - GET
-      - POST
-      - PUT
-      - DELETE
-      - OPTIONS
-      headers:
-      - Origin
-      - Content-Type
-      - Accept
-      - Authorization
-      credentials: true
-      max_age: 3600
-  - name: rate-limiting
-    config:
-      minute: 100
-      policy: local
-      fault_tolerant: true
-      hide_client_headers: false
+      - name: rate-limiting
+        config:
+          minute: 500
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
+  - name: acafs-service
+    url: http://gradeloop-acafs:8102
+    routes:
+      - name: acafs-api
+        paths:
+          - /api/v1/acafs
+        strip_path: false
+        preserve_host: false
+      - name: acafs-docs
+        paths:
+          - /docs/acafs
+        strip_path: true
+        preserve_host: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - http://localhost:3000
+            - http://localhost:80
+            - http://localhost:8080
+            - http://localhost:443
+            - https://gradeloop-core-v2-web.vercel.app
+            - https://api.gradeloop.space
+            - https://app.gradeloop.space
+            - https://gradeloop.space
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - PATCH
+            - OPTIONS
+          headers:
+            - Origin
+            - Content-Type
+            - Accept
+            - Authorization
+            - X-Request-ID
+          credentials: true
+          max_age: 3600
+      - name: rate-limiting
+        config:
+          minute: 500
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
+  - name: assessment-service
+    url: http://gradeloop-assessment:8084
+    routes:
+      - name: assessment-assignments
+        paths:
+          - /api/v1/assignments
+        strip_path: false
+        preserve_host: false
+      - name: assessment-submissions
+        paths:
+          - /api/v1/submissions
+        strip_path: false
+        preserve_host: false
+      - name: assessment-groups
+        paths:
+          - /api/v1/groups
+        strip_path: false
+        preserve_host: false
+      - name: assessment-instructor-assignments
+        paths:
+          - /api/v1/instructor-assignments
+        strip_path: false
+        preserve_host: false
+      - name: assessment-instructor-submissions
+        paths:
+          - /api/v1/instructor-submissions
+        strip_path: false
+        preserve_host: false
+      - name: assessment-student-assignments
+        paths:
+          - /api/v1/student-assignments
+        strip_path: false
+        preserve_host: false
+      - name: assessment-student-submissions
+        paths:
+          - /api/v1/student-submissions
+        strip_path: false
+        preserve_host: false
+      - name: assessment-docs
+        paths:
+          - /docs/assessment
+        strip_path: true
+        preserve_host: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - http://localhost:3000
+            - http://localhost:80
+            - http://localhost:8080
+            - http://localhost:443
+            - https://gradeloop-core-v2-web.vercel.app
+            - https://api.gradeloop.space
+            - https://app.gradeloop.space
+            - https://gradeloop.space
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - PATCH
+            - OPTIONS
+          headers:
+            - Origin
+            - Content-Type
+            - Accept
+            - Authorization
+            - X-Request-ID
+            - X-Requested-With
+          credentials: true
+          max_age: 3600
+      - name: rate-limiting
+        config:
+          minute: 500
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
+  - name: cipas-ai-service
+    url: http://cipas-ai:8104
+    routes:
+      - name: cipas-ai-api
+        paths:
+          - /api/v1/ai
+        strip_path: false
+        preserve_host: false
+      - name: cipas-ai-docs
+        paths:
+          - /docs/cipas-ai
+        strip_path: true
+        preserve_host: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - http://localhost:3000
+            - http://localhost:80
+            - http://localhost:8080
+            - http://localhost:443
+            - https://gradeloop-core-v2-web.vercel.app
+            - https://api.gradeloop.space
+            - https://app.gradeloop.space
+            - https://gradeloop.space
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - PATCH
+            - OPTIONS
+          headers:
+            - Origin
+            - Content-Type
+            - Accept
+            - Authorization
+            - X-Request-ID
+          credentials: true
+          max_age: 3600
+      - name: rate-limiting
+        config:
+          minute: 500
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
+  - name: cipas-semantics-service
+    url: http://cipas-semantics:8105
+    routes:
+      - name: cipas-semantics-api
+        paths:
+          - /api/v1/semantics
+        strip_path: false
+        preserve_host: false
+      - name: cipas-semantics-docs
+        paths:
+          - /docs/cipas-semantics
+        strip_path: true
+        preserve_host: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - http://localhost:3000
+            - http://localhost:80
+            - http://localhost:8080
+            - http://localhost:443
+            - https://gradeloop-core-v2-web.vercel.app
+            - https://api.gradeloop.space
+            - https://app.gradeloop.space
+            - https://gradeloop.space
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - PATCH
+            - OPTIONS
+          headers:
+            - Origin
+            - Content-Type
+            - Accept
+            - Authorization
+            - X-Request-ID
+          credentials: true
+          max_age: 3600
+      - name: rate-limiting
+        config:
+          minute: 500
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
+  - name: cipas-syntactics-service
+    url: http://cipas-syntactics:8106
+    routes:
+      - name: cipas-syntactics-api
+        paths:
+          - /api/v1/syntactics
+        strip_path: false
+        preserve_host: false
+      - name: cipas-syntactics-docs
+        paths:
+          - /docs/cipas-syntactics
+        strip_path: true
+        preserve_host: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - http://localhost:3000
+            - http://localhost:80
+            - http://localhost:8080
+            - http://localhost:443
+            - https://gradeloop-core-v2-web.vercel.app
+            - https://api.gradeloop.space
+            - https://app.gradeloop.space
+            - https://gradeloop.space
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - PATCH
+            - OPTIONS
+          headers:
+            - Origin
+            - Content-Type
+            - Accept
+            - Authorization
+            - X-Request-ID
+          credentials: true
+          max_age: 3600
+      - name: rate-limiting
+        config:
+          minute: 500
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
+  - name: cipas-xai-service
+    url: http://cipas-xai:8085
+    routes:
+      - name: cipas-xai-api
+        paths:
+          - /api/v1/xai
+        strip_path: false
+        preserve_host: false
+      - name: cipas-xai-docs
+        paths:
+          - /docs/cipas-xai
+        strip_path: true
+        preserve_host: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - http://localhost:3000
+            - http://localhost:80
+            - http://localhost:8080
+            - http://localhost:443
+            - https://gradeloop-core-v2-web.vercel.app
+            - https://api.gradeloop.space
+            - https://app.gradeloop.space
+            - https://gradeloop.space
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - PATCH
+            - OPTIONS
+          headers:
+            - Origin
+            - Content-Type
+            - Accept
+            - Authorization
+            - X-Request-ID
+          credentials: true
+          max_age: 3600
+      - name: rate-limiting
+        config:
+          minute: 500
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
+  - name: email-service
+    url: http://gradeloop-email:8082
+    routes:
+      - name: email-routes
+        paths:
+          - /api/v1/emails
+        strip_path: false
+        preserve_host: false
+      - name: email-docs
+        paths:
+          - /docs/email
+        strip_path: true
+        preserve_host: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - http://localhost:3000
+            - http://localhost:80
+            - http://localhost:8080
+            - http://localhost:443
+            - https://gradeloop-core-v2-web.vercel.app
+            - https://api.gradeloop.space
+            - https://app.gradeloop.space
+            - https://gradeloop.space
+            - http://localhost:8101
+            - http://localhost:8102
+            - http://localhost:8103
+            - http://localhost:8104
+            - http://localhost:8105
+            - http://localhost:8106
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - PATCH
+            - OPTIONS
+          headers:
+            - Origin
+            - Content-Type
+            - Accept
+            - Authorization
+            - X-Request-ID
+            - X-Requested-With
+          credentials: true
+          max_age: 3600
+      - name: rate-limiting
+        config:
+          minute: 1000
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
+  - name: notification-service
+    url: http://gradeloop-notification:8086
+    routes:
+      - name: notification-sse
+        paths:
+          - /api/v1/notifications/stream
+        strip_path: false
+        preserve_host: false
+      - name: notification-api
+        paths:
+          - /api/v1/notifications
+        strip_path: false
+        preserve_host: false
+      - name: notification-unread-count
+        paths:
+          - /api/v1/notifications/unread-count
+        strip_path: false
+        preserve_host: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - http://localhost:3000
+            - http://localhost:80
+            - http://localhost:8080
+            - http://localhost:443
+            - https://gradeloop-core-v2-web.vercel.app
+            - https://api.gradeloop.space
+            - https://app.gradeloop.space
+            - https://gradeloop.space
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - PATCH
+            - OPTIONS
+          headers:
+            - Origin
+            - Content-Type
+            - Accept
+            - Authorization
+            - X-Request-ID
+          credentials: true
+          max_age: 3600
+      - name: rate-limiting
+        config:
+          minute: 120
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
+  - name: iam-service
+    url: http://gradeloop-iam:8081
+    routes:
+      - name: iam-auth
+        paths:
+          - /api/v1/auth
+        strip_path: false
+        preserve_host: false
+      - name: iam-users
+        paths:
+          - /api/v1/users
+        strip_path: false
+        preserve_host: false
+      - name: iam-admin
+        paths:
+          - /api/v1/admin
+        strip_path: false
+        preserve_host: false
+      - name: iam-tokens
+        paths:
+          - /api/v1/tokens
+        strip_path: false
+        preserve_host: false
+      - name: iam-docs
+        paths:
+          - /docs/iam
+        strip_path: true
+        preserve_host: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - http://localhost:3000
+            - http://localhost:80
+            - http://localhost:8080
+            - http://localhost:443
+            - https://gradeloop-core-v2-web.vercel.app
+            - https://api.gradeloop.space
+            - https://app.gradeloop.space
+            - https://gradeloop.space
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - PATCH
+            - OPTIONS
+          headers:
+            - Origin
+            - Content-Type
+            - Accept
+            - Authorization
+            - X-Request-ID
+            - X-Requested-With
+            - X-HTTP-Method-Override
+          credentials: true
+          max_age: 3600
+      - name: rate-limiting
+        config:
+          minute: 1000
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
+  - name: iam-login
+    url: http://gradeloop-iam:8081
+    routes:
+      - name: iam-login-route
+        paths:
+          - /api/v1/auth/login
+        strip_path: false
+        preserve_host: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - http://localhost:3000
+            - http://localhost:80
+            - http://localhost:8080
+            - http://localhost:443
+            - https://gradeloop-core-v2-web.vercel.app
+            - https://api.gradeloop.space
+            - https://app.gradeloop.space
+            - https://gradeloop.space
+          methods:
+            - GET
+            - POST
+            - OPTIONS
+          headers:
+            - Origin
+            - Content-Type
+            - Accept
+            - Authorization
+          credentials: true
+      - name: rate-limiting
+        config:
+          minute: 20
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
+  - name: ivas-service
+    url: http://ivas:8101
+    routes:
+      - name: ivas-api
+        paths:
+          - /api/v1/ivas
+        strip_path: false
+        preserve_host: false
+      - name: ivas-websocket
+        paths:
+          - /ws/ivas
+        strip_path: false
+        preserve_host: false
+      - name: ivas-docs
+        paths:
+          - /docs/ivas
+        strip_path: true
+        preserve_host: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - http://localhost:3000
+            - http://localhost:3001
+            - http://localhost:80
+            - http://localhost:8080
+            - http://localhost:443
+            - https://gradeloop-core-v2-web.vercel.app
+            - https://api.gradeloop.space
+            - https://app.gradeloop.space
+            - https://gradeloop.space
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - PATCH
+            - OPTIONS
+          headers:
+            - Origin
+            - Content-Type
+            - Accept
+            - Authorization
+            - X-Request-ID
+          credentials: true
+          max_age: 3600
+      - name: rate-limiting
+        config:
+          minute: 100
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
+  - name: keystroke-service
+    url: http://keystroke:8103
+    routes:
+      - name: keystroke-api
+        paths:
+          - /api/keystroke
+        strip_path: false
+        preserve_host: false
+      - name: keystroke-ws
+        paths:
+          - /ws/monitor
+        strip_path: false
+        preserve_host: false
+      - name: keystroke-docs
+        paths:
+          - /docs/keystroke
+        strip_path: true
+        preserve_host: false
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - http://localhost:3000
+            - http://localhost:80
+            - http://localhost:8080
+            - http://localhost:443
+            - https://gradeloop-core-v2-web.vercel.app
+            - https://api.gradeloop.space
+            - https://app.gradeloop.space
+            - https://gradeloop.space
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          headers:
+            - Origin
+            - Content-Type
+            - Accept
+            - Authorization
+          credentials: true
+          max_age: 3600
+      - name: rate-limiting
+        config:
+          minute: 100
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
