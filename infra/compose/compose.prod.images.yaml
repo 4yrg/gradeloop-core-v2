@@ -451,6 +451,8 @@ services:
     environment:
       - SERVER_PORT=8086
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${ACAFS_SVC_DB_NAME:-acafs_db}
+      - ACAFS_OPENROUTER_API_KEY=${ACAFS_OPENROUTER_API_KEY}
+      - JUDGE0_URL=${JUDGE0_URL:-http://localhost:2358}
     depends_on:
       postgres:
         condition: service_healthy
