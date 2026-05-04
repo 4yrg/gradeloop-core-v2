@@ -56,8 +56,8 @@ export default function VivaSessionPage() {
   const [messages, setMessages] = React.useState<ChatMessage[]>([]);
   const [sessionEnded, setSessionEnded] = React.useState(false);
   const sessionEndedRef = React.useRef(false);
-  const [reconnectAttempts, setReconnectAttempts] = React.useState(0);
   const reconnectAttemptsRef = React.useRef(0);
+  const [reconnectAttempts, setReconnectAttempts] = React.useState(0);
   const MAX_RECONNECT_ATTEMPTS = 3;
   const [showEndConfirm, setShowEndConfirm] = React.useState(false);
 
@@ -381,7 +381,6 @@ export default function VivaSessionPage() {
 
           case "session_started":
             reconnectAttemptsRef.current = 0;
-            setReconnectAttempts(0);
             nextPlayStartRef.current = 0;
             setVoiceStatus("unverified");
             setVoiceSimilarity(null);

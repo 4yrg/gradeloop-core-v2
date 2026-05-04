@@ -2,7 +2,7 @@
  * Comprehensive tests for IVAS/VIVA frontend components.
  */
 
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Mock dependencies
@@ -202,7 +202,6 @@ describe("VivaSessionPage", () => {
             const connectBtn = screen.getByText(/Connect to examiner/i);
             fireEvent.click(connectBtn);
             // Simulate WebSocket open and message
-            const ws = MockWebSocket.prototype as unknown as MockWebSocket;
             // The component creates a new WebSocket instance — we can't easily grab it,
             // so we verify indirectly by checking the mocked URL builder was called.
             expect(mockGetVivaWebSocketUrl).toHaveBeenCalledTimes(1);

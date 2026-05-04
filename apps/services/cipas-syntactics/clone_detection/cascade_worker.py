@@ -434,3 +434,111 @@ class CascadeWorker:
             logger.warning("DB save_clone_match failed: %s", exc)
 
         return match
+
+    # ── Segment Comparison (All-to-All) ───────────────────────────────────
+
+    def compare_segments_all_to_all(
+        self,
+        source_code_a: str,
+        source_code_b: str,
+        language: str,
+        submission_id_a: str,
+        submission_id_b: str,
+        student_a: str,
+        student_b: str,
+        min_confidence: float = 0.5,
+    ) -> dict:
+        """
+        Compare all segments from submission A against all segments from submission B.
+        This implements the all-to-all segment comparison for detailed clone detection.
+
+        Args:
+            source_code_a: Full source code of submission A
+            source_code_b: Full source code of submission B
+            language: Programming language
+            submission_id_a: Submission A ID
+            submission_id_b: Submission B ID
+            student_a: Student A ID
+            student_b: Student B ID
+            min_confidence: Minimum confidence to include a match
+
+        Returns:
+            Dictionary with:
+                - matched_pairs: list of segment pair results
+                - highest_confidence: maximum confidence found
+                - dominant_clone_type: most common clone type
+        """
+        fragmenter = Fragmenter(language)
+
+        try:
+            fragments_a = fragmenter.segment(
+                source=source_code_a,
+                submission_id=submission_id_a,
+                student_id=student_a,
+                assignment_id="temp",
+            )
+            fragments_b = fragmenter.segment(
+                source=source_code_b,
+                submission_id=submission_id_b,
+                student_id=student_b,
+                assignment_id="temp",
+            )
+        except Exception as exc:
+            logger.warning("Segmentation failed: %s", exc)
+            return {
+                "matched_pairs": [],
+                "highest_confidence": 0.0,
+                "dominant_clone_type": None,
+            }
+
+        matched_pairs: list[dict] = []
+        highest_confidence = 0.0
+        clone_type_counts: dict[str, int] = {}
+
+        for idx_a, frag_a in enumerate(fragments_a):
+            for idx_b, frag_b in enumerate(fragments_b):
+                try:
+                    detection = self._pipeline.detect(
+                        frag_a.raw_source,
+                        frag_b.raw_source,
+                        language=language,
+                    )
+                except Exception:
+                    continue
+
+                if detection.is_clone and detection.confidence >= min_confidence:
+                    pair_result = {
+                        "segment_index_a": idx_a,
+                        "segment_index_b": idx_b,
+                        "segment_code_a": frag_a.raw_source[:500],
+                        "segment_code_b": frag_b.raw_source[:500],
+                        "is_clone": detection.is_clone,
+                        "clone_type": detection.clone_type,
+                        "confidence": detection.confidence,
+                        "normalized_code_a": detection.normalized_code1 or detection.blinded_code1,
+                        "normalized_code_b": detection.normalized_code2 or detection.blinded_code2,
+                    }
+                    matched_pairs.append(pair_result)
+
+                    if detection.confidence > highest_confidence:
+                        highest_confidence = detection.confidence
+
+                    clone_type_counts[detection.clone_type] = (
+                        clone_type_counts.get(detection.clone_type, 0) + 1
+                    )
+
+        dominant_type = (
+            max(clone_type_counts, key=clone_type_counts.get) if clone_type_counts else None
+        )
+
+        return {
+            "submission_a_id": submission_id_a,
+            "submission_b_id": submission_id_b,
+            "student_a": student_a,
+            "student_b": student_b,
+            "segment_count_a": len(fragments_a),
+            "segment_count_b": len(fragments_b),
+            "matched_pairs": matched_pairs,
+            "highest_confidence": highest_confidence,
+            "dominant_clone_type": dominant_type,
+        }

@@ -9,7 +9,6 @@ import {
     AlertCircle,
     Users,
     TrendingDown,
-    Loader2,
     Search,
     ChevronDown,
     ChevronUp,
@@ -85,10 +84,6 @@ export default function VivaAnalyticsPage() {
         return [...new Set(scores.map(s => s.competency_id))];
     }, [scores]);
 
-    const studentIds = React.useMemo(() => {
-        return [...new Set(scores.map(s => s.student_id))];
-    }, [scores]);
-
     // Pivot scores by student
     const scoresByStudent = React.useMemo(() => {
         const map = new Map<string, CompetencyScoreSummary[]>();
@@ -98,19 +93,6 @@ export default function VivaAnalyticsPage() {
         }
         return map;
     }, [scores]);
-
-    // Filter
-    const filteredScores = React.useMemo(() => {
-        return scores.filter(s => {
-            if (competencyFilter !== "all" && s.competency_id !== competencyFilter) return false;
-            if (studentSearch && !s.student_id.toLowerCase().includes(studentSearch.toLowerCase())) return false;
-            if (lowScoringOnly) {
-                const pct = s.avg_score !== null && s.max_score > 0 ? (s.avg_score / s.max_score) * 100 : 101;
-                if (pct >= 60) return false;
-            }
-            return true;
-        });
-    }, [scores, competencyFilter, studentSearch, lowScoringOnly]);
 
     // Low-scoring students per competency (user story 9)
     const lowScoringByCompetency = React.useMemo(() => {
@@ -122,23 +104,6 @@ export default function VivaAnalyticsPage() {
                 if (!map.has(s.competency_id)) map.set(s.competency_id, []);
                 map.get(s.competency_id)!.push(s);
             }
-        }
-        return map;
-    }, [scores]);
-
-    // Per-competency stats
-    const competencyStats = React.useMemo(() => {
-        const map = new Map<string, { total: number; count: number; avg: number }>();
-        for (const s of scores) {
-            if (!map.has(s.competency_id)) map.set(s.competency_id, { total: 0, count: 0, avg: 0 });
-            const stat = map.get(s.competency_id)!;
-            if (s.avg_score !== null) {
-                stat.total += s.avg_score;
-                stat.count++;
-            }
-        }
-        for (const [compId, stat] of map) {
-            stat.avg = stat.count > 0 ? stat.total / stat.count : 0;
         }
         return map;
     }, [scores]);

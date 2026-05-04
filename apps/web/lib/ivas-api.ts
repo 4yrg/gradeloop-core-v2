@@ -13,8 +13,6 @@ import type {
     VivaSession,
     SessionCreate,
     SessionDetail,
-    GradedQA,
-    Transcript,
     VoiceEnrollmentOut,
     VoiceProfileStatus,
     VoiceVerifyOut,

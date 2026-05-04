@@ -25,7 +25,10 @@ from clone_detection.cascade_worker import (
     InMemoryDB,
 )
 from clone_detection.collusion_graph import CollusionGraph
-from clone_detection.features.syntactic_features import SyntacticFeatureExtractor
+from clone_detection.features.syntactic_features import (
+    SyntacticFeatureExtractor,
+    detect_moved_blocks,
+)
 from clone_detection.lsh_index import MinHashIndexer
 from clone_detection.models.classifiers import SyntacticClassifier
 from clone_detection.normalizers.structural_normalizer import (
@@ -53,6 +56,12 @@ from schemas import (
     IndexStatusResponse,
     IngestionResponse,
     ModelStatus,
+    MovedBlock,
+    MovedBlocksRequest,
+    MovedBlocksResult,
+    SegmentCompareRequest,
+    SegmentComparisonResult,
+    SegmentPair,
     SubmissionClusterResult,
     SubmissionIngestRequest,
     SyntacticFeatures,
@@ -1110,3 +1119,437 @@ async def export_similarity_report_csv(assignment_id: str):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to export report: {exc}",
         )
+
+
+# ============================================================================
+# Segment Comparison & Moved Block Detection Endpoints
+# ============================================================================
+
+
+def compare_segments(request: SegmentCompareRequest) -> SegmentComparisonResult:
+    """
+    Compare all segments between two submissions using all-to-all comparison.
+
+    Each segment from submission A is compared against each segment from submission B.
+    Returns matched pairs with similarity scores.
+    """
+    try:
+        worker = _get_worker()
+
+        result = worker.compare_segments_all_to_all(
+            source_code_a="",
+            source_code_b="",
+            language=request.language.value,
+            submission_id_a=request.submission_a_id,
+            submission_id_b=request.submission_b_id,
+            student_a="unknown",
+            student_b="unknown",
+            min_confidence=0.5,
+        )
+
+        matched_pairs = [
+            SegmentPair(
+                segment_index_a=p["segment_index_a"],
+                segment_index_b=p["segment_index_b"],
+                segment_code_a=p["segment_code_a"],
+                segment_code_b=p["segment_code_b"],
+                is_clone=p["is_clone"],
+                clone_type=p["clone_type"],
+                confidence=p["confidence"],
+                normalized_code_a=p.get("normalized_code_a"),
+                normalized_code_b=p.get("normalized_code_b"),
+            )
+            for p in result.get("matched_pairs", [])
+        ]
+
+        return SegmentComparisonResult(
+            submission_a_id=request.submission_a_id,
+            submission_b_id=request.submission_b_id,
+            student_a=result.get("student_a", "unknown"),
+            student_b=result.get("student_b", "unknown"),
+            segment_count_a=result.get("segment_count_a", 0),
+            segment_count_b=result.get("segment_count_b", 0),
+            matched_pairs=matched_pairs,
+            highest_confidence=result.get("highest_confidence", 0.0),
+            dominant_clone_type=result.get("dominant_clone_type"),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Segment comparison failed: %s", exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Segment comparison failed: {exc}",
+        )
+
+
+def detect_moved_blocks_endpoint(request: MovedBlocksRequest) -> MovedBlocksResult:
+    """
+    Detect code blocks that appear in both submissions but in different positions.
+
+    This identifies rearranged code (Type-3 variant where blocks are reordered).
+    Returns blocks with position mappings between the two submissions.
+    """
+    try:
+        moved = detect_moved_blocks(
+            code1=request.code1,
+            code2=request.code2,
+            language=request.language.value,
+            similarity_threshold=0.85,
+        )
+
+        moved_blocks = [
+            MovedBlock(
+                block_id=b.block_id,
+                block_type=b.block_type,
+                code_snippet=b.code_snippet,
+                position_in_a=b.position_in_a,
+                position_in_b=b.position_in_b,
+                similarity=b.similarity,
+            )
+            for b in moved
+        ]
+
+        return MovedBlocksResult(
+            submission_a_id="",
+            submission_b_id="",
+            moved_blocks=moved_blocks,
+            total_moved=len(moved_blocks),
+            is_rearranged=len(moved_blocks) > 0,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Moved block detection failed: %s", exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Moved block detection failed: {exc}",
+        )
+
+
+# ============================================================================
+# Local Testing Routes (Development Only)
+# ============================================================================
+
+
+def is_local_request() -> bool:
+    """Check if request is from localhost (for development testing)."""
+    import os
+
+    return os.getenv("APP_ENV") == "development" or os.getenv("CIPAS_LOCAL") == "true"
+
+
+SAMPLE_SUBMISSIONS = [
+    {
+        "submission_id": "sub_alice_001",
+        "student_id": "alice",
+        "full_name": "Alice Smith",
+        "student_number": "S12345",
+        "email": "alice.smith@uni.edu",
+        "source_code": """public class Solution {
+    public int add(int a, int b) {
+        return a + b;
+    }
+
+    public int multiply(int a, int b) {
+        int result = 0;
+        for (int i = 0; i < b; i++) {
+            result = result + a;
+        }
+        return result;
+    }
+
+    public boolean isEven(int num) {
+        return num % 2 == 0;
+    }
+}""",
+    },
+    {
+        "submission_id": "sub_bob_001",
+        "student_id": "bob",
+        "full_name": "Bob Johnson",
+        "student_number": "S12346",
+        "email": "bob.johnson@uni.edu",
+        "source_code": """public class Solution {
+    public int add(int a, int b) {
+        return a + b;
+    }
+
+    public int multiply(int a, int b) {
+        int result = 0;
+        for (int i = 0; i < b; i++) {
+            result += a;
+        }
+        return result;
+    }
+
+    public boolean isEven(int num) {
+        return num % 2 == 0;
+    }
+}""",
+    },
+    {
+        "submission_id": "sub_charlie_001",
+        "student_id": "charlie",
+        "full_name": "Charlie Brown",
+        "student_number": "S12347",
+        "email": "charlie.brown@uni.edu",
+        "source_code": """public class Solution {
+    public int sum(int x, int y) {
+        return x + y;
+    }
+
+    public int product(int x, int y) {
+        int res = 0;
+        for (int i = 0; i < y; i++) {
+            res = res + x;
+        }
+        return res;
+    }
+
+    public boolean checkEven(int n) {
+        return n % 2 == 0;
+    }
+}""",
+    },
+    {
+        "submission_id": "sub_diana_001",
+        "student_id": "diana",
+        "full_name": "Diana Prince",
+        "student_number": "S12348",
+        "email": "diana.prince@uni.edu",
+        "source_code": """public class Solution {
+    public int calculate(int a, int b) {
+        return a + b * 2;
+    }
+
+    public int square(int n) {
+        return n * n;
+    }
+
+    public boolean isPositive(int n) {
+        return n > 0;
+    }
+}""",
+    },
+    {
+        "submission_id": "sub_evan_001",
+        "student_id": "evan",
+        "full_name": "Evan Martinez",
+        "student_number": "S12349",
+        "email": "evan.martinez@uni.edu",
+        "source_code": """public class Solution {
+    public int addNumbers(int a, int b) {
+        return a + b;
+    }
+
+    public int multiply(int a, int b) {
+        int result = 0;
+        for (int i = 0; i < b; i++) {
+            result += a;
+        }
+        return result;
+    }
+
+    public boolean isEven(int num) {
+        return num % 2 == 0;
+    }
+}""",
+    },
+]
+
+SAMPLE_CLUSTER = {
+    "group_id": 1,
+    "member_ids": ["alice", "bob", "charlie", "evan"],
+    "member_count": 4,
+    "max_confidence": 0.95,
+    "dominant_type": "Type-1",
+    "edge_count": 5,
+    "edges": [
+        {
+            "student_a": "alice",
+            "student_b": "bob",
+            "clone_type": "Type-1",
+            "confidence": 0.95,
+            "match_count": 3,
+        },
+        {
+            "student_a": "alice",
+            "student_b": "charlie",
+            "clone_type": "Type-1",
+            "confidence": 0.92,
+            "match_count": 3,
+        },
+        {
+            "student_a": "bob",
+            "student_b": "charlie",
+            "clone_type": "Type-1",
+            "confidence": 0.91,
+            "match_count": 3,
+        },
+        {
+            "student_a": "bob",
+            "student_b": "evan",
+            "clone_type": "Type-1",
+            "confidence": 0.89,
+            "match_count": 3,
+        },
+        {
+            "student_a": "charlie",
+            "student_b": "evan",
+            "clone_type": "Type-2",
+            "confidence": 0.78,
+            "match_count": 2,
+        },
+    ],
+}
+
+
+def get_sample_submissions() -> dict:
+    """
+    Get sample submissions for local testing.
+    Only works when CIPAS_LOCAL=true or APP_ENV=development.
+    """
+    if not is_local_request():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This endpoint is only available for local testing",
+        )
+
+    return {
+        "submissions": SAMPLE_SUBMISSIONS,
+        "total": len(SAMPLE_SUBMISSIONS),
+    }
+
+
+def get_sample_cluster() -> dict:
+    """
+    Get sample cluster data for local testing.
+    Only works when CIPAS_LOCAL=true or APP_ENV=development.
+    """
+    if not is_local_request():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This endpoint is only available for local testing",
+        )
+
+    student_details = {}
+    for sub in SAMPLE_SUBMISSIONS:
+        sid = sub["student_id"]
+        student_details[sid] = {
+            "student_id": sid,
+            "full_name": sub["full_name"],
+            "student_number": sub["student_number"],
+            "email": sub["email"],
+            "avatar_url": None,
+        }
+
+    return {
+        "cluster": SAMPLE_CLUSTER,
+        "student_details": student_details,
+    }
+
+
+def get_sample_segment_comparison() -> dict:
+    """
+    Get sample segment comparison for local testing.
+    Only works when CIPAS_LOCAL=true or APP_ENV=development.
+    """
+    if not is_local_request():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This endpoint is only available for local testing",
+        )
+
+    return {
+        "submission_a_id": "sub_alice_001",
+        "submission_b_id": "sub_bob_001",
+        "student_a": "alice",
+        "student_b": "bob",
+        "segment_count_a": 3,
+        "segment_count_b": 3,
+        "matched_pairs": [
+            {
+                "segment_index_a": 0,
+                "segment_index_b": 0,
+                "segment_code_a": "public int add(int a, int b) { return a + b; }",
+                "segment_code_b": "public int add(int a, int b) { return a + b; }",
+                "is_clone": True,
+                "clone_type": "Type-1",
+                "confidence": 1.0,
+                "normalized_code_a": " TYPE ADD( TYPE A , TYPE B ) { RETURN A + B ; }",
+                "normalized_code_b": " TYPE ADD( TYPE A , TYPE B ) { RETURN A + B ; }",
+            },
+            {
+                "segment_index_a": 1,
+                "segment_index_b": 1,
+                "segment_code_a": "public int multiply(int a, int b) { int result = 0; for (int i = 0; i < b; i++) { result = result + a; } return result; }",
+                "segment_code_b": "public int multiply(int a, int b) { int result = 0; for (int i = 0; i < b; i++) { result += a; } return result; }",
+                "is_clone": True,
+                "clone_type": "Type-2",
+                "confidence": 0.92,
+                "normalized_code_a": " TYPE MULTIPLY( TYPE A , TYPE B ) { TYPE RESULT = 0 ; FOR( TYPE I = 0 ; I < B ; I ++ ) { RESULT = RESULT + A ; } RETURN RESULT ; }",
+                "normalized_code_b": " TYPE MULTIPLY( TYPE A , TYPE B ) { TYPE RESULT = 0 ; FOR( TYPE I = 0 ; I < B ; I ++ ) { RESULT += A ; } RETURN RESULT ; }",
+            },
+            {
+                "segment_index_a": 2,
+                "segment_index_b": 2,
+                "segment_code_a": "public boolean isEven(int num) { return num % 2 == 0; }",
+                "segment_code_b": "public boolean isEven(int num) { return num % 2 == 0; }",
+                "is_clone": True,
+                "clone_type": "Type-1",
+                "confidence": 0.98,
+                "normalized_code_a": " TYPE ISEVEN( TYPE NUM ) { RETURN NUM % 2 == 0 ; }",
+                "normalized_code_b": " TYPE ISEVEN( TYPE NUM ) { RETURN NUM % 2 == 0 ; }",
+            },
+        ],
+        "highest_confidence": 1.0,
+        "dominant_clone_type": "Type-1",
+    }
+
+
+def get_sample_moved_blocks() -> dict:
+    """
+    Get sample moved blocks for local testing.
+    Only works when CIPAS_LOCAL=true or APP_ENV=development.
+    """
+    if not is_local_request():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This endpoint is only available for local testing",
+        )
+
+    return {
+        "submission_a_id": "sub_alice_001",
+        "submission_b_id": "sub_bob_001",
+        "moved_blocks": [
+            {
+                "block_id": "method_declaration_0",
+                "block_type": "method_declaration",
+                "code_snippet": "methodA();",
+                "position_in_a": 0,
+                "position_in_b": 2,
+                "similarity": 0.95,
+            },
+            {
+                "block_id": "method_declaration_1",
+                "block_type": "method_declaration",
+                "code_snippet": "methodB();",
+                "position_in_a": 1,
+                "position_in_b": 0,
+                "similarity": 0.95,
+            },
+            {
+                "block_id": "method_declaration_2",
+                "block_type": "method_declaration",
+                "code_snippet": "methodC();",
+                "position_in_a": 2,
+                "position_in_b": 1,
+                "similarity": 0.95,
+            },
+        ],
+        "total_moved": 3,
+        "is_rearranged": True,
+    }

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
     BookOpen,
     Plus,
@@ -10,7 +10,6 @@ import {
     Wand2,
     Edit2,
     CheckCircle2,
-    XCircle,
     AlertCircle,
     Loader2,
     Save,
@@ -39,7 +38,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ivasApi } from "@/lib/ivas-api";
 import { instructorAssessmentsApi } from "@/lib/api/assessments";
@@ -71,17 +69,6 @@ function DifficultyBadge({ difficulty }: { difficulty: number }) {
             Beginner
         </Badge>
     );
-}
-
-interface EditableCompetency {
-    competency_id: string;
-    name: string;
-    description: string;
-    difficulty: number;
-    max_score: number;
-    weight: number;
-    isNew?: boolean;
-    isEditing?: boolean;
 }
 
 function CompetencyDashboard({
@@ -315,7 +302,6 @@ function CompetencyDashboard({
 
 export default function CompetenciesPage() {
     const params = useParams();
-    const router = useRouter();
     const assignmentId = params.assignmentId as string;
     const instanceId = params.instanceId as string;
     const basePath = `/instructor/courses/${instanceId}/assignments/${assignmentId}`;
@@ -363,7 +349,6 @@ export default function CompetenciesPage() {
 
     // Delete
     const [deleteId, setDeleteId] = React.useState<string | null>(null);
-    const [deleting, setDeleting] = React.useState(false);
 
     // Delete global competency (from "Add from Course Competencies" section)
     const [deleteGlobalId, setDeleteGlobalId] = React.useState<string | null>(null);
@@ -522,7 +507,6 @@ export default function CompetenciesPage() {
 
     async function handleDeleteLink(competencyId: string) {
         try {
-            setDeleting(true);
             const remaining = linkedCompetencies.filter(c => c.competency_id !== competencyId);
             await ivasApi.setAssignmentCompetencies(assignmentId, {
                 competencies: remaining.map(c => ({ competency_id: c.competency_id, weight: c.weight })),
@@ -531,8 +515,6 @@ export default function CompetenciesPage() {
             setDeleteId(null);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Delete failed");
-        } finally {
-            setDeleting(false);
         }
     }
 

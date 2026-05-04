@@ -29,7 +29,6 @@ export default function StartAssessmentPage() {
     const [loading, setLoading] = React.useState(true);
     const [starting, setStarting] = React.useState(false);
     const [competencyCount, setCompetencyCount] = React.useState<number | null>(null);
-    const [competenciesLoading, setCompetenciesLoading] = React.useState(false);
     const [voiceProfile, setVoiceProfile] = React.useState<VoiceProfileStatus | null>(null);
     const [voiceProfileLoading, setVoiceProfileLoading] = React.useState(true);
 
@@ -70,13 +69,10 @@ export default function StartAssessmentPage() {
         let mounted = true;
         async function loadCompetencies() {
             try {
-                setCompetenciesLoading(true);
                 const comps = await ivasApi.listAssignmentCompetencies(selectedAssignment);
                 if (mounted) setCompetencyCount(comps.length);
             } catch {
                 if (mounted) setCompetencyCount(null);
-            } finally {
-                if (mounted) setCompetenciesLoading(false);
             }
         }
         loadCompetencies();

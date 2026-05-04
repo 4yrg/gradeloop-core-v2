@@ -8,7 +8,7 @@
  *   Leaders must be instructors — fetched from IAM GET /users?user_type=instructor
  */
 import * as React from "react";
-import { Landmark, UserPlus, Trash2, ChevronDown } from "lucide-react";
+import { Landmark, UserPlus, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,

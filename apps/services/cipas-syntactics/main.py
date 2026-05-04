@@ -29,7 +29,9 @@ from routes import (
     cluster_assignment,
     compare_codes,
     compare_codes_batch,
+    compare_segments,
     create_annotation,
+    detect_moved_blocks_endpoint,
     export_similarity_report_csv,
     get_annotation_stats,
     get_annotations,
@@ -37,6 +39,10 @@ from routes import (
     get_feature_importance,
     get_health,
     get_index_status,
+    get_sample_cluster,
+    get_sample_moved_blocks,
+    get_sample_segment_comparison,
+    get_sample_submissions,
     get_similarity_report,
     ingest_submission,
     register_template,
@@ -58,6 +64,10 @@ from schemas import (
     HealthResponse,
     IndexStatusResponse,
     IngestionResponse,
+    MovedBlocksRequest,
+    MovedBlocksResult,
+    SegmentCompareRequest,
+    SegmentComparisonResult,
     SimilarityReportMetadata,
     SubmissionIngestRequest,
     TemplateRegisterRequest,
@@ -860,6 +870,51 @@ async def cluster_assignment_endpoint(request: AssignmentClusterRequest):
     return response
 
 
+# ── Segment Comparison & Moved Block Detection Endpoints ────────────────────────────────────────
+
+
+@api_router.post(
+    "/segments/compare",
+    response_model=SegmentComparisonResult,
+    tags=["Comparison"],
+    summary="Compare all segments between two submissions",
+    responses={
+        200: {"description": "Segment comparison completed"},
+        500: {"description": "Comparison failed"},
+    },
+)
+async def compare_segments_endpoint(request: SegmentCompareRequest):
+    """
+    Compare all code segments from submission A against all segments from submission B.
+
+    This implements the all-to-all segment comparison for detailed clone detection.
+    Each segment from the first submission is compared against every segment from
+    the second submission, identifying which specific code blocks are similar.
+    """
+    return compare_segments(request)
+
+
+@api_router.post(
+    "/compare/moved-blocks",
+    response_model=MovedBlocksResult,
+    tags=["Comparison"],
+    summary="Detect rearranged code blocks",
+    responses={
+        200: {"description": "Moved block detection completed"},
+        500: {"description": "Detection failed"},
+    },
+)
+async def detect_moved_blocks_api_endpoint(request: MovedBlocksRequest):
+    """
+    Detect code blocks that appear in both submissions but in different positions.
+
+    This identifies rearranged code (a Type-3 variant where blocks are re-ordered).
+    Returns blocks with position mappings between the two submissions, showing which
+    blocks were moved and their new positions.
+    """
+    return detect_moved_blocks_endpoint(request)
+
+
 # ── Similarity Reports & Annotations ────────────────────────────────────────
 
 
@@ -1021,6 +1076,80 @@ async def export_report_csv_endpoint(assignment_id: str):
     similarity scores, clone types, and related metadata.
     """
     return await export_similarity_report_csv(assignment_id)
+
+
+# ── Local Testing Endpoints (Development Only) ────────────────────────────────────────
+
+
+@api_router.get(
+    "/test/submissions",
+    summary="Get sample submissions for UI testing",
+    tags=["Local Testing"],
+    responses={
+        200: {"description": "Sample submissions"},
+        403: {"description": "Not available in production"},
+    },
+)
+async def get_sample_submissions_endpoint():
+    """
+    Get sample submissions for local UI testing.
+    Only works when CIPAS_LOCAL=true or APP_ENV=development.
+    """
+    return get_sample_submissions()
+
+
+@api_router.get(
+    "/test/cluster",
+    summary="Get sample cluster for UI testing",
+    tags=["Local Testing"],
+    responses={
+        200: {"description": "Sample cluster with student details"},
+        403: {"description": "Not available in production"},
+    },
+)
+async def get_sample_cluster_endpoint():
+    """
+    Get sample cluster data for local UI testing.
+    Includes student details for graph node display.
+    Only works when CIPAS_LOCAL=true or APP_ENV=development.
+    """
+    return get_sample_cluster()
+
+
+@api_router.get(
+    "/test/segment-comparison",
+    summary="Get sample segment comparison for UI testing",
+    tags=["Local Testing"],
+    responses={
+        200: {"description": "Sample segment comparison"},
+        403: {"description": "Not available in production"},
+    },
+)
+async def get_sample_segment_comparison_endpoint():
+    """
+    Get sample segment comparison results for local UI testing.
+    Shows all-to-all segment comparison between two submissions.
+    Only works when CIPAS_LOCAL=true or APP_ENV=development.
+    """
+    return get_sample_segment_comparison()
+
+
+@api_router.get(
+    "/test/moved-blocks",
+    summary="Get sample moved blocks for UI testing",
+    tags=["Local Testing"],
+    responses={
+        200: {"description": "Sample moved blocks"},
+        403: {"description": "Not available in production"},
+    },
+)
+async def get_sample_moved_blocks_endpoint():
+    """
+    Get sample moved blocks for local UI testing.
+    Shows code that was rearranged between two submissions.
+    Only works when CIPAS_LOCAL=true or APP_ENV=development.
+    """
+    return get_sample_moved_blocks()
 
 
 # Include router in app
