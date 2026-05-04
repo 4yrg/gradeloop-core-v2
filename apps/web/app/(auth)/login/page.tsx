@@ -11,7 +11,7 @@ import {
   Code,
   Eye,
   EyeOff,
-  Github,
+  GitBranch,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -96,7 +96,7 @@ export default function LoginPage() {
             className="w-full"
             onClick={handleGitHubLogin}
           >
-            <Github className="mr-2 h-4 w-4" />
+            <GitBranch className="mr-2 h-4 w-4" />
             Continue with GitHub
           </Button>
         </div>
