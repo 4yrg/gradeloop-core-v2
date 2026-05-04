@@ -72,8 +72,6 @@ services:
             - X-Requested-With
           credentials: true
           max_age: 3600
-      - name: jwt-validation
-        run_on_first_request: false
       - name: rate-limiting
         config:
           minute: 500
