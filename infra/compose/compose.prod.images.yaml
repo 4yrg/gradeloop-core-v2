@@ -468,6 +468,8 @@ services:
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${ACAFS_SVC_DB_NAME:-acafs_db}
       - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
       - ACAFS_OPENROUTER_API_KEY=${ACAFS_OPENROUTER_API_KEY}
+      - GEMINI_API_KEY=${ACAFS_GEMINI_API_KEY}
+      - GEMINI_GRADER_MODEL=${ACAFS_GEMINI_MODEL:-gemini-2.5-flash}
       - JUDGE0_URL=${JUDGE0_URL:-http://localhost:2358}
       - MINIO_ENDPOINT=${MINIO_ENDPOINT:-seaweedfs:8333}
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
@@ -475,8 +477,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      rabbitmq:
+        condition: service_started
     networks:
       - gradeloop-network
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2G
 
   # =============================================================================
   # Keystroke Service (Python - Production)
