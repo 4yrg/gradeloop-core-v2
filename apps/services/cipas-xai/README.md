@@ -85,7 +85,16 @@ Explain why code matches a specific detection type.
 
 ```json
 {
-  "reason": "The snippets are Renamed Clones because they share identical structural logic but differ only in identifier names ('add' vs 'sum' and 'a,b' vs 'x,y')."
+  "analysis": [
+    {
+      "code": "function add(a, b) {",
+      "reason": "Both snippets share the exact same function signature structure, with only the identifier names 'add' and 'a,b' changed to 'sum' and 'x,y'."
+    },
+    {
+      "code": "return a + b;",
+      "reason": "The core arithmetic logic and return statement are identical in both functions, representing a Renamed Clone."
+    }
+  ]
 }
 ```
 

@@ -6,14 +6,20 @@ type ReasonRequest struct {
 	Code []string `json:"code"`
 }
 
+// Evidence represents a specific code block and its associated reasoning
+type Evidence struct {
+	Code   string `json:"code"`
+	Reason string `json:"reason"`
+}
+
 // ReasonResponse represents the response body for the reason endpoint
 type ReasonResponse struct {
-	Reason string `json:"reason"`
+	Analysis []Evidence `json:"analysis"`
 }
 
 // LLMReasonResponse represents the internal structure to parse the LLM JSON response
 type LLMReasonResponse struct {
-	Reason string `json:"reason"`
+	Analysis []Evidence `json:"analysis"`
 }
 
 // ChatMessage represents a single message in a conversation with an LLM

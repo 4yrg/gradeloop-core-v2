@@ -27,11 +27,22 @@ func NewReasonService(llmClient client.LLMClient, logger *zap.Logger) *ReasonSer
 
 // GetReason generates reasoning for the given code and type
 func (s *ReasonService) GetReason(ctx context.Context, req dto.ReasonRequest) (*dto.ReasonResponse, error) {
-	systemPrompt := `You are an expert computer science professor specializing in Explainable AI (XAI) for code plagiarism and AI-generated code detection. Your goal is to explain *why* the provided code snippets are classified as a specific type of plagiarism or AI-generated. Use concrete evidence from the code. Do not hallucinate or guess; rely only on the provided code.
-You MUST return your response as a raw JSON object with no markdown formatting, exactly matching this structure:
+	systemPrompt := `You are an expert computer science professor specializing in Explainable AI (XAI) for code plagiarism and AI-generated code detection. Your goal is to explain *why* the provided code snippets are classified as a specific type of plagiarism or AI-generated.
+
+You MUST return your response as a raw JSON object with no markdown formatting wrapping the JSON block, exactly matching this structure:
 {
-  "reason": "A detailed paragraph explaining why the code matches the classification, quoting specific variables, structures, or patterns."
-}`
+  "analysis": [
+    {
+      "code": "specific exact lines of code quoted from the provided snippets",
+      "reason": "explanation of why this specific code is evidence of the classification"
+    },
+    {
+      "code": "another specific snippet of code",
+      "reason": "explanation of why this code is evidence"
+    }
+  ]
+}
+Provide as many evidence blocks as necessary to build a complete argument. Do not hallucinate or guess; rely only on the provided code.`
 
 	userPrompt := s.buildUserPrompt(req)
 
@@ -59,7 +70,7 @@ You MUST return your response as a raw JSON object with no markdown formatting, 
 	}
 
 	return &dto.ReasonResponse{
-		Reason: llmResp.Reason,
+		Analysis: llmResp.Analysis,
 	}, nil
 }
 
@@ -91,9 +102,9 @@ func (s *ReasonService) buildUserPrompt(req dto.ReasonRequest) string {
 	}
 
 	if req.Type == "TYPE-AI" {
-		sb.WriteString("Please provide a detailed reason explaining why this snippet exhibits characteristics of AI-generated code. Quote specific parts of the code to support your claim.")
+		sb.WriteString("Extract the specific code blocks that exhibit characteristics of AI-generated code, and provide the reasoning for each block in the requested JSON format.")
 	} else {
-		sb.WriteString(fmt.Sprintf("Please provide a detailed reason explaining why these snippets are %s. Quote specific variables, structural similarities, or logical patterns to support your claim.", semanticName))
+		sb.WriteString(fmt.Sprintf("Extract the specific code blocks that prove these snippets are %s, and provide the reasoning for each block in the requested JSON format.", semanticName))
 	}
 
 	return sb.String()
