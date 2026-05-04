@@ -475,8 +475,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      rabbitmq:
+        condition: service_started
     networks:
       - gradeloop-network
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2G
 
   # =============================================================================
   # Keystroke Service (Python - Production)
