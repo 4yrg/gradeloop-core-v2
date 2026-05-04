@@ -377,7 +377,13 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import os, urllib.request; port=os.environ.get('CIPAS_SYNTACTICS_PORT','8086'); urllib.request.urlopen(f'http://localhost:{port}/api/v1/syntactics/health')"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import os, urllib.request; port=os.environ.get('CIPAS_SYNTACTICS_PORT','8086'); urllib.request.urlopen(f'http://localhost:{port}/api/v1/syntactics/health')",
+        ]
       interval: 15s
       timeout: 10s
       retries: 5
@@ -410,7 +416,13 @@ services:
     expose:
       - "${CIPAS_SEM_SVC_PORT}"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8087/api/v1/semantics/health')"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8087/api/v1/semantics/health')",
+        ]
       interval: 15s
       timeout: 10s
       retries: 5
@@ -444,7 +456,13 @@ services:
     expose:
       - "${CIPAS_AI_SVC_PORT}"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${CIPAS_AI_SVC_PORT}/api/v1/ai/ready"]
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:${CIPAS_AI_SVC_PORT}/api/v1/ai/ready",
+        ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -507,7 +525,13 @@ services:
       minio:
         condition: service_started
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8086/api/v1/acafs/health')"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8086/api/v1/acafs/health')",
+        ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -534,14 +558,14 @@ services:
       - .env
     environment:
       - CIPAS_XAI_SVC_PORT=8085
-      - LLM_PROVIDER=${LLM_PROVIDER:-openrouter}
-      - LLM_API_KEY=${OPENROUTER_API_KEY}
-      - LLM_BASE_URL=${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
-      - LLM_MODEL=${OPENROUTER_REASONER_MODEL:-qwen/qwen3-vl-235b-a22b-thinking}
-      - LLM_EXTRA_HEADERS=HTTP-Referer=${FRONTEND_URL:-http://localhost:3000},X-OpenRouter-Title=GradeLoop CIPAS-XAI
-      - LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-2048}
-      - LLM_TEMPERATURE=${LLM_TEMPERATURE:-0.7}
-      - LLM_TIMEOUT=${LLM_TIMEOUT:-60}
+      - CIPAS_XAI_LLM_PROVIDER=${CIPAS_XAI_LLM_PROVIDER:-openrouter}
+      - CIPAS_XAI_LLM_API_KEY=${OPENROUTER_API_KEY}
+      - CIPAS_XAI_LLM_BASE_URL=${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+      - CIPAS_XAI_LLM_MODEL=${OPENROUTER_REASONER_MODEL:-z-ai/glm-4.5-air:free}
+      - CIPAS_XAI_LLM_EXTRA_HEADERS=HTTP-Referer=${FRONTEND_URL:-http://localhost:3000},X-OpenRouter-Title=GradeLoop CIPAS-XAI
+      - CIPAS_XAI_LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-2048}
+      - CIPAS_XAI_LLM_TEMPERATURE=${LLM_TEMPERATURE:-0.7}
+      - CIPAS_XAI_LLM_TIMEOUT=${LLM_TIMEOUT:-60}
       - LOG_LEVEL=${LOG_LEVEL:-info}
     expose:
       - "8085"
@@ -589,7 +613,13 @@ services:
       rabbitmq:
         condition: service_started
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -648,7 +678,13 @@ services:
       minio:
         condition: service_started
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8101/api/v1/ivas/health')"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8101/api/v1/ivas/health')",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3

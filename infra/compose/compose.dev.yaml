@@ -96,7 +96,16 @@ services:
       - gradeloop-network
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_pass}
     healthcheck:
-      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-redis_pass}", "incr", "ping"]
+      test:
+        [
+          "CMD",
+          "redis-cli",
+          "--no-auth-warning",
+          "-a",
+          "${REDIS_PASSWORD:-redis_pass}",
+          "incr",
+          "ping",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -110,10 +119,10 @@ services:
     environment:
       - WEEAD_IDENTITY=seaweedfs
     ports:
-      - "9333:9333"   # Master
-      - "9320:9320"   # Console
-      - "9080:8080"   # Volume server
-      - "8333:8333"   # S3 API
+      - "9333:9333" # Master
+      - "9320:9320" # Console
+      - "9080:8080" # Volume server
+      - "8333:8333" # S3 API
     volumes:
       - seaweed-data:/data
     networks:
@@ -386,7 +395,11 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8101/api/v1/ivas/health').getcode() == 200 or exit(1)\""]
+      test:
+        [
+          "CMD-SHELL",
+          'python3 -c "import urllib.request; urllib.request.urlopen(''http://127.0.0.1:8101/api/v1/ivas/health'').getcode() == 200 or exit(1)"',
+        ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -421,7 +434,11 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8102/api/v1/acafs/health').getcode() == 200 or exit(1)\""]
+      test:
+        [
+          "CMD-SHELL",
+          'python3 -c "import urllib.request; urllib.request.urlopen(''http://127.0.0.1:8102/api/v1/acafs/health'').getcode() == 200 or exit(1)"',
+        ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -453,7 +470,11 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8103/health').getcode() == 200 or exit(1)\""]
+      test:
+        [
+          "CMD-SHELL",
+          'python3 -c "import urllib.request; urllib.request.urlopen(''http://127.0.0.1:8103/health'').getcode() == 200 or exit(1)"',
+        ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -482,7 +503,11 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8106/api/v1/syntactics/health || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "curl -f http://127.0.0.1:8106/api/v1/syntactics/health || exit 1",
+        ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -511,7 +536,11 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8105/api/v1/semantics/health').getcode() == 200 or exit(1)\""]
+      test:
+        [
+          "CMD-SHELL",
+          'python3 -c "import urllib.request; urllib.request.urlopen(''http://127.0.0.1:8105/api/v1/semantics/health'').getcode() == 200 or exit(1)"',
+        ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -540,7 +569,11 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8104/api/v1/ai/health').getcode() == 200 or exit(1)\""]
+      test:
+        [
+          "CMD-SHELL",
+          'python3 -c "import urllib.request; urllib.request.urlopen(''http://127.0.0.1:8104/api/v1/ai/health'').getcode() == 200 or exit(1)"',
+        ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -593,7 +626,7 @@ services:
     restart: unless-stopped
     environment:
       - SERVER_PORT=${CIPAS_XAI_SVC_PORT:-8085}
-      - LLM_API_KEY=${LLM_API_KEY:-placeholder_key_change_me}
+      - CIPAS_XAI_LLM_API_KEY=${CIPAS_XAI_LLM_API_KEY:-placeholder_key_change_me}
     ports:
       - "8085:8085"
     networks:
