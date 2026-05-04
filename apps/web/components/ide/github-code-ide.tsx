@@ -36,10 +36,6 @@ export function GitHubCodeIDE({
     const [commitMode, setCommitMode] = useState<"save" | "submit">("save");
     const [saving, setSaving] = useState(false);
 
-    useEffect(() => {
-        initRepo();
-    }, [assignmentId]);
-
     const initRepo = async () => {
         try {
             setLoading(true);
@@ -53,6 +49,10 @@ export function GitHubCodeIDE({
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        initRepo();
+    }, [assignmentId]);
 
     const handleFileSelect = useCallback((path: string, content: string, sha: string) => {
         setCurrentFilePath(path);

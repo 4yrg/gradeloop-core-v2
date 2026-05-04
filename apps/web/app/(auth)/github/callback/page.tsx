@@ -11,24 +11,6 @@ export default function GitHubCallbackPage() {
     const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
     const [message, setMessage] = useState("Processing GitHub authentication...");
 
-    useEffect(() => {
-        const code = searchParams.get("code");
-        const error = searchParams.get("error");
-
-        if (error) {
-            setStatus("error");
-            setMessage(`Authorization failed: ${error}`);
-            return;
-        }
-
-        if (code) {
-            handleOAuthCallback(code);
-        } else {
-            setStatus("error");
-            setMessage("No authorization code received");
-        }
-    }, [searchParams]);
-
     const handleOAuthCallback = async (code: string) => {
         try {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/v1/auth/github/callback?code=${code}`, {
@@ -47,11 +29,29 @@ export default function GitHubCallbackPage() {
                 setStatus("error");
                 setMessage("Failed to link GitHub account. Please try again.");
             }
-        } catch (err) {
+        } catch {
             setStatus("error");
             setMessage("An error occurred during authentication.");
         }
     };
+
+    useEffect(() => {
+        const code = searchParams.get("code");
+        const error = searchParams.get("error");
+
+        if (error) {
+            setStatus("error");
+            setMessage(`Authorization failed: ${error}`);
+            return;
+        }
+
+        if (code) {
+            handleOAuthCallback(code);
+        } else {
+            setStatus("error");
+            setMessage("No authorization code received");
+        }
+    }, [searchParams]);
 
     return (
         <div className="flex min-h-screen items-center justify-center bg-background p-4">

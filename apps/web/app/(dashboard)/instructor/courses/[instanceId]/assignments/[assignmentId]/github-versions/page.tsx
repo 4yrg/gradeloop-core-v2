@@ -33,10 +33,6 @@ export default function GitHubVersionsPage() {
     const [error, setError] = React.useState<string | null>(null);
     const [selectedStudent, setSelectedStudent] = React.useState<string | null>(null);
 
-    React.useEffect(() => {
-        loadData();
-    }, [assignmentId]);
-
     const loadData = async () => {
         try {
             setIsLoading(true);
@@ -109,6 +105,10 @@ export default function GitHubVersionsPage() {
             setIsLoading(false);
         }
     };
+
+    React.useEffect(() => {
+        loadData();
+    }, [assignmentId]);
 
     const getGradingStatusBadge = (status: string) => {
         switch (status?.toLowerCase()) {

@@ -29,9 +29,14 @@ export function FileExplorer({ assignmentId, onFileSelect, currentFilePath, read
     const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set([""]));
     const [fileCache, setFileCache] = useState<Map<string, { content: string; sha: string }>>(new Map());
 
-    useEffect(() => {
-        loadRootFiles();
-    }, [assignmentId]);
+    const transformToTree = (fileList: GitHubFile[]): TreeNode[] => {
+        return fileList.map((file) => ({
+            name: file.name,
+            path: file.path,
+            type: file.type === "dir" ? "dir" : "file",
+            sha: file.sha,
+        }));
+    };
 
     const loadRootFiles = async () => {
         try {
@@ -47,14 +52,9 @@ export function FileExplorer({ assignmentId, onFileSelect, currentFilePath, read
         }
     };
 
-    const transformToTree = (fileList: GitHubFile[]): TreeNode[] => {
-        return fileList.map((file) => ({
-            name: file.name,
-            path: file.path,
-            type: file.type === "dir" ? "dir" : "file",
-            sha: file.sha,
-        }));
-    };
+    useEffect(() => {
+        loadRootFiles();
+    }, [assignmentId]);
 
     const toggleDir = async (path: string) => {
         const newExpanded = new Set(expandedDirs);
