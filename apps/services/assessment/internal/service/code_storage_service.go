@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -12,6 +13,8 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
+
+var ErrCodeStorageUnavailable = errors.New("code storage is unavailable")
 
 type CodeStorageService interface {
 	CreateStudentRepo(ctx context.Context, assignmentID, userID uuid.UUID, assignment *domain.Assignment) (*domain.CodeRepo, error)
@@ -61,6 +64,13 @@ func NewCodeStorageService(codeRepoRepo repository.CodeRepository, storage *stor
 }
 
 func (s *codeStorageService) CreateStudentRepo(ctx context.Context, assignmentID, userID uuid.UUID, assignment *domain.Assignment) (*domain.CodeRepo, error) {
+	if s.storage == nil {
+		return nil, ErrCodeStorageUnavailable
+	}
+	if assignment == nil {
+		return nil, fmt.Errorf("assignment is required to create code repo")
+	}
+
 	exists, _ := s.codeRepoRepo.GetRepoByAssignmentAndUser(assignmentID, userID)
 	if exists != nil {
 		return exists, nil
@@ -110,6 +120,10 @@ func (s *codeStorageService) GetOrCreateStudentRepo(ctx context.Context, assignm
 }
 
 func (s *codeStorageService) GetRepoFiles(ctx context.Context, assignmentID, userID uuid.UUID, path string) ([]CodeFileInfo, error) {
+	if s.storage == nil {
+		return nil, ErrCodeStorageUnavailable
+	}
+
 	files, err := s.storage.ListFiles(ctx, assignmentID.String(), userID.String(), path)
 	if err != nil {
 		return nil, fmt.Errorf("listing files: %w", err)
@@ -131,6 +145,10 @@ func (s *codeStorageService) GetRepoFiles(ctx context.Context, assignmentID, use
 }
 
 func (s *codeStorageService) GetFileContent(ctx context.Context, assignmentID, userID uuid.UUID, filePath string) (string, error) {
+	if s.storage == nil {
+		return "", ErrCodeStorageUnavailable
+	}
+
 	content, err := s.storage.GetFile(ctx, assignmentID.String(), userID.String(), filePath)
 	if err != nil {
 		return "", fmt.Errorf("getting file: %w", err)
@@ -139,6 +157,10 @@ func (s *codeStorageService) GetFileContent(ctx context.Context, assignmentID, u
 }
 
 func (s *codeStorageService) SaveFile(ctx context.Context, assignmentID, userID uuid.UUID, filePath, content, message string) (string, error) {
+	if s.storage == nil {
+		return "", ErrCodeStorageUnavailable
+	}
+
 	sha, err := s.storage.SaveFile(ctx, assignmentID.String(), userID.String(), filePath, content)
 	if err != nil {
 		return "", fmt.Errorf("saving file: %w", err)
@@ -154,6 +176,10 @@ func (s *codeStorageService) SaveFile(ctx context.Context, assignmentID, userID 
 }
 
 func (s *codeStorageService) SubmitAssignment(ctx context.Context, repo *domain.CodeRepo, userID, assignmentID uuid.UUID, message string) (*domain.CodeVersion, error) {
+	if s.storage == nil {
+		return nil, ErrCodeStorageUnavailable
+	}
+
 	versions, err := s.codeRepoRepo.GetVersionsByAssignmentAndUser(assignmentID, userID)
 	if err != nil {
 		return nil, err
