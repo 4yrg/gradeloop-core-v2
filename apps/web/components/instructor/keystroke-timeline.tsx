@@ -46,7 +46,7 @@ interface KeystrokeTimelineProps {
     assignmentId?: string;
     /** Override WebSocket gateway URL (defaults to NEXT_PUBLIC_WS_URL or localhost:8000) */
     wsUrl?: string;
-    /** Override REST API base URL (defaults to NEXT_PUBLIC_API_URL or localhost:8000) */
+    /** Override REST API gateway root (defaults to NEXT_PUBLIC_GATEWAY_URL or localhost:8000) */
     apiUrl?: string;
     className?: string;
 }
@@ -84,6 +84,16 @@ function computeStats(events: TimelineEvent[]): TimelineStats {
         avg_similarity: events.reduce((a, e) => a + e.similarity_score, 0) / events.length,
         struggle_count: events.filter((e) => e.is_struggling).length,
     };
+}
+
+function resolveGatewayRoot(apiUrl?: string): string {
+    const raw =
+        apiUrl ??
+        process.env.NEXT_PUBLIC_GATEWAY_URL ??
+        process.env.NEXT_PUBLIC_API_URL ??
+        "http://localhost:8000";
+
+    return raw.replace(/\/api\/v1\/?$/, "").replace(/\/$/, "");
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -158,10 +168,7 @@ export function KeystrokeTimeline({
     const scrollEndRef = useRef<HTMLDivElement | null>(null);
     const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const resolvedApiBase =
-        apiUrl ??
-            process.env.NEXT_PUBLIC_API_URL ??
-"http://localhost:8000"
+    const resolvedApiBase = resolveGatewayRoot(apiUrl);
 
     const resolvedWsBase =
         wsUrl ??
