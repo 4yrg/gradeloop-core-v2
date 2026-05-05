@@ -11,7 +11,7 @@
 #   GHCR_PACKAGE_PREFIX  GitHub package prefix (e.g., 4yrg)
 
 x-ghcr-image: &ghcr_image
-  pull_policy: always
+  {}
 
 services:
   # =============================================================================
