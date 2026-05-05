@@ -59,6 +59,12 @@ services:
             - X-Request-ID
             - X-Requested-With
             - X-HTTP-Method-Override
+            - Cache-Control
+            - Connection
+          exposed_headers:
+            - Content-Type
+            - Cache-Control
+            - Connection
           credentials: true
           max_age: 3600
       - name: jwt-validation

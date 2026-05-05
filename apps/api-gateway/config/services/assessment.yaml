@@ -78,6 +78,12 @@ services:
             - Authorization
             - X-Request-ID
             - X-Requested-With
+            - Cache-Control
+            - Connection
+          exposed_headers:
+            - Content-Type
+            - Cache-Control
+            - Connection
           credentials: true
           max_age: 3600
       - name: rate-limiting
