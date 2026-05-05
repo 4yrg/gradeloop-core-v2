@@ -23,7 +23,7 @@ RUN --mount=type=cache,target=/root/.bun/install/cache \
 # ============================================
 FROM oven/bun:1 AS dev
 
-WORKDIR /app
+WORKDIR /app/apps/web
 
 # Copy EVERYTHING from dependencies stage (including all node_modules and bins)
 COPY --from=dependencies /app /app
@@ -46,7 +46,7 @@ ENV PATH /app/node_modules/.bin:$PATH
 EXPOSE 3000
 
 # Start the server in development mode
-CMD ["bun", "--cwd", "apps/web", "dev"]
+CMD ["bun", "x", "next", "dev"]
 
 # ============================================
 # Stage 3: Builder

@@ -133,10 +133,12 @@ services:
       - HOSTNAME=0.0.0.0
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
       - NEXT_PUBLIC_GATEWAY_URL=${NEXT_PUBLIC_GATEWAY_URL:-http://localhost:8000}
+      - WATCHPACK_POLLING=true
     volumes:
-      - ../../apps/web:/app/apps/web
-      - ../../packages/ts:/app/packages/ts
-      - ../../bun.lock:/app/bun.lock
+      - ../../:/app
+      - /app/node_modules
+      - /app/apps/web/node_modules
+      - /app/apps/web/.next
     ports:
       - 3000:3000
     networks:
@@ -159,6 +161,26 @@ services:
       iam:
         condition: service_healthy
       academic:
+        condition: service_healthy
+      acafs:
+        condition: service_healthy
+      assessment:
+        condition: service_healthy
+      cipas-ai:
+        condition: service_healthy
+      cipas-semantics:
+        condition: service_healthy
+      cipas-syntactics:
+        condition: service_healthy
+      cipas-xai:
+        condition: service_healthy
+      email:
+        condition: service_healthy
+      notification:
+        condition: service_started
+      ivas:
+        condition: service_healthy
+      keystroke:
         condition: service_healthy
   iam:
     build:
