@@ -227,6 +227,16 @@ services:
           - /api/v1/github/config
         strip_path: false
         preserve_host: false
+      - name: assessment-code-repos
+        paths:
+          - /api/v1/code
+        strip_path: false
+        preserve_host: false
+      - name: assessment-code-config
+        paths:
+          - /api/v1/code/config
+        strip_path: false
+        preserve_host: false
       - name: assessment-docs
         paths:
           - /docs/assessment

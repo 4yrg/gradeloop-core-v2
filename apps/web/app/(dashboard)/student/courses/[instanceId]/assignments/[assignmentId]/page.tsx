@@ -234,7 +234,7 @@ export default function StudentAssignmentDetailPage() {
                         {/* CTA */}
                         <div className="flex gap-2 flex-wrap">
                             <Button asChild>
-                                <Link href={`/student/courses/${instanceId}/assignments/${assignmentId}/attempt`} target="_blank" rel="noopener noreferrer">
+                                <Link href={`/student/courses/${instanceId}/assignments/${assignmentId}/attempt`}>
                                     {latestSubmission?.status?.toLowerCase() === "draft" ? (
                                         <>
                                             <Play className="h-4 w-4 mr-2" />
