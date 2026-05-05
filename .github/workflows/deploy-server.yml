@@ -87,12 +87,23 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+          cat >> ~/.ssh/config <<EOF
+          Host *
+            ServerAliveInterval 30
+            ServerAliveCountMax 10
+            StrictHostKeyChecking no
+            ControlMaster auto
+            ControlPath ~/.ssh/ssh-%r@%h:%p
+            ControlPersist 10m
+          EOF
           ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
 
       - name: Deploy on server
         env:
           CHANGED_SERVICES: ${{ steps.changes.outputs.services }}
         run: |
+          # Use a loop to build services one by one to prevent resource exhaustion
+          # and use a more resilient SSH command
           ssh -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" \
             "DEPLOY_PATH='$DEPLOY_PATH' CHANGED_SERVICES='$CHANGED_SERVICES' bash -s" <<'REMOTE'
           set -euo pipefail
@@ -101,7 +112,6 @@ jobs:
           git fetch origin main && git checkout main && git pull origin main
 
           # Ensure .env exists and has correct public IP
-          # We force NEXT_PUBLIC_API_URL to use the server IP if it's currently localhost
           if grep -q "localhost" .env; then
             echo "Updating .env to use server IP instead of localhost..."
             sed -i "s|localhost:8000|62.238.43.125|g" .env
@@ -109,8 +119,13 @@ jobs:
           fi
 
           if [[ -n "${CHANGED_SERVICES:-}" ]]; then
-            echo "Building and starting: $CHANGED_SERVICES"
-            docker compose -f infra/compose/compose.server.yaml build $CHANGED_SERVICES
+            echo "Building services sequentially to prevent resource exhaustion..."
+            for service in $CHANGED_SERVICES; do
+              echo ">>> Building $service..."
+              docker compose -f infra/compose/compose.server.yaml build "$service"
+            done
+            
+            echo ">>> Starting updated services..."
             docker compose -f infra/compose/compose.server.yaml up -d --no-deps $CHANGED_SERVICES
           else
             echo "No services changed. Ensuring stack is up..."
@@ -120,5 +135,3 @@ jobs:
           docker compose -f infra/compose/compose.server.yaml ps
           docker image prune -f
           REMOTE
-
-
