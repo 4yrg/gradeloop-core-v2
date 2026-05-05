@@ -83,6 +83,6 @@ ENV PYTHONPATH=/app:/app/packages/python
 EXPOSE 8105
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8105/api/v1/semantics/health', timeout=5)"
+    CMD curl -f http://localhost:8105/api/v1/semantics/health || exit 1
 
 CMD uvicorn api.main:app --host 0.0.0.0 --port ${API_PORT:-8105}
