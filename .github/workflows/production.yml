@@ -269,10 +269,10 @@ jobs:
           sbom: true
 
   # --------------------------------------------------------------------------
-  # Build Kong gateway image
+  # Build Nginx gateway image
   # --------------------------------------------------------------------------
   build-gateway:
-    name: Build Kong Gateway
+    name: Build Nginx Gateway
     runs-on: ubuntu-latest
     needs: [login-ghcr, go-checks, node-checks, python-checks]
     steps:
@@ -290,7 +290,7 @@ jobs:
         run: |
           ghcr_prefix="${{ needs.login-ghcr.outputs.ghcr_prefix }}"
           short_sha=$(echo "${{ github.sha }}" | cut -c1-7)
-          full_tag="ghcr.io/${ghcr_prefix}/gradeloop-kong"
+          full_tag="ghcr.io/${ghcr_prefix}/gradeloop-gateway"
           echo "full_tag=$full_tag"
           echo "full_tag=$full_tag" >> $GITHUB_OUTPUT
           echo "tags=${full_tag}:latest,${full_tag}:sha-${short_sha}" >> $GITHUB_OUTPUT
@@ -298,20 +298,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Pull official Kong image
-        run: docker pull kong:3.9.1
-
-      - name: Tag gateway image
-        run: |
-          short_sha=$(echo "${{ github.sha }}" | cut -c1-7)
-          docker tag kong:3.9.1 ${{ steps.meta.outputs.full_tag }}:latest
-          docker tag kong:3.9.1 ${{ steps.meta.outputs.full_tag }}:sha-${short_sha}
-
-      - name: Push gateway image
-        run: |
-          short_sha=$(echo "${{ github.sha }}" | cut -c1-7)
-          docker push ${{ steps.meta.outputs.full_tag }}:latest
-          docker push ${{ steps.meta.outputs.full_tag }}:sha-${short_sha}
+      - name: Build and push gateway
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/api-gateway
+          file: apps/api-gateway/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha,scope=gateway
+          cache-to: type=gha,mode=max,scope=gateway
 
   # --------------------------------------------------------------------------
   # Build summary
@@ -340,7 +335,7 @@ jobs:
           echo "| cipas-ai | ghcr.io/${{ needs.login-ghcr.outputs.ghcr_prefix }}/gradeloop-cipas-ai |" >> $GITHUB_STEP_SUMMARY
           echo "| cipas-semantics | ghcr.io/${{ needs.login-ghcr.outputs.ghcr_prefix }}/gradeloop-cipas-semantics |" >> $GITHUB_STEP_SUMMARY
           echo "| cipas-syntactics | ghcr.io/${{ needs.login-ghcr.outputs.ghcr_prefix }}/gradeloop-cipas-syntactics |" >> $GITHUB_STEP_SUMMARY
-          echo "| kong | ghcr.io/${{ needs.login-ghcr.outputs.ghcr_prefix }}/gradeloop-kong |" >> $GITHUB_STEP_SUMMARY
+          echo "| gateway | ghcr.io/${{ needs.login-ghcr.outputs.ghcr_prefix }}/gradeloop-gateway |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Tags: \`latest\`, \`sha-${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
   # =============================================================================
@@ -682,20 +677,8 @@ jobs:
               echo "$GHCR_TOKEN" | $RUNTIME login ghcr.io -u "$GHCR_USER" --password-stdin || true
             fi
 
-            echo "Starting Kong database..."
-            $COMPOSE_CMD --env-file .env -f $COMPOSE_FILE up -d --remove-orphans kong-database
-
-            sleep 10
-
-            echo "Running Kong migrations..."
-            $COMPOSE_CMD --env-file .env -f $COMPOSE_FILE up -d --remove-orphans kong-migrations
-
-            sleep 10
-
-            echo "Starting Kong gateway..."
-            $COMPOSE_CMD --env-file .env -f $COMPOSE_FILE up -d --remove-orphans kong-gateway
-
-            sleep 10
+            echo "Starting gateway..."
+            $COMPOSE_CMD --env-file .env -f $COMPOSE_FILE up -d --remove-orphans gateway
 
             echo "=== Gateway Deployed ==="
 

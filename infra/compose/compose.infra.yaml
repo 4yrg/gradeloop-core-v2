@@ -172,35 +172,6 @@ services:
           cpus: '0.5'
           memory: 1G
 
-  # =============================================================================
-  # Kong Database (Gateway Configuration)
-  # =============================================================================
-  kong-database:
-    image: postgres:16-alpine
-    container_name: gradeloop-infra-kong-db
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER=kong
-      - POSTGRES_PASSWORD=${KONG_DB_PASSWORD:-kong_pass}
-      - POSTGRES_DB=kong
-    volumes:
-      - kong-database-data:/var/lib/postgresql/data
-    networks:
-      - gradeloop-infra-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kong -d kong"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 1G
-        reservations:
-          cpus: '0.25'
-          memory: 512M
 
 networks:
   gradeloop-infra-network:
@@ -215,4 +186,3 @@ volumes:
     name: gradeloop-infra-rabbitmq-config
   redis-data:
   seaweed-data:
-  kong-database-data:

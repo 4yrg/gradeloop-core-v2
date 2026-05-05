@@ -228,7 +228,6 @@ jobs:
           echo "Testing RabbitMQ..."
           echo "Testing Redis..."
           echo "Testing SeaweedFS..."
-          echo "Testing Kong Database..."
 
           echo ""
           echo "=== All health checks passed ==="

@@ -158,33 +158,26 @@ services:
           memory: 1G
 
   # =============================================================================
-  # Kong Gateway (Production — DB-less mode with declarative config)
+  # API Gateway (Nginx)
   # =============================================================================
-  kong-gateway:
-    image: kong:3.4-alpine
-    pull_policy: missing
-    container_name: gradeloop-kong-gateway
+  gateway:
+    build:
+      context: ../../apps/api-gateway
+      dockerfile: Dockerfile
+    container_name: gradeloop-gateway
     restart: unless-stopped
-    environment:
-      - KONG_DATABASE=off
-      - KONG_DECLARATIVE_CONFIG=/usr/local/kong/declarative/kong.yml
-      - KONG_PROXY_ACCESS_LOG=/dev/stdout
-      - KONG_ADMIN_ACCESS_LOG=/dev/stdout
-      - KONG_LOG_LEVEL=info
     ports:
       - "8000:8000"
       - "8443:8443"
-      - "8001:8001"
-      - "8444:8444"
     volumes:
-      - ../../apps/api-gateway/config:/usr/local/kong/declarative:ro
+      - /home/gradeloop/ssl:/etc/nginx/ssl:ro
     networks:
       - gradeloop-network
     deploy:
       resources:
         limits:
-          cpus: "1"
-          memory: 1G
+          cpus: "0.5"
+          memory: 512M
 
   # =============================================================================
   # IAM Service (Go - Production)
