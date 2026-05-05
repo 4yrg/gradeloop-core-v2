@@ -86,25 +86,27 @@ jobs:
         uses: shimataro/ssh-key-action@v2
         with:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          known_hosts: "placeholder" # Will be updated in next step
+          name: deploy_key # Use the name expected by the next step
+          known_hosts: "placeholder"
           if_key_exists: fail
 
       - name: Configure SSH Config and Known Hosts
         run: |
-          # Setup SSH config
-          cat > "$HOME/.ssh/config" <<EOF
+          # Setup SSH config (no indentation for EOF)
+          cat <<'EOF' > "$HOME/.ssh/config"
           Host *
             ServerAliveInterval 30
             ServerAliveCountMax 10
             StrictHostKeyChecking no
             ControlMaster auto
-            ControlPath $HOME/.ssh/ssh-%r@%h:%p
+            ControlPath ~/.ssh/ssh-%r@%h:%p
             ControlPersist 10m
           EOF
           
           # Add server to known hosts
           if [[ -n "$SSH_HOST" ]]; then
-            ssh-keyscan -H "$SSH_HOST" >> "$HOME/.ssh/known_hosts"
+            echo "Scanning $SSH_HOST..."
+            ssh-keyscan -H "$SSH_HOST" >> "$HOME/.ssh/known_hosts" || echo "Warning: ssh-keyscan failed"
             chmod 644 "$HOME/.ssh/known_hosts"
           else
             echo "Error: SSH_HOST is not set!"
