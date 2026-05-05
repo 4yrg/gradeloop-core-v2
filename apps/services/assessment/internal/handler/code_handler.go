@@ -41,8 +41,8 @@ func (h *CodeHandler) GetRepo(c fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	userID, ok := c.Locals("user_id").(uuid.UUID)
-	if !ok {
+	userID := requireUserID(c)
+	if userID == uuid.Nil {
 		return fiber.ErrUnauthorized
 	}
 
@@ -73,8 +73,8 @@ func (h *CodeHandler) CreateOrGetRepo(c fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	userID, ok := c.Locals("user_id").(uuid.UUID)
-	if !ok {
+	userID := requireUserID(c)
+	if userID == uuid.Nil {
 		return fiber.ErrUnauthorized
 	}
 
@@ -105,8 +105,8 @@ func (h *CodeHandler) GetFiles(c fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	userID, ok := c.Locals("user_id").(uuid.UUID)
-	if !ok {
+	userID := requireUserID(c)
+	if userID == uuid.Nil {
 		return fiber.ErrUnauthorized
 	}
 
@@ -142,8 +142,8 @@ func (h *CodeHandler) GetFileContent(c fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	userID, ok := c.Locals("user_id").(uuid.UUID)
-	if !ok {
+	userID := requireUserID(c)
+	if userID == uuid.Nil {
 		return fiber.ErrUnauthorized
 	}
 
@@ -172,8 +172,8 @@ func (h *CodeHandler) SaveFile(c fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	userID, ok := c.Locals("user_id").(uuid.UUID)
-	if !ok {
+	userID := requireUserID(c)
+	if userID == uuid.Nil {
 		return fiber.ErrUnauthorized
 	}
 
@@ -200,8 +200,8 @@ func (h *CodeHandler) SubmitAssignment(c fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	userID, ok := c.Locals("user_id").(uuid.UUID)
-	if !ok {
+	userID := requireUserID(c)
+	if userID == uuid.Nil {
 		return fiber.ErrUnauthorized
 	}
 
@@ -242,8 +242,8 @@ func (h *CodeHandler) GetVersions(c fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	userID, ok := c.Locals("user_id").(uuid.UUID)
-	if !ok {
+	userID := requireUserID(c)
+	if userID == uuid.Nil {
 		return fiber.ErrUnauthorized
 	}
 
@@ -284,8 +284,8 @@ func (h *CodeHandler) GetCommits(c fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	userID, ok := c.Locals("user_id").(uuid.UUID)
-	if !ok {
+	userID := requireUserID(c)
+	if userID == uuid.Nil {
 		return fiber.ErrUnauthorized
 	}
 
