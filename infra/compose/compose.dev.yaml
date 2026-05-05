@@ -134,10 +134,7 @@ services:
       - NEXT_PUBLIC_GATEWAY_URL=${NEXT_PUBLIC_GATEWAY_URL:-http://localhost:8000}
     volumes:
       - ../../apps/web:/app/apps/web
-      - ../../package.json:/app/package.json
       - ../../bun.lock:/app/bun.lock
-      - /app/apps/web/node_modules
-      - /app/node_modules
     ports:
       - 3000:3000
     networks:
