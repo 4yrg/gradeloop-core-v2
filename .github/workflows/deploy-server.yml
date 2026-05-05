@@ -84,19 +84,26 @@ jobs:
 
       - name: Configure SSH
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          cat >> ~/.ssh/config <<EOF
+          # Create .ssh directory in HOME
+          mkdir -pv "$HOME/.ssh"
+          # Write the private key
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > "$HOME/.ssh/deploy_key"
+          chmod 600 "$HOME/.ssh/deploy_key"
+          
+          # Setup SSH config for persistence and keepalive
+          cat > "$HOME/.ssh/config" <<EOF
           Host *
             ServerAliveInterval 30
             ServerAliveCountMax 10
             StrictHostKeyChecking no
             ControlMaster auto
-            ControlPath ~/.ssh/ssh-%r@%h:%p
+            ControlPath $HOME/.ssh/ssh-%r@%h:%p
             ControlPersist 10m
           EOF
-          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          
+          # Add server to known hosts
+          ssh-keyscan -H "$SSH_HOST" >> "$HOME/.ssh/known_hosts"
+          chmod 644 "$HOME/.ssh/known_hosts"
 
       - name: Deploy on server
         env:
