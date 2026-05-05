@@ -46,7 +46,10 @@ func (h *CodeHandler) GetRepo(c fiber.Ctx) error {
 		return fiber.ErrUnauthorized
 	}
 
-	assignment, _ := h.assignmentRepo.GetAssignmentByID(assignmentID)
+	assignment, err := h.assignmentRepo.GetAssignmentByID(assignmentID)
+	if err != nil || assignment == nil {
+		return fiber.NewError(fiber.StatusNotFound, "Assignment not found")
+	}
 
 	repo, err := h.codeStorageService.GetOrCreateStudentRepo(c.RequestCtx(), assignmentID, userID, assignment)
 	if err != nil {
@@ -212,7 +215,12 @@ func (h *CodeHandler) SubmitAssignment(c fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	repo, err := h.codeStorageService.GetOrCreateStudentRepo(c.RequestCtx(), assignmentID, userID, nil)
+	assignment, err := h.assignmentRepo.GetAssignmentByID(assignmentID)
+	if err != nil || assignment == nil {
+		return fiber.NewError(fiber.StatusNotFound, "Assignment not found")
+	}
+
+	repo, err := h.codeStorageService.GetOrCreateStudentRepo(c.RequestCtx(), assignmentID, userID, assignment)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Failed to get repo")
 	}

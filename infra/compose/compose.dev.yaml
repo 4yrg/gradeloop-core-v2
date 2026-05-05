@@ -116,9 +116,10 @@ services:
       - "8333:8333"   # S3 API
     volumes:
       - seaweed-data:/data
+      - ./s3Config.json:/etc/seaweedfs/s3.json:ro
     networks:
       - gradeloop-network
-    command: server -s3 -filer
+    command: server -s3 -filer -s3.config=/etc/seaweedfs/s3.json
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9333/cluster/status"]
       interval: 10s
