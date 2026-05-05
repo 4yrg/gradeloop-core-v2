@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { CodeIDE } from "./code-ide";
 import { FileExplorer } from "./file-explorer";
 import { CommitDialog } from "./commit-dialog";
@@ -72,6 +72,7 @@ export function SeaweedCodeIDE({
     const [showCommitDialog, setShowCommitDialog] = useState(false);
     const [commitMode, setCommitMode] = useState<"save" | "submit">("save");
     const [saving, setSaving] = useState(false);
+    const finalizeSessionRef = useRef<((finalCode?: string) => Promise<void>) | null>(null);
 
     const initRepo = async () => {
         try {
@@ -124,6 +125,7 @@ export function SeaweedCodeIDE({
 
         if (commitMode === "submit") {
             try {
+                await finalizeSessionRef.current?.(currentContent);
                 const submission = await assessmentsApi.submitAssignment({
                     assignment_id: assignmentId,
                     code: currentContent,
@@ -218,6 +220,9 @@ export function SeaweedCodeIDE({
                         userId={userId}
                         initialCode={currentContent}
                         onCodeChange={handleCodeChange}
+                        onFinalizeReady={(finalizeSession) => {
+                            finalizeSessionRef.current = finalizeSession;
+                        }}
                         readOnly={readOnly}
                         showSubmitButton={false}
                         onExecute={() => {}}

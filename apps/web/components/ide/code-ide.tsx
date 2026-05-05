@@ -32,6 +32,7 @@ export function CodeIDE({
   initialCode,
   initialLanguage = DEFAULT_LANGUAGE_ID,
   onCodeChange,
+  onFinalizeReady,
   onExecute,
   onSubmit,
   readOnly = false,
@@ -103,6 +104,10 @@ export function CodeIDE({
     sessionId,
     assignmentId,
   });
+
+  useEffect(() => {
+    onFinalizeReady?.(finalizeSession);
+  }, [finalizeSession, onFinalizeReady]);
 
   // Load saved preferences from localStorage
   useEffect(() => {

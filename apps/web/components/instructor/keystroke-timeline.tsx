@@ -46,6 +46,7 @@ interface KeystrokeTimelineProps {
     assignmentId?: string;
     /** Override WebSocket gateway URL (defaults to NEXT_PUBLIC_WS_URL or 178.105.102.246:8000) */
     wsUrl?: string;
+
     /** Override REST API base URL (defaults to NEXT_PUBLIC_API_URL or 178.105.102.246:8000) */
     apiUrl?: string;
     className?: string;
@@ -85,6 +86,7 @@ function computeStats(events: TimelineEvent[]): TimelineStats {
         struggle_count: events.filter((e) => e.is_struggling).length,
     };
 }
+
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -157,6 +159,7 @@ export function KeystrokeTimeline({
     const wsRef = useRef<WebSocket | null>(null);
     const scrollEndRef = useRef<HTMLDivElement | null>(null);
     const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
 
     const resolvedApiBase =
         apiUrl ??
