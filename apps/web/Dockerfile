@@ -1,87 +1,87 @@
-# =============================================================================
-# Next.js + Bun Production Dockerfile
-# Optimized for monorepos
-# =============================================================================
+# ============================================
+# Stage 1: Dependencies Installation Stage
+# ============================================
 
-# -----------------------------------------------------------------------------
-# Stage 1 — Dependencies
-# -----------------------------------------------------------------------------
-FROM oven/bun:1 AS deps
+# This Dockerfile.bun is specifically configured for projects using Bun
+# For npm/pnpm or yarn, refer to the Dockerfile instead
 
+FROM oven/bun:1 AS dependencies
+
+# Set working directory
 WORKDIR /app
 
-# Copy root workspace files
-COPY package.json bun.lock ./
+# Copy package-related files first to leverage Docker's caching mechanism
+COPY package.json bun.lock* ./
 
-# Copy workspace package files
-COPY apps/web/package.json ./apps/web/package.json
+# Install project dependencies with frozen lockfile for reproducible builds
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install --no-save --frozen-lockfile
 
-# Install dependencies (this will install for workspace too)
-RUN bun install
+# ============================================
+# Stage 2: Build Next.js application in standalone mode
+# ============================================
 
-# Also install in the web directory to ensure binaries are available
-WORKDIR /app/apps/web
-RUN bun install
-
-
-# -----------------------------------------------------------------------------
-# Stage 2 — Builder
-# -----------------------------------------------------------------------------
 FROM oven/bun:1 AS builder
 
+# Set working directory
 WORKDIR /app
 
-# Copy installed dependencies from both locations
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
+# Copy project dependencies from dependencies stage
+COPY --from=dependencies /app/node_modules ./node_modules
 
-# Copy project files
+# Copy application source code
 COPY . .
 
-# Accept build arguments for public env vars
-ARG NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
-ARG NEXT_PUBLIC_IAM_SERVICE_URL=http://localhost:8000/api/v1
-ARG NEXT_PUBLIC_GATEWAY_URL=http://localhost:8000
-ARG NEXT_PUBLIC_WS_URL=ws://localhost:8000
-ARG NEXT_PUBLIC_IVAS_WS_URL=ws://localhost:8000
-
 ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_IAM_SERVICE_URL=$NEXT_PUBLIC_IAM_SERVICE_URL
-ENV NEXT_PUBLIC_GATEWAY_URL=$NEXT_PUBLIC_GATEWAY_URL
-ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
-ENV NEXT_PUBLIC_IVAS_WS_URL=$NEXT_PUBLIC_IVAS_WS_URL
 
-WORKDIR /app/apps/web
+# Next.js collects completely anonymous telemetry data about general usage.
+# Learn more here: https://nextjs.org/telemetry
+# Uncomment the following line in case you want to disable telemetry during the build.
+# ENV NEXT_TELEMETRY_DISABLED=1
 
-# Build Next.js app
+# Build Next.js application
 RUN bun run build
 
+# ============================================
+# Stage 3: Run Next.js application
+# ============================================
 
-# -----------------------------------------------------------------------------
-# Stage 3 — Production Runtime
-# -----------------------------------------------------------------------------
-FROM oven/bun:1-alpine AS runner
+FROM oven/bun:1 AS runner
 
+# Set working directory
 WORKDIR /app
 
+# Set production environment variables
 ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
-ENV HOSTNAME=0.0.0.0
+ENV HOSTNAME="0.0.0.0"
 
-# Create non-root user (Alpine compatible)
-RUN addgroup -S bunjs && adduser -S nextjs -G bunjs
+# Next.js collects completely anonymous telemetry data about general usage.
+# Learn more here: https://nextjs.org/telemetry
+# Uncomment the following line in case you want to disable telemetry during the run time.
+# ENV NEXT_TELEMETRY_DISABLED=1
 
-# Copy standalone build output with correct ownership
-COPY --from=builder --chown=nextjs:bunjs /app/apps/web/.next/standalone ./
-COPY --from=builder --chown=nextjs:bunjs /app/apps/web/.next/static ./apps/web/.next/static
-COPY --from=builder --chown=nextjs:bunjs /app/apps/web/public ./apps/web/public
+# Copy production assets
+COPY --from=builder --chown=bun:bun /app/public ./public
 
-USER nextjs
+# Set the correct permission for prerender cache
+RUN mkdir .next
+RUN chown bun:bun .next
 
+# Automatically leverage output traces to reduce image size
+# https://nextjs.org/docs/advanced-features/output-file-tracing
+COPY --from=builder --chown=bun:bun /app/.next/standalone ./
+COPY --from=builder --chown=bun:bun /app/.next/static ./.next/static
+
+# If you want to persist the fetch cache generated during the build so that
+# cached responses are available immediately on startup, uncomment this line:
+# COPY --from=builder --chown=bun:bun /app/.next/cache ./.next/cache
+
+# Switch to non-root user for security best practices
+USER bun
+
+# Expose port 3000 to allow HTTP traffic
 EXPOSE 3000
 
-# Start Next.js server using standalone build
-CMD ["node", "apps/web/server.js"]
+# Start Next.js standalone server with Bun
+CMD ["bun", "server.js"]

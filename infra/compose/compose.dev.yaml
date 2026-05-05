@@ -120,6 +120,7 @@ services:
     build:
       context: ../../
       dockerfile: apps/web/Dockerfile
+      target: development
     container_name: gradeloop-web
     restart: unless-stopped
     environment:
