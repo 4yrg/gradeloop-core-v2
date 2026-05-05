@@ -31,6 +31,10 @@ services:
             - http://localhost:80
             - http://localhost:8080
             - http://localhost:443
+            - https://gradeloop-core-v2-web.vercel.app
+            - https://api.gradeloop.space
+            - https://app.gradeloop.space
+            - https://gradeloop.space
           methods:
             - GET
             - POST

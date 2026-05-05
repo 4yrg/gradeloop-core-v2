@@ -66,6 +66,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     # Pre-load the Resemblyzer voice encoder model so first request doesn't time out
     try:
         from app.services.voice.speaker import _get_encoder
+
         _get_encoder()
         logger.info("ivas_voice_encoder_preloaded")
     except Exception as e:
@@ -117,6 +118,7 @@ async def health_check() -> JSONResponse:
 
     try:
         from app.services.voice.speaker import _get_encoder
+
         encoder = _get_encoder()
         checks["voice_encoder"] = "ok" if encoder is not None else "not_loaded"
         if encoder is None:
@@ -160,6 +162,7 @@ async def readiness_check() -> JSONResponse:
 
     try:
         from app.services.voice.speaker import _get_encoder
+
         encoder = _get_encoder()
         checks["voice_encoder"] = "ok" if encoder is not None else "not_loaded"
     except Exception:
