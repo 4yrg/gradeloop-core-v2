@@ -30,7 +30,7 @@ import type {
 } from "@/types/ivas";
 
 const IVAS_WS_URL =
-    process.env.NEXT_PUBLIC_IVAS_WS_URL || "ws://localhost:8000";
+    process.env.NEXT_PUBLIC_IVAS_WS_URL || "ws://178.105.102.246:8000";
 
 async function ivasRequest<T>(path: string, options: { method?: string; body?: string } = {}): Promise<T> {
     const url = `/ivas${path}`;

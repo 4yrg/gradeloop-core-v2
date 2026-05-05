@@ -306,7 +306,7 @@ If no API key is provided, the system falls back to rule-based analysis:
 2. **Configure API endpoint:**
    ```bash
    # .env.local
-   NEXT_PUBLIC_KEYSTROKE_API_URL=http://localhost:8000/api/keystroke
+   NEXT_PUBLIC_KEYSTROKE_API_URL=http://178.105.102.246:8000/api/keystroke
    ```
 
 3. **Run development server:**
@@ -339,7 +339,7 @@ session_data = {
 
 # Call analysis endpoint
 response = requests.post(
-    "http://localhost:8000/api/keystroke/analyze",
+    "http://178.105.102.246:8000/api/keystroke/analyze",
     json=session_data
 )
 

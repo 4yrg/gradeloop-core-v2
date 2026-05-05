@@ -18,7 +18,7 @@
 docker compose up ivas-service ivas-postgres redis minio
 
 # Health check
-curl http://localhost:8000/api/v1/ivas/health
+curl http://178.105.102.246:8000/api/v1/ivas/health
 ```
 
 ## API Routes

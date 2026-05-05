@@ -36,9 +36,16 @@ func (h *SSEHandler) Stream(c fiber.Ctx) error {
 	}
 
 	h.hub.Register(client)
-	defer h.hub.Unregister(client)
 
+	// Unregister MUST live inside the stream writer, not as a defer on the
+	// handler.  c.SendStreamWriter is non-blocking in Fiber v3 — it stores
+	// the writer function and returns immediately.  A defer on the handler
+	// would fire right after SendStreamWriter returns, closing client.Send
+	// before fasthttp even starts calling the writer, causing the stream to
+	// exit after writing only the initial "connected" event.
 	return c.SendStreamWriter(func(w *bufio.Writer) {
+		defer h.hub.Unregister(client)
+
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
 

@@ -56,7 +56,7 @@ open http://localhost:3000/demo/behavioral-analysis
 ### Using curl
 
 ```bash
-curl -X POST http://localhost:8000/api/keystroke/analyze \
+curl -X POST http://178.105.102.246:8000/api/keystroke/analyze \
   -H "Content-Type: application/json" \
   -d '{
     "sessionId": "test_001",
@@ -140,7 +140,7 @@ if (risk.level === 'high') {
 import requests
 
 response = requests.post(
-    'http://localhost:8000/api/keystroke/analyze',
+    'http://178.105.102.246:8000/api/keystroke/analyze',
     json={
         'sessionId': 'sub_123',
         'studentId': 'student_456',

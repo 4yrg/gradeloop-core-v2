@@ -43,13 +43,13 @@ docker-gpu:
 # Test API endpoints
 test:
 	@echo "Testing health endpoint..."
-	@curl -s http://localhost:8000/api/v1/health | jq .
+	@curl -s http://178.105.102.246:8000/api/v1/health | jq .
 	@echo ""
 	@echo "Testing model info endpoint..."
-	@curl -s http://localhost:8000/api/v1/model/info | jq .
+	@curl -s http://178.105.102.246:8000/api/v1/model/info | jq .
 	@echo ""
 	@echo "Testing clone detection..."
-	@curl -s -X POST http://localhost:8000/api/v1/detect \
+	@curl -s -X POST http://178.105.102.246:8000/api/v1/detect \
 		-H "Content-Type: application/json" \
 		-d '{"code1": "def add(a, b): return a + b", "code2": "def sum(a, b): return a + b"}' | jq .
 	@echo ""
