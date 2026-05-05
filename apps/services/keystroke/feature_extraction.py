@@ -292,4 +292,3 @@ if __name__ == "__main__":
 
     sequence = extractor.create_sequence(sample_data)
     print(f"Sequence shape for LSTM: {sequence.shape}")
-    print(f"Sequence shape for LSTM: {sequence.shape}")
