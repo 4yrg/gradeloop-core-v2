@@ -303,7 +303,7 @@ export default function AssignmentSubmissionsPage({
                         setSelectedSubmission(row.original);
                     }}
                 >
-                    {row.original.status === "Missing" ? "View Profile" : "Grade"}
+                    {row.original.status === "Missing" ? "View Profile" : "Review"}
                 </Button>
             )
         }
@@ -414,10 +414,32 @@ export default function AssignmentSubmissionsPage({
             <SideSheetForm
                 open={selectedSubmission !== null}
                 onOpenChange={(open) => !open && setSelectedSubmission(null)}
-                title={selectedSubmission ? `Grade: ${selectedSubmission.studentName}` : "Grade Submission"}
-                description="Review the submission content, evaluate against the rubric, and assign a final score."
+                title="Submission Review"
+                description={
+                    selectedSubmission
+                        ? "Review code, grading results, and behavior signals for this submission."
+                        : "Review the submission content, evaluate against the rubric, and assign a final score."
+                }
             >
-                <div className="flex-1 overflow-y-auto min-h-0 space-y-6 pt-2"style={{ scrollbarGutter: "stable" }}>
+                <div className="flex-1 overflow-y-auto min-h-0 space-y-6 pt-2" style={{ scrollbarGutter: "stable" }}>
+                    {selectedSubmission && (
+                        <div className="rounded-xl border border-border bg-card px-4 py-3">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="min-w-0">
+                                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                        Student
+                                    </p>
+                                    <p className="mt-1 truncate text-base font-semibold text-foreground">
+                                        {selectedSubmission.studentName}
+                                    </p>
+                                    <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+                                        {selectedSubmission.studentId || selectedSubmission.user_id || "No student ID"}
+                                    </p>
+                                </div>
+                                <StatusBadge status={selectedSubmission.status || "Pending"} />
+                            </div>
+                        </div>
+                    )}
 
                     {/* ── Keystroke session summary ───────────────────────── */}
                     {sheetArchive && selectedSubmission && (
@@ -447,17 +469,17 @@ export default function AssignmentSubmissionsPage({
                                     {sheetArchive.event_count.toLocaleString()} keystrokes
                                 </span>
                             </div>
-                            <div className="flex gap-2">
-                                <Button variant="outline" size="sm" className="flex-1" asChild>
+                            <div className="flex flex-col gap-2 sm:flex-row">
+                                <Button variant="outline" size="sm" asChild>
                                     <Link href={`/instructor/assessments/${assignmentId}/submissions/${selectedSubmission.id}/playback`}>
                                         <Video className="h-3.5 w-3.5 mr-1.5" />
                                         Session Playback
                                     </Link>
                                 </Button>
-                                <Button variant="outline" size="sm" className="flex-1" asChild>
+                                <Button variant="outline" size="sm" asChild>
                                     <Link href={`/instructor/assessments/${assignmentId}/submissions/${selectedSubmission.id}/analytics`}>
                                         <BarChart3 className="h-3.5 w-3.5 mr-1.5" />
-                                        Behaviour Analytics
+                                        Behavior Analytics
                                     </Link>
                                 </Button>
                             </div>
@@ -465,10 +487,6 @@ export default function AssignmentSubmissionsPage({
                     )}
 
                     <div className="p-4 bg-muted/30 rounded-lg border border-border/40 space-y-3">
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">Status</span>
-                            <StatusBadge status={selectedSubmission?.status || "Pending"} />
-                        </div>
                         <div className="flex justify-between items-center text-sm">
                             <span className="text-muted-foreground">Submitted</span>
                             <span className="font-medium text-foreground">
@@ -594,7 +612,7 @@ export default function AssignmentSubmissionsPage({
                     )}
                 </div>
 
-                <div className="pt-4 mt-4 border-t border-border/40 flex items-center justify-end shrink-0">
+                <div className="pt-4 mt-4 border-t border-border/40 flex items-center justify-start shrink-0">
                     <Button variant="outline" onClick={() => setSelectedSubmission(null)}>
                         Close
                     </Button>

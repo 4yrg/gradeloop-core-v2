@@ -4,12 +4,14 @@ import { useState, useEffect, use, useCallback } from "react";
 import { useAuthStore } from "@/lib/stores/authStore";
 import { keystrokeApi, type ArchiveLookupResult } from "@/lib/api/keystroke";
 import { acafsApi, instructorAssessmentsApi, assessmentsApi } from "@/lib/api/assessments";
+import { usersApi } from "@/lib/api/users";
 import {
     detectAICode,
     getSemanticSimilarity,
     saveSubmissionAnalysis,
 } from "@/lib/api/cipas-client";
-import type { SubmissionGrade, SubmissionResponse } from "@/types/assessments.types";
+import type { AssignmentResponse, SubmissionGrade, SubmissionResponse } from "@/types/assessments.types";
+import type { UserListItem } from "@/types/auth.types";
 import { GradeResultPanel } from "@/components/assessments/grade-result-panel";
 import { InstructorGradeOverridePanel } from "@/components/instructor/instructor-grade-override-panel";
 import { SemanticSimilarityBadge } from "@/components/ui/semantic-similarity-badge";
@@ -44,7 +46,9 @@ export default function SubmissionReviewPage({ params }: PageProps) {
     const { assignmentId, submissionId } = use(params);
     const user = useAuthStore((s) => s.user);
 
+    const [assignment, setAssignment] = useState<AssignmentResponse | null>(null);
     const [submission, setSubmission] = useState<SubmissionResponse | null>(null);
+    const [student, setStudent] = useState<UserListItem | null>(null);
     const [grade, setGrade] = useState<SubmissionGrade | null>(null);
     const [loadingGrade, setLoadingGrade] = useState(true);
     const [pollCount, setPollCount] = useState(0);
@@ -54,7 +58,16 @@ export default function SubmissionReviewPage({ params }: PageProps) {
     // Keystroke session archive (if available)
     const [archive, setArchive] = useState<ArchiveLookupResult | null>(null);
 
-    // Fetch submission + keystroke archive on mount
+    const backHref = assignment
+        ? `/instructor/courses/${assignment.course_instance_id}/assignments/${assignmentId}/submissions`
+        : "/instructor/assessments/dashboard";
+
+    const studentDisplayName =
+        student?.full_name || student?.email || "Student profile unavailable";
+    const studentSecondaryLabel =
+        student?.student_id || (student?.full_name ? student.email : undefined);
+
+    // Fetch submission + assignment metadata + keystroke archive on mount
     useEffect(() => {
         const fetchArchive = (userId: string) => {
             keystrokeApi
@@ -63,12 +76,29 @@ export default function SubmissionReviewPage({ params }: PageProps) {
                 .catch(() => {/* No archive — silently ignore */});
         };
 
+        const fetchStudent = (userId: string) => {
+            usersApi
+                .get(userId)
+                .then(setStudent)
+                .catch(() => setStudent(null));
+        };
+
+        instructorAssessmentsApi
+            .listMyAssignments()
+            .then((assignments) => {
+                setAssignment(assignments.find((a) => a.id === assignmentId) ?? null);
+            })
+            .catch(() => setAssignment(null));
+
         // Try full submission first (includes CIPAS analysis fields)
         instructorAssessmentsApi
             .getSubmission(submissionId)
             .then((sub) => {
                 setSubmission(sub);
-                if (sub.user_id) fetchArchive(sub.user_id);
+                if (sub.user_id) {
+                    fetchArchive(sub.user_id);
+                    fetchStudent(sub.user_id);
+                }
             })
             .catch(() => {
                 // Fallback: search through the list
@@ -78,7 +108,10 @@ export default function SubmissionReviewPage({ params }: PageProps) {
                         const found = resp.find((s: SubmissionResponse) => s.id === submissionId);
                         if (found) {
                             setSubmission(found);
-                            if (found.user_id) fetchArchive(found.user_id);
+                            if (found.user_id) {
+                                fetchArchive(found.user_id);
+                                fetchStudent(found.user_id);
+                            }
                         }
                     })
                     .catch(() => {/* non-critical */});
@@ -176,9 +209,9 @@ export default function SubmissionReviewPage({ params }: PageProps) {
             {/* ── Back link ───────────────────────────────────────────────── */}
             <div className="flex items-center gap-3">
                 <Button variant="ghost" size="sm" asChild>
-                    <Link href={`/instructor/assessments`}>
+                    <Link href={backHref}>
                         <ArrowLeft className="h-4 w-4 mr-1" />
-                        Back to assignments
+                        Back to assignment
                     </Link>
                 </Button>
             </div>
@@ -188,7 +221,10 @@ export default function SubmissionReviewPage({ params }: PageProps) {
                 <h1 className="text-xl font-bold font-heading">Submission Review</h1>
                 {submission && (
                     <p className="text-sm text-muted-foreground mt-0.5">
-                        Submitted by <span className="font-medium">{submission.user_id}</span>
+                        Submitted by <span className="font-medium text-foreground">{studentDisplayName}</span>
+                        {studentSecondaryLabel && (
+                            <span className="font-mono text-xs"> ({studentSecondaryLabel})</span>
+                        )}
                         {" · "}
                         {new Date(submission.submitted_at).toLocaleString()}
                     </p>
@@ -354,4 +390,3 @@ export default function SubmissionReviewPage({ params }: PageProps) {
         </div>
     );
 }
-

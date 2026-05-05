@@ -435,9 +435,12 @@ services:
       target: production
     container_name: gradeloop-keystroke
     restart: unless-stopped
+    env_file:
+      - ../../.env
     environment:
       - SERVER_PORT=8103
       - DATABASE_URL=postgresql://keystroke_user:${KEYSTROKE_DB_PASSWORD:-keystroke_pass}@postgres-keystroke:5432/keystroke-db
+      - GEMINI_API_KEY=${KEYSTROKE_GEMINI_API_KEY:-}
     depends_on:
       postgres-keystroke:
         condition: service_healthy
