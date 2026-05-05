@@ -69,4 +69,4 @@ USER bun
 EXPOSE 3000
 
 # Start the server
-CMD ["bun", "apps/web/server.js"]
+CMD ["bun", "server.js"]
