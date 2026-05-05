@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: SSH and Rebuild on Server
+    name: SSH and rebuild changed services
     runs-on: ubuntu-latest
     env:
       SSH_HOST: 62.238.43.125
@@ -22,9 +22,10 @@ jobs:
       - name: Checkout main
         uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
 
-      - name: Detect changed services
+      - name: Detect changed compose services
         id: changes
         shell: bash
         run: |
@@ -41,12 +42,31 @@ jobs:
 
           declare -A SERVICES=()
           declare -A ALL_APP_SERVICES=(
-            [gateway]=1 [web]=1 [iam]=1 [academic]=1 [assessment]=1 [notification]=1 [email]=1 
-            [ivas]=1 [acafs]=1 [keystroke]=1 [cipas-syntactics]=1 [cipas-semantics]=1 [cipas-ai]=1 [cipas-xai]=1
+            [gateway]=1
+            [web]=1
+            [iam]=1
+            [academic]=1
+            [assessment]=1
+            [notification]=1
+            [email]=1
+            [ivas]=1
+            [acafs]=1
+            [keystroke]=1
+            [cipas-syntactics]=1
+            [cipas-semantics]=1
+            [cipas-ai]=1
+            [cipas-xai]=1
           )
 
-          add_service() { SERVICES["$1"]=1; }
-          add_all_app_services() { for s in "${!ALL_APP_SERVICES[@]}"; do SERVICES["$s"]=1; done; }
+          add_service() {
+            SERVICES["$1"]=1
+          }
+
+          add_all_app_services() {
+            for service in "${!ALL_APP_SERVICES[@]}"; do
+              SERVICES["$service"]=1
+            done
+          }
 
           for file in "${CHANGED_FILES[@]}"; do
             case "$file" in
@@ -64,95 +84,157 @@ jobs:
               apps/services/cipas-semantics/*) add_service cipas-semantics ;;
               apps/services/cipas-ai/*) add_service cipas-ai ;;
               apps/services/cipas-xai/*) add_service cipas-xai ;;
-              packages/go/*) for s in iam academic assessment notification email cipas-xai; do add_service $s; done ;;
-              packages/python/*) for s in cipas-syntactics cipas-semantics cipas-ai; do add_service $s; done ;;
+              packages/go/*)
+                add_service iam
+                add_service academic
+                add_service assessment
+                add_service notification
+                add_service email
+                add_service cipas-xai
+                ;;
+              packages/python/*)
+                add_service cipas-syntactics
+                add_service cipas-semantics
+                add_service cipas-ai
+                ;;
               infra/compose/compose.server.yaml|apps/api-gateway/nginx.server.conf) add_all_app_services ;;
               infra/compose/*) add_all_app_services ;;
-              .github/workflows/*) ;;
             esac
           done
 
           if [[ ${#SERVICES[@]} -eq 0 ]]; then
             echo "services=" >> "$GITHUB_OUTPUT"
-            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No rebuildable services changed."
             exit 0
           fi
 
           services="$(printf '%s\n' "${!SERVICES[@]}" | sort | tr '\n' ' ' | sed 's/[[:space:]]*$//')"
           echo "services=$services" >> "$GITHUB_OUTPUT"
-          echo "has_changes=true" >> "$GITHUB_OUTPUT"
           echo "Changed services: $services"
 
-      - name: Install SSH Key
-        uses: shimataro/ssh-key-action@v2
-        with:
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          name: deploy_key # Use the name expected by the next step
-          known_hosts: "placeholder"
-          if_key_exists: fail
-
-      - name: Configure SSH Config and Known Hosts
+      - name: Configure SSH
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
-          # Setup SSH config (no indentation for EOF)
-          cat <<'EOF' > "$HOME/.ssh/config"
-          Host *
-            ServerAliveInterval 30
-            ServerAliveCountMax 10
-            StrictHostKeyChecking no
-            BatchMode yes
-            ConnectTimeout 30
-          EOF
-          
-          # Add server to known hosts
-          if [[ -n "$SSH_HOST" ]]; then
-            echo "Scanning $SSH_HOST..."
-            ssh-keyscan -T 10 -H "$SSH_HOST" >> "$HOME/.ssh/known_hosts" || echo "Warning: ssh-keyscan failed"
-            chmod 644 "$HOME/.ssh/known_hosts"
-          else
-            echo "Error: SSH_HOST is not set!"
+          set -euo pipefail
+
+          if [[ -z "${SSH_USER:-}" ]]; then
+            echo "Missing GitHub secret: SSH_USER"
             exit 1
           fi
 
+          if [[ -z "${SSH_PRIVATE_KEY:-}" ]]; then
+            echo "Missing GitHub secret: SSH_PRIVATE_KEY"
+            exit 1
+          fi
+
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
       - name: Deploy on server
-        if: steps.changes.outputs.has_changes == 'true'
+        shell: bash
         env:
           CHANGED_SERVICES: ${{ steps.changes.outputs.services }}
         run: |
-          # Use a loop to build services one by one to prevent resource exhaustion
-          # and use a more resilient SSH command
+          set -euo pipefail
+
           ssh -i ~/.ssh/deploy_key \
             -o BatchMode=yes \
             -o ConnectTimeout=30 \
             -o ServerAliveInterval=30 \
-            -o ServerAliveCountMax=5 \
+            -o ServerAliveCountMax=10 \
             "$SSH_USER@$SSH_HOST" \
             "DEPLOY_PATH='$DEPLOY_PATH' CHANGED_SERVICES='$CHANGED_SERVICES' bash -s" <<'REMOTE'
           set -euo pipefail
 
-          cd "$DEPLOY_PATH"
-          git fetch origin main && git checkout main && git pull origin main
+          export COMPOSE_PARALLEL_LIMIT=1
+          export DOCKER_BUILDKIT=1
+          export COMPOSE_DOCKER_CLI_BUILD=1
 
-          # Ensure .env exists and has correct public IP
-          if grep -q "localhost" .env; then
-            echo "Updating .env to use server IP instead of localhost..."
-            sed -i "s|localhost:8000|62.238.43.125|g" .env
-            sed -i "s|localhost|62.238.43.125|g" .env
+          cd "$DEPLOY_PATH"
+          git fetch origin main
+          git checkout main
+          git pull --ff-only origin main
+
+          test -f .env
+          set -a
+          source .env
+          set +a
+
+          required_vars=(
+            FRONTEND_URL
+            NEXT_PUBLIC_API_URL
+            NEXT_PUBLIC_GATEWAY_URL
+            NEXT_PUBLIC_WS_URL
+            NEXT_PUBLIC_IVAS_WS_URL
+            JWT_SECRET_KEY
+            JWT_ACCESS_TOKEN_EXPIRY
+            JWT_REFRESH_TOKEN_EXPIRY
+            JWT_COOKIE_SECURE
+            JWT_COOKIE_SAMESITE
+            GRA_DB_USER
+            GRA_DB_PASSWORD
+            IAM_SVC_DB_NAME
+            ACADEMIC_SVC_DB_NAME
+            ASSESSMENT_SVC_DB_NAME
+            EMAIL_SVC_DB_NAME
+            NOTIFICATION_SVC_DB_NAME
+            IVAS_SVC_DB_NAME
+            ACAFS_SVC_DB_NAME
+            KEYSTROKE_SVC_DB_NAME
+            KEYSTROKE_DB_PASSWORD
+            CIPAS_SVC_DB_NAME
+            CIPAS_AI_SVC_DB_NAME
+            RABBITMQ_USER
+            RABBITMQ_PASSWORD
+            REDIS_PASSWORD
+            MINIO_ACCESS_KEY
+            MINIO_SECRET_KEY
+            SMTP_HOST
+            SMTP_PORT
+            SMTP_USER
+            SMTP_PASS
+            EMAIL_FROM
+            IVAS_GEMINI_API_KEY
+            IVAS_GEMINI_LIVE_MODEL
+            IVAS_GEMINI_GRADER_MODEL
+            ACAFS_OPENROUTER_API_KEY
+            JUDGE0_URL
+            LLM_API_KEY
+            LLM_PROVIDER
+            LLM_BASE_URL
+            LLM_MODEL
+          )
+
+          missing=()
+          for var in "${required_vars[@]}"; do
+            if [[ -z "${!var:-}" ]]; then
+              missing+=("$var")
+            fi
+          done
+
+          if [[ ${#missing[@]} -gt 0 ]]; then
+            printf 'Missing required .env variables:\n'
+            printf ' - %s\n' "${missing[@]}"
+            exit 1
           fi
 
           if [[ -n "${CHANGED_SERVICES:-}" ]]; then
-            echo "Building services sequentially to prevent resource exhaustion..."
+            echo "Building changed services one at a time: $CHANGED_SERVICES"
             for service in $CHANGED_SERVICES; do
-              echo ">>> Building $service..."
-              docker compose -f infra/compose/compose.server.yaml build "$service"
+              printf '\n[%s] Building %s\n' "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" "$service"
+              docker compose --env-file .env -f infra/compose/compose.server.yaml build --progress=plain "$service"
             done
-            
-            echo ">>> Starting updated services..."
-            docker compose -f infra/compose/compose.server.yaml up -d --no-deps $CHANGED_SERVICES
+
+            echo "Starting updated services: $CHANGED_SERVICES"
+            docker compose --env-file .env -f infra/compose/compose.server.yaml up -d --no-deps $CHANGED_SERVICES
           else
-            echo "No app services changed. Ensuring stack is up..."
-            docker compose -f infra/compose/compose.server.yaml up -d
+            echo "No rebuildable services changed."
           fi
 
-          docker compose -f infra/compose/compose.server.yaml ps
-          docker image prune -f
+          docker compose --env-file .env -f infra/compose/compose.server.yaml up -d
+          docker compose --env-file .env -f infra/compose/compose.server.yaml ps
           REMOTE
