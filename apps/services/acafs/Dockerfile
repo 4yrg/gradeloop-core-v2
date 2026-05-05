@@ -48,12 +48,12 @@ RUN apk add --no-cache \
     curl \
     && rm -rf /var/cache/apk/*
 
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
-COPY --from=builder /app/app ./app
+# Set up non-root user
+RUN addgroup -S acafs && adduser -S acafs -G acafs
 
-RUN addgroup -S acafs && adduser -S acafs -G acafs \
-    && chown -R acafs:acafs /app
+COPY --from=builder --chown=acafs:acafs /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder --chown=acafs:acafs /usr/local/bin /usr/local/bin
+COPY --from=builder --chown=acafs:acafs /app/app ./app
 
 USER acafs
 

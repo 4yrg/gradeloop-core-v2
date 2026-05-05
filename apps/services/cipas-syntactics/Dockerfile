@@ -72,16 +72,17 @@ RUN if [ -f /etc/apt/sources.list ]; then \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
-COPY --from=builder /app/packages ./packages
-COPY --from=builder /app/main.py /app/routes.py /app/schemas.py /app/database.py ./
-COPY --from=builder /app/clone_detection ./clone_detection
-COPY --from=builder /app/repositories ./repositories
-
+# Set up non-root user and directory
 RUN mkdir -p /app/models \
-    && groupadd -r cipas-syntactics && useradd -r -g cipas-syntactics cipas-syntactics \
-    && chown -R cipas-syntactics:cipas-syntactics /app
+    && groupadd -r cipas-syntactics && useradd -r -g cipas-syntactics cipas-syntactics
+
+# Copy only necessary files with correct ownership
+COPY --from=builder --chown=cipas-syntactics:cipas-syntactics /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder --chown=cipas-syntactics:cipas-syntactics /usr/local/bin /usr/local/bin
+COPY --from=builder --chown=cipas-syntactics:cipas-syntactics /app/packages ./packages
+COPY --from=builder --chown=cipas-syntactics:cipas-syntactics /app/main.py /app/routes.py /app/schemas.py /app/database.py ./
+COPY --from=builder --chown=cipas-syntactics:cipas-syntactics /app/clone_detection ./clone_detection
+COPY --from=builder --chown=cipas-syntactics:cipas-syntactics /app/repositories ./repositories
 
 USER cipas-syntactics
 

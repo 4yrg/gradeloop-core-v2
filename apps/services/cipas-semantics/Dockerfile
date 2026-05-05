@@ -61,14 +61,15 @@ RUN if [ -f /etc/apt/sources.list ]; then \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
-COPY --from=builder /app/packages ./packages
-COPY --from=builder /app/api ./api
-COPY --from=builder /app/model ./model
+# Set up non-root user
+RUN groupadd -r cipas-semantics && useradd -r -g cipas-semantics cipas-semantics
 
-RUN groupadd -r cipas-semantics && useradd -r -g cipas-semantics cipas-semantics \
-    && chown -R cipas-semantics:cipas-semantics /app
+# Copy only necessary files with correct ownership
+COPY --from=builder --chown=cipas-semantics:cipas-semantics /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder --chown=cipas-semantics:cipas-semantics /usr/local/bin /usr/local/bin
+COPY --from=builder --chown=cipas-semantics:cipas-semantics /app/packages ./packages
+COPY --from=builder --chown=cipas-semantics:cipas-semantics /app/api ./api
+COPY --from=builder --chown=cipas-semantics:cipas-semantics /app/model ./model
 
 USER cipas-semantics
 

@@ -44,10 +44,9 @@ RUN apk add --no-cache ca-certificates
 
 WORKDIR /app
 
-COPY --from=builder /app/apps/services/email/email-service .
+RUN addgroup -S gradeloop && adduser -S gradeloop -G gradeloop
 
-RUN addgroup -S gradeloop && adduser -S gradeloop -G gradeloop \
-    && chown -R gradeloop:gradeloop /app
+COPY --from=builder --chown=gradeloop:gradeloop /app/apps/services/email/email-service .
 
 USER gradeloop
 

@@ -37,10 +37,9 @@ RUN apk add --no-cache ca-certificates tzdata
 
 WORKDIR /app
 
-COPY --from=builder /gradeloop/apps/services/notification/notification-service .
+RUN addgroup -S gradeloop && adduser -S gradeloop -G gradeloop
 
-RUN addgroup -S gradeloop && adduser -S gradeloop -G gradeloop \
-    && chown -R gradeloop:gradeloop /app
+COPY --from=builder --chown=gradeloop:gradeloop /gradeloop/apps/services/notification/notification-service .
 
 USER gradeloop
 

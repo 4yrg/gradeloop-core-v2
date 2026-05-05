@@ -55,17 +55,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy python packages from builder
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
-COPY --from=builder /app/app ./app
-
-# Copy ONLY the model cache, not the whole /root/.cache
-COPY --from=builder /app/model_cache /home/ivas/.cache
-
 # Set up non-root user
-RUN groupadd --system ivas && useradd --system --gid ivas ivas \
-    && chown -R ivas:ivas /app /home/ivas/.cache
+RUN groupadd --system ivas && useradd --system --gid ivas ivas
+
+# Copy python packages from builder
+COPY --from=builder --chown=ivas:ivas /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder --chown=ivas:ivas /usr/local/bin /usr/local/bin
+COPY --from=builder --chown=ivas:ivas /app/app ./app
+
+# Copy ONLY the model cache
+COPY --from=builder --chown=ivas:ivas /app/model_cache /home/ivas/.cache
 
 USER ivas
 

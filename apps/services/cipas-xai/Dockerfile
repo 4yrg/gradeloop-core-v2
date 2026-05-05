@@ -42,10 +42,9 @@ RUN apk add --no-cache ca-certificates
 
 WORKDIR /app
 
-COPY --from=builder /app/apps/services/cipas-xai/cipas-xai .
+RUN addgroup -S cipas-xai && adduser -S cipas-xai -G cipas-xai
 
-RUN addgroup -S cipas-xai && adduser -S cipas-xai -G cipas-xai \
-    && chown -R cipas-xai:cipas-xai /app
+COPY --from=builder --chown=cipas-xai:cipas-xai /app/apps/services/cipas-xai/cipas-xai .
 
 USER cipas-xai
 

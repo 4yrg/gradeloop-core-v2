@@ -74,10 +74,10 @@ ENV HOSTNAME=0.0.0.0
 # Create non-root user (Alpine compatible)
 RUN addgroup -S bunjs && adduser -S nextjs -G bunjs
 
-# Copy standalone build output
-COPY --from=builder --chown=root:root --chmod=755 /app/apps/web/.next/standalone ./
-COPY --from=builder --chown=root:root --chmod=755 /app/apps/web/.next/static ./apps/web/.next/static
-COPY --from=builder --chown=root:root --chmod=755 /app/apps/web/public ./apps/web/public
+# Copy standalone build output with correct ownership
+COPY --from=builder --chown=nextjs:bunjs /app/apps/web/.next/standalone ./
+COPY --from=builder --chown=nextjs:bunjs /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder --chown=nextjs:bunjs /app/apps/web/public ./apps/web/public
 
 USER nextjs
 
