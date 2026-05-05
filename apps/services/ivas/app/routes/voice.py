@@ -1,10 +1,12 @@
 """Voice enrollment and verification routes."""
 
+import traceback
 from uuid import UUID
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
 from app.config import get_settings
+from app.logging_config import get_logger
 from app.schemas.voice import (
     VoiceAuthEventOut,
     VoiceEnrollmentOut,
@@ -74,10 +76,13 @@ async def enroll_sample(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        import traceback
-        from app.logging_config import get_logger
         _logger = get_logger(__name__)
-        _logger.error("voice_enroll_embedding_failed", student_id=student_id, error=str(e), traceback=traceback.format_exc())
+        _logger.error(
+            "voice_enroll_embedding_failed",
+            student_id=student_id,
+            error=str(e),
+            traceback=traceback.format_exc(),
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to process audio: {e}",
