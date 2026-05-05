@@ -403,7 +403,11 @@ command_timeout: 30m
               echo "$GHCR_TOKEN" | $RUNTIME login ghcr.io -u "$GHCR_USER" --password-stdin || true
             fi
 
-            $COMPOSE_CMD -f $COMPOSE_FILE up -d "$SERVICE"
+            # Force remove any stale container before recreating to avoid
+            # 'No such container' Docker Compose recreation errors
+            $RUNTIME rm -f "gradeloop-${SERVICE}" 2>/dev/null || true
+
+            $COMPOSE_CMD --env-file .env -f $COMPOSE_FILE up -d --remove-orphans "$SERVICE"
 
             echo "=== $SERVICE Deployed ==="
 
@@ -479,7 +483,11 @@ command_timeout: 30m
               echo "$GHCR_TOKEN" | $RUNTIME login ghcr.io -u "$GHCR_USER" --password-stdin || true
             fi
 
-            $COMPOSE_CMD -f $COMPOSE_FILE up -d "$SERVICE"
+            # Force remove any stale container before recreating to avoid
+            # 'No such container' Docker Compose recreation errors
+            $RUNTIME rm -f "gradeloop-${SERVICE}" 2>/dev/null || true
+
+            $COMPOSE_CMD --env-file .env -f $COMPOSE_FILE up -d --remove-orphans "$SERVICE"
 
             echo "=== $SERVICE Deployed ==="
 
@@ -505,6 +513,8 @@ command_timeout: 30m
       JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
       JUDGE0_URL: ${{ secrets.JUDGE0_URL }}
       ACAFS_OPENROUTER_API_KEY: ${{ secrets.ACAFS_OPENROUTER_API_KEY }}
+      ACAFS_GEMINI_API_KEY: ${{ secrets.ACAFS_GEMINI_API_KEY }}
+      IVAS_GEMINI_API_KEY: ${{ secrets.IVAS_GEMINI_API_KEY }}
     steps:
       - name: Wait for infrastructure
         run: sleep 20
@@ -545,7 +555,11 @@ command_timeout: 30m
               echo "$GHCR_TOKEN" | $RUNTIME login ghcr.io -u "$GHCR_USER" --password-stdin || true
             fi
 
-            $COMPOSE_CMD -f $COMPOSE_FILE up -d "$SERVICE"
+            # Force remove any stale container before recreating to avoid
+            # 'No such container' Docker Compose recreation errors
+            $RUNTIME rm -f "gradeloop-${SERVICE}" 2>/dev/null || true
+
+            $COMPOSE_CMD -f $COMPOSE_FILE up -d --remove-orphans "$SERVICE"
 
             echo "=== $SERVICE Deployed ==="
 
@@ -605,21 +619,21 @@ command_timeout: 30m
             fi
 
             echo "Starting Kong database..."
-            $COMPOSE_CMD -f $COMPOSE_FILE up -d kong-database
+            $COMPOSE_CMD --env-file .env -f $COMPOSE_FILE up -d --remove-orphans kong-database
 
             sleep 10
 
             echo "Running Kong migrations..."
-            $COMPOSE_CMD -f $COMPOSE_FILE up -d kong-migrations
+            $COMPOSE_CMD --env-file .env -f $COMPOSE_FILE up -d --remove-orphans kong-migrations
 
             sleep 10
 
             echo "Starting Kong gateway..."
-            $COMPOSE_CMD -f $COMPOSE_FILE up -d kong-gateway
+            $COMPOSE_CMD --env-file .env -f $COMPOSE_FILE up -d --remove-orphans kong-gateway
 
             sleep 10
 
             echo "=== Gateway Deployed ==="
 
             echo "=== Final Status ==="
-            $COMPOSE_CMD -f $COMPOSE_FILE ps"
+            $COMPOSE_CMD --env-file .env -f $COMPOSE_FILE ps

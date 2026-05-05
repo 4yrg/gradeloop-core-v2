@@ -73,31 +73,30 @@ class Settings(BaseSettings):
     ast_max_lines: int = Field(default=5000, alias="AST_MAX_LINES")
     ast_timeout_seconds: int = Field(default=2, alias="AST_TIMEOUT_SECONDS")
 
-    # ── LLM: OpenRouter API Key only ─────────────────────────────────────────────
+    # ── LLM: OpenRouter (Pass 1 reasoning + Pass 2 grading + Socratic chat) ─────
     openrouter_api_key: str = Field(
         default="SET_YOUR_API_KEY_HERE",
         alias="ACAFS_OPENROUTER_API_KEY",
     )
 
-    # ── Hardcoded OpenRouter Models ─────────────────────────────────────────────
+    # ── OpenRouter Models (overridable via env vars) ─────────────────────────
     # Socratic chat model
-    openrouter_model: str = "minimax/minimax-m2.5:free"
-    # Pass-1 deep reasoning model
-    openrouter_reasoner_model: str = "qwen/qwen3-coder:free"
-    # Pass-2 structured grading model
-    openrouter_grader_model: str = "qwen/qwen3-coder:free"
+    openrouter_model: str = Field(
+        default="minimax/minimax-m2.5:free",
+        alias="ACAFS_CHAT_MODEL",
+    )
+    # Pass-1 deep reasoning model (thinking / chain-of-thought)
+    openrouter_reasoner_model: str = Field(
+        default="qwen/qwen3-coder:free",
+        alias="ACAFS_REASONER_MODEL",
+    )
+    # Pass-2 structured grading model (JSON output)
+    openrouter_grader_model: str = Field(
+        default="qwen/qwen3-coder:free",
+        alias="ACAFS_GRADER_MODEL",
+    )
     # Base URL (standard OpenRouter endpoint)
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
-
-    # ── LLM: Gemini (Pass-2 structured grading) ───────────────────────────────
-    gemini_api_key: str = Field(
-        default="SET_YOUR_API_KEY_HERE",
-        alias="GEMINI_API_KEY",
-    )
-    gemini_grader_model: str = Field(
-        default="gemini-2.5-flash",
-        alias="GEMINI_GRADER_MODEL",
-    )
 
     # ── Judge0 (test-case execution) ──────────────────────────────────────────
     judge0_url: str = Field(
