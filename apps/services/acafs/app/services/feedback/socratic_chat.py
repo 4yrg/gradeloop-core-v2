@@ -99,7 +99,16 @@ class SocraticChatService:
 
         # Only request extended reasoning for models that explicitly advertise it.
         # GLM-4.5 Air supports the `reasoning` param.
-        _reasoning_models = ("claude-3-7", "o1", "o3", "deepseek-r1", "gemini-2.5", "gemma-4", "glm-4", "glm-4.5")
+        _reasoning_models = (
+            "claude-3-7",
+            "o1",
+            "o3",
+            "deepseek-r1",
+            "gemini-2.5",
+            "gemma-4",
+            "glm-4",
+            "glm-4.5",
+        )
         supports_reasoning = any(
             tag in self.settings.openrouter_model.lower() for tag in _reasoning_models
         )
