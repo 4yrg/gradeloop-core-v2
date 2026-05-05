@@ -1,83 +1,106 @@
-# =============================================================================
-# Next.js + Bun Production Dockerfile
-# Optimized for monorepos
-# =============================================================================
-
-# -----------------------------------------------------------------------------
-# Stage 1 — Dependencies
-# -----------------------------------------------------------------------------
-FROM oven/bun:1 AS deps
+# ============================================
+# Stage 1: Dependencies
+# ============================================
+FROM oven/bun:1 AS dependencies
 
 WORKDIR /app
 
 # Copy root workspace files
-COPY package.json bun.lock ./
+COPY package.json bun.lock* ./
 
-# Copy workspace package files
-COPY apps/web/package.json ./apps/web/package.json
+# Copy all package.json files from the monorepo to satisfy workspace dependencies
+COPY apps/web/package.json ./apps/web/
+COPY packages/ts/config/package.json ./packages/ts/config/
+COPY packages/ts/dto/package.json ./packages/ts/dto/
+COPY packages/ts/utils/package.json ./packages/ts/utils/
 
-# Install dependencies (this will install for workspace too)
-RUN bun install
+# Install dependencies (monorepo-wide)
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile
 
-# Also install in the web directory to ensure binaries are available
+# ============================================
+# Stage 2: Development
+# ============================================
+FROM oven/bun:1 AS dev
+
 WORKDIR /app/apps/web
-RUN bun install
 
+# Copy EVERYTHING from dependencies stage (including all node_modules and bins)
+COPY --from=dependencies /app /app
 
-# -----------------------------------------------------------------------------
-# Stage 2 — Builder
-# -----------------------------------------------------------------------------
+# Copy source code
+COPY . .
+
+# Accept build-time environment variables
+ARG NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+ARG NEXT_PUBLIC_GATEWAY_URL=http://localhost:8000
+
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_GATEWAY_URL=$NEXT_PUBLIC_GATEWAY_URL
+ENV NODE_ENV=development
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+# Ensure binaries are in PATH
+ENV PATH /app/node_modules/.bin:$PATH
+
+EXPOSE 3000
+
+# Start the server in development mode
+CMD ["bun", "x", "next", "dev"]
+
+# ============================================
+# Stage 3: Builder
+# ============================================
 FROM oven/bun:1 AS builder
 
 WORKDIR /app
 
-# Copy installed dependencies from both locations
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
+# Copy EVERYTHING from dependencies stage (including all node_modules and bins)
+COPY --from=dependencies /app /app
 
-# Copy project files
+# Copy source code
 COPY . .
 
-# Accept build arguments for public env vars
+# Accept build-time environment variables
 ARG NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
-ARG NEXT_PUBLIC_IAM_SERVICE_URL=http://localhost:8000/api/v1
-ARG NEXT_PUBLIC_IVAS_WS_URL=ws://localhost:8000
+ARG NEXT_PUBLIC_GATEWAY_URL=http://localhost:8000
 
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_IAM_SERVICE_URL=$NEXT_PUBLIC_IAM_SERVICE_URL
-ENV NEXT_PUBLIC_IVAS_WS_URL=$NEXT_PUBLIC_IVAS_WS_URL
+ENV NEXT_PUBLIC_GATEWAY_URL=$NEXT_PUBLIC_GATEWAY_URL
+ENV NODE_ENV=production
+# Ensure binaries are in PATH
+ENV PATH /app/node_modules/.bin:$PATH
 
+# Build the application
 WORKDIR /app/apps/web
+# Use 'bun x' to ensure we find the local 'next' binary
+RUN bun x next build
 
-# Build Next.js app
-RUN bun run build
-
-
-# -----------------------------------------------------------------------------
-# Stage 3 — Production Runtime
-# -----------------------------------------------------------------------------
-FROM oven/bun:1-alpine AS runner
+# ============================================
+# Stage 4: Production Runtime
+# ============================================
+FROM oven/bun:1-slim AS runner
 
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
-ENV HOSTNAME=0.0.0.0
+ENV HOSTNAME="0.0.0.0"
 
-# Create non-root user (Alpine compatible)
-RUN addgroup -S bunjs && adduser -S nextjs -G bunjs
+# Copy standalone build output with correct ownership
+# In monorepos, standalone output preserves the directory structure
+COPY --from=builder /app/apps/web/.next/standalone ./
+COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder /app/apps/web/public ./apps/web/public
 
-# Copy standalone build output
-COPY --from=builder --chown=root:root --chmod=755 /app/apps/web/.next/standalone ./
-COPY --from=builder --chown=root:root --chmod=755 /app/apps/web/.next/static ./apps/web/.next/static
-COPY --from=builder --chown=root:root --chmod=755 /app/apps/web/public ./apps/web/public
+# Ensure the bun user owns the files
+RUN chown -R bun:bun /app
 
-USER nextjs
+# Switch to non-root user
+USER bun
 
 EXPOSE 3000
 
-# Start Next.js server using standalone build
-CMD ["node", "apps/web/server.js"]
+# Start the server
+# Based on monorepo structure, server.js should be in apps/web/server.js within the standalone output
+CMD ["bun", "apps/web/server.js"]

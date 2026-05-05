@@ -7,6 +7,7 @@ export interface CodeIDEProps {
   userId?: string;
   initialCode?: string;
   initialLanguage?: number;
+  onCodeChange?: (code: string) => void;
   onExecute?: (result: ExecutionResult) => void;
   onSubmit?: (code: string, languageId: number) => void;
   readOnly?: boolean;

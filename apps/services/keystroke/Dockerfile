@@ -39,17 +39,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy only necessary files from builder
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+# Set up non-root user
+RUN groupadd -r keystroke && useradd -r -g keystroke keystroke
+
+# Copy necessary files from builder with correct ownership
+COPY --from=builder --chown=keystroke:keystroke /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder --chown=keystroke:keystroke /usr/local/bin /usr/local/bin
 
 # Copy application files efficiently
-COPY main.py behavioral_analysis.py db.py feature_extraction.py redis_client.py typenet_inference.py requirements.txt schema.sql enrollment_tasks.json sample_session.json ./
-COPY models/ ./models/
-
-# Set up non-root user
-RUN groupadd -r keystroke && useradd -r -g keystroke keystroke \
-    && chown -R keystroke:keystroke /app
+COPY --chown=keystroke:keystroke main.py behavioral_analysis.py db.py feature_extraction.py redis_client.py typenet_inference.py requirements.txt schema.sql enrollment_tasks.json sample_session.json ./
+COPY --chown=keystroke:keystroke models/ ./models/
 
 USER keystroke
 

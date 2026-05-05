@@ -7,10 +7,10 @@ FROM python:3.11-slim AS builder
 WORKDIR /app
 
 RUN if [ -f /etc/apt/sources.list ]; then \
-      sed -i 's|http://deb.debian.org|https://deb.debian.org|g; s|http://security.debian.org|https://security.debian.org|g' /etc/apt/sources.list; \
+    sed -i 's|http://deb.debian.org|https://deb.debian.org|g; s|http://security.debian.org|https://security.debian.org|g' /etc/apt/sources.list; \
     fi \
     && if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
-      sed -i 's|http://deb.debian.org|https://deb.debian.org|g; s|http://security.debian.org|https://security.debian.org|g' /etc/apt/sources.list.d/debian.sources; \
+    sed -i 's|http://deb.debian.org|https://deb.debian.org|g; s|http://security.debian.org|https://security.debian.org|g' /etc/apt/sources.list.d/debian.sources; \
     fi \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -28,8 +28,8 @@ COPY apps/services/cipas-syntactics/requirements.txt ./
 
 RUN pip install --no-cache-dir -r requirements.txt \
     && pip uninstall -y nvidia-nccl-cu12 nvidia-cuda-runtime-cu12 nvidia-cudnn-cu12 nvidia-cublas-cu12 \
-       nvidia-cuda-cupti-cu12 nvidia-cuda-nvrtc-cu12 nvidia-curand-cu12 nvidia-cusolver-cu12 \
-       nvidia-cusparse-cu12 nvidia-npp-cu12 nvidia-nvjitlink-cu12 nvidia-nvtx-cu12 || true \
+    nvidia-cuda-cupti-cu12 nvidia-cuda-nvrtc-cu12 nvidia-curand-cu12 nvidia-cusolver-cu12 \
+    nvidia-cusparse-cu12 nvidia-npp-cu12 nvidia-nvjitlink-cu12 nvidia-nvtx-cu12 || true \
     && find /usr/local/lib/python3.11/site-packages -name "*.pyc" -delete \
     && find /usr/local/lib/python3.11/site-packages -name "__pycache__" -delete
 
@@ -61,10 +61,10 @@ FROM python:3.11-slim AS production
 WORKDIR /app
 
 RUN if [ -f /etc/apt/sources.list ]; then \
-      sed -i 's|http://deb.debian.org|https://deb.debian.org|g; s|http://security.debian.org|https://security.debian.org|g' /etc/apt/sources.list; \
+    sed -i 's|http://deb.debian.org|https://deb.debian.org|g; s|http://security.debian.org|https://security.debian.org|g' /etc/apt/sources.list; \
     fi \
     && if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
-      sed -i 's|http://deb.debian.org|https://deb.debian.org|g; s|http://security.debian.org|https://security.debian.org|g' /etc/apt/sources.list.d/debian.sources; \
+    sed -i 's|http://deb.debian.org|https://deb.debian.org|g; s|http://security.debian.org|https://security.debian.org|g' /etc/apt/sources.list.d/debian.sources; \
     fi \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -72,16 +72,17 @@ RUN if [ -f /etc/apt/sources.list ]; then \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
-COPY --from=builder /app/packages ./packages
-COPY --from=builder /app/main.py /app/routes.py /app/schemas.py /app/database.py ./
-COPY --from=builder /app/clone_detection ./clone_detection
-COPY --from=builder /app/repositories ./repositories
-
+# Set up non-root user and directory
 RUN mkdir -p /app/models \
-    && groupadd -r cipas-syntactics && useradd -r -g cipas-syntactics cipas-syntactics \
-    && chown -R cipas-syntactics:cipas-syntactics /app
+    && groupadd -r cipas-syntactics && useradd -r -g cipas-syntactics cipas-syntactics
+
+# Copy only necessary files with correct ownership
+COPY --from=builder --chown=cipas-syntactics:cipas-syntactics /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder --chown=cipas-syntactics:cipas-syntactics /usr/local/bin /usr/local/bin
+COPY --from=builder --chown=cipas-syntactics:cipas-syntactics /app/packages ./packages
+COPY --from=builder --chown=cipas-syntactics:cipas-syntactics /app/main.py /app/routes.py /app/schemas.py /app/database.py ./
+COPY --from=builder --chown=cipas-syntactics:cipas-syntactics /app/clone_detection ./clone_detection
+COPY --from=builder --chown=cipas-syntactics:cipas-syntactics /app/repositories ./repositories
 
 USER cipas-syntactics
 
@@ -93,6 +94,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 EXPOSE 8106
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:8106/api/v1/syntactics/health || exit 1
+    CMD python3 -c "import os; import urllib.request; port = os.getenv('CIPAS_SYNTACTICS_PORT', '8106'); exit(0 if urllib.request.urlopen(f'http://localhost:{port}/api/v1/syntactics/health').getcode() == 200 else 1)" || exit 1
 
 CMD ["sh", "-c", "exec uvicorn main:app --host 0.0.0.0 --port ${CIPAS_SYNTACTICS_PORT:-8106} --workers 1"]

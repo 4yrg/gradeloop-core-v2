@@ -120,10 +120,20 @@ func (m *Migrator) Run() error {
 	// ── Judge0 execution columns migration ────────────────────────────────────
 	// These columns are added for Judge0 code execution integration
 
+	// storage_path is still used by the canonical submissions flow and MinIO
+	// worker. Older cleanup code dropped it while the domain model still writes
+	// it, so repair existing databases before any new submissions are inserted.
+	if err := m.db.Exec(`
+			ALTER TABLE submissions
+			ADD COLUMN IF NOT EXISTS storage_path TEXT NOT NULL DEFAULT ''
+		`).Error; err != nil {
+		m.logger.Warn("failed to add storage_path column to submissions", zap.Error(err))
+	}
+
 	// Add language_id column to submissions
 	if err := m.db.Exec(`
-		ALTER TABLE submissions
-		ADD COLUMN IF NOT EXISTS language_id INTEGER
+			ALTER TABLE submissions
+			ADD COLUMN IF NOT EXISTS language_id INTEGER
 	`).Error; err != nil {
 		m.logger.Warn("failed to add language_id column to submissions", zap.Error(err))
 	}
@@ -248,7 +258,7 @@ func (m *Migrator) Run() error {
 
 	// Add GitHub columns to submissions if not exist
 	if err := m.db.Exec(`
-		ALTER TABLE submissions ADD COLUMN IF NOT EXISTS github_repo_id UUID
+			ALTER TABLE submissions ADD COLUMN IF NOT EXISTS github_repo_id UUID
 	`).Error; err != nil {
 		m.logger.Warn("failed to add github_repo_id column to submissions", zap.Error(err))
 	}

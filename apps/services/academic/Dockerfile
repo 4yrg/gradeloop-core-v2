@@ -44,10 +44,9 @@ RUN apk add --no-cache ca-certificates tzdata
 
 WORKDIR /app
 
-COPY --from=builder /app/apps/services/academic/academic-service .
+RUN addgroup -S gradeloop && adduser -S gradeloop -G gradeloop
 
-RUN addgroup -S gradeloop && adduser -S gradeloop -G gradeloop \
-    && chown -R gradeloop:gradeloop /app
+COPY --from=builder --chown=gradeloop:gradeloop /app/apps/services/academic/academic-service .
 
 USER gradeloop
 

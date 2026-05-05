@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FolderOpen, FileCode, File, ChevronRight, ChevronDown, Loader2, RefreshCw, GitBranch, Plus } from "lucide-react";
+import { FolderOpen, FileCode, ChevronRight, ChevronDown, Loader2, RefreshCw, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { githubApi, type GitHubFile } from "@/lib/api/github";
 import { codeStorageApi, type CodeFile } from "@/lib/api/code-storage";
+import { toast } from "sonner";
 
 interface FileExplorerProps {
     assignmentId: string;
@@ -13,6 +13,8 @@ interface FileExplorerProps {
     currentFilePath?: string;
     readOnly?: boolean;
     useCodeStorage?: boolean;
+    defaultNewFileName?: string;
+    defaultNewFileContent?: string;
 }
 
 interface TreeNode {
@@ -24,10 +26,19 @@ interface TreeNode {
     isOpen?: boolean;
 }
 
-export function FileExplorer({ assignmentId, onFileSelect, currentFilePath, readOnly = false, useCodeStorage = false }: FileExplorerProps) {
+export function FileExplorer({
+    assignmentId,
+    onFileSelect,
+    currentFilePath,
+    readOnly = false,
+    useCodeStorage = false,
+    defaultNewFileName = "main.py",
+    defaultNewFileContent = "",
+}: FileExplorerProps) {
     const [files, setFiles] = useState<TreeNode[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [creatingFile, setCreatingFile] = useState(false);
     const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set([""]));
     const [fileCache, setFileCache] = useState<Map<string, { content: string; sha: string }>>(new Map());
 
@@ -55,10 +66,20 @@ export function FileExplorer({ assignmentId, onFileSelect, currentFilePath, read
             setError(null);
             if (useCodeStorage) {
                 const fileList = await codeStorageApi.getFiles(assignmentId, "");
-                setFiles(transformToTreeCode(fileList));
+                const tree = transformToTreeCode(fileList);
+                setFiles(tree);
+                if (!currentFilePath) {
+                    const firstFile = tree.find((file) => file.type === "file");
+                    if (firstFile) await selectFile(firstFile);
+                }
             } else {
                 const fileList = await githubApi.getFiles(assignmentId, "");
-                setFiles(transformToTreeGitHub(fileList));
+                const tree = transformToTreeGitHub(fileList);
+                setFiles(tree);
+                if (!currentFilePath) {
+                    const firstFile = tree.find((file) => file.type === "file");
+                    if (firstFile) await selectFile(firstFile);
+                }
             }
         } catch (err) {
             setError("Failed to load files");
@@ -116,27 +137,92 @@ const toggleDir = async (path: string) => {
         return null;
     };
 
+    const getUniqueFileName = () => {
+        const dotIndex = defaultNewFileName.lastIndexOf(".");
+        const baseName = dotIndex > 0 ? defaultNewFileName.slice(0, dotIndex) : defaultNewFileName;
+        const extension = dotIndex > 0 ? defaultNewFileName.slice(dotIndex) : "";
+        const existingPaths = new Set(files.map((file) => file.path));
+
+        if (!existingPaths.has(defaultNewFileName)) return defaultNewFileName;
+
+        let index = 2;
+        let candidate = `${baseName}-${index}${extension}`;
+        while (existingPaths.has(candidate)) {
+            index += 1;
+            candidate = `${baseName}-${index}${extension}`;
+        }
+        return candidate;
+    };
+
+    const handleCreateFile = async () => {
+        if (readOnly || creatingFile) return;
+
+        const filePath = getUniqueFileName();
+        try {
+            setCreatingFile(true);
+            const result = useCodeStorage
+                ? await codeStorageApi.saveFile(assignmentId, {
+                    file_path: filePath,
+                    content: defaultNewFileContent,
+                    message: `Create ${filePath}`,
+                })
+                : await githubApi.commitFile(assignmentId, {
+                    file_path: filePath,
+                    content: defaultNewFileContent,
+                    message: `Create ${filePath}`,
+                });
+
+            if (!result.success) {
+                toast.error(result.message || "Failed to create file");
+                return;
+            }
+
+            const nextFile = {
+                name: filePath,
+                path: filePath,
+                type: "file" as const,
+                sha: result.sha,
+            };
+            setFiles((current) => [...current, nextFile]);
+            setFileCache((current) => new Map(current).set(filePath, {
+                content: defaultNewFileContent,
+                sha: result.sha,
+            }));
+            onFileSelect(filePath, defaultNewFileContent, result.sha || "");
+            toast.success(`${filePath} created`);
+        } catch (err) {
+            console.error("Failed to create file:", err);
+            toast.error("Failed to create file");
+        } finally {
+            setCreatingFile(false);
+        }
+    };
+
+    async function selectFile(node: TreeNode) {
+        let cached = fileCache.get(node.path);
+        if (!cached) {
+            try {
+                let result;
+                if (useCodeStorage) {
+                    result = await codeStorageApi.getFileContent(assignmentId, node.path);
+                } else {
+                    result = await githubApi.getFileContent(assignmentId, node.path);
+                }
+                cached = result;
+                setFileCache((current) => new Map(current).set(node.path, result));
+            } catch (err) {
+                console.error("Failed to load file:", err);
+                return;
+            }
+        }
+        onFileSelect(node.path, cached.content, cached.sha || "");
+    }
+
     const handleFileClick = async (node: TreeNode) => {
         if (node.type === "dir") {
             await toggleDir(node.path);
         } else {
-            let cached = fileCache.get(node.path);
-            if (!cached) {
-                try {
-                    let result;
-                    if (useCodeStorage) {
-                        result = await codeStorageApi.getFileContent(assignmentId, node.path);
-                    } else {
-                        result = await githubApi.getFileContent(assignmentId, node.path);
-                    }
-                    cached = result;
-                    setFileCache(new Map(fileCache).set(node.path, result));
-                } catch (err) {
-                    console.error("Failed to load file:", err);
-                    return;
-                }
-            }
-            onFileSelect(node.path, cached.content, cached.sha || "");
+            await selectFile(node);
         }
     };
 
@@ -208,16 +294,35 @@ const toggleDir = async (path: string) => {
             <div className="flex items-center justify-between p-2 border-b">
                 <span className="text-sm font-medium">Files</span>
                 {!readOnly && (
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                        <Plus className="h-4 w-4" />
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={handleCreateFile}
+                        disabled={creatingFile}
+                        title="Create file"
+                    >
+                        {creatingFile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                     </Button>
                 )}
             </div>
             <div className="flex-1 overflow-auto p-2">
                 {files.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                        No files yet. Create a file to get started.
-                    </p>
+                    <div className="flex flex-col items-center gap-3 py-4 text-center">
+                        <p className="text-sm text-muted-foreground">
+                            No files yet. Create a file to get started.
+                        </p>
+                        {!readOnly && (
+                            <Button size="sm" onClick={handleCreateFile} disabled={creatingFile}>
+                                {creatingFile ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                    <Plus className="h-4 w-4 mr-2" />
+                                )}
+                                Create file
+                            </Button>
+                        )}
+                    </div>
                 ) : (
                     renderTree(files)
                 )}
