@@ -10,6 +10,7 @@ import type {
   AIDetectionResponse,
   SimilarityScoreRequest,
   SimilarityScoreResponse,
+  CollusionEdge,
 } from "@/types/cipas";
 import type {
   UpdateSubmissionAnalysisRequest,
@@ -17,6 +18,7 @@ import type {
   BatchCodeResponse,
 } from "@/types/assessments.types";
 import { assessmentsApi } from "@/lib/api/assessments";
+import { useAuthStore } from "@/lib/stores/authStore";
 
 // Gateway URL builder (similar to keystroke.ts pattern)
 const GATEWAY_URL = (() => {
@@ -211,14 +213,16 @@ export async function getAnnotationStats(
 }
 
 /**
- * Export a similarity report in the specified format.
+ * Export a similarity report as CSV.
+ * The backend only exposes GET /reports/{id}/export.csv — PDF is not yet supported.
  */
 export async function exportSimilarityReport(
   assignmentId: string,
-  format: "pdf" | "csv" = "pdf",
+  _format: "pdf" | "csv" = "csv",
 ): Promise<Blob> {
+  // Backend route: GET /api/v1/syntactics/reports/{assignment_id}/export.csv
   const res = await fetch(
-    `${REPORTS_ENDPOINT}/${assignmentId}/export?format=${format}`,
+    `${REPORTS_ENDPOINT}/${assignmentId}/export.csv`,
     {
       method: "GET",
     },
@@ -340,7 +344,7 @@ export async function saveSubmissionAnalysis(
  * Fetch source code for multiple submissions in a single batch request.
  * Used by cluster diff viewer to avoid N+1 queries.
  * Returns a map of submission_id → SubmissionCodeResponse.
- * Silently skips submissions that don't exist or failed to load.
+ * Falls back to parallel individual fetches if the batch endpoint is unavailable.
  */
 export async function getBatchSubmissionCode(
   submissionIds: string[],
@@ -349,20 +353,147 @@ export async function getBatchSubmissionCode(
     return {};
   }
 
-  const res = await fetch(BATCH_CODE_ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ submission_ids: submissionIds } as BatchCodeRequest),
-  });
+  // Include Bearer token — the assessment service requires auth.
+  // The token lives in-memory (Zustand) so we read it directly here,
+  // mirroring what axiosInstance's request interceptor does.
+  const token = useAuthStore.getState().accessToken;
+  const authHeaders: Record<string, string> = token
+    ? { Authorization: `Bearer ${token}` }
+    : {};
 
-  if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(
-      `Batch code fetch failed [${res.status}]: ${detail || res.statusText}`,
+  try {
+    const res = await fetch(BATCH_CODE_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders },
+      credentials: "include",
+      body: JSON.stringify({ submission_ids: submissionIds } as BatchCodeRequest),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Batch code fetch failed [${res.status}]`);
+    }
+
+    const result = (await res.json()) as BatchCodeResponse;
+    return result.codes;
+  } catch {
+    // Batch endpoint unavailable — fall back to parallel individual fetches
+    // via the authenticated axiosInstance to guarantee auth always works.
+    const entries = await Promise.all(
+      submissionIds.map(async (id) => {
+        try {
+          const codeRes = await assessmentsApi.getSubmissionCode(id);
+          return [id, codeRes] as const;
+        } catch {
+          return null;
+        }
+      }),
+    );
+    return Object.fromEntries(
+      entries.filter((e): e is [string, import("@/types/assessments.types").SubmissionCodeResponse] => e !== null),
     );
   }
+}
 
-  const result = (await res.json()) as BatchCodeResponse;
-  return result.codes;
+const XAI_CHAT_ENDPOINT = `${GATEWAY_URL}/api/v1/xai/chat`;
+const XAI_STREAM_ENDPOINT = `${GATEWAY_URL}/api/v1/xai/chat/stream`;
+
+/**
+ * Stream an XAI explanation for a detected clone pair.
+ * Calls the CIPAS XAI service (no auth required) and yields text deltas.
+ * The caller should iterate the returned async generator to build the explanation.
+ *
+ * @param codeA   source code of the first submission
+ * @param codeB   source code of the second submission
+ * @param edge    the CollusionEdge describing the detected clone
+ */
+export async function* streamCloneExplanation(
+  codeA: string,
+  codeB: string,
+  edge: CollusionEdge,
+): AsyncGenerator<string> {
+  const systemPrompt = `You are an expert in academic code plagiarism detection and software engineering education. \
+You analyse pairs of student code submissions that have been flagged as similar by CIPAS (Code Intelligence \
+Plagiarism Analysis System) and produce clear, structured explanations for instructors. Be specific about \
+matching patterns. Do not repeat the code verbatim; refer to specific constructs by name.`;
+
+  const userPrompt =
+    `Two student submissions were flagged by CIPAS:\n\n` +
+    `Detection result:\n` +
+    `- Clone Type: ${edge.clone_type}\n` +
+    `- Confidence: ${Math.round(edge.confidence * 100)}%\n` +
+    `- Matching code fragments: ${edge.match_count}\n\n` +
+    `--- Submission A ---\n\`\`\`python\n${codeA}\n\`\`\`\n\n` +
+    `--- Submission B ---\n\`\`\`python\n${codeB}\n\`\`\`\n\n` +
+    `Please provide a structured analysis with these sections:\n` +
+    `1. **Clone Type Explanation** — what ${edge.clone_type} means in this context.\n` +
+    `2. **Matching Patterns** — identify 2-4 specific structural or lexical patterns that triggered the detection.\n` +
+    `3. **Key Similar Sections** — point out the most similar blocks by class/function name.\n` +
+    `4. **Educational Assessment** — assess whether this likely represents independent work, inspired-by-but-rewritten, or direct copying.\n` +
+    `5. **Recommendation** — suggest whether further investigation is warranted and what evidence to request.`;
+
+  const body = JSON.stringify({
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+  });
+
+  let res: Response;
+  try {
+    res = await fetch(XAI_STREAM_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+    });
+  } catch {
+    // XAI service unavailable — fall back to non-streaming endpoint
+    const fallback = await fetch(XAI_CHAT_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+    });
+    if (!fallback.ok) {
+      throw new Error(`XAI service unavailable [${fallback.status}]`);
+    }
+    const data = (await fallback.json()) as { content?: string };
+    yield data.content ?? "";
+    return;
+  }
+
+  if (!res.ok) {
+    throw new Error(`XAI request failed [${res.status}]`);
+  }
+
+  // Parse SSE stream: each line is `data: { content, done }` JSON
+  const reader = res.body?.getReader();
+  if (!reader) return;
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("data:")) continue;
+
+      const jsonStr = trimmed.slice(5).trim();
+      if (!jsonStr || jsonStr === "[DONE]") continue;
+
+      try {
+        const chunk = JSON.parse(jsonStr) as { content?: string; done?: boolean };
+        if (chunk.content) yield chunk.content;
+        if (chunk.done) return;
+      } catch {
+        // malformed chunk — skip
+      }
+    }
+  }
 }

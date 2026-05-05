@@ -75,10 +75,15 @@ axiosInstance.interceptors.response.use(
       originalRequest.url?.includes("/auth/") ||
       originalRequest._retry
     ) {
-      // Only clear session + redirect for the refresh endpoint specifically;
-      // for other auth endpoints (login, logout) just reject so the caller
-      // can display the correct error message.
-      if (originalRequest.url?.includes("/auth/refresh")) {
+      // Clear session and redirect to login when:
+      //  a) The refresh endpoint itself returns 401 (refresh token expired/invalid), OR
+      //  b) A retried non-auth request still returns 401 after a successful token refresh
+      //     (e.g. JWT secret rotated while app was running — session is unrecoverable).
+      const isRefreshEndpoint = originalRequest.url?.includes("/auth/refresh");
+      const isRetriedNonAuthRequest =
+        !!originalRequest._retry && !originalRequest.url?.includes("/auth/");
+
+      if (isRefreshEndpoint || isRetriedNonAuthRequest) {
         useAuthStore.getState().clearSession();
         if (typeof window !== "undefined") {
           window.location.href = "/login";

@@ -51,17 +51,44 @@ const sheetVariants = cva(
 
 interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
-    VariantProps<typeof sheetVariants> {}
+    VariantProps<typeof sheetVariants> {
+  /** Skip slide/fade motion (instant open/close). */
+  disableAnimation?: boolean
+}
+
+const sheetStaticSideClasses: Record<
+  NonNullable<VariantProps<typeof sheetVariants>["side"]>,
+  string
+> = {
+  top: "inset-x-0 top-0 border-b",
+  bottom: "inset-x-0 bottom-0 border-t",
+  left: "inset-y-0 left-0 h-full w-3/4 border-r sm:max-w-sm",
+  right: "inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-sm",
+}
 
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, ...props }, ref) => (
+>(({ side = "right", className, children, disableAnimation, ...props }, ref) => (
   <SheetPortal>
-    <SheetOverlay />
+    <SheetOverlay
+      className={
+        disableAnimation
+          ? "animate-none data-[state=open]:animate-none data-[state=closed]:animate-none"
+          : undefined
+      }
+    />
     <SheetPrimitive.Content
       ref={ref}
-      className={cn(sheetVariants({ side }), className)}
+      className={cn(
+        disableAnimation
+          ? cn(
+              "fixed z-50 gap-4 bg-background p-6 shadow-lg animate-none transition-none duration-0 data-[state=open]:animate-none data-[state=closed]:animate-none",
+              sheetStaticSideClasses[side ?? "right"],
+            )
+          : sheetVariants({ side }),
+        className,
+      )}
       {...props}
     >
       {children}

@@ -5,6 +5,7 @@ import { AlertTriangle, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DiffViewer } from "./DiffViewer";
+import { XAIExplanation } from "@/components/instructor/similarity/xai-explanation";
 import type {
   CollusionGroup,
   CollusionEdge,
@@ -98,11 +99,12 @@ export function CollusionGroupCard({
             </p>
             <div className="flex flex-wrap gap-2">
               {group.edges.map((edge, i) => {
+                // CIPAS stores student_id in edge.student_a/b — match by student_id
                 const subA = submissions.find(
-                  (s) => s.submission_id === edge.student_a,
+                  (s) => s.student_id === edge.student_a,
                 );
                 const subB = submissions.find(
-                  (s) => s.submission_id === edge.student_b,
+                  (s) => s.student_id === edge.student_b,
                 );
                 const isActive =
                   activeEdge?.student_a === edge.student_a &&
@@ -154,6 +156,21 @@ export function CollusionGroupCard({
             No source code available for diff.
           </p>
         )}
+
+        {/* XAI explanation for the active clone pair */}
+        {activeEdge && groupSubs.length >= 2 && (() => {
+          const subA = groupSubs.find((s) => s.student_id === activeEdge.student_a);
+          const subB = groupSubs.find((s) => s.student_id === activeEdge.student_b);
+          if (!subA?.source_code || !subB?.source_code) return null;
+          return (
+            <XAIExplanation
+              codeA={subA.source_code}
+              codeB={subB.source_code}
+              edge={activeEdge}
+              pairKey={`${activeEdge.student_a}-${activeEdge.student_b}`}
+            />
+          );
+        })()}
       </CardContent>
     </Card>
   );

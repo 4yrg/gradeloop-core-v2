@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { SimilarityBadge, SimilarityScore } from "@/components/instructor/similarity/similarity-badge";
 import { AnnotationPanel } from "@/components/instructor/similarity/annotation-panel";
+import { DiffSheet } from "@/components/instructor/similarity/diff-sheet";
 import {
   AlertCircle,
   Download,
@@ -33,6 +34,10 @@ export default function ClusterInspectionPage({
   const [cluster, setCluster] = React.useState<CollusionGroup | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+
+  // Diff sheet state
+  const [diffEdge, setDiffEdge] = React.useState<CollusionEdge | null>(null);
+  const [diffSheetOpen, setDiffSheetOpen] = React.useState(false);
 
   // Fetch report and find cluster
   React.useEffect(() => {
@@ -77,15 +82,8 @@ export default function ClusterInspectionPage({
   }, [assignmentId, clusterIdParam]);
 
   const handleCompare = (edge: CollusionEdge) => {
-    // Navigate to diff viewer
-    const searchParams = new URLSearchParams({
-      submission1: edge.student_a,
-      submission2: edge.student_b,
-    });
-    window.open(
-      `/instructor/courses/${instanceId}/assignments/${assignmentId}/similarity/compare?${searchParams}`,
-      "_blank"
-    );
+    setDiffEdge(edge);
+    setDiffSheetOpen(true);
   };
 
   const handleExport = async () => {
@@ -356,9 +354,10 @@ export default function ClusterInspectionPage({
                     size="sm"
                     variant="default"
                     onClick={() => handleCompare(maxEdge)}
-                    className="w-full"
+                    className="w-full gap-2"
                   >
-                    Launch Comparator →
+                    <GitCompare className="h-4 w-4" />
+                    Open Diff Viewer
                   </Button>
                 </div>
               </div>
@@ -402,9 +401,10 @@ export default function ClusterInspectionPage({
                     size="sm"
                     variant="outline"
                     onClick={() => handleCompare(edge)}
+                    className="gap-1.5"
                   >
-                    <GitCompare className="h-3.5 w-3.5 mr-1.5" />
-                    Compare
+                    <GitCompare className="h-3.5 w-3.5" />
+                    View Diff
                   </Button>
                 </div>
               </div>
@@ -412,6 +412,15 @@ export default function ClusterInspectionPage({
           </div>
         </CardContent>
       </Card>
+
+      {/* Inline diff sheet — opens when any edge Compare button is clicked */}
+      <DiffSheet
+        cluster={cluster}
+        initialEdge={diffEdge}
+        assignmentId={assignmentId}
+        open={diffSheetOpen}
+        onClose={() => setDiffSheetOpen(false)}
+      />
     </div>
   );
 }

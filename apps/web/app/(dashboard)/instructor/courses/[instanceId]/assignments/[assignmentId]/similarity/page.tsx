@@ -9,6 +9,7 @@ import {
   detectAICode,
   getSemanticSimilarity,
   saveSubmissionAnalysis,
+  getBatchSubmissionCode,
 } from "@/lib/api/cipas-client";
 import { instructorAssessmentsApi, assessmentsApi } from "@/lib/api/assessments";
 import type { AssignmentClusterResponse, CollusionGroup, CollusionEdge, SubmissionItem, AnnotationResponse } from "@/types/cipas";
@@ -16,6 +17,7 @@ import type { AssignmentResponse, SubmissionResponse } from "@/types/assessments
 import { SectionHeader } from "@/components/instructor/section-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -35,11 +37,42 @@ import {
   Loader2,
   Eye,
   BarChart3,
+  ChevronDown,
+  ChevronUp,
+  Columns2,
 } from "lucide-react";
+import { useAuthStore } from "@/lib/stores/authStore";
+
+// Judge0 language IDs → CIPAS accepted language strings
+const JUDGE0_TO_CIPAS: Record<number, string> = {
+  62: "java", 91: "java",               // Java 13 / 17
+  70: "python", 71: "python", 72: "python", // Python 2 / 3.8 / 3.11
+  48: "c", 49: "c", 50: "c",           // C (GCC 7/8/9)
+  51: "csharp",                         // C# (Mono)
+  52: "c", 53: "c", 54: "c",           // C++ (treated as C for AST purposes)
+};
+
+function toCipasLanguage(languageId: number | string | undefined): string {
+  if (typeof languageId === "number") {
+    return JUDGE0_TO_CIPAS[languageId] ?? "python";
+  }
+  if (typeof languageId === "string") {
+    const s = languageId.toLowerCase();
+    if (s === "java") return "java";
+    if (s === "c" || s === "cpp" || s === "c++") return "c";
+    if (s === "csharp" || s === "c#") return "csharp";
+    return "python";
+  }
+  return "python";
+}
+
+/** Judge0 Java 17 — matches `JUDGE0_TO_CIPAS` above. */
+const JAVA_SEED_LANGUAGE_ID = 62;
 
 export default function SimilarityOverviewPage() {
   const params = useParams();
   const assignmentId = params.assignmentId as string;
+  const isHydrated = useAuthStore((s) => s.isHydrated);
 
   const [report, setReport] = React.useState<AssignmentClusterResponse | null>(null);
   const [assignment, setAssignment] = React.useState<AssignmentResponse | null>(null);
@@ -61,6 +94,9 @@ export default function SimilarityOverviewPage() {
     isAnalyzing: boolean;
   }>>(new Map());
   const [isAnalyzingSubmissions, setIsAnalyzingSubmissions] = React.useState(false);
+
+  // Diagnostics panel toggle (per_submission fragment/pair/clone breakdown)
+  const [showDiagnostics, setShowDiagnostics] = React.useState(false);
 
   // Sheet state: cluster graph panel
   const [graphSheetCluster, setGraphSheetCluster] = React.useState<CollusionGroup | null>(null);
@@ -88,7 +124,16 @@ export default function SimilarityOverviewPage() {
         if (mounted) {
           setReport(cachedReport);
           const found = assignments.find((a) => a.id === assignmentId);
-          if (found) setAssignment(found);
+          if (found) {
+            setAssignment(found);
+          } else {
+            try {
+              const a = await assessmentsApi.getAssignment(assignmentId);
+              if (mounted) setAssignment(a);
+            } catch {
+              if (mounted) setAssignment(null);
+            }
+          }
 
           // Fetch annotations if report exists
           if (cachedReport) {
@@ -118,7 +163,10 @@ export default function SimilarityOverviewPage() {
 
   // Analyze submissions for AI likelihood and semantic similarity
   React.useEffect(() => {
-    if (!report || !assignment) return;
+    // Do not start until auth hydration is complete — avoids sending requests
+    // with a null access token during the brief window between component mount
+    // and the AuthProvider's hydrateSession() resolving.
+    if (!isHydrated || !report || !assignment) return;
 
     async function analyzeSubmissions() {
       try {
@@ -233,52 +281,80 @@ export default function SimilarityOverviewPage() {
     }
 
     analyzeSubmissions();
-  }, [report, assignment, assignmentId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [report, assignment, assignmentId, isHydrated]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Run similarity analysis
+  // Run similarity analysis (CIPAS clusterAssignment + real submission code).
+  // Java assignments: first refresh demo submissions via server route (requires DEMO_* in apps/web/.env.local).
   const handleRunAnalysis = async () => {
     try {
       setIsRunning(true);
       setError(null);
 
-      // Fetch all submissions for this assignment
-      const submissions = await instructorAssessmentsApi.listSubmissions(assignmentId);
+      // Bail out if auth hydration hasn't completed yet (token is null).
+      // InstructorGuard normally prevents renders before isHydrated, but
+      // this guards against any edge case where the function is called early.
+      if (!isHydrated || !useAuthStore.getState().accessToken) {
+        setError("Session not ready. Please wait a moment and try again, or refresh the page.");
+        return;
+      }
 
-      if (submissions.length < 2) {
+      const accessToken = useAuthStore.getState().accessToken;
+
+      if (assignment?.language_id === JAVA_SEED_LANGUAGE_ID) {
+        const seedRes = await fetch(`/api/instructor/seed-demo/${assignmentId}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+        const seedData = (await seedRes.json()) as {
+          error?: string;
+          results?: Array<{ status: string; detail?: string }>;
+        };
+        if (!seedRes.ok) {
+          setError(seedData.error ?? `Demo seed request failed (${seedRes.status})`);
+          return;
+        }
+      }
+
+      // Fetch all submissions; prefer latest only to avoid duplicates
+      const allSubmissions = await instructorAssessmentsApi.listSubmissions(assignmentId);
+      const latestSubs = allSubmissions.filter((s) => s.is_latest);
+      const targets: SubmissionResponse[] = latestSubs.length >= 2 ? latestSubs : allSubmissions;
+
+      if (targets.length < 2) {
         setError("At least 2 submissions are required for similarity analysis");
         return;
       }
 
-      // Fetch code for each submission
-      const submissionsWithRawCode = await Promise.all(
-        submissions.map(async (sub: SubmissionResponse) => {
-          try {
-            const code = await assessmentsApi.getSubmissionCode(sub.id);
-            return {
-              submission_id: sub.id,
-              student_id: sub.user_id || "unknown",
-              source_code: code.code || "",
-            };
-          } catch {
-            return null;
-          }
-        })
-      );
+      // Batch-fetch source code with auth (falls back to parallel individual calls)
+      const codeMap = await getBatchSubmissionCode(targets.map((s) => s.id));
 
-      const submissionsWithCode = submissionsWithRawCode.filter(
-        (r): r is SubmissionItem => r !== null
-      );
+      const submissionsWithCode: SubmissionItem[] = targets
+        .map((sub) => ({
+          submission_id: sub.id,
+          // Priority: user_id (individual) → group_id (group assignment) → sub.id (always unique).
+          // Falling back to a literal "unknown" collapses all submissions to the same student_id,
+          // causing CIPAS's add_match guard (student_a == student_b → drop) to silently discard
+          // every candidate pair, producing 0 edges and 0 clusters.
+          student_id: sub.user_id ?? sub.group_id ?? sub.id,
+          source_code: codeMap[sub.id]?.code?.trim() ?? "",
+        }))
+        .filter((s) => s.source_code.length > 0);
 
       if (submissionsWithCode.length < 2) {
-        setError("Not enough submissions with code to analyze");
+        setError(
+          `Only ${submissionsWithCode.length} of ${targets.length} submissions have source code. ` +
+          `Ensure students have saved their code before running analysis.`,
+        );
         return;
       }
 
-      // Determine language from assignment (default to Python)
-      const language = assignment?.language_id || "python";
-      const languageStr = typeof language === "string" ? language.toLowerCase() : "python";
+      // Map Judge0 integer language_id → CIPAS language string (java/python/c/csharp)
+      const cipasLanguage = toCipasLanguage(assignment?.language_id);
 
-      // Fetch instructor template if available
+      // Optionally register instructor template to suppress starter-code matches
       let instructorTemplate: string | undefined;
       if (assignment?.instructor_template_id) {
         try {
@@ -286,25 +362,38 @@ export default function SimilarityOverviewPage() {
             assignment.instructor_template_id
           );
           instructorTemplate = templateCode.code || undefined;
-          console.log(`Fetched instructor template: ${instructorTemplate?.length || 0} characters`);
         } catch (err) {
           console.warn("Could not fetch instructor template for clustering:", err);
         }
       }
 
-      // Run clustering with syntactic clone detection
+      // Run CIPAS syntactic clone clustering.
+      //
+      // IMPORTANT: lsh_threshold (0.3) is the MinHash candidate-retrieval threshold —
+      // it controls how broadly the LSH index searches for clone candidates.
+      // Keep it at the backend default (0.3) so the cascade sees all potential pairs.
+      //
+      // The UI "Threshold" filter (thresholdFilter) is a separate display-only filter
+      // that hides low-confidence clusters from the table — it does NOT affect detection.
       const clusterResponse = await clusterAssignment({
         assignment_id: assignmentId,
-        language: languageStr,
+        language: cipasLanguage,
         submissions: submissionsWithCode,
         instructor_template: instructorTemplate,
-        lsh_threshold: parseFloat(thresholdFilter),
-        min_confidence: 0.0,
+        lsh_threshold: 0.3,   // candidate retrieval breadth — do NOT use UI filter here
+        min_confidence: 0.0,  // include all detected edges; UI filter handles display
       });
 
       setReport(clusterResponse);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to run similarity analysis");
+      // Surface a clear message for auth failures so users know to re-login
+      // rather than seeing a generic error.
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("401") || msg.toLowerCase().includes("unauthorized") || msg.toLowerCase().includes("unauthenticated")) {
+        setError("Session expired — please refresh the page or log in again.");
+      } else {
+        setError(msg || "Failed to run similarity analysis");
+      }
     } finally {
       setIsRunning(false);
     }
@@ -365,6 +454,26 @@ export default function SimilarityOverviewPage() {
 
     return clusters;
   }, [report, searchQuery, thresholdFilter, sortBy, statusFilter, annotations]);
+
+  /** Edges in filtered clusters (deduped per cluster + student pair), for opening diff without using the graph. */
+  const similarPairRows = React.useMemo(() => {
+    const threshold = parseFloat(thresholdFilter);
+    const seen = new Set<string>();
+    const rows: { cluster: CollusionGroup; edge: CollusionEdge }[] = [];
+    for (const c of filteredClusters) {
+      for (const e of c.edges) {
+        if (e.confidence < threshold) continue;
+        const lo = e.student_a < e.student_b ? e.student_a : e.student_b;
+        const hi = e.student_a < e.student_b ? e.student_b : e.student_a;
+        const k = `${c.group_id}|${lo}|${hi}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        rows.push({ cluster: c, edge: e });
+      }
+    }
+    rows.sort((a, b) => b.edge.confidence - a.edge.confidence);
+    return rows;
+  }, [filteredClusters, thresholdFilter]);
 
   // Calculate summary stats
   const stats = React.useMemo(() => {
@@ -510,6 +619,14 @@ export default function SimilarityOverviewPage() {
             <p className="text-sm text-muted-foreground text-center max-w-md mb-6">
               Run similarity analysis to detect code clones and potential collusion among submissions.
               This may take 10-30 seconds depending on the number of submissions.
+              {assignment?.language_id === JAVA_SEED_LANGUAGE_ID && (
+                <>
+                  {" "}
+                  For Java, similar demo submissions are synced first (server{" "}
+                  <span className="font-mono text-xs">DEMO_*</span> in{" "}
+                  <span className="font-mono text-xs">apps/web/.env.local</span>).
+                </>
+              )}
             </p>
             <Button onClick={handleRunAnalysis} disabled={isRunning} size="lg">
               {isRunning ? (
@@ -565,7 +682,7 @@ export default function SimilarityOverviewPage() {
         <CardContent className="flex flex-wrap items-center gap-4 py-4">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Threshold
+              Min. Confidence
             </span>
             <Select value={thresholdFilter} onValueChange={setThresholdFilter}>
               <SelectTrigger className="w-24 h-8">
@@ -638,14 +755,65 @@ export default function SimilarityOverviewPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <BarChart3 className="h-5 w-5 text-primary" />
-                Network Cluster Visualization
+                Submission similarity network
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 pt-0 space-y-4">
               <NetworkGraph
-                clusters={filteredClusters.slice(0, 4)}
+                clusters={filteredClusters}
                 onClusterClick={handleViewCluster}
+                onEdgeClick={handleOpenDiff}
               />
+              {similarPairRows.length > 0 && (
+                <div className="rounded-lg border border-border bg-muted/30 dark:bg-muted/10">
+                  <div className="px-3 py-2 border-b border-border flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-medium">Similar pairs</p>
+                      <p className="text-xs text-muted-foreground">
+                        Click a row to open the side-by-side diff (same as clicking a link in the graph).
+                      </p>
+                    </div>
+                    <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+                      {similarPairRows.length} pair{similarPairRows.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  <ScrollArea className="h-[min(280px,40vh)]">
+                    <ul className="p-2 space-y-1">
+                      {similarPairRows.map(({ cluster, edge }) => {
+                        const clusterLetter = String.fromCharCode(64 + cluster.group_id);
+                        return (
+                          <li key={`${cluster.group_id}-${edge.student_a}-${edge.student_b}`}>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDiff(cluster, edge)}
+                              className="w-full flex items-center gap-3 rounded-md px-2 py-2 text-left text-sm hover:bg-muted/80 transition-colors border border-transparent hover:border-border"
+                            >
+                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-xs font-bold text-primary">
+                                {clusterLetter}
+                              </span>
+                              <span className="min-w-0 flex-1 font-mono text-xs">
+                                <span className="text-foreground">
+                                  {edge.student_a.slice(0, 10)}
+                                  {edge.student_a.length > 10 ? "…" : ""}
+                                </span>
+                                <span className="text-muted-foreground mx-1">↔</span>
+                                <span className="text-foreground">
+                                  {edge.student_b.slice(0, 10)}
+                                  {edge.student_b.length > 10 ? "…" : ""}
+                                </span>
+                                <span className="block text-[11px] text-muted-foreground mt-0.5">
+                                  {edge.clone_type} · {Math.round(edge.confidence * 100)}%
+                                </span>
+                              </span>
+                              <Columns2 className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </ScrollArea>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -761,6 +929,95 @@ export default function SimilarityOverviewPage() {
         </Card>
       )}
 
+      {/* Syntactic Analysis Diagnostics — per-submission fragment/pair/clone breakdown */}
+      {report.per_submission.length > 0 && (
+        <Card>
+          <CardHeader className="cursor-pointer select-none" onClick={() => setShowDiagnostics((v) => !v)}>
+            <CardTitle className="flex items-center justify-between text-sm font-medium">
+              <span className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                Syntactic Analysis Details
+                {report.per_submission.some((s) => s.fragment_count === 0) && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
+                    {report.per_submission.filter((s) => s.fragment_count === 0).length} submission(s) produced no fragments
+                  </span>
+                )}
+              </span>
+              {showDiagnostics ? (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              )}
+            </CardTitle>
+            <p className="text-xs text-muted-foreground font-normal mt-1">
+              If 0 clusters were detected, check for submissions with 0 fragments (code too short, wrong language) or 0 candidate pairs (insufficient LSH overlap).
+            </p>
+          </CardHeader>
+          {showDiagnostics && (
+            <CardContent>
+              <div className="rounded-md border">
+                <table className="w-full text-sm">
+                  <thead className="border-b bg-muted/50">
+                    <tr>
+                      <th className="p-3 text-left font-medium text-xs">Submission ID</th>
+                      <th className="p-3 text-left font-medium text-xs">Student ID</th>
+                      <th className="p-3 text-center font-medium text-xs">Fragments</th>
+                      <th className="p-3 text-center font-medium text-xs">Candidate Pairs</th>
+                      <th className="p-3 text-center font-medium text-xs">Confirmed Clones</th>
+                      <th className="p-3 text-left font-medium text-xs">Errors</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {report.per_submission.map((sub) => (
+                      <tr key={sub.submission_id} className="hover:bg-muted/30">
+                        <td className="p-3 font-mono text-xs">{sub.submission_id.substring(0, 8)}…</td>
+                        <td className="p-3 font-mono text-xs">{sub.student_id.substring(0, 8)}…</td>
+                        <td className="p-3 text-center">
+                          <span className={`inline-flex items-center justify-center w-8 h-6 rounded text-xs font-semibold ${
+                            sub.fragment_count === 0
+                              ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                              : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                          }`}>
+                            {sub.fragment_count}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          <span className={`inline-flex items-center justify-center w-8 h-6 rounded text-xs font-semibold ${
+                            sub.candidate_pair_count === 0
+                              ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                              : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                          }`}>
+                            {sub.candidate_pair_count}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          <span className={`inline-flex items-center justify-center w-8 h-6 rounded text-xs font-semibold ${
+                            sub.confirmed_clone_count > 0
+                              ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+                              : "bg-muted text-muted-foreground"
+                          }`}>
+                            {sub.confirmed_clone_count}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          {sub.errors.length > 0 ? (
+                            <span className="text-xs text-red-600 dark:text-red-400">
+                              {sub.errors.join("; ")}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      )}
+
       {/* Clusters Table */}
       <Card>
         <CardHeader>
@@ -775,7 +1032,7 @@ export default function SimilarityOverviewPage() {
         </CardContent>
       </Card>
 
-      {/* Cluster graph sheet — opens when a bubble in NetworkGraph is clicked */}
+      {/* Cluster graph sheet — opens from Detected Clusters table "View Cluster" */}
       <ClusterGraphSheet
         cluster={graphSheetCluster}
         open={graphSheetOpen}
@@ -789,7 +1046,10 @@ export default function SimilarityOverviewPage() {
         initialEdge={diffSheetEdge}
         assignmentId={assignmentId}
         open={diffSheetOpen}
-        onClose={() => setDiffSheetOpen(false)}
+        onClose={() => {
+          setDiffSheetOpen(false);
+          setDiffSheetEdge(null);
+        }}
       />
     </div>
   );

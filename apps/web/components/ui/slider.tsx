@@ -8,13 +8,14 @@ interface SliderProps {
   value?: number[]
   onValueChange?: (value: number[]) => void
   defaultValue?: number[]
+  min?: number
   max?: number
   step?: number
   className?: string
 }
 
 const Slider = React.forwardRef<HTMLInputElement, SliderProps>(
-  ({ className, value, defaultValue = [0], onValueChange, max = 100, step = 1 }, ref) => {
+  ({ className, value, defaultValue = [0], onValueChange, min = 0, max = 100, step = 1 }, ref) => {
     const [internalValue, setInternalValue] = React.useState(defaultValue[0])
     const currentValue = value !== undefined ? value[0] : internalValue
 
@@ -32,6 +33,7 @@ const Slider = React.forwardRef<HTMLInputElement, SliderProps>(
           type="range"
           ref={ref}
           value={String(currentValue)}
+          min={min}
           max={max}
           step={step}
           onChange={handleChange}

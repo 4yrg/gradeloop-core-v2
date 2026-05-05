@@ -13,7 +13,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, Users } from "lucide-react";
 import { CollusionGroupCard } from "@/components/clone-detector/CollusionGroupCard";
-import { instructorAssessmentsApi, assessmentsApi } from "@/lib/api/assessments";
+import { instructorAssessmentsApi } from "@/lib/api/assessments";
+import { getBatchSubmissionCode } from "@/lib/api/cipas-client";
 import type { CollusionGroup, CollusionEdge, SubmissionItem } from "@/types/cipas";
 import type { SubmissionResponse } from "@/types/assessments.types";
 
@@ -61,23 +62,17 @@ export function DiffSheet({
         // (can happen when member_ids are submission_ids instead of user_ids)
         const targets = relevant.length > 0 ? relevant : rawSubs.filter((s) => s.is_latest);
 
-        const withCode = await Promise.all(
-          targets.map(async (sub) => {
-            try {
-              const codeRes = await assessmentsApi.getSubmissionCode(sub.id);
-              return {
-                submission_id: sub.id,
-                student_id: sub.user_id ?? sub.id,
-                source_code: codeRes.code ?? "",
-              } satisfies SubmissionItem;
-            } catch {
-              return null;
-            }
-          })
-        );
+        // Batch-fetch all submission codes in a single request
+        const subIds = targets.map((s) => s.id);
+        const codeMap = await getBatchSubmissionCode(subIds);
 
         if (mounted) {
-          setSubmissions(withCode.filter((s): s is SubmissionItem => s !== null));
+          const items: SubmissionItem[] = targets.map((sub) => ({
+            submission_id: sub.id,
+            student_id: sub.user_id ?? sub.group_id ?? sub.id,
+            source_code: codeMap[sub.id]?.code ?? "",
+          }));
+          setSubmissions(items);
         }
       } catch (err) {
         if (mounted) {
@@ -120,6 +115,7 @@ export function DiffSheet({
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent
         side="bottom"
+        disableAnimation
         className="h-[92dvh] flex flex-col gap-0 p-0 overflow-hidden"
       >
         {/* Fixed header */}
@@ -168,6 +164,7 @@ export function DiffSheet({
 
           {!isLoading && !error && clusterWithEdgeFirst && (
             <CollusionGroupCard
+              key={`${cluster.group_id}-${initialEdge?.student_a ?? ""}-${initialEdge?.student_b ?? ""}`}
               group={clusterWithEdgeFirst}
               submissions={submissions}
               index={cluster.group_id - 1}

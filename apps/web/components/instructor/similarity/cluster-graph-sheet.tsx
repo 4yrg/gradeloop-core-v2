@@ -9,12 +9,8 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { SimilarityBadge, SimilarityScore } from "./similarity-badge";
-import { ForceDirectedGraph } from "./force-directed-graph";
-import { GitCompare, Users, Link2 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import type { CollusionGroup, CollusionEdge, StudentDetails } from "@/types/cipas";
-import { cn } from "@/lib/utils";
 
 interface ClusterGraphSheetProps {
   cluster: CollusionGroup | null;
@@ -22,6 +18,14 @@ interface ClusterGraphSheetProps {
   open: boolean;
   onClose: () => void;
   onCompare: (cluster: CollusionGroup, edge: CollusionEdge) => void;
+}
+
+function strongestEdgeForStudent(cluster: CollusionGroup, studentId: string): CollusionEdge | null {
+  const incident = cluster.edges.filter(
+    (e) => e.student_a === studentId || e.student_b === studentId,
+  );
+  if (incident.length === 0) return null;
+  return incident.reduce((best, e) => (e.confidence > best.confidence ? e : best), incident[0]);
 }
 
 export function ClusterGraphSheet({
@@ -34,131 +38,74 @@ export function ClusterGraphSheet({
   if (!cluster) return null;
 
   const label = String.fromCharCode(64 + cluster.group_id);
-
-  const maxEdge = cluster.edges.length > 0
-    ? cluster.edges.reduce((m, e) => (e.confidence > m.confidence ? e : m), cluster.edges[0])
-    : null;
+  const pairsSorted = [...cluster.edges].sort((a, b) => b.confidence - a.confidence);
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-2xl overflow-y-auto flex flex-col gap-6 p-6"
+        disableAnimation
+        className="w-full sm:max-w-md flex flex-col gap-4 p-4 overflow-hidden"
       >
-        {/* Header */}
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-3">
-            <div
-              className={cn(
-                "w-9 h-9 rounded-lg flex items-center justify-center font-bold text-base shrink-0",
-                cluster.max_confidence >= 0.85
-                  ? "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
-                  : cluster.max_confidence >= 0.75
-                  ? "bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400"
-                  : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400"
-              )}
-            >
-              {label}
-            </div>
-            Cluster {label}
-          </SheetTitle>
-          <SheetDescription asChild>
-            <div className="flex flex-wrap items-center gap-2 mt-1">
-              <SimilarityBadge similarity={cluster.max_confidence} />
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Users className="h-3.5 w-3.5" />
-                {cluster.member_count} students
-              </span>
-              <span className="text-xs text-muted-foreground">
-                {cluster.edge_count} connections
-              </span>
-              <Badge variant="outline" className="text-xs">
-                {cluster.dominant_type}
-              </Badge>
-            </div>
+        <SheetHeader className="space-y-1 text-left">
+          <SheetTitle>Cluster {label}</SheetTitle>
+          <SheetDescription>
+            {cluster.member_count} students · {cluster.edges.length} similar pairs. Choose a student (strongest
+            match) or a pair to open the side-by-side code comparison.
           </SheetDescription>
         </SheetHeader>
 
-        {/* Interactive Force-Directed Graph */}
-        <div className="relative w-full aspect-square rounded-xl overflow-hidden">
-          <ForceDirectedGraph
-            cluster={cluster}
-            studentDetails={studentDetails}
-            onEdgeClick={(edge) => onCompare(cluster, edge)}
-            onNodeClick={() => {
-              // Could open student detail panel here
-            }}
-            width={600}
-            height={600}
-          />
-        </div>
-
-        {/* Edge list */}
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            <Link2 className="h-3.5 w-3.5" />
-            Clone Pairs ({cluster.edges.length})
-          </p>
-
-          <div className="space-y-1.5">
-            {cluster.edges.map((edge, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between p-3 rounded-lg border hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="flex items-center gap-2 font-mono text-sm min-w-0">
-                    <span
-                      className="truncate max-w-[80px] text-foreground"
-                      title={edge.student_a}
-                    >
-                      {edge.student_a.substring(0, 8)}
-                    </span>
-                    <span className="text-muted-foreground shrink-0">↔</span>
-                    <span
-                      className="truncate max-w-[80px] text-foreground"
-                      title={edge.student_b}
-                    >
-                      {edge.student_b.substring(0, 8)}
-                    </span>
-                  </div>
-                  <Badge variant="secondary" className="text-[10px] shrink-0">
-                    {edge.clone_type}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground shrink-0">
-                    {edge.match_count} match{edge.match_count !== 1 ? "es" : ""}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-3 shrink-0 ml-2">
-                  <SimilarityScore score={edge.confidence} />
+        <div className="flex flex-col gap-4 flex-1 min-h-0">
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-2">Students</p>
+            <div className="flex flex-wrap gap-2">
+              {cluster.member_ids.map((id) => {
+                const edge = strongestEdgeForStudent(cluster, id);
+                const display =
+                  studentDetails[id]?.full_name?.trim() ||
+                  `${id.length > 12 ? `${id.slice(0, 12)}…` : id}`;
+                return (
                   <Button
-                    size="sm"
+                    key={id}
+                    type="button"
                     variant="outline"
-                    onClick={() => onCompare(cluster, edge)}
-                    className="gap-1.5"
+                    size="sm"
+                    className="h-auto min-h-8 max-w-full justify-start text-left font-normal"
+                    title={id}
+                    disabled={!edge}
+                    onClick={() => edge && onCompare(cluster, edge)}
                   >
-                    <GitCompare className="h-3.5 w-3.5" />
-                    Compare
+                    <span className="truncate text-xs">{display}</span>
                   </Button>
-                </div>
-              </div>
-            ))}
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex flex-col flex-1 min-h-0">
+            <p className="text-xs font-medium text-muted-foreground mb-2">Similar pairs</p>
+            <ScrollArea className="flex-1 rounded-md border border-border">
+              <ul className="p-1">
+                {pairsSorted.map((edge, i) => (
+                  <li key={`${edge.student_a}-${edge.student_b}-${i}`}>
+                    <button
+                      type="button"
+                      className="w-full rounded-md px-3 py-2.5 text-left text-sm hover:bg-muted"
+                      onClick={() => onCompare(cluster, edge)}
+                    >
+                      <div className="font-mono text-xs text-foreground break-all">
+                        {edge.student_a} ↔ {edge.student_b}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {edge.clone_type} · {Math.round(edge.confidence * 100)}% similar
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </ScrollArea>
           </div>
         </div>
-
-        {/* Best match CTA */}
-        {maxEdge && (
-          <div className="mt-auto pt-4 border-t">
-            <Button
-              className="w-full gap-2"
-              onClick={() => onCompare(cluster, maxEdge)}
-            >
-              <GitCompare className="h-4 w-4" />
-              Compare Best Match ({Math.round(maxEdge.confidence * 100)}% similarity)
-            </Button>
-          </div>
-        )}
       </SheetContent>
     </Sheet>
   );
