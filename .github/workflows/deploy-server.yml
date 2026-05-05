@@ -67,7 +67,7 @@ jobs:
               packages/go/*) for s in iam academic assessment notification email cipas-xai; do add_service $s; done ;;
               packages/python/*) for s in cipas-syntactics cipas-semantics cipas-ai; do add_service $s; done ;;
               infra/compose/compose.server.yaml|apps/api-gateway/nginx.server.conf) add_all_app_services ;;
-              infra/compose/*) add_all_app_services ;;
+              infra/compose/*|.github/workflows/*) add_all_app_services ;;
             esac
           done
 
@@ -98,6 +98,8 @@ jobs:
             ServerAliveInterval 30
             ServerAliveCountMax 10
             StrictHostKeyChecking no
+            BatchMode yes
+            ConnectTimeout 60
             ControlMaster auto
             ControlPath ~/.ssh/ssh-%r@%h:%p
             ControlPersist 10m
@@ -114,12 +116,13 @@ jobs:
           fi
 
       - name: Deploy on server
+        if: steps.changes.outputs.has_changes == 'true'
         env:
           CHANGED_SERVICES: ${{ steps.changes.outputs.services }}
         run: |
           # Use a loop to build services one by one to prevent resource exhaustion
           # and use a more resilient SSH command
-          ssh -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" \
+          ssh -tt -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" \
             "DEPLOY_PATH='$DEPLOY_PATH' CHANGED_SERVICES='$CHANGED_SERVICES' bash -s" <<'REMOTE'
           set -euo pipefail
 
@@ -143,7 +146,7 @@ jobs:
             echo ">>> Starting updated services..."
             docker compose -f infra/compose/compose.server.yaml up -d --no-deps $CHANGED_SERVICES
           else
-            echo "No services changed. Ensuring stack is up..."
+            echo "No app services changed. Ensuring stack is up..."
             docker compose -f infra/compose/compose.server.yaml up -d
           fi
 
