@@ -131,6 +131,8 @@ services:
     restart: unless-stopped
     environment:
       - WEEAD_IDENTITY=seaweedfs
+      - S3_KEY=root
+      - S3_SECRET=root
     ports:
       - "9333:9333" # S3 API
       - "9320:9320" # Console
