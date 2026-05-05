@@ -203,6 +203,9 @@ export const ivasApi = {
     getVivaWebSocketUrl: (sessionId: string) =>
         `${IVAS_WS_URL}/ws/ivas/session/${encodeURIComponent(sessionId)}`,
 
+    getStandaloneVivaWebSocketUrl: () =>
+        `${IVAS_WS_URL}/ws/ivas/viva`,
+
     // --- Competencies (global) ---
     listCompetencies: () =>
         ivasRequest<CompetencyOut[]>("/competencies"),

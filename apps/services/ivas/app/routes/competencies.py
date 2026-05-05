@@ -145,7 +145,18 @@ async def generate_competencies(
             description=body.description or "",
             title=body.title or "",
         )
+    except TimeoutError:
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="AI competency generation timed out. Please try again.",
+        )
     except Exception as exc:
+        error_msg = str(exc)
+        if "503" in error_msg or "UNAVAILABLE" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="AI service is temporarily unavailable. Please try again in a few moments.",
+            )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"AI competency generation failed: {exc}",

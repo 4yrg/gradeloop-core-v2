@@ -300,6 +300,14 @@ function CompetencyDashboard({
     );
 }
 
+function getApiErrorMessage(err: unknown, fallback: string): string {
+    const axiosErr = err as { response?: { data?: { detail?: string }; status?: number } };
+    const detail = axiosErr.response?.data?.detail;
+    if (detail) return detail;
+    if (err instanceof Error) return err.message;
+    return fallback;
+}
+
 export default function CompetenciesPage() {
     const params = useParams();
     const assignmentId = params.assignmentId as string;
@@ -396,7 +404,7 @@ export default function CompetenciesPage() {
                 setDistIntermediate(counts[2]);
                 setDistAdvanced(counts[3]);
             } catch (err) {
-                if (mounted) setError(err instanceof Error ? err.message : "Failed to load competencies");
+                if (mounted) setError(getApiErrorMessage(err, "Failed to load competencies"));
             } finally {
                 if (mounted) setLoading(false);
             }
@@ -431,8 +439,8 @@ export default function CompetenciesPage() {
                 setAddedNames(new Set());
                 setShowGenModal(true);
             }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Generation failed");
+        } catch (err: unknown) {
+            setError(getApiErrorMessage(err, "Generation failed"));
         } finally {
             setGenerating(false);
         }

@@ -11,6 +11,7 @@ contextually relevant to the specific assignment and competency.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import random
 import re
@@ -157,10 +158,16 @@ Question requirements (exactly follow this distribution):
         from google import genai
 
         client = genai.Client(api_key=gemini_api_key)
-        response = await client.aio.models.generate_content(
-            model=model,
-            contents=prompt,
+        response = await asyncio.wait_for(
+            client.aio.models.generate_content(
+                model=model,
+                contents=prompt,
+            ),
+            timeout=60,
         )
+    except asyncio.TimeoutError:
+        logger.error("question_selector_timeout", timeout=60)
+        return []
     except Exception as exc:
         logger.error("question_selector_failed", error=str(exc))
         return []

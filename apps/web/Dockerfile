@@ -39,13 +39,15 @@ COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY . .
 
 # Accept build arguments for public env vars
-ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+ARG NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 ARG NEXT_PUBLIC_IAM_SERVICE_URL=http://localhost:8000/api/v1
+ARG NEXT_PUBLIC_IVAS_WS_URL=ws://localhost:8000
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_IAM_SERVICE_URL=$NEXT_PUBLIC_IAM_SERVICE_URL
+ENV NEXT_PUBLIC_IVAS_WS_URL=$NEXT_PUBLIC_IVAS_WS_URL
 
 WORKDIR /app/apps/web
 

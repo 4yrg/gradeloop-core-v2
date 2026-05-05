@@ -87,6 +87,7 @@ services:
             - http://localhost:8080
             - http://localhost:443
             - https://gradeloop-core-v2-web.vercel.app
+            - https://gradeloop-core-v2.vercel.app
             - https://api.gradeloop.space
             - https://app.gradeloop.space
             - https://gradeloop.space
@@ -135,6 +136,7 @@ services:
             - http://localhost:8080
             - http://localhost:443
             - https://gradeloop-core-v2-web.vercel.app
+            - https://gradeloop-core-v2.vercel.app
             - https://api.gradeloop.space
             - https://app.gradeloop.space
             - https://gradeloop.space
@@ -211,6 +213,7 @@ services:
             - http://localhost:8080
             - http://localhost:443
             - https://gradeloop-core-v2-web.vercel.app
+            - https://gradeloop-core-v2.vercel.app
             - https://api.gradeloop.space
             - https://app.gradeloop.space
             - https://gradeloop.space
@@ -258,6 +261,7 @@ services:
             - http://localhost:8080
             - http://localhost:443
             - https://gradeloop-core-v2-web.vercel.app
+            - https://gradeloop-core-v2.vercel.app
             - https://api.gradeloop.space
             - https://app.gradeloop.space
             - https://gradeloop.space
@@ -304,6 +308,7 @@ services:
             - http://localhost:8080
             - http://localhost:443
             - https://gradeloop-core-v2-web.vercel.app
+            - https://gradeloop-core-v2.vercel.app
             - https://api.gradeloop.space
             - https://app.gradeloop.space
             - https://gradeloop.space
@@ -350,6 +355,7 @@ services:
             - http://localhost:8080
             - http://localhost:443
             - https://gradeloop-core-v2-web.vercel.app
+            - https://gradeloop-core-v2.vercel.app
             - https://api.gradeloop.space
             - https://app.gradeloop.space
             - https://gradeloop.space
@@ -396,6 +402,7 @@ services:
             - http://localhost:8080
             - http://localhost:443
             - https://gradeloop-core-v2-web.vercel.app
+            - https://gradeloop-core-v2.vercel.app
             - https://api.gradeloop.space
             - https://app.gradeloop.space
             - https://gradeloop.space
@@ -442,6 +449,7 @@ services:
             - http://localhost:8080
             - http://localhost:443
             - https://gradeloop-core-v2-web.vercel.app
+            - https://gradeloop-core-v2.vercel.app
             - https://api.gradeloop.space
             - https://app.gradeloop.space
             - https://gradeloop.space
@@ -500,6 +508,7 @@ services:
             - http://localhost:8080
             - http://localhost:443
             - https://gradeloop-core-v2-web.vercel.app
+            - https://gradeloop-core-v2.vercel.app
             - https://api.gradeloop.space
             - https://app.gradeloop.space
             - https://gradeloop.space
@@ -561,6 +570,7 @@ services:
             - http://localhost:8080
             - http://localhost:443
             - https://gradeloop-core-v2-web.vercel.app
+            - https://gradeloop-core-v2.vercel.app
             - https://api.gradeloop.space
             - https://app.gradeloop.space
             - https://gradeloop.space
@@ -604,6 +614,7 @@ services:
             - http://localhost:8080
             - http://localhost:443
             - https://gradeloop-core-v2-web.vercel.app
+            - https://gradeloop-core-v2.vercel.app
             - https://api.gradeloop.space
             - https://app.gradeloop.space
             - https://gradeloop.space
@@ -625,6 +636,9 @@ services:
           hide_client_headers: false
   - name: ivas-service
     url: http://ivas:8101
+    read_timeout: 300000
+    write_timeout: 300000
+    connect_timeout: 300000
     routes:
       - name: ivas-api
         paths:
@@ -651,6 +665,7 @@ services:
             - http://localhost:8080
             - http://localhost:443
             - https://gradeloop-core-v2-web.vercel.app
+            - https://gradeloop-core-v2.vercel.app
             - https://api.gradeloop.space
             - https://app.gradeloop.space
             - https://gradeloop.space
@@ -702,6 +717,7 @@ services:
             - http://localhost:8080
             - http://localhost:443
             - https://gradeloop-core-v2-web.vercel.app
+            - https://gradeloop-core-v2.vercel.app
             - https://api.gradeloop.space
             - https://app.gradeloop.space
             - https://gradeloop.space

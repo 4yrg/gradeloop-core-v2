@@ -63,6 +63,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         notification_publisher = None
         logger.warning("ivas_notification_publisher_unavailable", error=str(e))
 
+    # Pre-load the Resemblyzer voice encoder model so first request doesn't time out
+    try:
+        from app.services.voice.speaker import _get_encoder
+        _get_encoder()
+        logger.info("ivas_voice_encoder_preloaded")
+    except Exception as e:
+        logger.warning("ivas_voice_encoder_preload_failed", error=str(e))
+
     logger.info("ivas_service_ready")
 
     yield
@@ -88,22 +96,13 @@ api_router = APIRouter(prefix="/api/v1/ivas")
 
 @api_router.get("/health", tags=["health"])
 async def health_check() -> JSONResponse:
-    """Health check endpoint."""
-    return JSONResponse(
-        status_code=status.HTTP_200_OK,
-        content={
-            "status": "healthy",
-            "service": settings.service_name,
-            "version": "0.1.0",
-        },
-    )
+    """Health check endpoint.
 
-
-@api_router.get("/ready", tags=["health"])
-async def readiness_check() -> JSONResponse:
-    """Readiness check endpoint."""
-    healthy = True
+    Checks critical internal dependencies: PostgreSQL and voice encoder.
+    Returns 503 if any critical component is unavailable.
+    """
     checks = {}
+    healthy = True
 
     if postgres_client:
         try:
@@ -116,12 +115,63 @@ async def readiness_check() -> JSONResponse:
         healthy = False
         checks["postgres"] = "not_initialized"
 
+    try:
+        from app.services.voice.speaker import _get_encoder
+        encoder = _get_encoder()
+        checks["voice_encoder"] = "ok" if encoder is not None else "not_loaded"
+        if encoder is None:
+            healthy = False
+    except Exception as e:
+        healthy = False
+        checks["voice_encoder"] = f"error: {e}"
+
     status_code = status.HTTP_200_OK if healthy else status.HTTP_503_SERVICE_UNAVAILABLE
 
     return JSONResponse(
         status_code=status_code,
         content={
-            "status": "ready" if healthy else "not_ready",
+            "status": "healthy" if healthy else "degraded",
+            "service": settings.service_name,
+            "version": "0.1.0",
+            "checks": checks,
+        },
+    )
+
+
+@api_router.get("/ready", tags=["health"])
+async def readiness_check() -> JSONResponse:
+    """Readiness check endpoint.
+
+    Checks PostgreSQL (critical) and reports status of other components.
+    Returns 503 only if PostgreSQL is down (service cannot function without DB).
+    """
+    checks = {}
+
+    if postgres_client:
+        try:
+            await postgres_client.ping()
+            checks["postgres"] = "ok"
+        except Exception as e:
+            checks["postgres"] = f"error: {e}"
+    else:
+        checks["postgres"] = "not_initialized"
+
+    checks["notifications"] = "ok" if notification_publisher else "unavailable"
+
+    try:
+        from app.services.voice.speaker import _get_encoder
+        encoder = _get_encoder()
+        checks["voice_encoder"] = "ok" if encoder is not None else "not_loaded"
+    except Exception:
+        checks["voice_encoder"] = "error"
+
+    postgres_ok = checks["postgres"] == "ok"
+    status_code = status.HTTP_200_OK if postgres_ok else status.HTTP_503_SERVICE_UNAVAILABLE
+
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "status": "ready" if postgres_ok else "not_ready",
             "checks": checks,
         },
     )
