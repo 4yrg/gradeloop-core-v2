@@ -84,13 +84,20 @@ jobs:
 
       - name: Configure SSH
         run: |
+          # Fail if secret is missing
+          if [[ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]]; then
+            echo "Error: SSH_PRIVATE_KEY secret is empty or missing!"
+            exit 1
+          fi
+
           # Create .ssh directory in HOME
           mkdir -pv "$HOME/.ssh"
-          # Write the private key
+          
+          # Write the private key (GHA will mask this in logs)
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > "$HOME/.ssh/deploy_key"
           chmod 600 "$HOME/.ssh/deploy_key"
           
-          # Setup SSH config for persistence and keepalive
+          # Setup SSH config
           cat > "$HOME/.ssh/config" <<EOF
           Host *
             ServerAliveInterval 30
@@ -102,8 +109,13 @@ jobs:
           EOF
           
           # Add server to known hosts
-          ssh-keyscan -H "$SSH_HOST" >> "$HOME/.ssh/known_hosts"
-          chmod 644 "$HOME/.ssh/known_hosts"
+          if [[ -n "$SSH_HOST" ]]; then
+            ssh-keyscan -H "$SSH_HOST" >> "$HOME/.ssh/known_hosts"
+            chmod 644 "$HOME/.ssh/known_hosts"
+          else
+            echo "Error: SSH_HOST is not set!"
+            exit 1
+          fi
 
       - name: Deploy on server
         env:
