@@ -364,6 +364,10 @@ jobs:
               if [ -d "$dir" ]; then cd "$dir"; break; fi
             done
 
+            echo "=== Phase 0: Sync Repository ==="
+            git fetch --all
+            git reset --hard origin/main
+
             echo "=== Phase 1: Disk Cleanup ==="
             docker system prune -af --filter "until=24h" || true
             docker volume prune -f || true
