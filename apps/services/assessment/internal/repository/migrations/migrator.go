@@ -34,9 +34,8 @@ func (m *Migrator) Run() error {
 		&domain.AssignmentRubricCriterion{},
 		&domain.AssignmentTestCase{},
 		&domain.AssignmentSampleAnswer{},
-		&domain.GitHubRepo{},
-		&domain.GitHubSubmissionVersion{},
-		&domain.AssignmentGitHubConfig{},
+		&domain.CodeRepo{},
+		&domain.CodeVersion{},
 	); err != nil {
 		return fmt.Errorf("auto migrate tables: %w", err)
 	}

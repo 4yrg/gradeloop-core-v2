@@ -103,9 +103,9 @@ func Load() (*Config, error) {
 			SecretKey: getEnv("JWT_SECRET_KEY", ""),
 		},
 		MinIO: MinIOConfig{
-			Endpoint:   getEnv("MINIO_ENDPOINT", "localhost:9000"),
-			AccessKey:  getEnv("MINIO_ACCESS_KEY", "minio"),
-			SecretKey:  getEnv("MINIO_SECRET_KEY", "minio123"),
+			Endpoint:   getEnv("MINIO_ENDPOINT", getEnv("SEAWEED_S3", "localhost:8333")),
+			AccessKey:  getEnv("MINIO_ACCESS_KEY", getEnv("MINIO_ROOT_USER", "root")),
+			SecretKey:  getEnv("MINIO_SECRET_KEY", getEnv("MINIO_ROOT_PASSWORD", "root")),
 			BucketName: getEnv("MINIO_BUCKET", "submissions"),
 			UseSSL:     getEnvAsBool("MINIO_USE_SSL", false),
 		},

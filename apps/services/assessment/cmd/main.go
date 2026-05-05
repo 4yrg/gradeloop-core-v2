@@ -186,11 +186,7 @@ func run() error {
 		logger,
 	)
 
-	// GitHub service
-	githubRepo := repository.NewGitHubRepository(db.DB)
-	githubService := service.NewGitHubService(githubRepo, db.DB, logger)
-
-	// Code Storage (SeaweedFS) service
+	// Code Storage (SeaweedFS + go-git) service
 	codeRepoRepo := repository.NewCodeRepository(db.DB)
 	seaweedStorage, err := storage.NewSeaweedGitStorage(
 		cfg.MinIO.Endpoint,
@@ -212,9 +208,7 @@ func run() error {
 	groupHandler := handler.NewGroupHandler(groupService, logger)
 	instructorHandler := handler.NewInstructorHandler(assignmentService, submissionService, academicClient, logger)
 	studentHandler := handler.NewStudentHandler(assignmentService, submissionService, academicClient, logger)
-	githubHandler := handler.NewGitHubHandler(githubService, assignmentRepo)
 	codeHandler := handler.NewCodeHandler(codeStorageService, assignmentRepo)
-	webhookHandler := handler.NewWebhookHandler(githubService, os.Getenv("APP_GITHUB_WEBHOOK_SECRET"))
 	// ── Fiber app ────────────────────────────────────────────────────────────
 	app := fiber.New(fiber.Config{
 		AppName:      "assessment-service",
@@ -232,15 +226,13 @@ func run() error {
 
 	// ── Routes ───────────────────────────────────────────────────────────────
 	router.SetupRoutes(app, router.Config{
-		HealthHandler:     healthHandler,
+		HealthHandler:      healthHandler,
 		AssignmentHandler: assignmentHandler,
 		SubmissionHandler: submissionHandler,
 		GroupHandler:      groupHandler,
 		InstructorHandler: instructorHandler,
 		StudentHandler:    studentHandler,
-		GitHubHandler:     githubHandler,
 		CodeHandler:       codeHandler,
-		WebhookHandler:    webhookHandler,
 		JWTSecretKey:      []byte(cfg.JWT.SecretKey),
 	})
 
