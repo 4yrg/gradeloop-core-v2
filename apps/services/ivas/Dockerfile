@@ -31,6 +31,11 @@ COPY pyproject.toml poetry.lock* ./
 RUN poetry config virtualenvs.create false \
     && poetry install --no-interaction --no-ansi --no-root --only main
 
+# Pre-download the Resemblyzer voice encoder model (~50MB) at build time.
+# This avoids a runtime download that would fail in restricted networks.
+RUN python -c "from resemblyzer import VoiceEncoder; VoiceEncoder()" \
+    && mkdir -p /app/models
+
 COPY app/ ./app/
 
 FROM builder AS development
@@ -63,16 +68,19 @@ RUN if [ -f /etc/apt/sources.list ]; then \
     && apt-get install -y --no-install-recommends \
     libpq5 \
     libsndfile1 \
+    libopenblas0 \
+    libsoxr0 \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /app/app ./app
-COPY models/ ./models/
+COPY --from=builder /root/.cache /home/ivas/.cache
 
 RUN groupadd --system ivas && useradd --system --gid ivas ivas \
-    && chown -R ivas:ivas /app
+    && mkdir -p /home/ivas \
+    && chown -R ivas:ivas /app /home/ivas
 
 RUN mkdir -p /tmp/numba_cache && chown ivas:ivas /tmp/numba_cache
 
@@ -81,7 +89,9 @@ USER ivas
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     CUDA_VISIBLE_DEVICES="" \
-    NUMBA_CACHE_DIR=/tmp/numba_cache
+    NUMBA_CACHE_DIR=/tmp/numba_cache \
+    HOME=/home/ivas \
+    XDG_CACHE_HOME=/home/ivas/.cache
 
 EXPOSE 8101
 

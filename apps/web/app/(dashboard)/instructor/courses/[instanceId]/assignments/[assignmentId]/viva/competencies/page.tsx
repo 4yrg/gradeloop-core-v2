@@ -300,6 +300,14 @@ function CompetencyDashboard({
     );
 }
 
+function getApiErrorMessage(err: unknown, fallback: string): string {
+    const axiosErr = err as { response?: { data?: { detail?: string }; status?: number } };
+    const detail = axiosErr.response?.data?.detail;
+    if (detail) return detail;
+    if (err instanceof Error) return err.message;
+    return fallback;
+}
+
 export default function CompetenciesPage() {
     const params = useParams();
     const assignmentId = params.assignmentId as string;
@@ -319,7 +327,7 @@ export default function CompetenciesPage() {
         setDashLoading(true);
         ivasApi.listCompetencyScoresForAssignment(assignmentId)
             .then(data => { if (mounted) setDashScores(data); })
-            .catch(err => { if (mounted) setDashError(err instanceof Error ? err.message : "Failed to load scores"); })
+            .catch(err => { if (mounted) setDashError(getApiErrorMessage(err, "Failed to load scores")); })
             .finally(() => { if (mounted) setDashLoading(false); });
         return () => { mounted = false; };
     }, [activeTab, assignmentId]);
@@ -363,7 +371,7 @@ export default function CompetenciesPage() {
             setLinkedCompetencies(prev => prev.filter(c => c.competency_id !== deleteGlobalId));
             setDeleteGlobalId(null);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to delete competency");
+            setError(getApiErrorMessage(err, "Failed to delete competency"));
         } finally {
             setDeletingGlobal(false);
         }
@@ -396,7 +404,7 @@ export default function CompetenciesPage() {
                 setDistIntermediate(counts[2]);
                 setDistAdvanced(counts[3]);
             } catch (err) {
-                if (mounted) setError(err instanceof Error ? err.message : "Failed to load competencies");
+                if (mounted) setError(getApiErrorMessage(err, "Failed to load competencies"));
             } finally {
                 if (mounted) setLoading(false);
             }
@@ -431,8 +439,8 @@ export default function CompetenciesPage() {
                 setAddedNames(new Set());
                 setShowGenModal(true);
             }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Generation failed");
+        } catch (err: unknown) {
+            setError(getApiErrorMessage(err, "Generation failed"));
         } finally {
             setGenerating(false);
         }
@@ -459,7 +467,7 @@ export default function CompetenciesPage() {
             setAllCompetencies(prev => [...prev, created]);
             setAddedNames(prev => new Set(prev).add(generated.name));
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to add competency");
+            setError(getApiErrorMessage(err, "Failed to add competency"));
         } finally {
             setAddingName(null);
         }
@@ -499,7 +507,7 @@ export default function CompetenciesPage() {
             ));
             resetForm();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Save failed");
+            setError(getApiErrorMessage(err, "Save failed"));
         } finally {
             setSaving(false);
         }
@@ -514,7 +522,7 @@ export default function CompetenciesPage() {
             setLinkedCompetencies(remaining);
             setDeleteId(null);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Delete failed");
+            setError(getApiErrorMessage(err, "Delete failed"));
         }
     }
 
@@ -532,7 +540,7 @@ export default function CompetenciesPage() {
             setAllCompetencies(prev => [...prev, created]);
             resetForm();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Create failed");
+            setError(getApiErrorMessage(err, "Create failed"));
         } finally {
             setSaving(false);
         }
@@ -710,7 +718,7 @@ export default function CompetenciesPage() {
                                                     ivasApi.setAssignmentCompetencies(assignmentId, {
                                                         competencies: updated.map(lc => ({ competency_id: lc.competency_id, weight: lc.weight })),
                                                     }).catch((err: unknown) => {
-                                                        setError(err instanceof Error ? err.message : "Failed to update weight");
+                                                        setError(getApiErrorMessage(err, "Failed to update weight"));
                                                     });
                                                 }, 500);
                                             }}
@@ -767,7 +775,7 @@ export default function CompetenciesPage() {
                                                 });
                                                 setLinkedCompetencies(linked);
                                             } catch (err) {
-                                                setError(err instanceof Error ? err.message : "Failed to add");
+                                                setError(getApiErrorMessage(err, "Failed to add"));
                                             }
                                         }}
                                         className="gap-1"

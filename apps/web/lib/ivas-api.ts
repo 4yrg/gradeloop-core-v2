@@ -48,7 +48,9 @@ async function ivasRequest<T>(path: string, options: { method?: string; body?: s
 // Multipart form request (for voice enrollment)
 async function ivasFormRequest<T>(path: string, formData: FormData): Promise<T> {
     const url = `/ivas${path}`;
-    const response = await axiosInstance.post<T>(url, formData);
+    const response = await axiosInstance.post<T>(url, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+    });
     return response.data;
 }
 
@@ -202,6 +204,9 @@ export const ivasApi = {
     // --- WebSocket URL helper ---
     getVivaWebSocketUrl: (sessionId: string) =>
         `${IVAS_WS_URL}/ws/ivas/session/${encodeURIComponent(sessionId)}`,
+
+    getStandaloneVivaWebSocketUrl: () =>
+        `${IVAS_WS_URL}/ws/ivas/viva`,
 
     // --- Competencies (global) ---
     listCompetencies: () =>

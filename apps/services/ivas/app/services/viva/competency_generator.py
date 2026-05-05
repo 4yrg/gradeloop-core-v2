@@ -7,6 +7,7 @@ difficulty levels — giving instructors a strong starting point.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 
@@ -108,10 +109,16 @@ async def generate_competencies_ai(
         from google import genai
 
         client = genai.Client(api_key=gemini_api_key)
-        response = await client.aio.models.generate_content(
-            model=model,
-            contents=prompt,
+        response = await asyncio.wait_for(
+            client.aio.models.generate_content(
+                model=model,
+                contents=prompt,
+            ),
+            timeout=60,
         )
+    except asyncio.TimeoutError:
+        logger.error("competency_gen_timeout", timeout=60)
+        raise
     except Exception as exc:
         logger.error("competency_gen_failed", error=str(exc))
         raise

@@ -158,40 +158,15 @@ services:
           memory: 1G
 
   # =============================================================================
-  # Kong Gateway (Production)
+  # Kong Gateway (Production — DB-less mode with declarative config)
   # =============================================================================
-  kong-migrations:
-    image: kong:3.4-alpine
-    pull_policy: missing
-    container_name: gradeloop-kong-migrations
-    restart: "no"
-    command: kong migrations bootstrap
-    environment:
-      - KONG_DATABASE=postgres
-      - KONG_PG_HOST=kong-database
-      - KONG_PG_PORT=5432
-      - KONG_PG_USER=kong
-      - KONG_PG_PASSWORD=${KONG_DB_PASSWORD:-kong_pass}
-      - KONG_PG_DB=kong
-    depends_on:
-      kong-database:
-        condition: service_healthy
-    networks:
-      - gradeloop-network
-
   kong-gateway:
     image: kong:3.4-alpine
     pull_policy: missing
     container_name: gradeloop-kong-gateway
     restart: unless-stopped
-    command: kong start
     environment:
-      - KONG_DATABASE=postgres
-      - KONG_PG_HOST=kong-database
-      - KONG_PG_PORT=5432
-      - KONG_PG_USER=kong
-      - KONG_PG_PASSWORD=${KONG_DB_PASSWORD:-kong_pass}
-      - KONG_PG_DB=kong
+      - KONG_DATABASE=off
       - KONG_DECLARATIVE_CONFIG=/usr/local/kong/declarative/kong.yml
       - KONG_PROXY_ACCESS_LOG=/dev/stdout
       - KONG_ADMIN_ACCESS_LOG=/dev/stdout
@@ -203,9 +178,6 @@ services:
       - "8444:8444"
     volumes:
       - ../../apps/api-gateway/config:/usr/local/kong/declarative:ro
-    depends_on:
-      kong-migrations:
-        condition: service_completed_successfully
     networks:
       - gradeloop-network
     deploy:
@@ -213,26 +185,6 @@ services:
         limits:
           cpus: "1"
           memory: 1G
-
-  kong-database:
-    image: postgres:16-alpine
-    pull_policy: missing
-    container_name: gradeloop-kong-db
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER=kong
-      - POSTGRES_PASSWORD=${KONG_DB_PASSWORD:-kong_pass}
-      - POSTGRES_DB=kong
-    volumes:
-      - kong-database-data:/var/lib/postgresql/data
-    networks:
-      - gradeloop-network
-    healthcheck:
-      test: "pg_isready -U kong -d kong"
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
 
   # =============================================================================
   # IAM Service (Go - Production)
@@ -386,8 +338,20 @@ services:
     container_name: gradeloop-ivas
     restart: unless-stopped
     environment:
-      - API_PORT=8088
+      - SERVICE_PORT=8101
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${IVAS_SVC_DB_NAME:-ivas_db}
+      - IVAS_GEMINI_API_KEY=${IVAS_GEMINI_API_KEY}
+      - IVAS_GEMINI_LIVE_MODEL=${IVAS_GEMINI_LIVE_MODEL:-gemini-2.0-flash-live-001}
+      - IVAS_GEMINI_GRADER_MODEL=${IVAS_GEMINI_GRADER_MODEL:-gemini-2.5-flash}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis_pass}@redis:6379/1
+      - IAM_SERVICE_URL=http://iam:8081
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8101/api/v1/ivas/ready"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
     depends_on:
       postgres:
         condition: service_healthy
@@ -397,7 +361,7 @@ services:
       resources:
         limits:
           cpus: "1"
-          memory: 2G
+          memory: 4G
 
   # =============================================================================
   # ACAFS Service (Python - Production)
@@ -556,4 +520,3 @@ volumes:
   redis-data:
   seaweed-data:
   minio-data:
-  kong-database-data:

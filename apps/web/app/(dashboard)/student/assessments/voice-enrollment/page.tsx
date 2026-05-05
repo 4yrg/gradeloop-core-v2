@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/components/ui/toaster";
 import { ivasApi } from "@/lib/ivas-api";
 import { useAuthStore } from "@/lib/stores/authStore";
+import { handleApiError } from "@/lib/api/axios";
 import type { VoiceProfileStatus } from "@/types/ivas";
 import { cn } from "@/lib/utils";
 
@@ -114,7 +115,7 @@ export default function VoiceEnrollmentPage() {
                     addToast({
                         title: "Upload failed",
                         variant: "error",
-                        description: err instanceof Error ? err.message : "Failed to process audio sample.",
+                        description: handleApiError(err),
                     });
                 } finally {
                     setUploading(false);

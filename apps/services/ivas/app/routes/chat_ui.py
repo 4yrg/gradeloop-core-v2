@@ -239,7 +239,7 @@ _HTML = """<!DOCTYPE html>
 </footer>
 
 <script>
-const WS_URL = `ws://localhost:8000/ws/ivas/viva`;
+const WS_URL = `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/ws/ivas/viva`;
 
 // ── State ──
 let ws = null;

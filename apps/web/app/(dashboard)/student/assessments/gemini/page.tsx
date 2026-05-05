@@ -12,9 +12,9 @@
 
 import * as React from "react";
 
-const WS_URL =
-    (process.env.NEXT_PUBLIC_IVAS_WS_URL || "ws://localhost:8000") +
-    "/ws/ivas/viva";
+import { ivasApi } from "@/lib/ivas-api";
+
+const WS_URL = ivasApi.getStandaloneVivaWebSocketUrl();
 
 type SessionState = "idle" | "connecting" | "live" | "error";
 
