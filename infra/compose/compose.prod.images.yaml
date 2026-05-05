@@ -431,7 +431,6 @@ services:
     environment:
       - SERVICE_PORT=8101
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${IVAS_SVC_DB_NAME:-ivas_db}
-      - IVAS_GEMINI_API_KEY=${IVAS_GEMINI_API_KEY}
       - IVAS_GEMINI_LIVE_MODEL=${IVAS_GEMINI_LIVE_MODEL:-gemini-3.1-flash-live-preview}
       - IVAS_GEMINI_GRADER_MODEL=${IVAS_GEMINI_GRADER_MODEL:-gemini-3.1-flash-lite-preview}
       - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
