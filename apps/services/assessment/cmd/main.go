@@ -226,7 +226,7 @@ func run() error {
 
 	// ── Routes ───────────────────────────────────────────────────────────────
 	router.SetupRoutes(app, router.Config{
-		HealthHandler:      healthHandler,
+		HealthHandler:     healthHandler,
 		AssignmentHandler: assignmentHandler,
 		SubmissionHandler: submissionHandler,
 		GroupHandler:      groupHandler,

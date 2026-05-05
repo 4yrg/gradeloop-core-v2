@@ -18,7 +18,7 @@ import (
 type GoGitSeaweedStorage struct {
 	minio      *minio.Client
 	bucketName string
-	logger    *zap.Logger
+	logger     *zap.Logger
 }
 
 func NewGoGitSeaweedStorage(
@@ -37,7 +37,7 @@ func NewGoGitSeaweedStorage(
 	s := &GoGitSeaweedStorage{
 		minio:      minioClient,
 		bucketName: bucketName,
-		logger:    logger,
+		logger:     logger,
 	}
 
 	ctx := context.Background()
@@ -137,8 +137,8 @@ func (s *GoGitSeaweedStorage) ListFiles(ctx context.Context, assignmentID, userI
 
 		files = append(files, GoGitFileInfo{
 			Name:     name,
-			Path:    name,
-			Size:    obj.Size,
+			Path:     name,
+			Size:     obj.Size,
 			IsFolder: strings.HasSuffix(obj.Key, "/"),
 		})
 	}
@@ -361,8 +361,8 @@ func (s *GoGitSeaweedStorage) GetVersions(ctx context.Context, assignmentID, use
 
 type GoGitFileInfo struct {
 	Name     string
-	Path    string
-	Size    int64
+	Path     string
+	Size     int64
 	IsFolder bool
 }
 
@@ -378,6 +378,6 @@ type GoGitVersionInfo struct {
 	ID          string
 	Version     int
 	CommitSHA   string
-	Message    string
+	Message     string
 	SubmittedAt time.Time
 }
