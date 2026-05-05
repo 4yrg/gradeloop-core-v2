@@ -48,11 +48,6 @@ services:
           - /api/v1/code
         strip_path: false
         preserve_host: false
-      - name: assessment-github
-        paths:
-          - /api/v1/github
-        strip_path: false
-        preserve_host: false
       - name: assessment-docs
         paths:
           - /docs/assessment
