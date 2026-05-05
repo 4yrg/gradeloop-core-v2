@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Mock dependencies
 const mockGetSession = vi.fn();
-const mockGetVivaWebSocketUrl = vi.fn(() => "ws://localhost:8000/ws/ivas/session/test-id");
+const mockGetVivaWebSocketUrl = vi.fn(() => "ws://178.105.102.246:8000/ws/ivas/session/test-id");
 const mockAddToast = vi.fn();
 
 vi.mock("@/lib/ivas-api", () => ({
@@ -99,7 +99,7 @@ describe("VivaSessionPage", () => {
 
     describe("Loading States", () => {
         it("shows loading spinner while fetching session", async () => {
-            mockGetSession.mockImplementation(() => new Promise(() => {}));
+            mockGetSession.mockImplementation(() => new Promise(() => { }));
             render(<VivaSessionPage />);
             expect(screen.getByRole("status")).toBeInTheDocument();
         });

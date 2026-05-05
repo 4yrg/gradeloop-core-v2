@@ -9,7 +9,7 @@
 set -e
 
 # Configuration
-KONG_URL="http://localhost:8000"
+KONG_URL="http://178.105.102.246:8000"
 KONG_ADMIN_URL="http://localhost:8001"
 IAM_EMAIL="superadmin@gradeloop.com"
 IAM_PASSWORD="YourSecurePassword123!"
