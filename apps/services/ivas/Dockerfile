@@ -1,71 +1,52 @@
 # =============================================================================
-# IVAS Service - Slim Dockerfile
+# IVAS Service - Optimized Slim Dockerfile
 # =============================================================================
 
 FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-RUN if [ -f /etc/apt/sources.list ]; then \
-      sed -i 's|http://deb.debian.org|https://deb.debian.org|g; s|http://security.debian.org|https://security.debian.org|g' /etc/apt/sources.list; \
-    fi \
-    && if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
-      sed -i 's|http://deb.debian.org|https://deb.debian.org|g; s|http://security.debian.org|https://security.debian.org|g' /etc/apt/sources.list.d/debian.sources; \
-    fi \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends \
+# Combine apt-get commands and clean up
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1
 
-# Use a more recent Poetry version to avoid deprecation warnings
-RUN pip install --no-cache-dir poetry==1.8.2
+# Install Poetry
+RUN pip install poetry==1.8.2
 
 COPY pyproject.toml poetry.lock* ./
 
-# Configure poetry to not create virtualenvs and install dependencies
+# Configure poetry and install dependencies
 RUN poetry config virtualenvs.create false \
     && poetry install --no-interaction --no-ansi --no-root --only main
 
-# Pre-download the Resemblyzer voice encoder model (~50MB) at build time.
-# This avoids a runtime download that would fail in restricted networks.
-RUN python -c "from resemblyzer import VoiceEncoder; VoiceEncoder()" \
-    && mkdir -p /app/models
+# Pre-download the Resemblyzer voice encoder model to a specific path
+RUN export XDG_CACHE_HOME=/app/model_cache && \
+    python -c "from resemblyzer import VoiceEncoder; VoiceEncoder()"
 
 COPY app/ ./app/
 
+# Development stage
 FROM builder AS development
-
 WORKDIR /app
-
 RUN poetry install --no-interaction --no-ansi --no-root
-
-COPY app/ ./app/
-
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    CUDA_VISIBLE_DEVICES=""
-
+ENV CUDA_VISIBLE_DEVICES=""
 EXPOSE 8101
-
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8101", "--reload"]
 
+# Production stage
 FROM python:3.11-slim AS production
 
 WORKDIR /app
 
-RUN if [ -f /etc/apt/sources.list ]; then \
-      sed -i 's|http://deb.debian.org|https://deb.debian.org|g; s|http://security.debian.org|https://security.debian.org|g' /etc/apt/sources.list; \
-    fi \
-    && if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
-      sed -i 's|http://deb.debian.org|https://deb.debian.org|g; s|http://security.debian.org|https://security.debian.org|g' /etc/apt/sources.list.d/debian.sources; \
-    fi \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends \
+# Install runtime dependencies and clean up in one layer
+RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     libsndfile1 \
     libopenblas0 \
@@ -73,23 +54,23 @@ RUN if [ -f /etc/apt/sources.list ]; then \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy python packages from builder
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /app/app ./app
-COPY --from=builder /root/.cache /home/ivas/.cache
 
+# Copy ONLY the model cache, not the whole /root/.cache
+COPY --from=builder /app/model_cache /home/ivas/.cache
+
+# Set up non-root user
 RUN groupadd --system ivas && useradd --system --gid ivas ivas \
-    && mkdir -p /home/ivas \
-    && chown -R ivas:ivas /app /home/ivas
-
-RUN mkdir -p /tmp/numba_cache && chown ivas:ivas /tmp/numba_cache
+    && chown -R ivas:ivas /app /home/ivas/.cache
 
 USER ivas
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     CUDA_VISIBLE_DEVICES="" \
-    NUMBA_CACHE_DIR=/tmp/numba_cache \
     HOME=/home/ivas \
     XDG_CACHE_HOME=/home/ivas/.cache
 
