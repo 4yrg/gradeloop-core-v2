@@ -93,7 +93,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 EXPOSE 8106
 
-HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
-    CMD python3 -c "import urllib.request; exit(0 if urllib.request.urlopen('http://localhost:8106/api/v1/syntactics/health').getcode() == 200 else 1)" || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD python3 -c "import os; import urllib.request; port = os.getenv('CIPAS_SYNTACTICS_PORT', '8106'); exit(0 if urllib.request.urlopen(f'http://localhost:{port}/api/v1/syntactics/health').getcode() == 200 else 1)" || exit 1
 
 CMD ["sh", "-c", "exec uvicorn main:app --host 0.0.0.0 --port ${CIPAS_SYNTACTICS_PORT:-8106} --workers 1"]
