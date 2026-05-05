@@ -373,9 +373,9 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 30m
+command_timeout: 30m
           timeout: 120s
-          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN
+          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN,JWT_SECRET_KEY,SMTP_USER,SMTP_PASS,EMAIL_FROM
           script: |
             set -e
 
@@ -455,7 +455,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           command_timeout: 30m
           timeout: 120s
-          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN,SMTP_USER,SMTP_PASS,JWT_SECRET_KEY,APP_GITHUB_TOKEN_ENCRYPTION_KEY
+          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN,JWT_SECRET_KEY
           script: |
             set -e
 
@@ -510,6 +510,7 @@ jobs:
       RUNTIME: docker
       COMPOSE_FILE: "infra/compose/compose.prod.images.yaml"
       GHCR_PACKAGE_PREFIX: ${{ vars.GHCR_PACKAGE_PREFIX || '4yrg' }}
+      JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
       JUDGE0_URL: ${{ secrets.JUDGE0_URL }}
       ACAFS_OPENROUTER_API_KEY: ${{ secrets.ACAFS_OPENROUTER_API_KEY }}
       ACAFS_GEMINI_API_KEY: ${{ secrets.ACAFS_GEMINI_API_KEY }}
@@ -526,7 +527,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           command_timeout: 30m
           timeout: 120s
-          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN,JUDGE0_URL,ACAFS_OPENROUTER_API_KEY,IVAS_GEMINI_API_KEY
+          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN,JWT_SECRET_KEY,JUDGE0_URL,ACAFS_OPENROUTER_API_KEY
           script: |
             set -e
 
@@ -577,6 +578,7 @@ jobs:
       RUNTIME: docker
       COMPOSE_FILE: "infra/compose/compose.prod.images.yaml"
       GHCR_PACKAGE_PREFIX: ${{ vars.GHCR_PACKAGE_PREFIX || '4yrg' }}
+      JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
     steps:
       - name: Wait for services
         run: sleep 30
@@ -589,7 +591,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           command_timeout: 30m
           timeout: 120s
-          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN
+          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN,JWT_SECRET_KEY
           script: |
             set -e
 
