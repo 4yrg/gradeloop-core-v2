@@ -347,6 +347,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-complete]
     if: github.event_name != 'workflow_dispatch' || github.event.inputs.runtime == 'docker'
+    env:
+      JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
+      ACAFS_OPENROUTER_API_KEY: ${{ secrets.ACAFS_OPENROUTER_API_KEY }}
     steps:
       - name: SSH - Cleanup & Sync
         uses: appleboy/ssh-action@v1.0.3
@@ -372,6 +377,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: JWT_SECRET_KEY,SMTP_USER,SMTP_PASS,ACAFS_OPENROUTER_API_KEY
           script: |
             set -e
             COMPOSE_FILE="infra/compose/compose.prod.images.yaml"
@@ -382,7 +388,7 @@ jobs:
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
             echo "=== Phase 2: Pulling Infrastructure (Postgres, RabbitMQ, Redis, SeaweedFS) ==="
             COMPOSE_PROJECT_NAME=gradeloop GHCR_PACKAGE_PREFIX=$GHCR_PACKAGE_PREFIX \
-            docker compose -f $COMPOSE_FILE pull --parallel postgres postgres-keystroke rabbitmq redis seaweedfs
+            docker compose -f $COMPOSE_FILE pull postgres postgres-keystroke rabbitmq redis seaweedfs
 
       - name: SSH - Pull Core Services
         uses: appleboy/ssh-action@v1.0.3
@@ -390,6 +396,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: JWT_SECRET_KEY,SMTP_USER,SMTP_PASS,ACAFS_OPENROUTER_API_KEY
           script: |
             set -e
             COMPOSE_FILE="infra/compose/compose.prod.images.yaml"
@@ -399,7 +406,7 @@ jobs:
             done
             echo "=== Phase 3: Pulling Core Services (IAM, Email, Academic, Assessment, Notification, CIPAS-XAI) ==="
             COMPOSE_PROJECT_NAME=gradeloop GHCR_PACKAGE_PREFIX=$GHCR_PACKAGE_PREFIX \
-            docker compose -f $COMPOSE_FILE pull --parallel iam email academic assessment notification cipas-xai
+            docker compose -f $COMPOSE_FILE pull iam email academic assessment notification cipas-xai
 
       - name: SSH - Pull ML Services
         uses: appleboy/ssh-action@v1.0.3
@@ -407,6 +414,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: JWT_SECRET_KEY,SMTP_USER,SMTP_PASS,ACAFS_OPENROUTER_API_KEY
           script: |
             set -e
             COMPOSE_FILE="infra/compose/compose.prod.images.yaml"
@@ -416,7 +424,7 @@ jobs:
             done
             echo "=== Phase 4: Pulling ML Services (IVAS, ACAFS, Keystroke, CIPAS AI/Semantics/Syntactics) ==="
             COMPOSE_PROJECT_NAME=gradeloop GHCR_PACKAGE_PREFIX=$GHCR_PACKAGE_PREFIX \
-            docker compose -f $COMPOSE_FILE pull --parallel ivas acafs keystroke cipas-ai cipas-semantics cipas-syntactics
+            docker compose -f $COMPOSE_FILE pull ivas acafs keystroke cipas-ai cipas-semantics cipas-syntactics
 
       - name: SSH - Pull Gateway
         uses: appleboy/ssh-action@v1.0.3
@@ -424,6 +432,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: JWT_SECRET_KEY,SMTP_USER,SMTP_PASS,ACAFS_OPENROUTER_API_KEY
           script: |
             set -e
             COMPOSE_FILE="infra/compose/compose.prod.images.yaml"
@@ -433,7 +442,7 @@ jobs:
             done
             echo "=== Phase 5: Pulling Gateway ==="
             COMPOSE_PROJECT_NAME=gradeloop GHCR_PACKAGE_PREFIX=$GHCR_PACKAGE_PREFIX \
-            docker compose -f $COMPOSE_FILE pull --parallel gateway
+            docker compose -f $COMPOSE_FILE pull gateway
 
   deploy-infra:
     name: Deploy Infrastructure
@@ -441,6 +450,11 @@ jobs:
     needs: [server-prep]
     environment:
       name: production
+    env:
+      JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
+      ACAFS_OPENROUTER_API_KEY: ${{ secrets.ACAFS_OPENROUTER_API_KEY }}
     steps:
       - name: Start Infrastructure Stack
         uses: appleboy/ssh-action@v1.0.3
@@ -448,6 +462,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: JWT_SECRET_KEY,SMTP_USER,SMTP_PASS,ACAFS_OPENROUTER_API_KEY
           script: |
             set -e
             COMPOSE_FILE="infra/compose/compose.prod.images.yaml"
@@ -469,6 +484,7 @@ jobs:
       JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
       SMTP_USER: ${{ secrets.SMTP_USER }}
       SMTP_PASS: ${{ secrets.SMTP_PASS }}
+      ACAFS_OPENROUTER_API_KEY: ${{ secrets.ACAFS_OPENROUTER_API_KEY }}
     steps:
       - name: Deploy Core Stack
         uses: appleboy/ssh-action@v1.0.3
@@ -476,7 +492,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: JWT_SECRET_KEY,SMTP_USER,SMTP_PASS
+          envs: JWT_SECRET_KEY,SMTP_USER,SMTP_PASS,ACAFS_OPENROUTER_API_KEY
           script: |
             set -e
             COMPOSE_FILE="infra/compose/compose.prod.images.yaml"
@@ -496,6 +512,8 @@ jobs:
     needs: [deploy-infra]
     env:
       JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
       ACAFS_OPENROUTER_API_KEY: ${{ secrets.ACAFS_OPENROUTER_API_KEY }}
     steps:
       - name: Deploy ML Stack
@@ -504,7 +522,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: JWT_SECRET_KEY,ACAFS_OPENROUTER_API_KEY
+          envs: JWT_SECRET_KEY,SMTP_USER,SMTP_PASS,ACAFS_OPENROUTER_API_KEY
           script: |
             set -e
             COMPOSE_FILE="infra/compose/compose.prod.images.yaml"
@@ -522,6 +540,11 @@ jobs:
     name: Deploy Gateway
     runs-on: ubuntu-latest
     needs: [deploy-core, deploy-ml]
+    env:
+      JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
+      ACAFS_OPENROUTER_API_KEY: ${{ secrets.ACAFS_OPENROUTER_API_KEY }}
     steps:
       - name: Deploy Gateway
         uses: appleboy/ssh-action@v1.0.3
@@ -529,6 +552,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: JWT_SECRET_KEY,SMTP_USER,SMTP_PASS,ACAFS_OPENROUTER_API_KEY
           script: |
             set -e
             COMPOSE_FILE="infra/compose/compose.prod.images.yaml"
