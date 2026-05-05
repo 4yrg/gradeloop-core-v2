@@ -367,6 +367,24 @@ jobs:
       matrix:
         service: [postgres, postgres-keystroke, rabbitmq, redis, seaweedfs]
     steps:
+      - name: Cleanup server disk space
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 5m
+          timeout: 60s
+          script: |
+            set -e
+            echo "=== Cleaning up server before deployment ==="
+            echo "Disk usage before cleanup:"
+            df -h /
+            docker system prune -af --volumes --filter "until=24h" || true
+            echo "Disk usage after cleanup:"
+            df -h /
+            echo "=== Cleanup complete ==="
+
       - name: Deploy ${{ matrix.service }} via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -440,6 +458,24 @@ jobs:
       - name: Wait for infrastructure
         run: sleep 20
 
+      - name: Cleanup server disk space
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 5m
+          timeout: 60s
+          script: |
+            set -e
+            echo "=== Cleaning up server before deployment ==="
+            echo "Disk usage before cleanup:"
+            df -h /
+            docker system prune -af --volumes --filter "until=24h" || true
+            echo "Disk usage after cleanup:"
+            df -h /
+            echo "=== Cleanup complete ==="
+
       - name: Deploy ${{ matrix.service }} via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -511,6 +547,24 @@ jobs:
       - name: Wait for infrastructure
         run: sleep 20
 
+      - name: Cleanup server disk space
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 5m
+          timeout: 60s
+          script: |
+            set -e
+            echo "=== Cleaning up server before deployment ==="
+            echo "Disk usage before cleanup:"
+            df -h /
+            docker system prune -af --volumes --filter "until=24h" || true
+            echo "Disk usage after cleanup:"
+            df -h /
+            echo "=== Cleanup complete ==="
+
       - name: Deploy ${{ matrix.service }} via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -574,6 +628,24 @@ jobs:
     steps:
       - name: Wait for services
         run: sleep 30
+
+      - name: Cleanup server disk space
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 5m
+          timeout: 60s
+          script: |
+            set -e
+            echo "=== Cleaning up server before deployment ==="
+            echo "Disk usage before cleanup:"
+            df -h /
+            docker system prune -af --volumes --filter "until=24h" || true
+            echo "Disk usage after cleanup:"
+            df -h /
+            echo "=== Cleanup complete ==="
 
       - name: Deploy Gateway via SSH
         uses: appleboy/ssh-action@v1.0.3
