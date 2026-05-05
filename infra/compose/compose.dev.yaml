@@ -120,7 +120,6 @@ services:
     build:
       context: ../../
       dockerfile: apps/web/Dockerfile
-      target: development
     container_name: gradeloop-web
     restart: unless-stopped
     environment:
@@ -310,7 +309,6 @@ services:
     build:
       context: ../../apps/services/ivas
       dockerfile: Dockerfile
-      target: development
     volumes:
       - ../../apps/services/ivas:/app
       - ../../packages/python:/packages/python
@@ -345,7 +343,6 @@ services:
     build:
       context: ../../apps/services/acafs
       dockerfile: Dockerfile
-      target: development
     environment:
       - SERVICE_PORT=${ACAFS_SVC_PORT:-8102}
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@gradeloop-postgres:5432/${ACAFS_SVC_DB_NAME:-acafs_db}
@@ -379,7 +376,6 @@ services:
     build:
       context: ../../apps/services/keystroke
       dockerfile: Dockerfile
-      target: development
     environment:
       - PORT=${KEYSTROKE_SVC_PORT:-8103}
       - DATABASE_URL=postgresql://keystroke_user:keystroke_pass@gradeloop-postgres-keystroke:5432/keystroke-db
@@ -410,7 +406,6 @@ services:
     build:
       context: ../../
       dockerfile: apps/services/cipas-syntactics/Dockerfile
-      target: development
     environment:
       - CIPAS_SYNTACTICS_PORT=${CIPAS_SYN_SVC_PORT:-8106}
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@gradeloop-postgres:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
@@ -438,7 +433,6 @@ services:
     build:
       context: ../../
       dockerfile: apps/services/cipas-semantics/Dockerfile
-      target: development
     environment:
       - API_PORT=${CIPAS_SEM_SVC_PORT:-8105}
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@gradeloop-postgres:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
@@ -466,7 +460,6 @@ services:
     build:
       context: ../../
       dockerfile: apps/services/cipas-ai/Dockerfile
-      target: development
     environment:
       - CIPAS_AI_PORT=${CIPAS_AI_SVC_PORT:-8104}
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@gradeloop-postgres:5432/${CIPAS_AI_SVC_DB_NAME:-cipas_ai_db}
