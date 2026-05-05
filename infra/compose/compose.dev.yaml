@@ -345,6 +345,7 @@ services:
   # ACAFS Service (Python)
   # =============================================================================
   acafs:
+    container_name: gradeloop-acafs
     build:
       context: ../../apps/services/acafs
       dockerfile: Dockerfile
@@ -380,6 +381,7 @@ services:
   # Keystroke Service (Python)
   # =============================================================================
   keystroke:
+    container_name: gradeloop-keystroke
     build:
       context: ../../apps/services/keystroke
       dockerfile: Dockerfile
@@ -412,6 +414,7 @@ services:
   # CIPAS Syntactics Service (Python)
   # =============================================================================
   cipas-syntactics:
+    container_name: gradeloop-cipas-syntactics
     build:
       context: ../../
       dockerfile: apps/services/cipas-syntactics/Dockerfile
@@ -441,6 +444,7 @@ services:
   # CIPAS Semantics Service (Python)
   # =============================================================================
   cipas-semantics:
+    container_name: gradeloop-cipas-semantics
     build:
       context: ../../
       dockerfile: apps/services/cipas-semantics/Dockerfile
@@ -470,6 +474,7 @@ services:
   # CIPAS AI Service (Python)
   # =============================================================================
   cipas-ai:
+    container_name: gradeloop-cipas-ai
     build:
       context: ../../
       dockerfile: apps/services/cipas-ai/Dockerfile
