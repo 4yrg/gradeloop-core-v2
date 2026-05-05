@@ -1,87 +1,71 @@
 # ============================================
-# Stage 1: Dependencies Installation Stage
+# Stage 1: Dependencies
 # ============================================
-
-# This Dockerfile.bun is specifically configured for projects using Bun
-# For npm/pnpm or yarn, refer to the Dockerfile instead
-
 FROM oven/bun:1 AS dependencies
 
-# Set working directory
 WORKDIR /app
 
-# Copy package-related files first to leverage Docker's caching mechanism
+# Copy root workspace files
 COPY package.json bun.lock* ./
 
-# Install project dependencies with frozen lockfile for reproducible builds
+# Copy all package.json files from the monorepo to satisfy workspace dependencies
+# We use a trick to copy only package.json files while preserving directory structure
+COPY apps/web/package.json ./apps/web/
+COPY packages/ts/config/package.json ./packages/ts/config/
+COPY packages/ts/dto/package.json ./packages/ts/dto/
+COPY packages/ts/utils/package.json ./packages/ts/utils/
+
+# Install dependencies (monorepo-wide)
+# This will link the packages and install all required node_modules
 RUN --mount=type=cache,target=/root/.bun/install/cache \
-    bun install --no-save --frozen-lockfile
+    bun install --frozen-lockfile
 
 # ============================================
-# Stage 2: Build Next.js application in standalone mode
+# Stage 2: Builder
 # ============================================
-
 FROM oven/bun:1 AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Copy project dependencies from dependencies stage
+# Copy dependencies from previous stage
 COPY --from=dependencies /app/node_modules ./node_modules
 
-# Copy application source code
+# Copy source code
 COPY . .
 
+# Accept build-time environment variables
+ARG NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+ARG NEXT_PUBLIC_GATEWAY_URL=http://localhost:8000
+
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_GATEWAY_URL=$NEXT_PUBLIC_GATEWAY_URL
 ENV NODE_ENV=production
 
-# Next.js collects completely anonymous telemetry data about general usage.
-# Learn more here: https://nextjs.org/telemetry
-# Uncomment the following line in case you want to disable telemetry during the build.
-# ENV NEXT_TELEMETRY_DISABLED=1
-
-# Build Next.js application
+# Build the application
+WORKDIR /app/apps/web
 RUN bun run build
 
 # ============================================
-# Stage 3: Run Next.js application
+# Stage 3: Production Runtime
 # ============================================
+FROM oven/bun:1-slim AS runner
 
-FROM oven/bun:1 AS runner
-
-# Set working directory
 WORKDIR /app
 
-# Set production environment variables
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Next.js collects completely anonymous telemetry data about general usage.
-# Learn more here: https://nextjs.org/telemetry
-# Uncomment the following line in case you want to disable telemetry during the run time.
-# ENV NEXT_TELEMETRY_DISABLED=1
+# Copy standalone build output
+# Next.js standalone puts the server.js in .next/standalone
+COPY --from=builder /app/apps/web/.next/standalone ./
+COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder /app/apps/web/public ./apps/web/public
 
-# Copy production assets
-COPY --from=builder --chown=bun:bun /app/public ./public
-
-# Set the correct permission for prerender cache
-RUN mkdir .next
-RUN chown bun:bun .next
-
-# Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
-COPY --from=builder --chown=bun:bun /app/.next/standalone ./
-COPY --from=builder --chown=bun:bun /app/.next/static ./.next/static
-
-# If you want to persist the fetch cache generated during the build so that
-# cached responses are available immediately on startup, uncomment this line:
-# COPY --from=builder --chown=bun:bun /app/.next/cache ./.next/cache
-
-# Switch to non-root user for security best practices
+# Switch to non-root user
 USER bun
 
-# Expose port 3000 to allow HTTP traffic
 EXPOSE 3000
 
-# Start Next.js standalone server with Bun
-CMD ["bun", "server.js"]
+# Start the server
+CMD ["bun", "apps/web/server.js"]
