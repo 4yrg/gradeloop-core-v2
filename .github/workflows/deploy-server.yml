@@ -67,7 +67,8 @@ jobs:
               packages/go/*) for s in iam academic assessment notification email cipas-xai; do add_service $s; done ;;
               packages/python/*) for s in cipas-syntactics cipas-semantics cipas-ai; do add_service $s; done ;;
               infra/compose/compose.server.yaml|apps/api-gateway/nginx.server.conf) add_all_app_services ;;
-              infra/compose/*|.github/workflows/*) add_all_app_services ;;
+              infra/compose/*) add_all_app_services ;;
+              .github/workflows/*) ;;
             esac
           done
 
@@ -99,16 +100,13 @@ jobs:
             ServerAliveCountMax 10
             StrictHostKeyChecking no
             BatchMode yes
-            ConnectTimeout 60
-            ControlMaster auto
-            ControlPath ~/.ssh/ssh-%r@%h:%p
-            ControlPersist 10m
+            ConnectTimeout 30
           EOF
           
           # Add server to known hosts
           if [[ -n "$SSH_HOST" ]]; then
             echo "Scanning $SSH_HOST..."
-            ssh-keyscan -H "$SSH_HOST" >> "$HOME/.ssh/known_hosts" || echo "Warning: ssh-keyscan failed"
+            ssh-keyscan -T 10 -H "$SSH_HOST" >> "$HOME/.ssh/known_hosts" || echo "Warning: ssh-keyscan failed"
             chmod 644 "$HOME/.ssh/known_hosts"
           else
             echo "Error: SSH_HOST is not set!"
@@ -122,7 +120,12 @@ jobs:
         run: |
           # Use a loop to build services one by one to prevent resource exhaustion
           # and use a more resilient SSH command
-          ssh -tt -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" \
+          ssh -i ~/.ssh/deploy_key \
+            -o BatchMode=yes \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=5 \
+            "$SSH_USER@$SSH_HOST" \
             "DEPLOY_PATH='$DEPLOY_PATH' CHANGED_SERVICES='$CHANGED_SERVICES' bash -s" <<'REMOTE'
           set -euo pipefail
 
