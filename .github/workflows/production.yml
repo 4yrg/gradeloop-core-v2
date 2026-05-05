@@ -347,6 +347,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-complete]
     if: github.event_name != 'workflow_dispatch' || github.event.inputs.runtime == 'docker'
+    env:
+      JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
+      ACAFS_OPENROUTER_API_KEY: ${{ secrets.ACAFS_OPENROUTER_API_KEY }}
     steps:
       - name: SSH - Cleanup & Sync
         uses: appleboy/ssh-action@v1.0.3
@@ -372,6 +377,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: JWT_SECRET_KEY,SMTP_USER,SMTP_PASS,ACAFS_OPENROUTER_API_KEY
           script: |
             set -e
             COMPOSE_FILE="infra/compose/compose.prod.images.yaml"
@@ -390,6 +396,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: JWT_SECRET_KEY,SMTP_USER,SMTP_PASS,ACAFS_OPENROUTER_API_KEY
           script: |
             set -e
             COMPOSE_FILE="infra/compose/compose.prod.images.yaml"
@@ -407,6 +414,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: JWT_SECRET_KEY,SMTP_USER,SMTP_PASS,ACAFS_OPENROUTER_API_KEY
           script: |
             set -e
             COMPOSE_FILE="infra/compose/compose.prod.images.yaml"
@@ -424,6 +432,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: JWT_SECRET_KEY,SMTP_USER,SMTP_PASS,ACAFS_OPENROUTER_API_KEY
           script: |
             set -e
             COMPOSE_FILE="infra/compose/compose.prod.images.yaml"
@@ -441,6 +450,11 @@ jobs:
     needs: [server-prep]
     environment:
       name: production
+    env:
+      JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
+      ACAFS_OPENROUTER_API_KEY: ${{ secrets.ACAFS_OPENROUTER_API_KEY }}
     steps:
       - name: Start Infrastructure Stack
         uses: appleboy/ssh-action@v1.0.3
@@ -448,6 +462,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: JWT_SECRET_KEY,SMTP_USER,SMTP_PASS,ACAFS_OPENROUTER_API_KEY
           script: |
             set -e
             COMPOSE_FILE="infra/compose/compose.prod.images.yaml"
@@ -469,6 +484,7 @@ jobs:
       JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
       SMTP_USER: ${{ secrets.SMTP_USER }}
       SMTP_PASS: ${{ secrets.SMTP_PASS }}
+      ACAFS_OPENROUTER_API_KEY: ${{ secrets.ACAFS_OPENROUTER_API_KEY }}
     steps:
       - name: Deploy Core Stack
         uses: appleboy/ssh-action@v1.0.3
@@ -476,7 +492,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: JWT_SECRET_KEY,SMTP_USER,SMTP_PASS
+          envs: JWT_SECRET_KEY,SMTP_USER,SMTP_PASS,ACAFS_OPENROUTER_API_KEY
           script: |
             set -e
             COMPOSE_FILE="infra/compose/compose.prod.images.yaml"
@@ -496,6 +512,8 @@ jobs:
     needs: [deploy-infra]
     env:
       JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
       ACAFS_OPENROUTER_API_KEY: ${{ secrets.ACAFS_OPENROUTER_API_KEY }}
     steps:
       - name: Deploy ML Stack
@@ -504,7 +522,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: JWT_SECRET_KEY,ACAFS_OPENROUTER_API_KEY
+          envs: JWT_SECRET_KEY,SMTP_USER,SMTP_PASS,ACAFS_OPENROUTER_API_KEY
           script: |
             set -e
             COMPOSE_FILE="infra/compose/compose.prod.images.yaml"
@@ -522,6 +540,11 @@ jobs:
     name: Deploy Gateway
     runs-on: ubuntu-latest
     needs: [deploy-core, deploy-ml]
+    env:
+      JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
+      ACAFS_OPENROUTER_API_KEY: ${{ secrets.ACAFS_OPENROUTER_API_KEY }}
     steps:
       - name: Deploy Gateway
         uses: appleboy/ssh-action@v1.0.3
@@ -529,6 +552,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: JWT_SECRET_KEY,SMTP_USER,SMTP_PASS,ACAFS_OPENROUTER_API_KEY
           script: |
             set -e
             COMPOSE_FILE="infra/compose/compose.prod.images.yaml"
