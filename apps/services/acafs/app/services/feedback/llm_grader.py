@@ -157,8 +157,7 @@ class LLMGrader:
         payload = {
             "model": model,
             "messages": [{"role": "user", "content": prompt}],
-            # Disable thinking budget cap so Qwen can reason as long as needed
-            "provider": {"allow_fallbacks": False},
+            "provider": {"allow_fallbacks": True},
         }
         url = self.settings.openrouter_base_url.rstrip("/") + "/chat/completions"
         async with httpx.AsyncClient(timeout=_OPENROUTER_TIMEOUT) as client:
@@ -183,8 +182,10 @@ class LLMGrader:
             payload = {
                 "model": self.settings.openrouter_grader_model,
                 "messages": [{"role": "user", "content": prompt}],
-                "response_format": {"type": "json_object"},
-                "provider": {"allow_fallbacks": False},
+                # response_format is NOT set here: many OpenRouter models reject
+                # it with 400.  The prompt instructs the model to reply with JSON
+                # and the parser below handles both raw JSON and ```json blocks.
+                "provider": {"allow_fallbacks": True},
             }
             url = self.settings.openrouter_base_url.rstrip("/") + "/chat/completions"
             async with httpx.AsyncClient(timeout=_OPENROUTER_TIMEOUT) as client:

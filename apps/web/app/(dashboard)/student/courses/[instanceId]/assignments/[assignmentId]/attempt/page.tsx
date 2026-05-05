@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SeaweedCodeIDE } from "@/components/ide";
+import { CodeIDE } from "@/components/ide";
 import { studentAssessmentsApi, acafsApi } from "@/lib/api/assessments";
 import {
     detectAICode,
@@ -230,15 +230,44 @@ export default function StudentAttemptPage() {
     // Clear topbar title when leaving this page
     React.useEffect(() => () => { setPageTitle(null); }, [setPageTitle]);
 
-const handleSubmit = async (versionId: string) => {
+    const runCIPASAnalysis = React.useCallback(async (code: string, submissionId: string) => {
+        try {
+            setIsAnalyzing(true);
+            const ai = await detectAICode(code);
+            setSubmissionAnalysis({
+                aiLikelihood: ai.ai_likelihood,
+                humanLikelihood: ai.human_likelihood,
+            });
+            await saveSubmissionAnalysis(submissionId, {
+                ai_likelihood: ai.ai_likelihood,
+                human_likelihood: ai.human_likelihood,
+                is_ai_generated: ai.is_ai_generated,
+                ai_confidence: ai.confidence,
+                semantic_similarity_score: null,
+            });
+        } catch (e) {
+            console.error("CIPAS analysis failed:", e);
+        } finally {
+            setIsAnalyzing(false);
+        }
+    }, []);
+
+    const handleSubmit = async (code: string, languageId: number) => {
         if (!assignment) return;
         try {
             setIsSubmitting(true);
             setError(null);
-            const submission = await studentAssessmentsApi.getSubmission(versionId);
+            const lang = LANGUAGE_ID_TO_NAME[languageId] ?? assignment.code;
+            const submission = await studentAssessmentsApi.submit({
+                assignment_id: assignment.id,
+                language: lang,
+                language_id: languageId,
+                code,
+            });
             setSubmittedVersion(submission.version);
             setGradedSubmissionId(submission.id);
             toast.success(`Submitted successfully! Version ${submission.version}`);
+            runCIPASAnalysis(code, submission.id);
         } catch (err) {
             const msg = handleApiError(err);
             setError(msg);
@@ -413,13 +442,24 @@ const handleSubmit = async (versionId: string) => {
 
                 {/* IDE */}
                 <div className="flex-1 overflow-hidden">
-                    <SeaweedCodeIDE
+                    <CodeIDE
                         assignmentId={assignment.id}
                         assignmentTitle={assignment.title}
+                        assignmentDescription={assignment.description ?? undefined}
                         userId={user?.id ?? "anonymous"}
+                        initialCode={initialCode}
+                        initialLanguage={languageId}
+                        lockLanguage={!!assignment.language_id}
+                        expectedLanguageId={languageId}
                         readOnly={isReadOnly}
                         showSubmitButton={!isReadOnly && (!isOverdue || assignment.allow_late_submissions)}
                         onSubmit={handleSubmit}
+                        showGradePanel={true}
+                        grade={grade}
+                        isGrading={isGrading}
+                        gradingFailed={gradingTimedOut}
+                        submissionAnalysis={submissionAnalysis}
+                        isAnalyzing={isAnalyzing}
                     />
                 </div>
             </div>

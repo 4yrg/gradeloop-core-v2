@@ -54,7 +54,9 @@ export function TestCaseBlock({
             )}
         >
             {/* ── Header ── */}
-            <button
+            <div
+                role="button"
+                tabIndex={0}
                 className="flex w-full items-center gap-3 p-4 cursor-pointer select-none hover:bg-muted/20 transition-colors text-left"
                 onClick={onToggle}
                 onKeyDown={(e) => {
@@ -108,7 +110,7 @@ export function TestCaseBlock({
                         <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                 </div>
-            </button>
+            </div>
 
             {/* ── Body ── */}
             {isExpanded && (
