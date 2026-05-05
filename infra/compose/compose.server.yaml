@@ -167,7 +167,7 @@ services:
       GRA_DB_USER: ${GRA_DB_USER}
       GRA_DB_PASSWORD: ${GRA_DB_PASSWORD}
       GRA_DB_SSLMODE: ${GRA_DB_SSLMODE:-disable}
-      DB_NAME: ${IAM_SVC_DB_NAME}
+      IAM_SVC_DB_NAME: ${IAM_SVC_DB_NAME}
       EMAIL_SERVICE_URL: http://email:8082
       MINIO_ENDPOINT: seaweedfs:8333
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
@@ -197,7 +197,7 @@ services:
       GRA_DB_USER: ${GRA_DB_USER}
       GRA_DB_PASSWORD: ${GRA_DB_PASSWORD}
       GRA_DB_SSLMODE: ${GRA_DB_SSLMODE:-disable}
-      DB_NAME: ${ACADEMIC_SVC_DB_NAME}
+      ACADEMIC_SVC_DB_NAME: ${ACADEMIC_SVC_DB_NAME}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       FRONTEND_URL: ${FRONTEND_URL}
       EMAIL_SERVICE_URL: http://email:8082
@@ -222,7 +222,7 @@ services:
       GRA_DB_USER: ${GRA_DB_USER}
       GRA_DB_PASSWORD: ${GRA_DB_PASSWORD}
       GRA_DB_SSLMODE: ${GRA_DB_SSLMODE:-disable}
-      DB_NAME: ${ASSESSMENT_SVC_DB_NAME}
+      ASSESSMENT_SVC_DB_NAME: ${ASSESSMENT_SVC_DB_NAME}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       FRONTEND_URL: ${FRONTEND_URL}
       IAM_SERVICE_URL: http://iam:8081
@@ -247,12 +247,12 @@ services:
     container_name: gradeloop-notification
     environment:
       SERVER_PORT: 8086
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USER: ${GRA_DB_USER}
-      DB_PASSWORD: ${GRA_DB_PASSWORD}
-      DB_NAME: ${NOTIFICATION_SVC_DB_NAME}
-      DB_SSLMODE: ${GRA_DB_SSLMODE:-disable}
+      GRA_DB_HOST: postgres
+      GRA_DB_PORT: 5432
+      GRA_DB_USER: ${GRA_DB_USER}
+      GRA_DB_PASSWORD: ${GRA_DB_PASSWORD}
+      GRA_DB_SSLMODE: ${GRA_DB_SSLMODE:-disable}
+      NOTIFICATION_SVC_DB_NAME: ${NOTIFICATION_SVC_DB_NAME}
       RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       IAM_SERVICE_URL: http://iam:8081
