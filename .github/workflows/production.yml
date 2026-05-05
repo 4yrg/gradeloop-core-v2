@@ -400,7 +400,7 @@ jobs:
             postgres postgres-keystroke rabbitmq redis seaweedfs
 
   deploy-core:
-    name: Deploy Core: ${{ matrix.service }}
+    name: "Deploy Core: ${{ matrix.service }}"
     runs-on: ubuntu-latest
     needs: [deploy-infra]
     strategy:
@@ -431,7 +431,7 @@ jobs:
             docker compose --env-file .env -f $COMPOSE_FILE up -d --remove-orphans ${{ matrix.service }}
 
   deploy-ml:
-    name: Deploy ML: ${{ matrix.service }}
+    name: "Deploy ML: ${{ matrix.service }}"
     runs-on: ubuntu-latest
     needs: [deploy-infra]
     strategy:
