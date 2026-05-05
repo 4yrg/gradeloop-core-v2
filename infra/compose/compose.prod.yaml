@@ -279,6 +279,7 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-root}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-root}
       RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
+      JUDGE0_URL: ${JUDGE0_URL:-http://57.155.90.222:2358}
     depends_on:
       postgres:
         condition: service_healthy
