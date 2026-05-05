@@ -143,9 +143,10 @@ services:
       - "8333:8333" # S3 API
     volumes:
       - seaweed-data:/data
+      - ./s3Config.json:/etc/seaweedfs/s3.json:ro
     networks:
       - gradeloop-network
-    command: server -s3
+    command: server -s3 -s3.config=/etc/seaweedfs/s3.json
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9320/health"]
       interval: 10s

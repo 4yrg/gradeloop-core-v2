@@ -1,0 +1,16 @@
+{
+  "identities": [
+    {
+      "name": "root",
+      "credentials": [
+        {
+          "accessKey": "root",
+          "secretKey": "root"
+        }
+      ],
+      "actions": [
+        "*"
+      ]
+    }
+  ]
+}
