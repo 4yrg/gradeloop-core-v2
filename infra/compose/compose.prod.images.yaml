@@ -160,27 +160,8 @@ services:
           memory: 1G
 
   # =============================================================================
-  # Kong Gateway (Production)
+  # Kong Gateway (Production — DB-less mode with declarative config)
   # =============================================================================
-  kong-migrations:
-    image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-kong:latest
-    <<: *ghcr_image
-    container_name: gradeloop-kong-migrations
-    restart: "no"
-    command: kong migrations bootstrap
-    environment:
-      - KONG_DATABASE=postgres
-      - KONG_PG_HOST=kong-database
-      - KONG_PG_PORT=5432
-      - KONG_PG_USER=kong
-      - KONG_PG_PASSWORD=${KONG_DB_PASSWORD:-kong_pass}
-      - KONG_PG_DB=kong
-    depends_on:
-      kong-database:
-        condition: service_healthy
-    networks:
-      - gradeloop-network
-
   kong-gateway:
     image: ghcr.io/${GHCR_PACKAGE_PREFIX:-4yrg}/gradeloop-kong:latest
     <<: *ghcr_image
@@ -206,34 +187,6 @@ services:
       - /home/gradeloop/ssl:/etc/kong/ssl:ro
     networks:
       - gradeloop-network
-
-  kong-database:
-    image: postgres:16-alpine
-    <<: *ghcr_image
-    container_name: gradeloop-kong-db
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER=kong
-      - POSTGRES_PASSWORD=${KONG_DB_PASSWORD:-kong_pass}
-      - POSTGRES_DB=kong
-    volumes:
-      - kong-database-data:/var/lib/postgresql/data
-    networks:
-      - gradeloop-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kong -d kong"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 1G
-        reservations:
-          cpus: "0.25"
-          memory: 512M
 
   # =============================================================================
   # IAM Service (Go - Production)
@@ -431,7 +384,7 @@ services:
     environment:
       - SERVICE_PORT=8101
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${IVAS_SVC_DB_NAME:-ivas_db}
-      - IVAS_GEMINI_LIVE_MODEL=${IVAS_GEMINI_LIVE_MODEL:-gemini-3.1-flash-live-preview}
+      - IVAS_GEMINI_LIVE_MODEL=${IVAS_GEMINI_LIVE_MODEL:-gemini-2.0-flash-live-001}
       - IVAS_GEMINI_GRADER_MODEL=${IVAS_GEMINI_GRADER_MODEL:-gemini-2.5-flash}
       - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
       - REDIS_URL=redis://:${REDIS_PASSWORD:-redis_pass}@redis:6379/1
@@ -582,4 +535,3 @@ volumes:
   redis-data:
   seaweed-data:
   minio-data:
-  kong-database-data:
