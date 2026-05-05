@@ -1,28 +1,28 @@
 """Two-pass rubric grader for ACAFS.
 
-Pass 1 — Qwen reasoning (OpenRouter)
-======================================
-Qwen3 performs open-ended analysis of the submission against every rubric
+Pass 1 — Gemma 4 reasoning (OpenRouter, free)
+==============================================
+Gemma 4 26B performs open-ended analysis of the submission against every rubric
 criterion.  It reasons in plain prose — no JSON, no scores.
 For deterministic criteria it interprets test-case evidence (including partial
 runs) and for LLM/AST criteria it reasons about code quality and patterns.
 
-Pass 2 — Qwen grading (OpenRouter)
-=====================================
-A second Qwen model receives the full grading prompt PLUS the Pass-1 reasoning
+Pass 2 — Qwen3-Coder 480B grading (OpenRouter)
+================================================
+A second model receives the full grading prompt PLUS the Pass-1 reasoning
 chain as a [PRIOR DEEP ANALYSIS] block.  JSON mode is requested so the response
 conforms directly to the grade schema without needing a separate parser.
 
 Fallback
 =========
 If Pass 1 fails (timeout, API error, etc.) the grader logs a warning and
-continues with Pass 2 alone (Qwen grader without prior reasoning), preserving
+continues with Pass 2 alone (Qwen3-Coder grader without prior reasoning), preserving
 the pre-existing behaviour.
 
 Grading-mode routing:
-  deterministic  → test-case pass/fail counts (authoritative).  Qwen reasons
-                   about evidence quality; Qwen grader scores; Judge0 overrides.
-  llm            → Qwen grader reasons over student code vs sample answer.
+  deterministic  → test-case pass/fail counts (authoritative).  Gemma 4 reasons
+                   about evidence quality; Qwen3-Coder grader scores; Judge0 overrides.
+  llm            → Qwen3-Coder grader reasons over student code vs sample answer.
   llm_ast        → Same as llm but with AST blueprint injected.
 """
 
@@ -43,11 +43,11 @@ from app.services.feedback.prompts import (
 logger = get_logger(__name__)
 
 _MOCK_PLACEHOLDERS = {"SET_YOUR_API_KEY_HERE", "", None}
-_OPENROUTER_TIMEOUT = 120.0  # seconds — Qwen thinking can be slow
+_OPENROUTER_TIMEOUT = 120.0  # seconds — reasoning models can be slow
 
 
 class LLMGrader:
-    """Two-pass rubric grader: Qwen reasoning → Qwen grader, both via OpenRouter."""
+    """Two-pass rubric grader: Gemma 4 reasoning → Qwen3-Coder grader, both via OpenRouter."""
 
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -74,12 +74,12 @@ class LLMGrader:
     ) -> dict[str, Any]:
         """Evaluate a submission against the rubric using a two-pass pipeline.
 
-        Pass 1 (Qwen via OpenRouter): deep free-form reasoning over all criteria.
+        Pass 1 (Gemma 4 via OpenRouter): deep free-form reasoning over all criteria.
           - Deterministic: interprets test-case evidence, handles partial runs.
           - LLM/AST: analyses code quality, patterns, gaps.
           - Skipped (with warning) if ACAFS_OPENROUTER_API_KEY is not configured.
 
-        Pass 2 (Qwen via OpenRouter): produces structured JSON grade, optionally
+        Pass 2 (Qwen3-Coder via OpenRouter): produces structured JSON grade, optionally
           grounded in the Pass-1 reasoning chain.
 
         Returns a dict with keys:
@@ -93,7 +93,7 @@ class LLMGrader:
             logger.warning("llm_grading_mock", reason="ACAFS_OPENROUTER_API_KEY not configured")
             return self._mock_response(rubric_data)
 
-        # ── Pass 1: Qwen reasoning ──────────────────────────────────────────
+        # ── Pass 1: Gemma 4 reasoning ─────────────────────────────────────
         prior_reasoning: str | None = None
         if self._has_reasoner:
             try:
@@ -145,6 +145,8 @@ class LLMGrader:
 
         Uses httpx directly (OpenAI-compatible /chat/completions endpoint).
         Raises on non-2xx status or timeout.
+
+        Used for Pass 1 (Gemma 4 reasoning) — no JSON mode, free-form output.
         """
         headers = {
             "Authorization": f"Bearer {self.settings.openrouter_api_key}",
@@ -170,7 +172,7 @@ class LLMGrader:
     async def _call_openrouter_grader(
         self, prompt: str, rubric_data: list[dict[str, Any]]
     ) -> dict[str, Any]:
-        """Call the OpenRouter grader model and parse the structured JSON response."""
+        """Call the Qwen3-Coder grader model via OpenRouter and parse the structured JSON response."""
         try:
             headers = {
                 "Authorization": f"Bearer {self.settings.openrouter_api_key}",

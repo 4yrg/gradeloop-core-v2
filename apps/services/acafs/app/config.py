@@ -79,20 +79,20 @@ class Settings(BaseSettings):
         alias="ACAFS_OPENROUTER_API_KEY",
     )
 
-    # ── OpenRouter Models (overridable via env vars) ─────────────────────────
-    # Socratic chat model
+    # ── OpenRouter Models (hard-coded defaults, overridable via env vars) ────
+    # Socratic chat — lightweight conversational model
     openrouter_model: str = Field(
-        default="minimax/minimax-m2.5:free",
+        default="z-ai/glm-4.5-air:free",
         alias="ACAFS_CHAT_MODEL",
     )
-    # Pass-1 deep reasoning model (thinking / chain-of-thought)
+    # Pass-1 deep reasoning model (free-form chain-of-thought)
     openrouter_reasoner_model: str = Field(
-        default="qwen/qwen3-coder:free",
+        default="google/gemma-4-26b-a4b-it:free",
         alias="ACAFS_REASONER_MODEL",
     )
     # Pass-2 structured grading model (JSON output)
     openrouter_grader_model: str = Field(
-        default="qwen/qwen3-coder:free",
+        default="qwen/qwen3-coder-480b-a35b-instruct",
         alias="ACAFS_GRADER_MODEL",
     )
     # Base URL (standard OpenRouter endpoint)

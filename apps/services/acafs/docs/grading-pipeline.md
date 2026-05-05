@@ -14,7 +14,7 @@ submission.created (RabbitMQ)
          v
 [eval_worker.py]
     |
-    +-- Step A: Code retrieval (MinIO / inline)
+    +-- Step A: Code retrieval (SeeweedFS / inline)
     |
     +-- Step B: AST extraction (tree-sitter)
     |
@@ -23,8 +23,8 @@ submission.created (RabbitMQ)
     |           - Each result carries test_case_description
     |
     +-- Step D: Two-pass LLM grading
-    |           Pass 1 - Qwen3 reasoning (OpenRouter)
-    |           Pass 2 - Gemini structured output (Google AI)
+    |           Pass 1 - Gemma 4 26B reasoning (OpenRouter, free)
+    |           Pass 2 - Qwen3-Coder 480B structured output (OpenRouter)
     |
     +-- Step E: Persist to PostgreSQL (acafs_results)
     |
@@ -83,10 +83,10 @@ A single LLM call producing both reasoning and structured JSON reliably tends
 toward grade inflation and shallow justifications. Separating *reasoning* from
 *scoring* produces more calibrated, evidence-linked grades.
 
-### Pass 1 — Qwen3-VL-235B-Thinking (Reasoning)
+### Pass 1 — Gemma 4 26B (Reasoning)
 
-- **Model**: `qwen/qwen3-vl-235b-a22b-thinking` via OpenRouter
-- **Env var**: `OPENROUTER_REASONER_MODEL`
+- **Model**: `google/gemma-4-26b-a4b-it:free` via OpenRouter
+- **Env var**: `ACAFS_REASONER_MODEL`
 - **Input**: student code, rubric criteria with band definitions, Judge0 results
   (referenced by `test_case_description`, never raw UUID), AST blueprint summary,
   assignment objective
@@ -96,16 +96,16 @@ toward grade inflation and shallow justifications. Separating *reasoning* from
 
 The reasoning trace is **not** stored permanently — it is only passed to Pass 2.
 
-### Pass 2 — Gemini 2.5 Flash (Structured Output)
+### Pass 2 — Qwen3-Coder 480B (Structured Output)
 
-- **Model**: `gemini-2.5-flash` (configurable via `ACAFS_GEMINI_MODEL`)
-- **Env var**: `ACAFS_GEMINI_API_KEY`
+- **Model**: `qwen/qwen3-coder-480b-a35b-instruct` via OpenRouter
+- **Env var**: `ACAFS_GRADER_MODEL`
 - **Input**: Pass 1 reasoning trace + original rubric + test results
 - **Output**: strict JSON conforming to the grade schema (see below)
 
-Gemini is instructed to treat the Qwen3 reasoning as authoritative evidence and
-produce the final numeric scores, band selections, confidence values, per-criterion
-reasons, and holistic Markdown feedback.
+Qwen3-Coder is instructed to treat the Gemma 4 reasoning as authoritative evidence
+and produce the final numeric scores, band selections, confidence values,
+per-criterion reasons, and holistic Markdown feedback.
 
 ### Grade JSON produced by Pass 2
 
@@ -128,10 +128,9 @@ reasons, and holistic Markdown feedback.
 
 ### Fallback / mock mode
 
-If either `ACAFS_GEMINI_API_KEY` or `OPENROUTER_API_KEY` is blank, `None`, or
-matches a known placeholder string, the pipeline falls back to a deterministic
-mock response. This prevents a silent bad-key from causing empty or inflated grades
-in development environments.
+If `ACAFS_OPENROUTER_API_KEY` is blank, `None`, or matches a known placeholder
+string, the pipeline falls back to a deterministic mock response. This prevents
+a silent bad-key from causing empty or inflated grades in development environments.
 
 ---
 
@@ -214,9 +213,7 @@ Confidence is low when:
 
 | Variable | Purpose |
 |---|---|
-| `ACAFS_GEMINI_API_KEY` | Google AI API key for Pass 2 |
-| `ACAFS_GEMINI_MODEL` | Gemini model (default: `gemini-2.5-flash`) |
-| `OPENROUTER_API_KEY` | OpenRouter key for Pass 1 + Socratic chat |
-| `OPENROUTER_REASONER_MODEL` | Pass 1 model (default: `qwen/qwen3-vl-235b-a22b-thinking`) |
-| `OPENROUTER_MODEL` | Socratic chat model (default: `arcee-ai/trinity-large-preview:free`) |
-| `OPENROUTER_BASE_URL` | OpenRouter base URL |
+| `ACAFS_OPENROUTER_API_KEY` | **Single secret** — OpenRouter key for Pass 1 + Pass 2 + Socratic chat |
+| `ACAFS_REASONER_MODEL` | Pass 1 model (default: `google/gemma-4-26b-a4b-it:free`) |
+| `ACAFS_GRADER_MODEL` | Pass 2 model (default: `qwen/qwen3-coder-480b-a35b-instruct`) |
+| `ACAFS_CHAT_MODEL` | Socratic chat model (default: `z-ai/glm-4.5-air:free`) |
