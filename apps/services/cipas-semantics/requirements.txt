@@ -12,7 +12,7 @@ pydantic-settings==2.7.1
 
 # Machine Learning (CPU-only build)
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.6.0+cpu
+torch==2.2.2+cpu
 transformers==4.49.0
 tokenizers==0.21.0
 

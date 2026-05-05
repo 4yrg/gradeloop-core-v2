@@ -22,7 +22,7 @@ COPY packages/python/ ./packages/python/
 
 COPY apps/services/cipas-semantics/requirements.txt .
 
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && pip uninstall -y numpy torch torchvision torchaudio || true && pip install --no-cache-dir -r requirements.txt
 
 COPY apps/services/cipas-semantics/api/ ./api/
 COPY apps/services/cipas-semantics/model/ ./model/
