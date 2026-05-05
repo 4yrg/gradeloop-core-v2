@@ -388,7 +388,7 @@ jobs:
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
             echo "=== Phase 2: Pulling Infrastructure (Postgres, RabbitMQ, Redis, SeaweedFS) ==="
             COMPOSE_PROJECT_NAME=gradeloop GHCR_PACKAGE_PREFIX=$GHCR_PACKAGE_PREFIX \
-            docker compose -f $COMPOSE_FILE pull postgres postgres-keystroke rabbitmq redis seaweedfs
+            docker compose --project-name gradeloop -f $COMPOSE_FILE pull postgres postgres-keystroke rabbitmq redis seaweedfs
 
       - name: SSH - Pull Core Services
         uses: appleboy/ssh-action@v1.0.3
@@ -406,7 +406,7 @@ jobs:
             done
             echo "=== Phase 3: Pulling Core Services (IAM, Email, Academic, Assessment, Notification, CIPAS-XAI) ==="
             COMPOSE_PROJECT_NAME=gradeloop GHCR_PACKAGE_PREFIX=$GHCR_PACKAGE_PREFIX \
-            docker compose -f $COMPOSE_FILE pull iam email academic assessment notification cipas-xai
+            docker compose --project-name gradeloop -f $COMPOSE_FILE pull iam email academic assessment notification cipas-xai
 
       - name: SSH - Pull ML Services
         uses: appleboy/ssh-action@v1.0.3
@@ -424,7 +424,7 @@ jobs:
             done
             echo "=== Phase 4: Pulling ML Services (IVAS, ACAFS, Keystroke, CIPAS AI/Semantics/Syntactics) ==="
             COMPOSE_PROJECT_NAME=gradeloop GHCR_PACKAGE_PREFIX=$GHCR_PACKAGE_PREFIX \
-            docker compose -f $COMPOSE_FILE pull ivas acafs keystroke cipas-ai cipas-semantics cipas-syntactics
+            docker compose --project-name gradeloop -f $COMPOSE_FILE pull ivas acafs keystroke cipas-ai cipas-semantics cipas-syntactics
 
       - name: SSH - Pull Gateway
         uses: appleboy/ssh-action@v1.0.3
@@ -442,7 +442,7 @@ jobs:
             done
             echo "=== Phase 5: Pulling Gateway ==="
             COMPOSE_PROJECT_NAME=gradeloop GHCR_PACKAGE_PREFIX=$GHCR_PACKAGE_PREFIX \
-            docker compose -f $COMPOSE_FILE pull gateway
+            docker compose --project-name gradeloop -f $COMPOSE_FILE pull gateway
 
   deploy-infra:
     name: Deploy Infrastructure
@@ -473,7 +473,7 @@ jobs:
             echo "=== Deploying Infrastructure (Postgres, RabbitMQ, Redis, SeaweedFS) ==="
             COMPOSE_PROJECT_NAME=gradeloop \
             GHCR_PACKAGE_PREFIX="${{ vars.GHCR_PACKAGE_PREFIX || '4yrg' }}" \
-            docker compose --env-file .env -f $COMPOSE_FILE up -d --remove-orphans \
+            docker compose --project-name gradeloop --env-file .env -f $COMPOSE_FILE up -d --remove-orphans \
             postgres postgres-keystroke rabbitmq redis seaweedfs
 
   deploy-core:
@@ -503,7 +503,7 @@ jobs:
             echo "=== Deploying Core Services (iam, email, academic, assessment, notification, cipas-xai) ==="
             COMPOSE_PROJECT_NAME=gradeloop \
             GHCR_PACKAGE_PREFIX="${{ vars.GHCR_PACKAGE_PREFIX || '4yrg' }}" \
-            docker compose --env-file .env -f $COMPOSE_FILE up -d --remove-orphans \
+            docker compose --project-name gradeloop --env-file .env -f $COMPOSE_FILE up -d --remove-orphans \
             iam email academic assessment notification cipas-xai
 
   deploy-ml:
@@ -533,7 +533,7 @@ jobs:
             echo "=== Deploying ML Services (ivas, acafs, keystroke, cipas-ai, cipas-semantics, cipas-syntactics) ==="
             COMPOSE_PROJECT_NAME=gradeloop \
             GHCR_PACKAGE_PREFIX="${{ vars.GHCR_PACKAGE_PREFIX || '4yrg' }}" \
-            docker compose --env-file .env -f $COMPOSE_FILE up -d --remove-orphans \
+            docker compose --project-name gradeloop --env-file .env -f $COMPOSE_FILE up -d --remove-orphans \
             ivas acafs keystroke cipas-ai cipas-semantics cipas-syntactics
 
   deploy-gateway:
@@ -563,7 +563,7 @@ jobs:
             echo "=== Finalizing Deployment: Starting Gateway ==="
             COMPOSE_PROJECT_NAME=gradeloop \
             GHCR_PACKAGE_PREFIX="${{ vars.GHCR_PACKAGE_PREFIX || '4yrg' }}" \
-            docker compose --env-file .env -f $COMPOSE_FILE up -d --remove-orphans gateway
+            docker compose --project-name gradeloop --env-file .env -f $COMPOSE_FILE up -d --remove-orphans gateway
             
             echo "=== Deployment Status ==="
-            docker compose -f $COMPOSE_FILE ps
+            docker compose --project-name gradeloop -f $COMPOSE_FILE ps
