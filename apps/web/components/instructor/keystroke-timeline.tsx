@@ -44,9 +44,9 @@ interface KeystrokeTimelineProps {
     userId: string;
     sessionId: string;
     assignmentId?: string;
-    /** Override WebSocket gateway URL (defaults to NEXT_PUBLIC_WS_URL or localhost:8000) */
+    /** Override WebSocket gateway URL (defaults to NEXT_PUBLIC_WS_URL or 178.105.102.246:8000) */
     wsUrl?: string;
-    /** Override REST API base URL (defaults to NEXT_PUBLIC_API_URL or localhost:8000) */
+    /** Override REST API base URL (defaults to NEXT_PUBLIC_API_URL or 178.105.102.246:8000) */
     apiUrl?: string;
     className?: string;
 }
@@ -160,8 +160,8 @@ export function KeystrokeTimeline({
 
     const resolvedApiBase =
         apiUrl ??
-            process.env.NEXT_PUBLIC_API_URL ??
-"http://localhost:8000"
+        process.env.NEXT_PUBLIC_API_URL ??
+        "http://178.105.102.246:8000"
 
     const resolvedWsBase =
         wsUrl ??
@@ -280,8 +280,8 @@ export function KeystrokeTimeline({
                                     liveRisk > 0.6
                                         ? "border-red-500 text-red-500"
                                         : liveRisk > 0.3
-                                        ? "border-yellow-500 text-yellow-500"
-                                        : "border-emerald-500 text-emerald-500"
+                                            ? "border-yellow-500 text-yellow-500"
+                                            : "border-emerald-500 text-emerald-500"
                                 )}
                             >
                                 <span className="mr-1 h-2 w-2 rounded-full bg-current inline-block animate-pulse" />
@@ -305,8 +305,8 @@ export function KeystrokeTimeline({
                                 wsStatus === "connected"
                                     ? "text-emerald-500"
                                     : wsStatus === "connecting"
-                                    ? "text-yellow-500"
-                                    : "text-muted-foreground"
+                                        ? "text-yellow-500"
+                                        : "text-muted-foreground"
                             )}
                         >
                             {wsStatus === "connected" ? (

@@ -6,7 +6,7 @@ import { useNotificationStore } from "@/lib/stores/notificationStore";
 
 const NOTIFICATION_SSE_URL =
   process.env.NEXT_PUBLIC_NOTIFICATION_SSE_URL ||
-  `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"}/notifications/stream`;
+  `${process.env.NEXT_PUBLIC_API_URL || "http://178.105.102.246:8000/api/v1"}/notifications/stream`;
 
 const isTokenExpired = (token: string): boolean => {
   try {

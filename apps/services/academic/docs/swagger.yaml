@@ -85,7 +85,7 @@ definitions:
         minLength: 3
         type: string
     type: object
-host: localhost:8000
+host: 178.105.102.246:8000
 info:
   contact:
     email: support@gradeloop.com

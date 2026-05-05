@@ -187,8 +187,8 @@ Content-Type: application/json
 
 Once the server is running, access the interactive API documentation:
 
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
+- **Swagger UI**: http://178.105.102.246:8000/docs
+- **ReDoc**: http://178.105.102.246:8000/redoc
 
 ## Configuration
 
@@ -238,7 +238,7 @@ import requests
 
 # Single detection
 response = requests.post(
-    "http://localhost:8000/api/v1/detect",
+    "http://178.105.102.246:8000/api/v1/detect",
     json={
         "code1": "def add(a, b):\n    return a + b",
         "code2": "def sum(a, b):\n    return a + b"
@@ -250,7 +250,7 @@ print(f"Confidence: {result['confidence']}")
 
 # Batch detection
 response = requests.post(
-    "http://localhost:8000/api/v1/detect/batch",
+    "http://178.105.102.246:8000/api/v1/detect/batch",
     json={
         "pairs": [
             ["def add(a, b): return a + b", "def sum(a, b): return a + b"],
@@ -266,12 +266,12 @@ print(f"Clones found: {results['clone_count']}/{results['total_pairs']}")
 
 ```bash
 # Single detection
-curl -X POST "http://localhost:8000/api/v1/detect" \
+curl -X POST "http://178.105.102.246:8000/api/v1/detect" \
   -H "Content-Type: application/json" \
   -d '{"code1": "def add(a, b):\n    return a + b", "code2": "def sum(a, b):\n    return a + b"}'
 
 # Batch detection
-curl -X POST "http://localhost:8000/api/v1/detect/batch" \
+curl -X POST "http://178.105.102.246:8000/api/v1/detect/batch" \
   -H "Content-Type: application/json" \
   -d '{"pairs": [["def add(a, b): return a + b", "def sum(a, b): return a + b"]]}'
 ```

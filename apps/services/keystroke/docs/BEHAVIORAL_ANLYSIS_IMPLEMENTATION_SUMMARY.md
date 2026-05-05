@@ -249,7 +249,7 @@ if (analysis.process_score.overall_score < 50) {
 import requests
 
 response = requests.post(
-    'http://localhost:8000/api/keystroke/analyze',
+    'http://178.105.102.246:8000/api/keystroke/analyze',
     json={
         'sessionId': 'session_001',
         'studentId': 'alice',
