@@ -246,13 +246,6 @@ func (m *Migrator) Run() error {
 		m.logger.Warn("failed to create index idx_github_versions_user_assignment", zap.Error(err))
 	}
 
-	// Drop legacy storage_path column from submissions (replaced by GitHub)
-	if err := m.db.Exec(`
-		ALTER TABLE submissions DROP COLUMN IF EXISTS storage_path
-	`).Error; err != nil {
-		m.logger.Warn("failed to drop legacy storage_path column", zap.Error(err))
-	}
-
 	// Add GitHub columns to submissions if not exist
 	if err := m.db.Exec(`
 		ALTER TABLE submissions ADD COLUMN IF NOT EXISTS github_repo_id UUID

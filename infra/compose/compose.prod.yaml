@@ -129,21 +129,19 @@ services:
     pull_policy: missing
     container_name: gradeloop-seaweed
     restart: unless-stopped
-    environment:
-      - WEEAD_IDENTITY=seaweedfs
-      - S3_KEY=root
-      - S3_SECRET=root
     ports:
-      - "9333:9333" # S3 API
-      - "9320:9320" # Console
+      - "9333:9333" # Master
+      - "8333:8333" # S3 API
+      - "8888:8888" # Filer
       - "8080:8080" # Volume server
     volumes:
       - seaweed-data:/data
+      - ../../infra/compose/s3Config.json:/etc/seaweedfs/s3.json:ro
     networks:
       - gradeloop-network
-    command: server -s3 -identity=seaweedfs -s3Port=9333 -consolePort=9320
+    command: server -s3 -filer -s3.config=/etc/seaweedfs/s3.json
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9320/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9333/cluster/status"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -170,7 +168,21 @@ services:
       - "8000:8000"
       - "8443:8443"
     volumes:
+      - ../../apps/api-gateway/nginx.prod.conf:/etc/nginx/nginx.conf:ro
       - /home/gradeloop/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - iam
+      - academic
+      - assessment
+      - notification
+      - email
+      - acafs
+      - ivas
+      - keystroke
+      - cipas-xai
+      - cipas-ai
+      - cipas-semantics
+      - cipas-syntactics
     networks:
       - gradeloop-network
     deploy:
@@ -190,17 +202,17 @@ services:
     container_name: gradeloop-iam
     restart: unless-stopped
     environment:
-      - SERVER_PORT=8081
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=${GRA_DB_USER:-postgres}
-      - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
-      - DB_NAME=${IAM_SVC_DB_NAME:-iam_db}
-      - DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
+      - IAM_SVC_PORT=8081
+      - GRA_DB_HOST=postgres
+      - GRA_DB_PORT=5432
+      - GRA_DB_USER=${GRA_DB_USER:-postgres}
+      - GRA_DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
+      - IAM_SVC_DB_NAME=${IAM_SVC_DB_NAME:-iam_db}
+      - GRA_DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
       - EMAIL_SERVICE_URL=http://email:8082
-      - MINIO_ENDPOINT=seaweed:9333
-      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
-      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_ENDPOINT=seaweed:8333
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-root}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-root}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - JWT_ACCESS_TOKEN_EXPIRY=${JWT_ACCESS_TOKEN_EXPIRY:-15}
       - JWT_REFRESH_TOKEN_EXPIRY=${JWT_REFRESH_TOKEN_EXPIRY:-10080}
@@ -228,13 +240,13 @@ services:
     container_name: gradeloop-academic
     restart: unless-stopped
     environment:
-      - SERVER_PORT=8083
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=${GRA_DB_USER:-postgres}
-      - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
-      - DB_NAME=${ACADEMIC_SVC_DB_NAME:-academic_db}
-      - DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
+      - ACADEMIC_SVC_PORT=8083
+      - GRA_DB_HOST=postgres
+      - GRA_DB_PORT=5432
+      - GRA_DB_USER=${GRA_DB_USER:-postgres}
+      - GRA_DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
+      - ACADEMIC_SVC_DB_NAME=${ACADEMIC_SVC_DB_NAME:-academic_db}
+      - GRA_DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
       - EMAIL_SERVICE_URL=http://email:8082
@@ -263,22 +275,24 @@ services:
     container_name: gradeloop-assessment
     restart: unless-stopped
     environment:
-      - SERVER_PORT=8084
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=${GRA_DB_USER:-postgres}
-      - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
-      - DB_NAME=${ASSESSMENT_SVC_DB_NAME:-assessment_db}
-      - DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
+      - ASSESSMENT_SVC_PORT=8084
+      - GRA_DB_HOST=postgres
+      - GRA_DB_PORT=5432
+      - GRA_DB_USER=${GRA_DB_USER:-postgres}
+      - GRA_DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
+      - ASSESSMENT_SVC_DB_NAME=${ASSESSMENT_SVC_DB_NAME:-assessment_db}
+      - GRA_DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
       - IAM_SERVICE_URL=http://iam:8081
       - ACADEMIC_SERVICE_URL=http://academic:8083
       - EMAIL_SERVICE_URL=http://email:8082
-      - MINIO_ENDPOINT=seaweed:9333
+      - MINIO_ENDPOINT=seaweed:8333
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-root}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-root}
       - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
+      - JUDGE0_URL=${JUDGE0_URL:-http://57.155.90.222:2358}
+      - JUDGE0_API_KEY=${JUDGE0_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -338,12 +352,19 @@ services:
     container_name: gradeloop-email
     restart: unless-stopped
     environment:
-      - SERVER_PORT=8082
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=${GRA_DB_USER:-postgres}
-      - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
-      - DB_NAME=${EMAIL_SVC_DB_NAME:-email_db}
+      - EMAIL_SVC_PORT=8082
+      - GRA_DB_HOST=postgres
+      - GRA_DB_PORT=5432
+      - GRA_DB_USER=${GRA_DB_USER:-postgres}
+      - GRA_DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
+      - EMAIL_SVC_DB_NAME=${EMAIL_SVC_DB_NAME:-email_db}
+      - GRA_DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - EMAIL_FROM=${EMAIL_FROM:-noreply@gradeloop.com}
     depends_on:
       postgres:
         condition: service_healthy
@@ -404,14 +425,23 @@ services:
     container_name: gradeloop-acafs
     restart: unless-stopped
     environment:
-      - SERVER_PORT=8086
+      - SERVER_PORT=8102
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${ACAFS_SVC_DB_NAME:-acafs_db}
       - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
       - ACAFS_OPENROUTER_API_KEY=${ACAFS_OPENROUTER_API_KEY}
-      - JUDGE0_URL=${JUDGE0_URL}
-      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-seaweedfs:8333}
-      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
-      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - ACAFS_CHAT_MODEL=${ACAFS_CHAT_MODEL:-openai/gpt-oss-120b:free}
+      - ACAFS_REASONER_MODEL=${ACAFS_REASONER_MODEL:-openai/gpt-oss-120b:free}
+      - ACAFS_GRADER_MODEL=${ACAFS_GRADER_MODEL:-openai/gpt-oss-120b:free}
+      - JUDGE0_URL=${JUDGE0_URL:-http://57.155.90.222:2358}
+      - MINIO_ENDPOINT=seaweed:8333
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-root}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-root}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8102/api/v1/acafs/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     depends_on:
       postgres:
         condition: service_healthy
@@ -434,7 +464,7 @@ services:
     container_name: gradeloop-keystroke
     restart: unless-stopped
     environment:
-      - SERVER_PORT=8003
+      - SERVER_PORT=8103
       - DATABASE_URL=postgresql://keystroke_user:${KEYSTROKE_DB_PASSWORD:-keystroke_pass}@postgres-keystroke:5432/keystroke-db
     depends_on:
       postgres-keystroke:
@@ -452,13 +482,13 @@ services:
   # =============================================================================
   cipas-syntactics:
     build:
-      context: ../../apps/services/cipas-syntactics
-      dockerfile: Dockerfile
+      context: ../../
+      dockerfile: apps/services/cipas-syntactics/Dockerfile
       target: production
     container_name: gradeloop-cipas-syntactics
     restart: unless-stopped
     environment:
-      - CIPAS_SYNTACTICS_PORT=8086
+      - CIPAS_SYNTACTICS_PORT=8106
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
     depends_on:
       postgres:
@@ -476,14 +506,23 @@ services:
   # =============================================================================
   cipas-semantics:
     build:
-      context: ../../apps/services/cipas-semantics
-      dockerfile: Dockerfile
+      context: ../../
+      dockerfile: apps/services/cipas-semantics/Dockerfile
       target: production
     container_name: gradeloop-cipas-semantics
     restart: unless-stopped
     environment:
-      - API_PORT=8087
+      - API_PORT=8105
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
+      - HF_HOME=/app/.cache
+      - TRANSFORMERS_CACHE=/app/.cache/transformers
+      - HF_DATASETS_CACHE=/app/.cache/datasets
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8105/api/v1/semantics/health', timeout=5)"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 300s
     depends_on:
       postgres:
         condition: service_healthy
@@ -500,14 +539,23 @@ services:
   # =============================================================================
   cipas-ai:
     build:
-      context: ../../apps/services/cipas-ai
-      dockerfile: Dockerfile
+      context: ../../
+      dockerfile: apps/services/cipas-ai/Dockerfile
       target: production
     container_name: gradeloop-cipas-ai
     restart: unless-stopped
     environment:
       - CIPAS_AI_PORT=8104
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@postgres:5432/${CIPAS_AI_SVC_DB_NAME:-cipas_ai_db}
+      - HF_HOME=/app/.cache
+      - TRANSFORMERS_CACHE=/app/.cache/transformers
+      - HF_DATASETS_CACHE=/app/.cache/datasets
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8104/api/v1/ai/ready', timeout=5)"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 300s
     depends_on:
       postgres:
         condition: service_healthy
@@ -531,6 +579,20 @@ services:
     restart: unless-stopped
     environment:
       - SERVER_PORT=8085
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_PROVIDER=${LLM_PROVIDER:-openrouter}
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://openrouter.ai/api/v1}
+      - LLM_MODEL=${LLM_MODEL:-arcee-ai/trinity-large-preview:free}
+      - LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-2048}
+      - LLM_TEMPERATURE=${LLM_TEMPERATURE:-0.7}
+      - LLM_TIMEOUT=${LLM_TIMEOUT:-60}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8085/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     networks:
       - gradeloop-network
     deploy:

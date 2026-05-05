@@ -417,10 +417,10 @@ export default function AssignmentSubmissionsPage({
                 title={selectedSubmission ? `Grade: ${selectedSubmission.studentName}` : "Grade Submission"}
                 description="Review the submission content, evaluate against the rubric, and assign a final score."
             >
-                <div className="flex-1 overflow-y-auto space-y-6">
+                <div className="flex-1 overflow-y-auto min-h-0 space-y-6 pt-2"style={{ scrollbarGutter: "stable" }}>
 
                     {/* ── Keystroke session summary ───────────────────────── */}
-                    {sheetArchive && (
+                    {sheetArchive && selectedSubmission && (
                         <div className="rounded-xl border border-border bg-card px-4 py-3 flex flex-col gap-3">
                             <div className="flex items-center gap-2 flex-wrap">
                                 <Badge
@@ -449,13 +449,13 @@ export default function AssignmentSubmissionsPage({
                             </div>
                             <div className="flex gap-2">
                                 <Button variant="outline" size="sm" className="flex-1" asChild>
-                                    <Link href={`/instructor/assessments/${assignmentId}/submissions/${selectedSubmission!.id}/playback`}>
+                                    <Link href={`/instructor/assessments/${assignmentId}/submissions/${selectedSubmission.id}/playback`}>
                                         <Video className="h-3.5 w-3.5 mr-1.5" />
                                         Session Playback
                                     </Link>
                                 </Button>
                                 <Button variant="outline" size="sm" className="flex-1" asChild>
-                                    <Link href={`/instructor/assessments/${assignmentId}/submissions/${selectedSubmission!.id}/analytics`}>
+                                    <Link href={`/instructor/assessments/${assignmentId}/submissions/${selectedSubmission.id}/analytics`}>
                                         <BarChart3 className="h-3.5 w-3.5 mr-1.5" />
                                         Behaviour Analytics
                                     </Link>
@@ -494,15 +494,15 @@ export default function AssignmentSubmissionsPage({
                             <div>
                                 <h4 className="font-bold font-heading mb-2">Submission Code</h4>
                                 {isCodeLoading ? (
-                                    <div className="flex items-center justify-center h-[300px] border border-border/60 rounded-xl bg-card">
+                                    <div className="flex items-center justify-center min-h-[160px] border border-border/60 rounded-xl bg-card">
                                         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                                     </div>
                                 ) : submissionCode !== null ? (
-                                    <pre className="p-4 border border-border/60 rounded-xl bg-card text-sm font-mono h-[300px] overflow-y-auto text-foreground whitespace-pre-wrap break-all">
+                                    <pre className="p-4 border border-border/60 rounded-xl bg-card text-sm font-mono text-foreground whitespace-pre-wrap break-all">
                                         {submissionCode}
                                     </pre>
                                 ) : (
-                                    <div className="p-4 border border-border/60 rounded-xl bg-muted/20 text-sm text-muted-foreground h-[300px] flex items-center justify-center">
+                                    <div className="p-4 border border-border/60 rounded-xl bg-muted/20 text-sm text-muted-foreground min-h-[80px] flex items-center justify-center">
                                         Code unavailable
                                     </div>
                                 )}
@@ -594,7 +594,7 @@ export default function AssignmentSubmissionsPage({
                     )}
                 </div>
 
-                <div className="pt-6 mt-6 border-t border-border/40 flex items-center justify-end sticky bottom-0 bg-background/95 backdrop-blur py-4 z-10">
+                <div className="pt-4 mt-4 border-t border-border/40 flex items-center justify-end shrink-0">
                     <Button variant="outline" onClick={() => setSelectedSubmission(null)}>
                         Close
                     </Button>
