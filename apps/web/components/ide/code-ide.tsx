@@ -31,6 +31,7 @@ export function CodeIDE({
   userId,
   initialCode,
   initialLanguage = DEFAULT_LANGUAGE_ID,
+  onCodeChange,
   onExecute,
   onSubmit,
   readOnly = false,
@@ -68,6 +69,20 @@ export function CodeIDE({
   const [language, setLanguage] = useState<number>(initialLanguage);
   const [stdin, setStdin] = useState<string>("");
   const [fontSize, setFontSize] = useState<number>(DEFAULT_FONT_SIZE);
+
+  useEffect(() => {
+    if (initialCode !== undefined) {
+      setCode(initialCode);
+    }
+  }, [initialCode]);
+
+  const handleCodeChange = useCallback(
+    (nextCode: string) => {
+      setCode(nextCode);
+      onCodeChange?.(nextCode);
+    },
+    [onCodeChange]
+  );
 
   // Code execution
   const { execute, isExecuting, result } = useCodeExecution({
@@ -198,7 +213,7 @@ export function CodeIDE({
         <div className="flex flex-1 flex-col">
           <EditorPanel
             value={code}
-            onChange={setCode}
+            onChange={handleCodeChange}
             language={language}
             fontSize={fontSize}
             readOnly={readOnly}

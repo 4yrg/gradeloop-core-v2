@@ -5,9 +5,11 @@ import { CodeIDE } from "./code-ide";
 import { FileExplorer } from "./file-explorer";
 import { CommitDialog } from "./commit-dialog";
 import { codeStorageApi, type CodeRepo } from "@/lib/api/code-storage";
+import { assessmentsApi } from "@/lib/api/assessments";
 import { Loader2, AlertCircle, Save, Send, GitBranch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { STARTER_CODE } from "./constants";
 
 interface SeaweedCodeIDEProps {
     assignmentId: string;
@@ -16,6 +18,41 @@ interface SeaweedCodeIDEProps {
     readOnly?: boolean;
     showSubmitButton?: boolean;
     onSubmit?: (versionId: string) => void;
+}
+
+const DEFAULT_FILE_BY_LANGUAGE_ID: Record<number, string> = {
+    46: "main.sh",
+    48: "main.c",
+    49: "main.c",
+    50: "main.c",
+    51: "Program.cs",
+    52: "main.cpp",
+    53: "main.cpp",
+    54: "main.cpp",
+    56: "main.d",
+    57: "main.exs",
+    58: "main.erl",
+    60: "main.go",
+    61: "Main.hs",
+    62: "Main.java",
+    63: "main.js",
+    64: "main.lua",
+    68: "main.php",
+    70: "main.py",
+    71: "main.py",
+    72: "main.rb",
+    73: "main.rs",
+    74: "main.ts",
+    78: "Main.kt",
+    80: "main.r",
+    82: "main.sql",
+    83: "main.swift",
+    87: "Program.fs",
+    95: "main.go",
+};
+
+function getDefaultFileName(languageId?: number) {
+    return DEFAULT_FILE_BY_LANGUAGE_ID[languageId || 71] || "main.txt";
 }
 
 export function SeaweedCodeIDE({
@@ -87,11 +124,14 @@ export function SeaweedCodeIDE({
 
         if (commitMode === "submit") {
             try {
-                const version = await codeStorageApi.submitAssignment(assignmentId, {
-                    message: "Submitted assignment",
+                const submission = await assessmentsApi.submitAssignment({
+                    assignment_id: assignmentId,
+                    code: currentContent,
+                    language: repo?.language || "python",
+                    language_id: repo?.language_id || 71,
                 });
-                toast.success(`Submitted! Version ${version.version}`);
-                onSubmit?.(version.id);
+                toast.success(`Submitted! Version ${submission.version}`);
+                onSubmit?.(submission.id);
             } catch (err) {
                 console.error("Submit failed:", err);
                 toast.error("Failed to submit assignment");
@@ -133,6 +173,8 @@ export function SeaweedCodeIDE({
                     currentFilePath={currentFilePath}
                     readOnly={readOnly}
                     useCodeStorage={true}
+                    defaultNewFileName={getDefaultFileName(repo?.language_id)}
+                    defaultNewFileContent={STARTER_CODE[repo?.language_id || 71] || ""}
                 />
             </div>
 
@@ -175,6 +217,7 @@ export function SeaweedCodeIDE({
                         assignmentTitle={assignmentTitle}
                         userId={userId}
                         initialCode={currentContent}
+                        onCodeChange={handleCodeChange}
                         readOnly={readOnly}
                         showSubmitButton={false}
                         onExecute={() => {}}
