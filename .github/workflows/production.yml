@@ -371,11 +371,11 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
+username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-command_timeout: 30m
+          command_timeout: 30m
           timeout: 120s
-          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN,JWT_SECRET_KEY,SMTP_USER,SMTP_PASS,EMAIL_FROM
+          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN
           script: |
             set -e
 
@@ -455,7 +455,7 @@ command_timeout: 30m
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           command_timeout: 30m
           timeout: 120s
-          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN,JWT_SECRET_KEY
+          envs: RUNTIME,COMPOSE_FILE,GHCR_PACKAGE_PREFIX,SHORT_SHA,GHCR_USER,GHCR_TOKEN,JWT_SECRET_KEY,SMTP_USER,SMTP_PASS,EMAIL_FROM
           script: |
             set -e
 
