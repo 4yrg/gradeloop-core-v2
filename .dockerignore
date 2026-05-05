@@ -54,6 +54,22 @@ Desktop.ini
 **/.terraform/
 **/*.tfstate*
 
-# CI/CD
-ci_summary.txt
-final_status.txt
+# Python specific
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+.env
+.tox/
+.nox/
+.cache/
+.poetry/
+poetry.lock
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
