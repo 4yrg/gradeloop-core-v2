@@ -82,23 +82,15 @@ jobs:
           echo "has_changes=true" >> "$GITHUB_OUTPUT"
           echo "Changed services: $services"
 
-      - name: Configure SSH
-        env:
-          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-        run: |
-          # Fail if secret is missing
-          if [[ -z "$SSH_KEY" ]]; then
-            echo "Error: SSH_PRIVATE_KEY secret is empty or missing!"
-            exit 1
-          fi
+      - name: Install SSH Key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          known_hosts: "placeholder" # Will be updated in next step
+          if_key_exists: fail
 
-          # Create .ssh directory in HOME
-          mkdir -pv "$HOME/.ssh"
-          
-          # Write the private key
-          echo "$SSH_KEY" > "$HOME/.ssh/deploy_key"
-          chmod 600 "$HOME/.ssh/deploy_key"
-          
+      - name: Configure SSH Config and Known Hosts
+        run: |
           # Setup SSH config
           cat > "$HOME/.ssh/config" <<EOF
           Host *
