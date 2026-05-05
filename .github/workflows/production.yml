@@ -375,7 +375,8 @@ jobs:
             echo "=== Cleaning up server before deployment ==="
             echo "Disk usage before cleanup:"
             df -h /
-            docker system prune -af --volumes --filter "until=24h" || true
+            docker system prune -af --filter "until=24h" || true
+            docker volume prune -f || true
             echo "Disk usage after cleanup:"
             df -h /
             echo "=== Cleanup complete ==="
@@ -466,7 +467,8 @@ jobs:
             echo "=== Cleaning up server before deployment ==="
             echo "Disk usage before cleanup:"
             df -h /
-            docker system prune -af --volumes --filter "until=24h" || true
+            docker system prune -af --filter "until=24h" || true
+            docker volume prune -f || true
             echo "Disk usage after cleanup:"
             df -h /
             echo "=== Cleanup complete ==="
@@ -555,7 +557,8 @@ jobs:
             echo "=== Cleaning up server before deployment ==="
             echo "Disk usage before cleanup:"
             df -h /
-            docker system prune -af --volumes --filter "until=24h" || true
+            docker system prune -af --filter "until=24h" || true
+            docker volume prune -f || true
             echo "Disk usage after cleanup:"
             df -h /
             echo "=== Cleanup complete ==="
@@ -637,7 +640,8 @@ jobs:
             echo "=== Cleaning up server before deployment ==="
             echo "Disk usage before cleanup:"
             df -h /
-            docker system prune -af --volumes --filter "until=24h" || true
+            docker system prune -af --filter "until=24h" || true
+            docker volume prune -f || true
             echo "Disk usage after cleanup:"
             df -h /
             echo "=== Cleanup complete ==="
