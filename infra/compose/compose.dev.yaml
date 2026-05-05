@@ -77,7 +77,7 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -96,7 +96,7 @@ services:
       - gradeloop-network
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_pass}
     healthcheck:
-      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-redis_pass}", "incr", "ping"]
+      test: [ "CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-redis_pass}", "incr", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -110,10 +110,10 @@ services:
     environment:
       - WEEAD_IDENTITY=seaweedfs
     ports:
-      - "9333:9333"   # Master
-      - "9320:9320"   # Console
-      - "9080:8080"   # Volume server
-      - "8333:8333"   # S3 API
+      - "9333:9333" # Master
+      - "9320:9320" # Console
+      - "9080:8080" # Volume server
+      - "8333:8333" # S3 API
     volumes:
       - seaweed-data:/data
       - ./s3Config.json:/etc/seaweedfs/s3.json:ro
@@ -121,7 +121,7 @@ services:
       - gradeloop-network
     command: server -s3 -filer -s3.config=/etc/seaweedfs/s3.json
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9333/cluster/status"]
+      test: [ "CMD-SHELL", "wget -qO- http://127.0.0.1:9333/cluster/status" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -182,7 +182,7 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/health || exit 1"]
+      test: [ "CMD-SHELL", "wget -qO- http://127.0.0.1:8081/health || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -218,7 +218,7 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8083/health || exit 1"]
+      test: [ "CMD-SHELL", "wget -qO- http://127.0.0.1:8083/health || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -259,7 +259,7 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8084/health || exit 1"]
+      test: [ "CMD-SHELL", "wget -qO- http://127.0.0.1:8084/health || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -299,7 +299,7 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8082/health || exit 1"]
+      test: [ "CMD-SHELL", "wget -qO- http://127.0.0.1:8082/health || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -335,7 +335,7 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8101/api/v1/ivas/health').getcode() == 200 or exit(1)\""]
+      test: [ "CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8101/api/v1/ivas/health').getcode() == 200 or exit(1)\"" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -370,7 +370,7 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8102/api/v1/acafs/health').getcode() == 200 or exit(1)\""]
+      test: [ "CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8102/api/v1/acafs/health').getcode() == 200 or exit(1)\"" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -402,7 +402,7 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8103/health').getcode() == 200 or exit(1)\""]
+      test: [ "CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8103/health').getcode() == 200 or exit(1)\"" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -413,8 +413,8 @@ services:
   # =============================================================================
   cipas-syntactics:
     build:
-      context: ../../apps/services/cipas-syntactics
-      dockerfile: Dockerfile
+      context: ../../
+      dockerfile: apps/services/cipas-syntactics/Dockerfile
       target: development
     environment:
       - CIPAS_SYNTACTICS_PORT=${CIPAS_SYN_SVC_PORT:-8106}
@@ -431,7 +431,7 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8106/api/v1/syntactics/health || exit 1"]
+      test: [ "CMD-SHELL", "curl -f http://127.0.0.1:8106/api/v1/syntactics/health || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -442,8 +442,8 @@ services:
   # =============================================================================
   cipas-semantics:
     build:
-      context: ../../apps/services/cipas-semantics
-      dockerfile: Dockerfile
+      context: ../../
+      dockerfile: apps/services/cipas-semantics/Dockerfile
       target: development
     environment:
       - API_PORT=${CIPAS_SEM_SVC_PORT:-8105}
@@ -460,7 +460,7 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8105/api/v1/semantics/health').getcode() == 200 or exit(1)\""]
+      test: [ "CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8105/api/v1/semantics/health').getcode() == 200 or exit(1)\"" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -471,8 +471,8 @@ services:
   # =============================================================================
   cipas-ai:
     build:
-      context: ../../apps/services/cipas-ai
-      dockerfile: Dockerfile
+      context: ../../
+      dockerfile: apps/services/cipas-ai/Dockerfile
       target: development
     environment:
       - CIPAS_AI_PORT=${CIPAS_AI_SVC_PORT:-8104}
@@ -489,7 +489,7 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8104/api/v1/ai/health').getcode() == 200 or exit(1)\""]
+      test: [ "CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8104/api/v1/ai/health').getcode() == 200 or exit(1)\"" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -548,7 +548,7 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8085/health || exit 1"]
+      test: [ "CMD-SHELL", "wget -qO- http://127.0.0.1:8085/health || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 3
