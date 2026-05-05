@@ -10,7 +10,7 @@ ACAFS is a Python/FastAPI microservice that:
 3. Runs deterministic test-case scoring via Judge0
 4. Grades every rubric criterion through a **two-pass LLM pipeline** (Gemma 4 reasoning → Qwen3-Coder structured output), all via OpenRouter
 5. Persists the grade to PostgreSQL and exposes it via REST
-6. Powers the Socratic chat tutor for live hint generation (MiniMax M2.5)
+6. Powers the Socratic chat tutor for live hint generation (GLM-4.5 Air)
 
 ## Architecture
 
@@ -67,7 +67,7 @@ docker compose up --build acafs-service -d
 | `AST_MAX_LINES` | `5000` | Max lines to parse before truncation |
 | `AST_TIMEOUT_SECONDS` | `2` | tree-sitter parse timeout |
 | `ACAFS_OPENROUTER_API_KEY` | — | **Single OpenRouter secret** (Pass 1 + Pass 2 + Socratic chat) |
-| `ACAFS_CHAT_MODEL` | `minimax/minimax-m2.5:free` | Socratic chat model |
+| `ACAFS_CHAT_MODEL` | `z-ai/glm-4.5-air:free` | Socratic chat model |
 | `ACAFS_REASONER_MODEL` | `google/gemma-4-26b-a4b-it:free` | Pass 1 reasoning model |
 | `ACAFS_GRADER_MODEL` | `qwen/qwen3-coder-480b-a35b-instruct` | Pass 2 grading model |
 

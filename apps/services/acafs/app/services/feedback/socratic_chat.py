@@ -1,4 +1,4 @@
-"""Socratic chat service using OpenRouter / MiniMax M2.5.
+"""Socratic chat service using OpenRouter / GLM-4.5 Air.
 
 Session lifecycle
 -----------------
@@ -39,7 +39,7 @@ def _apply_guardrail(content: str) -> str:
 
 
 class SocraticChatService:
-    """Handles Socratic tutoring turns via OpenRouter / MiniMax M2.5."""
+    """Handles Socratic tutoring turns via OpenRouter / GLM-4.5 Air."""
 
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -98,8 +98,8 @@ class SocraticChatService:
         clean_messages = [{"role": m["role"], "content": m["content"]} for m in recent]
 
         # Only request extended reasoning for models that explicitly advertise it.
-        # MiniMax M2.5 does not support the `reasoning` param — do not send it.
-        _reasoning_models = ("claude-3-7", "o1", "o3", "deepseek-r1", "gemini-2.5", "gemma-4")
+        # GLM-4.5 Air supports the `reasoning` param.
+        _reasoning_models = ("claude-3-7", "o1", "o3", "deepseek-r1", "gemini-2.5", "gemma-4", "glm-4", "glm-4.5")
         supports_reasoning = any(
             tag in self.settings.openrouter_model.lower() for tag in _reasoning_models
         )

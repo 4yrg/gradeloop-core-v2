@@ -216,4 +216,4 @@ Confidence is low when:
 | `ACAFS_OPENROUTER_API_KEY` | **Single secret** — OpenRouter key for Pass 1 + Pass 2 + Socratic chat |
 | `ACAFS_REASONER_MODEL` | Pass 1 model (default: `google/gemma-4-26b-a4b-it:free`) |
 | `ACAFS_GRADER_MODEL` | Pass 2 model (default: `qwen/qwen3-coder-480b-a35b-instruct`) |
-| `ACAFS_CHAT_MODEL` | Socratic chat model (default: `minimax/minimax-m2.5:free`) |
+| `ACAFS_CHAT_MODEL` | Socratic chat model (default: `z-ai/glm-4.5-air:free`) |

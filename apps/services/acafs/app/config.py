@@ -82,7 +82,7 @@ class Settings(BaseSettings):
     # ── OpenRouter Models (hard-coded defaults, overridable via env vars) ────
     # Socratic chat — lightweight conversational model
     openrouter_model: str = Field(
-        default="minimax/minimax-m2.5:free",
+        default="z-ai/glm-4.5-air:free",
         alias="ACAFS_CHAT_MODEL",
     )
     # Pass-1 deep reasoning model (free-form chain-of-thought)
