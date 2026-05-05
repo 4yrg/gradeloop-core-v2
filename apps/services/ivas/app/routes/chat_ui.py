@@ -3,8 +3,6 @@
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 
-from app.config import get_settings
-
 router = APIRouter()
 
 _HTML = """<!DOCTYPE html>
@@ -481,5 +479,4 @@ window.addEventListener('beforeunload', () => disconnect());
 
 @router.get("/viva", response_class=HTMLResponse, include_in_schema=False)
 async def chat_ui() -> HTMLResponse:
-    settings = get_settings()
     return HTMLResponse(content=_HTML)
