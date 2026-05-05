@@ -65,7 +65,7 @@ type Submission struct {
 	UserID       *uuid.UUID `gorm:"type:uuid;index"                                json:"user_id,omitempty"`
 	GroupID      *uuid.UUID `gorm:"type:uuid;index"                                json:"group_id,omitempty"`
 
-	StoragePath string `gorm:"type:text;not null"       json:"storage_path"`
+	StoragePath string `gorm:"type:text;not null;default:''" json:"storage_path"`
 	Language    string `gorm:"type:varchar(50)"         json:"language"`
 	LanguageID  int    `gorm:""                         json:"language_id,omitempty"`
 	Status      string `gorm:"type:varchar(50);not null;default:'pending'" json:"status"`

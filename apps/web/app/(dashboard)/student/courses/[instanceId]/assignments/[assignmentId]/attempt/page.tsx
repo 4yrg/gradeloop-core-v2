@@ -454,6 +454,7 @@ export default function StudentAttemptPage() {
                         readOnly={isReadOnly}
                         showSubmitButton={!isReadOnly && (!isOverdue || assignment.allow_late_submissions)}
                         onSubmit={handleSubmit}
+                        showAIAssistant={assignment.enable_ai_assistant ?? false}
                         showGradePanel={true}
                         grade={grade}
                         isGrading={isGrading}

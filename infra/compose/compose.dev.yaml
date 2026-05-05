@@ -122,8 +122,8 @@ services:
       dockerfile: apps/web/Dockerfile
       target: dev
       args:
-        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://178.105.102.246:8000/api/v1}
-        - NEXT_PUBLIC_GATEWAY_URL=${NEXT_PUBLIC_GATEWAY_URL:-http://178.105.102.246:8000}
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
+        - NEXT_PUBLIC_GATEWAY_URL=${NEXT_PUBLIC_GATEWAY_URL:-http://localhost:8000}
     container_name: gradeloop-web
     env_file:
       - ../../apps/web/.env
@@ -131,8 +131,8 @@ services:
     environment:
       - PORT=3000
       - HOSTNAME=0.0.0.0
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://178.105.102.246:8000/api/v1}
-      - NEXT_PUBLIC_GATEWAY_URL=${NEXT_PUBLIC_GATEWAY_URL:-http://178.105.102.246:8000}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
+      - NEXT_PUBLIC_GATEWAY_URL=${NEXT_PUBLIC_GATEWAY_URL:-http://localhost:8000}
       - WATCHPACK_POLLING=true
     volumes:
       - ../../:/app
@@ -274,6 +274,9 @@ services:
       - MINIO_SECRET_KEY=root
       - RABBITMQ_URL=amqp://guest:guest@gradeloop-rabbitmq:5672/
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-gradeloop_secret_key_change_me}
+      - JUDGE0_URL=http://57.155.90.222:2358
+      - JUDGE0_API_KEY=
+      - JUDGE0_TIMEOUT_SECONDS=30
     ports:
       - 8084:8084
     depends_on:
@@ -377,6 +380,11 @@ services:
       - MINIO_ACCESS_KEY=root
       - MINIO_SECRET_KEY=root
       - PYTHONPATH=/app:/packages/python
+      - ACAFS_OPENROUTER_API_KEY=${ACAFS_OPENROUTER_API_KEY:-}
+      - ACAFS_REASONER_MODEL=${ACAFS_REASONER_MODEL:-openai/gpt-oss-120b:free}
+      - ACAFS_GRADER_MODEL=${ACAFS_GRADER_MODEL:-openai/gpt-oss-120b:free}
+      - ACAFS_CHAT_MODEL=${ACAFS_CHAT_MODEL:-openai/gpt-oss-120b:free}
+      - JUDGE0_URL=http://57.155.90.222:2358
     volumes:
       - ../../apps/services/acafs:/app
       - ../../packages/python:/packages/python
