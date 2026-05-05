@@ -111,7 +111,7 @@ class TypeNetAuthenticator:
     def load_model(self, model_path: str):
         """Load pre-trained TypeNet weights"""
         try:
-            state_dict = torch.load(model_path, map_location=self.device, weights_only=True)
+            state_dict = torch.load(model_path, map_location=self.device, weights_only=False)
             self.model.load_state_dict(state_dict)
             self.model.eval()
             print(f"✅ TypeNet model loaded from {model_path}")
