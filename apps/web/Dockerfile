@@ -40,6 +40,7 @@ ARG NEXT_PUBLIC_GATEWAY_URL=http://localhost:8000
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_GATEWAY_URL=$NEXT_PUBLIC_GATEWAY_URL
 ENV NODE_ENV=production
+ENV PATH /app/node_modules/.bin:$PATH
 
 # Build the application
 WORKDIR /app/apps/web
@@ -53,6 +54,7 @@ FROM oven/bun:1-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV PATH /app/node_modules/.bin:$PATH
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
