@@ -57,11 +57,14 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Copy standalone build output
-# Next.js standalone puts the server.js in .next/standalone
+# Copy standalone build output with correct ownership
+# In monorepos, standalone output preserves the directory structure
 COPY --from=builder /app/apps/web/.next/standalone ./
 COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder /app/apps/web/public ./apps/web/public
+
+# Ensure the bun user owns the files
+RUN chown -R bun:bun /app
 
 # Switch to non-root user
 USER bun
@@ -69,4 +72,5 @@ USER bun
 EXPOSE 3000
 
 # Start the server
-CMD ["bun", "server.js"]
+# Based on monorepo structure, server.js should be in apps/web/server.js within the standalone output
+CMD ["bun", "apps/web/server.js"]
