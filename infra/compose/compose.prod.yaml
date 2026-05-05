@@ -331,8 +331,8 @@ services:
       - ACADEMIC_SERVICE_URL=http://academic:8083
       - EMAIL_SERVICE_URL=http://email:8082
       - MINIO_ENDPOINT=seaweed:9333
-      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
-      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-root}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-root}
       - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
     depends_on:
       postgres:
