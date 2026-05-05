@@ -9,14 +9,12 @@ WORKDIR /app
 COPY package.json bun.lock* ./
 
 # Copy all package.json files from the monorepo to satisfy workspace dependencies
-# We use a trick to copy only package.json files while preserving directory structure
 COPY apps/web/package.json ./apps/web/
 COPY packages/ts/config/package.json ./packages/ts/config/
 COPY packages/ts/dto/package.json ./packages/ts/dto/
 COPY packages/ts/utils/package.json ./packages/ts/utils/
 
 # Install dependencies (monorepo-wide)
-# This will link the packages and install all required node_modules
 RUN --mount=type=cache,target=/root/.bun/install/cache \
     bun install --frozen-lockfile
 
@@ -27,8 +25,8 @@ FROM oven/bun:1 AS builder
 
 WORKDIR /app
 
-# Copy dependencies from previous stage
-COPY --from=dependencies /app/node_modules ./node_modules
+# Copy EVERYTHING from dependencies stage (including all node_modules and bins)
+COPY --from=dependencies /app /app
 
 # Copy source code
 COPY . .
@@ -40,11 +38,13 @@ ARG NEXT_PUBLIC_GATEWAY_URL=http://localhost:8000
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_GATEWAY_URL=$NEXT_PUBLIC_GATEWAY_URL
 ENV NODE_ENV=production
+# Ensure binaries are in PATH
 ENV PATH /app/node_modules/.bin:$PATH
 
 # Build the application
 WORKDIR /app/apps/web
-RUN bun run build
+# Use 'bun x' to ensure we find the local 'next' binary
+RUN bun x next build
 
 # ============================================
 # Stage 3: Production Runtime
@@ -54,7 +54,6 @@ FROM oven/bun:1-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV PATH /app/node_modules/.bin:$PATH
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
