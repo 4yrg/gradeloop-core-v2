@@ -161,7 +161,7 @@ services:
   # Kong Gateway (Production — DB-less mode with declarative config)
   # =============================================================================
   kong-gateway:
-    image: kong:3.4-alpine
+    image: kong:3.4
     pull_policy: missing
     container_name: gradeloop-kong-gateway
     restart: unless-stopped
