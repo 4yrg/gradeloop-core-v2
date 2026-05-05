@@ -1662,7 +1662,7 @@ REDIS_URL=redis://localhost:6379
 DATABASE_URL=postgresql://user:pass@localhost/dbname
 
 # CORS Settings
-ALLOWED_ORIGINS=http://localhost:3000,http://178.105.102.246:8000
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8000
 
 # Feature Flags
 ENABLE_LLM_ANALYSIS=true

@@ -1473,7 +1473,7 @@ The shared Axios instance is configured with:
 
 ```ts
 axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://178.105.102.246:8000/api/v1",
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1",
   withCredentials: true,   // sends the HttpOnly refresh_token cookie on every call
 });
 ```
@@ -1553,12 +1553,12 @@ All auth pages live under `app/auth/` and share the two-panel layout defined in 
 
 ### Testing the Reset Password Flow Locally
 
-**Prerequisites:** IAM service running on `http://178.105.102.246:8000`, frontend on `http://localhost:3000`.
+**Prerequisites:** IAM service running on `http://localhost:8000`, frontend on `http://localhost:3000`.
 
 **Step 1 — Request a reset link**
 
 ```bash
-curl -X POST http://178.105.102.246:8000/api/v1/auth/forgot-password \
+curl -X POST http://localhost:8000/api/v1/auth/forgot-password \
   -H "Content-Type: application/json" \
   -d '{"email": "user@example.com"}'
 # → 200 {"message": "If an account exists ..."}
@@ -1583,7 +1583,7 @@ The page reads the `token` query parameter, fills the form, and calls `POST /aut
 **Step 4 — Verify via curl**
 
 ```bash
-curl -X POST http://178.105.102.246:8000/api/v1/auth/reset-password \
+curl -X POST http://localhost:8000/api/v1/auth/reset-password \
   -H "Content-Type: application/json" \
   -d '{"token": "<TOKEN>", "new_password": "NewSecure@123"}'
 # → 200 {"message": "Password reset successfully..."}
@@ -1592,7 +1592,7 @@ curl -X POST http://178.105.102.246:8000/api/v1/auth/reset-password \
 **Step 5 — Login with new password**
 
 ```bash
-curl -X POST http://178.105.102.246:8000/api/v1/auth/login \
+curl -X POST http://localhost:8000/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -c cookies.txt \
   -d '{"username": "user@example.com", "password": "NewSecure@123"}'
@@ -1610,11 +1610,11 @@ When running frontend and backend on different ports locally (e.g. `:3000` and `
 2. **Cookie `Secure` flag** — Set `JWT_COOKIE_SECURE=false` in your local `.env` since `localhost` does not use HTTPS.
 3. **Cookie `SameSite`** — `JWT_COOKIE_SAMESITE=Lax` is appropriate for localhost development.
 4. **Axios `withCredentials: true`** — Already configured in `lib/api/client.ts`. This is what instructs the browser to send the cookie cross-origin.
-5. **`NEXT_PUBLIC_API_URL`** — Set this to `http://178.105.102.246:8000/api/v1` in `apps/web/.env.local`.
+5. **`NEXT_PUBLIC_API_URL`** — Set this to `http://localhost:8000/api/v1` in `apps/web/.env.local`.
 
 Sample `apps/web/.env.local`:
 ```env
-NEXT_PUBLIC_API_URL=http://178.105.102.246:8000/api/v1
+NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 ```
 
 Sample IAM `.env` fragment:

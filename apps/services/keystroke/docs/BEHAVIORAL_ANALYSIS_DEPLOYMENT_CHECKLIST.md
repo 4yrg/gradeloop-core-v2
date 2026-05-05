@@ -46,7 +46,7 @@
 - [ ] **Environment Variables Set**
   ```bash
   # .env.local
-  NEXT_PUBLIC_KEYSTROKE_API_URL=http://178.105.102.246:8000/api/keystroke
+  NEXT_PUBLIC_KEYSTROKE_API_URL=http://localhost:8000/api/keystroke
   ```
 
 - [ ] **Test Frontend Build**

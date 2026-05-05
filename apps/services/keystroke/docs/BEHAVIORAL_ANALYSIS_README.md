@@ -159,7 +159,7 @@ if (risk.level === 'high') {
 import requests
 
 response = requests.post(
-    'http://178.105.102.246:8000/api/keystroke/analyze',
+    'http://localhost:8000/api/keystroke/analyze',
     json={
         'sessionId': 'session_001',
         'studentId': 'student_001',
@@ -175,7 +175,7 @@ if analysis['process_score']['overall_score'] < 50:
 
 ### REST API
 ```bash
-curl -X POST http://178.105.102.246:8000/api/keystroke/analyze \
+curl -X POST http://localhost:8000/api/keystroke/analyze \
   -H "Content-Type: application/json" \
   -d @sample_session.json
 ```

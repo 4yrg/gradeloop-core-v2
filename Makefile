@@ -178,7 +178,7 @@ dev:
 	@echo "Development environment started!"
 	@echo ""
 	@echo "Services:"
-	@echo "  - Gateway:    http://178.105.102.246:8000"
+	@echo "  - Gateway:    http://localhost:8000"
 	@echo "  - RabbitMQ:   http://localhost:15672"
 	@echo "  - SeaweedFS:  http://localhost:9320"
 	@echo ""
@@ -211,7 +211,7 @@ prod-up:
 	$(COMPOSE) -f $(COMPOSE_DIR)/compose.prod.yaml up -d
 	@echo ""
 	@echo "Production environment started!"
-	@echo "  Kong Gateway: http://178.105.102.246:8000"
+	@echo "  Kong Gateway: http://localhost:8000"
 	@echo "  RabbitMQ:   http://localhost:15672"
 	@echo "  MinIO:     http://localhost:9001"
 

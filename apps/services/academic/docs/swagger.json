@@ -14,7 +14,7 @@
         },
         "version": "1.0"
     },
-    "host": "178.105.102.246:8000",
+    "host": "localhost:8000",
     "basePath": "/api/v1",
     "paths": {
         "/faculties": {

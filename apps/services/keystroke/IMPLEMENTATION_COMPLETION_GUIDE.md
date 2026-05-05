@@ -561,13 +561,13 @@ docker-compose up -d keystroke-service redis
 docker logs keystroke-service
 
 # Verify healthcheck
-curl http://178.105.102.246:8000/api/keystroke/health
+curl http://localhost:8000/api/keystroke/health
 ```
 
 ### 3. API Testing
 ```bash
 # Test multi-phase enrollment
-curl -X POST http://178.105.102.246:8000/api/keystroke/enroll/phase \
+curl -X POST http://localhost:8000/api/keystroke/enroll/phase \
   -H "Content-Type: application/json" \
   -d '{
     "userId": "test_user_001",
@@ -576,17 +576,17 @@ curl -X POST http://178.105.102.246:8000/api/keystroke/enroll/phase \
   }'
 
 # Check enrollment progress
-curl http://178.105.102.246:8000/api/keystroke/enroll/progress/test_user_001
+curl http://localhost:8000/api/keystroke/enroll/progress/test_user_001
 
 # Monitor session with timeline logging
-curl -X POST http://178.105.102.246:8000/api/keystroke/monitor \
+curl -X POST http://localhost:8000/api/keystroke/monitor \
   -d '{"userId": "test_user_001", "sessionId": "session_001"}'
 
 # Get timeline
-curl http://178.105.102.246:8000/api/keystroke/timeline/session_001
+curl http://localhost:8000/api/keystroke/timeline/session_001
 
 # Finalize session
-curl -X POST http://178.105.102.246:8000/api/keystroke/session/finalize \
+curl -X POST http://localhost:8000/api/keystroke/session/finalize \
   -d '{"userId": "test_user_001", "sessionId": "session_001", ...}'
 ```
 
@@ -616,7 +616,7 @@ export function KeystrokeTimeline({ sessionId }: { sessionId: string }) {
       .then(data => setEvents(data.events));
 
     // Connect WebSocket for real-time updates
-    const ws = new WebSocket(`ws://178.105.102.246:8000/ws/monitor/${sessionId}`);
+    const ws = new WebSocket(`ws://localhost:8000/ws/monitor/${sessionId}`);
     ws.onmessage = (event) => {
       const newEvent = JSON.parse(event.data);
       setEvents(prev => [...prev, newEvent]);

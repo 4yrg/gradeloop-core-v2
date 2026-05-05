@@ -44,9 +44,9 @@ interface KeystrokeTimelineProps {
     userId: string;
     sessionId: string;
     assignmentId?: string;
-    /** Override WebSocket gateway URL (defaults to NEXT_PUBLIC_WS_URL or 178.105.102.246:8000) */
+    /** Override WebSocket gateway URL (defaults to NEXT_PUBLIC_WS_URL or localhost:8000) */
     wsUrl?: string;
-    /** Override REST API base URL (defaults to NEXT_PUBLIC_API_URL or 178.105.102.246:8000) */
+    /** Override REST API base URL (defaults to NEXT_PUBLIC_API_URL or localhost:8000) */
     apiUrl?: string;
     className?: string;
 }
@@ -161,7 +161,7 @@ export function KeystrokeTimeline({
     const resolvedApiBase =
         apiUrl ??
         process.env.NEXT_PUBLIC_API_URL ??
-        "http://178.105.102.246:8000"
+        "http://localhost:8000"
 
     const resolvedWsBase =
         wsUrl ??
