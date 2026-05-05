@@ -1,0 +1,422 @@
+# =============================================================================
+# GradeLoop Core v2 - Server Compose
+# =============================================================================
+# Runs the full frontend and backend stack on a server.
+# Load variables with:
+#   docker compose --env-file .env -f infra/compose/compose.server.yaml up -d
+
+x-env-file: &env_file
+  env_file:
+    - ../../.env
+
+x-app-defaults: &app_defaults
+  <<: *env_file
+  restart: unless-stopped
+  networks:
+    - gradeloop-network
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: gradeloop-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${GRA_DB_USER}
+      POSTGRES_PASSWORD: ${GRA_DB_PASSWORD}
+      POSTGRES_DB: ${IAM_SVC_DB_NAME}
+      POSTGRES_INITDB_ARGS: --encoding=UTF-8
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\" -h 127.0.0.1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  postgres-keystroke:
+    image: postgres:16-alpine
+    container_name: gradeloop-postgres-keystroke
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: keystroke_user
+      POSTGRES_PASSWORD: ${KEYSTROKE_DB_PASSWORD}
+      POSTGRES_DB: ${KEYSTROKE_SVC_DB_NAME}
+    volumes:
+      - postgres-keystroke-data:/var/lib/postgresql/data
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\" -h 127.0.0.1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  rabbitmq:
+    image: rabbitmq:4.2-management-alpine
+    container_name: gradeloop-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: gradeloop-redis
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis-data:/data
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" --raw incr ping || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  seaweedfs:
+    image: chrislusf/seaweedfs:3.71
+    container_name: gradeloop-seaweedfs
+    restart: unless-stopped
+    environment:
+      S3_KEY: ${MINIO_ACCESS_KEY}
+      S3_SECRET: ${MINIO_SECRET_KEY}
+    command: server -s3 -s3.port=8333 -master.port=9333 -volume.port=8080 -dir=/data
+    volumes:
+      - seaweed-data:/data
+    networks:
+      - gradeloop-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9333/cluster/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  gateway:
+    build:
+      context: ../../apps/api-gateway
+      dockerfile: Dockerfile
+    container_name: gradeloop-gateway
+    restart: unless-stopped
+    ports:
+      - "${GATEWAY_HTTP_PORT:-80}:80"
+    volumes:
+      - ../../apps/api-gateway/nginx.server.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      web:
+        condition: service_started
+      iam:
+        condition: service_started
+      academic:
+        condition: service_started
+      assessment:
+        condition: service_started
+    networks:
+      - gradeloop-network
+
+  web:
+    <<: *app_defaults
+    build:
+      context: ../../
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_IAM_SERVICE_URL: ${NEXT_PUBLIC_IAM_SERVICE_URL:-${NEXT_PUBLIC_API_URL}}
+        NEXT_PUBLIC_GATEWAY_URL: ${NEXT_PUBLIC_GATEWAY_URL}
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL}
+        NEXT_PUBLIC_IVAS_WS_URL: ${NEXT_PUBLIC_IVAS_WS_URL}
+    container_name: gradeloop-web
+    environment:
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NEXT_PUBLIC_GATEWAY_URL: ${NEXT_PUBLIC_GATEWAY_URL}
+      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL}
+      NEXT_PUBLIC_IVAS_WS_URL: ${NEXT_PUBLIC_IVAS_WS_URL}
+
+  iam:
+    <<: *app_defaults
+    build:
+      context: ../../
+      dockerfile: apps/services/iam/Dockerfile
+      target: production
+    container_name: gradeloop-iam
+    environment:
+      SERVER_PORT: 8081
+      FRONTEND_URL: ${FRONTEND_URL}
+      GRA_DB_HOST: postgres
+      GRA_DB_PORT: 5432
+      GRA_DB_USER: ${GRA_DB_USER}
+      GRA_DB_PASSWORD: ${GRA_DB_PASSWORD}
+      GRA_DB_SSLMODE: ${GRA_DB_SSLMODE:-disable}
+      DB_NAME: ${IAM_SVC_DB_NAME}
+      EMAIL_SERVICE_URL: http://email:8082
+      MINIO_ENDPOINT: seaweedfs:8333
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ACCESS_TOKEN_EXPIRY: ${JWT_ACCESS_TOKEN_EXPIRY}
+      JWT_REFRESH_TOKEN_EXPIRY: ${JWT_REFRESH_TOKEN_EXPIRY}
+      JWT_COOKIE_SECURE: ${JWT_COOKIE_SECURE}
+      JWT_COOKIE_SAMESITE: ${JWT_COOKIE_SAMESITE}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      seaweedfs:
+        condition: service_started
+
+  academic:
+    <<: *app_defaults
+    build:
+      context: ../../
+      dockerfile: apps/services/academic/Dockerfile
+      target: production
+    container_name: gradeloop-academic
+    environment:
+      SERVER_PORT: 8083
+      GRA_DB_HOST: postgres
+      GRA_DB_PORT: 5432
+      GRA_DB_USER: ${GRA_DB_USER}
+      GRA_DB_PASSWORD: ${GRA_DB_PASSWORD}
+      GRA_DB_SSLMODE: ${GRA_DB_SSLMODE:-disable}
+      DB_NAME: ${ACADEMIC_SVC_DB_NAME}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      FRONTEND_URL: ${FRONTEND_URL}
+      EMAIL_SERVICE_URL: http://email:8082
+      IAM_SERVICE_URL: http://iam:8081
+    depends_on:
+      postgres:
+        condition: service_healthy
+      iam:
+        condition: service_started
+
+  assessment:
+    <<: *app_defaults
+    build:
+      context: ../../
+      dockerfile: apps/services/assessment/Dockerfile
+      target: production
+    container_name: gradeloop-assessment
+    environment:
+      SERVER_PORT: 8084
+      GRA_DB_HOST: postgres
+      GRA_DB_PORT: 5432
+      GRA_DB_USER: ${GRA_DB_USER}
+      GRA_DB_PASSWORD: ${GRA_DB_PASSWORD}
+      GRA_DB_SSLMODE: ${GRA_DB_SSLMODE:-disable}
+      DB_NAME: ${ASSESSMENT_SVC_DB_NAME}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      FRONTEND_URL: ${FRONTEND_URL}
+      IAM_SERVICE_URL: http://iam:8081
+      ACADEMIC_SERVICE_URL: http://academic:8083
+      EMAIL_SERVICE_URL: http://email:8082
+      MINIO_ENDPOINT: seaweedfs:8333
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+
+  notification:
+    <<: *app_defaults
+    build:
+      context: ../../
+      dockerfile: apps/services/notification/Dockerfile
+      target: production
+    container_name: gradeloop-notification
+    environment:
+      SERVER_PORT: 8086
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${GRA_DB_USER}
+      DB_PASSWORD: ${GRA_DB_PASSWORD}
+      DB_NAME: ${NOTIFICATION_SVC_DB_NAME}
+      DB_SSLMODE: ${GRA_DB_SSLMODE:-disable}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      IAM_SERVICE_URL: http://iam:8081
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+      redis:
+        condition: service_started
+
+  email:
+    <<: *app_defaults
+    build:
+      context: ../../
+      dockerfile: apps/services/email/Dockerfile
+      target: production
+    container_name: gradeloop-email
+    environment:
+      SERVER_PORT: 8082
+      GRA_DB_HOST: postgres
+      GRA_DB_PORT: 5432
+      GRA_DB_USER: ${GRA_DB_USER}
+      GRA_DB_PASSWORD: ${GRA_DB_PASSWORD}
+      GRA_DB_SSLMODE: ${GRA_DB_SSLMODE:-disable}
+      GRA_DB_NAME: ${EMAIL_SVC_DB_NAME}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      EMAIL_FROM: ${EMAIL_FROM}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+
+  ivas:
+    <<: *app_defaults
+    build:
+      context: ../../apps/services/ivas
+      dockerfile: Dockerfile
+      target: production
+    container_name: gradeloop-ivas
+    environment:
+      SERVICE_PORT: 8101
+      DATABASE_URL: postgresql://${GRA_DB_USER}:${GRA_DB_PASSWORD}@postgres:5432/${IVAS_SVC_DB_NAME}
+      IVAS_GEMINI_API_KEY: ${IVAS_GEMINI_API_KEY}
+      IVAS_GEMINI_LIVE_MODEL: ${IVAS_GEMINI_LIVE_MODEL}
+      IVAS_GEMINI_GRADER_MODEL: ${IVAS_GEMINI_GRADER_MODEL}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      IAM_SERVICE_URL: http://iam:8081
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+      redis:
+        condition: service_started
+
+  acafs:
+    <<: *app_defaults
+    build:
+      context: ../../apps/services/acafs
+      dockerfile: Dockerfile
+      target: production
+    container_name: gradeloop-acafs
+    environment:
+      SERVICE_PORT: 8102
+      DATABASE_URL: postgresql://${GRA_DB_USER}:${GRA_DB_PASSWORD}@postgres:5432/${ACAFS_SVC_DB_NAME}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      ACAFS_OPENROUTER_API_KEY: ${ACAFS_OPENROUTER_API_KEY}
+      JUDGE0_URL: ${JUDGE0_URL}
+      MINIO_ENDPOINT: seaweedfs:8333
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+
+  keystroke:
+    <<: *app_defaults
+    build:
+      context: ../../apps/services/keystroke
+      dockerfile: Dockerfile
+      target: production
+    container_name: gradeloop-keystroke
+    environment:
+      KEYSTROKE_SVC_PORT: 8103
+      DATABASE_URL: postgresql://keystroke_user:${KEYSTROKE_DB_PASSWORD}@postgres-keystroke:5432/${KEYSTROKE_SVC_DB_NAME}
+    depends_on:
+      postgres-keystroke:
+        condition: service_healthy
+
+  cipas-syntactics:
+    <<: *app_defaults
+    build:
+      context: ../../
+      dockerfile: apps/services/cipas-syntactics/Dockerfile
+      target: production
+    container_name: gradeloop-cipas-syntactics
+    environment:
+      CIPAS_SYNTACTICS_PORT: 8106
+      DATABASE_URL: postgresql://${GRA_DB_USER}:${GRA_DB_PASSWORD}@postgres:5432/${CIPAS_SVC_DB_NAME}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  cipas-semantics:
+    <<: *app_defaults
+    build:
+      context: ../../
+      dockerfile: apps/services/cipas-semantics/Dockerfile
+      target: production
+    container_name: gradeloop-cipas-semantics
+    environment:
+      API_PORT: 8105
+      CIPAS_SEM_SVC_PORT: 8105
+      DATABASE_URL: postgresql://${GRA_DB_USER}:${GRA_DB_PASSWORD}@postgres:5432/${CIPAS_SVC_DB_NAME}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  cipas-ai:
+    <<: *app_defaults
+    build:
+      context: ../../
+      dockerfile: apps/services/cipas-ai/Dockerfile
+      target: production
+    container_name: gradeloop-cipas-ai
+    environment:
+      CIPAS_AI_PORT: 8104
+      CIPAS_AI_SVC_PORT: 8104
+      DATABASE_URL: postgresql://${GRA_DB_USER}:${GRA_DB_PASSWORD}@postgres:5432/${CIPAS_AI_SVC_DB_NAME}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  cipas-xai:
+    <<: *app_defaults
+    build:
+      context: ../../
+      dockerfile: apps/services/cipas-xai/Dockerfile
+      target: production
+    container_name: gradeloop-cipas-xai
+    environment:
+      SERVER_PORT: 8085
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_PROVIDER: ${LLM_PROVIDER}
+      LLM_BASE_URL: ${LLM_BASE_URL}
+      LLM_MODEL: ${LLM_MODEL}
+
+networks:
+  gradeloop-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  postgres-keystroke-data:
+  rabbitmq-data:
+  redis-data:
+  seaweed-data:
