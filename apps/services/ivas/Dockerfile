@@ -27,7 +27,8 @@ RUN poetry config virtualenvs.create false \
     && poetry install --no-interaction --no-ansi --no-root --only main
 
 # Pre-download the Resemblyzer voice encoder model to a specific path
-RUN export XDG_CACHE_HOME=/app/model_cache && \
+RUN mkdir -p /app/model_cache && \
+    export XDG_CACHE_HOME=/app/model_cache && \
     python -c "from resemblyzer import VoiceEncoder; VoiceEncoder()"
 
 COPY app/ ./app/
