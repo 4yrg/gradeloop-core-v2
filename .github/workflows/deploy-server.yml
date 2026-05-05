@@ -132,23 +132,7 @@ jobs:
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          touch ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
-
-          keyscan_ok=false
-          for attempt in 1 2 3; do
-            if ssh-keyscan -T 15 -H "$SSH_HOST" >> ~/.ssh/known_hosts; then
-              keyscan_ok=true
-              break
-            fi
-
-            echo "ssh-keyscan failed on attempt $attempt; retrying..."
-            sleep 5
-          done
-
-          if [[ "$keyscan_ok" != true ]]; then
-            echo "Warning: ssh-keyscan failed after 3 attempts. SSH will use StrictHostKeyChecking=accept-new."
-          fi
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
 
       - name: Deploy on server
         shell: bash
@@ -157,20 +141,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          ssh -i ~/.ssh/deploy_key \
-            -o BatchMode=yes \
-            -o ConnectTimeout=30 \
-            -o StrictHostKeyChecking=accept-new \
-            -o UserKnownHostsFile=~/.ssh/known_hosts \
-            -o ServerAliveInterval=30 \
-            -o ServerAliveCountMax=10 \
-            "$SSH_USER@$SSH_HOST" \
+          ssh -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" \
             "DEPLOY_PATH='$DEPLOY_PATH' CHANGED_SERVICES='$CHANGED_SERVICES' bash -s" <<'REMOTE'
           set -euo pipefail
-
-          export COMPOSE_PARALLEL_LIMIT=1
-          export DOCKER_BUILDKIT=1
-          export COMPOSE_DOCKER_CLI_BUILD=1
 
           cd "$DEPLOY_PATH"
           git fetch origin main
@@ -241,13 +214,7 @@ jobs:
           fi
 
           if [[ -n "${CHANGED_SERVICES:-}" ]]; then
-            echo "Building changed services one at a time: $CHANGED_SERVICES"
-            for service in $CHANGED_SERVICES; do
-              printf '\n[%s] Building %s\n' "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" "$service"
-              docker compose --env-file .env -f infra/compose/compose.server.yaml build --progress=plain "$service"
-            done
-
-            echo "Starting updated services: $CHANGED_SERVICES"
+            docker compose --env-file .env -f infra/compose/compose.server.yaml build $CHANGED_SERVICES
             docker compose --env-file .env -f infra/compose/compose.server.yaml up -d --no-deps $CHANGED_SERVICES
           else
             echo "No rebuildable services changed."
