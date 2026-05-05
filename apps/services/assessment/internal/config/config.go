@@ -95,7 +95,7 @@ func Load() (*Config, error) {
 			Host:     getEnv("GRA_DB_HOST", "localhost"),
 			Port:     getEnv("GRA_DB_PORT", "5432"),
 			User:     getEnv("GRA_DB_USER", "postgres"),
-			Password: getEnv("GRA_DB_PASSWORD", ""),
+			Password: getEnv("GRA_DB_PASSWORD", "postgres"),
 			Name:     getEnv("ASSESSMENT_SVC_DB_NAME", "assessment_db"),
 			SSLMode:  getEnv("GRA_DB_SSLMODE", "disable"),
 		},

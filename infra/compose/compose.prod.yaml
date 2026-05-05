@@ -190,20 +190,16 @@ services:
     container_name: gradeloop-iam
     restart: unless-stopped
     environment:
-      - SERVER_PORT=8081
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=${GRA_DB_USER:-postgres}
-      - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
-      - DB_NAME=${IAM_SVC_DB_NAME:-iam_db}
-      - DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
-      - EMAIL_SERVICE_URL=http://email:8082
-      - MINIO_ENDPOINT=seaweed:9333
-      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
-      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - JWT_ACCESS_TOKEN_EXPIRY=${JWT_ACCESS_TOKEN_EXPIRY:-15}
-      - JWT_REFRESH_TOKEN_EXPIRY=${JWT_REFRESH_TOKEN_EXPIRY:-10080}
+      <<: *shared_env
+      SERVER_PORT: 8081
+      IAM_SVC_DB_NAME: ${IAM_SVC_DB_NAME:-iam_db}
+      EMAIL_SERVICE_URL: http://email:8082
+      MINIO_ENDPOINT: seaweed:9333
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ACCESS_TOKEN_EXPIRY: ${JWT_ACCESS_TOKEN_EXPIRY:-15}
+      JWT_REFRESH_TOKEN_EXPIRY: ${JWT_REFRESH_TOKEN_EXPIRY:-10080}
     depends_on:
       postgres:
         condition: service_healthy
@@ -228,17 +224,13 @@ services:
     container_name: gradeloop-academic
     restart: unless-stopped
     environment:
-      - SERVER_PORT=8083
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=${GRA_DB_USER:-postgres}
-      - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
-      - DB_NAME=${ACADEMIC_SVC_DB_NAME:-academic_db}
-      - DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
-      - EMAIL_SERVICE_URL=http://email:8082
-      - IAM_SERVICE_URL=http://iam:8081
+      <<: *shared_env
+      SERVER_PORT: 8083
+      ACADEMIC_SVC_DB_NAME: ${ACADEMIC_SVC_DB_NAME:-academic_db}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      EMAIL_SERVICE_URL: http://email:8082
+      IAM_SERVICE_URL: http://iam:8081
     depends_on:
       postgres:
         condition: service_healthy
@@ -263,22 +255,18 @@ services:
     container_name: gradeloop-assessment
     restart: unless-stopped
     environment:
-      - SERVER_PORT=8084
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=${GRA_DB_USER:-postgres}
-      - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
-      - DB_NAME=${ASSESSMENT_SVC_DB_NAME:-assessment_db}
-      - DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
-      - IAM_SERVICE_URL=http://iam:8081
-      - ACADEMIC_SERVICE_URL=http://academic:8083
-      - EMAIL_SERVICE_URL=http://email:8082
-      - MINIO_ENDPOINT=seaweed:9333
-      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-root}
-      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-root}
-      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
+      <<: *shared_env
+      SERVER_PORT: 8084
+      ASSESSMENT_SVC_DB_NAME: ${ASSESSMENT_SVC_DB_NAME:-assessment_db}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      IAM_SERVICE_URL: http://iam:8081
+      ACADEMIC_SERVICE_URL: http://academic:8083
+      EMAIL_SERVICE_URL: http://email:8082
+      MINIO_ENDPOINT: seaweed:9333
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-root}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-root}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
     depends_on:
       postgres:
         condition: service_healthy
@@ -301,17 +289,13 @@ services:
     container_name: gradeloop-notification
     restart: unless-stopped
     environment:
-      - SERVER_PORT=8086
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=${GRA_DB_USER:-postgres}
-      - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
-      - DB_NAME=${NOTIFICATION_SVC_DB_NAME:-notification_db}
-      - DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
-      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis_pass}@redis:6379/0
-      - IAM_SERVICE_URL=http://iam:8081
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      <<: *shared_env
+      SERVER_PORT: 8086
+      NOTIFICATION_SVC_DB_NAME: ${NOTIFICATION_SVC_DB_NAME:-notification_db}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_pass}@redis:6379/0
+      IAM_SERVICE_URL: http://iam:8081
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -338,12 +322,9 @@ services:
     container_name: gradeloop-email
     restart: unless-stopped
     environment:
-      - SERVER_PORT=8082
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=${GRA_DB_USER:-postgres}
-      - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
-      - DB_NAME=${EMAIL_SVC_DB_NAME:-email_db}
+      <<: *shared_env
+      SERVER_PORT: 8082
+      EMAIL_SVC_DB_NAME: ${EMAIL_SVC_DB_NAME:-email_db}
     depends_on:
       postgres:
         condition: service_healthy

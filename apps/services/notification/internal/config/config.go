@@ -58,12 +58,12 @@ func Load() (*Config, error) {
 			EnablePrefork: getEnvAsBool("ENABLE_PREFORK", false),
 		},
 		Database: DatabaseConfig{
-			Host:     getEnv("DB_HOST", "localhost"),
-			Port:     getEnv("DB_PORT", "5432"),
-			User:     getEnv("DB_USER", "postgres"),
-			Password: getEnv("DB_PASSWORD", ""),
+			Host:     getEnv("GRA_DB_HOST", "localhost"),
+			Port:     getEnv("GRA_DB_PORT", "5432"),
+			User:     getEnv("GRA_DB_USER", "postgres"),
+			Password: getEnv("GRA_DB_PASSWORD", "postgres"),
 			Name:     getEnv("DB_NAME", "notification_db"),
-			SSLMode:  getEnv("DB_SSLMODE", "disable"),
+			SSLMode:  getEnv("GRA_DB_SSLMODE", "disable"),
 		},
 		JWT: JWTConfig{
 			SecretKey: getEnv("JWT_SECRET_KEY", ""),
