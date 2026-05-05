@@ -1,22 +1,4 @@
-# =============================================================================
-# GradeLoop Core v2 - Development Compose
-# =============================================================================
-# This file runs ALL services in Docker for development/testing
-#
-# Usage:
-#   docker compose -f compose.dev.yaml up -d           # Start all in background
-#   docker compose -f compose.dev.yaml up              # Start all with logs
-#   docker compose -f compose.dev.yaml down             # Stop all
-#   docker compose -f compose.dev.yaml logs -f <svc> # View service logs
-#
-# To run locally instead (recommended for dev):
-#   docker compose up -d                               # Start infrastructure only
-#   make dev SERVICE=<name>                         # Run services locally
-
 services:
-  # =============================================================================
-  # Infrastructure (always needed)
-  # =============================================================================
   postgres:
     image: docker.io/postgres:16-alpine
     pull_policy: missing
@@ -27,18 +9,17 @@ services:
       - POSTGRES_PASSWORD=${GRA_DB_PASSWORD:-postgres}
       - POSTGRES_DB=${IAM_SVC_DB_NAME:-iam_db}
     ports:
-      - "5432:5432"
+      - 5432:5432
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
       - gradeloop-network
     healthcheck:
-      test: "pg_isready -U ${GRA_DB_USER:-postgres}"
-      interval: 10s
+      test: pg_isready -U ${GRA_DB_USER:-postgres}
+      interval: 30s
       timeout: 5s
       retries: 5
       start_period: 20s
-
   postgres-keystroke:
     image: docker.io/postgres:16-alpine
     pull_policy: missing
@@ -49,18 +30,17 @@ services:
       - POSTGRES_PASSWORD=keystroke_pass
       - POSTGRES_DB=keystroke-db
     ports:
-      - "5433:5432"
+      - 5433:5432
     volumes:
       - postgres-keystroke-data:/var/lib/postgresql/data
     networks:
       - gradeloop-network
     healthcheck:
-      test: "pg_isready -U keystroke_user -d keystroke-db"
-      interval: 10s
+      test: pg_isready -U keystroke_user -d keystroke-db
+      interval: 30s
       timeout: 5s
       retries: 5
       start_period: 20s
-
   rabbitmq:
     image: docker.io/rabbitmq:3.13-management-alpine
     pull_policy: missing
@@ -70,38 +50,46 @@ services:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-guest}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-guest}
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - 5672:5672
+      - 15672:15672
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 10s
+      test:
+        - CMD
+        - rabbitmq-diagnostics
+        - ping
+      interval: 30s
       timeout: 5s
       retries: 5
       start_period: 30s
-
   redis:
     image: docker.io/redis:7-alpine
     pull_policy: missing
     container_name: gradeloop-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - 6379:6379
     volumes:
       - redis-data:/data
     networks:
       - gradeloop-network
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_pass}
     healthcheck:
-      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-redis_pass}", "incr", "ping"]
-      interval: 10s
+      test:
+        - CMD
+        - redis-cli
+        - --no-auth-warning
+        - -a
+        - ${REDIS_PASSWORD:-redis_pass}
+        - incr
+        - ping
+      interval: 30s
       timeout: 5s
       retries: 5
       start_period: 10s
-
   seaweed:
     image: docker.io/chrislusf/seaweedfs:3.71
     pull_policy: missing
@@ -110,10 +98,10 @@ services:
     environment:
       - WEEAD_IDENTITY=seaweedfs
     ports:
-      - "9333:9333"   # Master
-      - "9320:9320"   # Console
-      - "9080:8080"   # Volume server
-      - "8333:8333"   # S3 API
+      - 9333:9333
+      - 9320:9320
+      - 9080:8080
+      - 8333:8333
     volumes:
       - seaweed-data:/data
       - ./s3Config.json:/etc/seaweedfs/s3.json:ro
@@ -121,15 +109,40 @@ services:
       - gradeloop-network
     command: server -s3 -filer -s3.config=/etc/seaweedfs/s3.json
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9333/cluster/status"]
-      interval: 10s
+      test:
+        - CMD-SHELL
+        - wget -qO- http://127.0.0.1:9333/cluster/status
+      interval: 30s
       timeout: 5s
       retries: 5
       start_period: 30s
-
-  # =============================================================================
-  # API Gateway (Nginx)
-  # =============================================================================
+  web:
+    build:
+      context: ../../
+      dockerfile: apps/web/Dockerfile
+      target: dev
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
+        - NEXT_PUBLIC_GATEWAY_URL=${NEXT_PUBLIC_GATEWAY_URL:-http://localhost:8000}
+    container_name: gradeloop-web
+    env_file:
+      - ../../apps/web/.env
+    restart: unless-stopped
+    environment:
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
+      - NEXT_PUBLIC_GATEWAY_URL=${NEXT_PUBLIC_GATEWAY_URL:-http://localhost:8000}
+      - WATCHPACK_POLLING=true
+    volumes:
+      - ../../:/app
+      - /app/node_modules
+      - /app/apps/web/node_modules
+      - /app/apps/web/.next
+    ports:
+      - 3000:3000
+    networks:
+      - gradeloop-network
   gateway:
     build:
       context: ../../apps/api-gateway
@@ -137,20 +150,38 @@ services:
     container_name: gradeloop-gateway
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - 8000:8000
     volumes:
       - ../../apps/api-gateway/nginx.dev.conf:/etc/nginx/nginx.conf:ro
     networks:
       - gradeloop-network
     depends_on:
+      web:
+        condition: service_started
       iam:
         condition: service_healthy
       academic:
         condition: service_healthy
-
-  # =============================================================================
-  # IAM Service (Go)
-  # =============================================================================
+      acafs:
+        condition: service_healthy
+      assessment:
+        condition: service_healthy
+      cipas-ai:
+        condition: service_healthy
+      cipas-semantics:
+        condition: service_healthy
+      cipas-syntactics:
+        condition: service_healthy
+      cipas-xai:
+        condition: service_healthy
+      email:
+        condition: service_healthy
+      notification:
+        condition: service_started
+      ivas:
+        condition: service_healthy
+      keystroke:
+        condition: service_healthy
   iam:
     build:
       context: ../../
@@ -173,7 +204,7 @@ services:
       - MINIO_SECRET_KEY=root
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-gradeloop_secret_key_change_me}
     ports:
-      - "8081:8081"
+      - 8081:8081
     depends_on:
       postgres:
         condition: service_healthy
@@ -182,15 +213,13 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/health || exit 1"]
-      interval: 10s
+      test:
+        - CMD-SHELL
+        - wget -qO- http://127.0.0.1:8081/health || exit 1
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: 30s
-
-  # =============================================================================
-  # Academic Service (Go)
-  # =============================================================================
   academic:
     build:
       context: ../../
@@ -209,7 +238,7 @@ services:
       - IAM_SERVICE_URL=http://gradeloop-iam:8081
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-gradeloop_secret_key_change_me}
     ports:
-      - "8083:8083"
+      - 8083:8083
     depends_on:
       postgres:
         condition: service_healthy
@@ -218,15 +247,13 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8083/health || exit 1"]
-      interval: 10s
+      test:
+        - CMD-SHELL
+        - wget -qO- http://127.0.0.1:8083/health || exit 1
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: 30s
-
-  # =============================================================================
-  # Assessment Service (Go)
-  # =============================================================================
   assessment:
     build:
       context: ../../
@@ -248,7 +275,7 @@ services:
       - RABBITMQ_URL=amqp://guest:guest@gradeloop-rabbitmq:5672/
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-gradeloop_secret_key_change_me}
     ports:
-      - "8084:8084"
+      - 8084:8084
     depends_on:
       postgres:
         condition: service_healthy
@@ -259,15 +286,13 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8084/health || exit 1"]
-      interval: 10s
+      test:
+        - CMD-SHELL
+        - wget -qO- http://127.0.0.1:8084/health || exit 1
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: 30s
-
-  # =============================================================================
-  # Email Service (Go)
-  # =============================================================================
   email:
     build:
       context: ../../
@@ -290,7 +315,7 @@ services:
       - RABBITMQ_URL=amqp://guest:guest@gradeloop-rabbitmq:5672/
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-gradeloop_secret_key_change_me}
     ports:
-      - "8082:8082"
+      - 8082:8082
     depends_on:
       postgres:
         condition: service_healthy
@@ -299,20 +324,17 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8082/health || exit 1"]
-      interval: 10s
+      test:
+        - CMD-SHELL
+        - wget -qO- http://127.0.0.1:8082/health || exit 1
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: 30s
-
-  # =============================================================================
-  # IVAS Service (Python)
-  # =============================================================================
   ivas:
     build:
       context: ../../apps/services/ivas
       dockerfile: Dockerfile
-      target: development
     volumes:
       - ../../apps/services/ivas:/app
       - ../../packages/python:/packages/python
@@ -328,27 +350,25 @@ services:
       - REDIS_URL=redis://:${REDIS_PASSWORD:-redis_pass}@gradeloop-redis:6379/1
       - PYTHONPATH=/app:/packages/python
     ports:
-      - "8101:8101"
+      - 8101:8101
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8101/api/v1/ivas/health').getcode() == 200 or exit(1)\""]
-      interval: 10s
+      test:
+        - CMD-SHELL
+        - python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8101/api/v1/ivas/health').getcode() == 200 or exit(1)"
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: 30s
-
-  # =============================================================================
-  # ACAFS Service (Python)
-  # =============================================================================
   acafs:
+    container_name: gradeloop-acafs
     build:
       context: ../../apps/services/acafs
       dockerfile: Dockerfile
-      target: development
     environment:
       - SERVICE_PORT=${ACAFS_SVC_PORT:-8102}
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@gradeloop-postgres:5432/${ACAFS_SVC_DB_NAME:-acafs_db}
@@ -361,7 +381,7 @@ services:
       - ../../apps/services/acafs:/app
       - ../../packages/python:/packages/python
     ports:
-      - "8102:8102"
+      - 8102:8102
     depends_on:
       postgres:
         condition: service_healthy
@@ -370,20 +390,18 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8102/api/v1/acafs/health').getcode() == 200 or exit(1)\""]
-      interval: 10s
+      test:
+        - CMD-SHELL
+        - python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8102/api/v1/acafs/health').getcode() == 200 or exit(1)"
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: 30s
-
-  # =============================================================================
-  # Keystroke Service (Python)
-  # =============================================================================
   keystroke:
+    container_name: gradeloop-keystroke
     build:
       context: ../../apps/services/keystroke
       dockerfile: Dockerfile
-      target: development
     environment:
       - PORT=${KEYSTROKE_SVC_PORT:-8103}
       - DATABASE_URL=postgresql://keystroke_user:keystroke_pass@gradeloop-postgres-keystroke:5432/keystroke-db
@@ -393,7 +411,7 @@ services:
       - ../../apps/services/keystroke:/app
       - ../../packages/python:/packages/python
     ports:
-      - "8103:8103"
+      - 8103:8103
     depends_on:
       postgres-keystroke:
         condition: service_healthy
@@ -402,20 +420,18 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8103/health').getcode() == 200 or exit(1)\""]
-      interval: 10s
+      test:
+        - CMD-SHELL
+        - python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8103/health').getcode() == 200 or exit(1)"
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: 30s
-
-  # =============================================================================
-  # CIPAS Syntactics Service (Python)
-  # =============================================================================
   cipas-syntactics:
+    container_name: gradeloop-cipas-syntactics
     build:
-      context: ../../apps/services/cipas-syntactics
-      dockerfile: Dockerfile
-      target: development
+      context: ../../
+      dockerfile: apps/services/cipas-syntactics/Dockerfile
     environment:
       - CIPAS_SYNTACTICS_PORT=${CIPAS_SYN_SVC_PORT:-8106}
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@gradeloop-postgres:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
@@ -424,27 +440,25 @@ services:
       - ../../apps/services/cipas-syntactics:/app
       - ../../packages/python:/packages/python
     ports:
-      - "8106:8106"
+      - 8106:8106
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8106/api/v1/syntactics/health || exit 1"]
-      interval: 10s
+      test:
+        - CMD-SHELL
+        - python3 -c "import os; import urllib.request; port = os.getenv('CIPAS_SYNTACTICS_PORT', '8106'); exit(0 if urllib.request.urlopen(f'http://localhost:{port}/api/v1/syntactics/health').getcode() == 200 else 1)"
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: 30s
-
-  # =============================================================================
-  # CIPAS Semantics Service (Python)
-  # =============================================================================
   cipas-semantics:
+    container_name: gradeloop-cipas-semantics
     build:
-      context: ../../apps/services/cipas-semantics
-      dockerfile: Dockerfile
-      target: development
+      context: ../../
+      dockerfile: apps/services/cipas-semantics/Dockerfile
     environment:
       - API_PORT=${CIPAS_SEM_SVC_PORT:-8105}
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@gradeloop-postgres:5432/${CIPAS_SVC_DB_NAME:-cipas_db}
@@ -453,27 +467,25 @@ services:
       - ../../apps/services/cipas-semantics:/app
       - ../../packages/python:/packages/python
     ports:
-      - "8105:8105"
+      - 8105:8105
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8105/api/v1/semantics/health').getcode() == 200 or exit(1)\""]
-      interval: 10s
+      test:
+        - CMD-SHELL
+        - python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8105/api/v1/semantics/health').getcode() == 200 or exit(1)"
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: 60s
-
-  # =============================================================================
-  # CIPAS AI Service (Python)
-  # =============================================================================
   cipas-ai:
+    container_name: gradeloop-cipas-ai
     build:
-      context: ../../apps/services/cipas-ai
-      dockerfile: Dockerfile
-      target: development
+      context: ../../
+      dockerfile: apps/services/cipas-ai/Dockerfile
     environment:
       - CIPAS_AI_PORT=${CIPAS_AI_SVC_PORT:-8104}
       - DATABASE_URL=postgresql://${GRA_DB_USER:-postgres}:${GRA_DB_PASSWORD:-postgres}@gradeloop-postgres:5432/${CIPAS_AI_SVC_DB_NAME:-cipas_ai_db}
@@ -482,22 +494,20 @@ services:
       - ../../apps/services/cipas-ai:/app
       - ../../packages/python:/packages/python
     ports:
-      - "8104:8104"
+      - 8104:8104
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8104/api/v1/ai/health').getcode() == 200 or exit(1)\""]
-      interval: 10s
+      test:
+        - CMD-SHELL
+        - python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8104/api/v1/ai/health').getcode() == 200 or exit(1)"
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: 60s
-
-  # =============================================================================
-  # Notification Service (Go)
-  # =============================================================================
   notification:
     build:
       context: ../../
@@ -508,18 +518,18 @@ services:
     environment:
       - HOST=0.0.0.0
       - SERVER_PORT=8086
-      - DB_HOST=gradeloop-postgres
-      - DB_PORT=5432
-      - DB_USER=${GRA_DB_USER:-postgres}
-      - DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
-      - DB_NAME=${NOTIFICATION_SVC_DB_NAME:-notification_db}
-      - DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
+      - GRA_DB_HOST=gradeloop-postgres
+      - GRA_DB_PORT=5432
+      - GRA_DB_USER=${GRA_DB_USER:-postgres}
+      - GRA_DB_PASSWORD=${GRA_DB_PASSWORD:-postgres}
+      - NOTIFICATION_SVC_DB_NAME=${NOTIFICATION_SVC_DB_NAME:-notification_db}
+      - GRA_DB_SSLMODE=${GRA_DB_SSLMODE:-disable}
       - RABBITMQ_URL=amqp://guest:guest@gradeloop-rabbitmq:5672/
       - REDIS_URL=redis://:${REDIS_PASSWORD:-redis_pass}@gradeloop-redis:6379/0
       - IAM_SERVICE_URL=http://gradeloop-iam:8081
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-gradeloop_secret_key_change_me}
     ports:
-      - "8086:8086"
+      - 8086:8086
     depends_on:
       postgres:
         condition: service_healthy
@@ -529,10 +539,6 @@ services:
         condition: service_healthy
     networks:
       - gradeloop-network
-
-  # =============================================================================
-  # CIPAS Xai Service (Go)
-  # =============================================================================
   cipas-xai:
     build:
       context: ../../
@@ -544,20 +550,20 @@ services:
       - SERVER_PORT=${CIPAS_XAI_SVC_PORT:-8085}
       - LLM_API_KEY=${LLM_API_KEY:-placeholder_key_change_me}
     ports:
-      - "8085:8085"
+      - 8085:8085
     networks:
       - gradeloop-network
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8085/health || exit 1"]
-      interval: 10s
+      test:
+        - CMD-SHELL
+        - wget -qO- http://127.0.0.1:8085/health || exit 1
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: 30s
-
 networks:
   gradeloop-network:
     driver: bridge
-
 volumes:
   postgres-data:
     name: gradeloop-postgres-data
