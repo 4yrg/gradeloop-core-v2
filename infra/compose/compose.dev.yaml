@@ -34,7 +34,7 @@ services:
       - gradeloop-network
     healthcheck:
       test: "pg_isready -U ${GRA_DB_USER:-postgres}"
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 5
       start_period: 20s
@@ -56,7 +56,7 @@ services:
       - gradeloop-network
     healthcheck:
       test: "pg_isready -U keystroke_user -d keystroke-db"
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 5
       start_period: 20s
@@ -78,7 +78,7 @@ services:
       - gradeloop-network
     healthcheck:
       test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 5
       start_period: 30s
@@ -97,7 +97,7 @@ services:
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_pass}
     healthcheck:
       test: [ "CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-redis_pass}", "incr", "ping" ]
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 5
       start_period: 10s
@@ -122,7 +122,7 @@ services:
     command: server -s3 -filer -s3.config=/etc/seaweedfs/s3.json
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://127.0.0.1:9333/cluster/status" ]
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 5
       start_period: 30s
@@ -183,7 +183,7 @@ services:
       - gradeloop-network
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://127.0.0.1:8081/health || exit 1" ]
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: 30s
@@ -219,7 +219,7 @@ services:
       - gradeloop-network
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://127.0.0.1:8083/health || exit 1" ]
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: 30s
@@ -260,7 +260,7 @@ services:
       - gradeloop-network
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://127.0.0.1:8084/health || exit 1" ]
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: 30s
@@ -300,7 +300,7 @@ services:
       - gradeloop-network
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://127.0.0.1:8082/health || exit 1" ]
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: 30s
@@ -336,7 +336,7 @@ services:
       - gradeloop-network
     healthcheck:
       test: [ "CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8101/api/v1/ivas/health').getcode() == 200 or exit(1)\"" ]
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: 30s
@@ -372,7 +372,7 @@ services:
       - gradeloop-network
     healthcheck:
       test: [ "CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8102/api/v1/acafs/health').getcode() == 200 or exit(1)\"" ]
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: 30s
@@ -405,7 +405,7 @@ services:
       - gradeloop-network
     healthcheck:
       test: [ "CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8103/health').getcode() == 200 or exit(1)\"" ]
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: 30s
@@ -434,8 +434,8 @@ services:
     networks:
       - gradeloop-network
     healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://127.0.0.1:8106/api/v1/syntactics/health || exit 1" ]
-      interval: 10s
+      test: [ "CMD-SHELL", "python3 -c \"import os; import urllib.request; port = os.getenv('CIPAS_SYNTACTICS_PORT', '8106'); exit(0 if urllib.request.urlopen(f'http://localhost:{port}/api/v1/syntactics/health').getcode() == 200 else 1)\"" ]
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: 30s
@@ -465,7 +465,7 @@ services:
       - gradeloop-network
     healthcheck:
       test: [ "CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8105/api/v1/semantics/health').getcode() == 200 or exit(1)\"" ]
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: 60s
@@ -495,7 +495,7 @@ services:
       - gradeloop-network
     healthcheck:
       test: [ "CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8104/api/v1/ai/health').getcode() == 200 or exit(1)\"" ]
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: 60s
@@ -554,7 +554,7 @@ services:
       - gradeloop-network
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://127.0.0.1:8085/health || exit 1" ]
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: 30s

@@ -83,6 +83,8 @@ class BatchComparisonResult(BaseModel):
 class ModelStatus(BaseModel):
     """Model availability status."""
 
+    model_config = {"protected_namespaces": ()}
+
     model_name: str
     available: bool
     loaded: bool = False
