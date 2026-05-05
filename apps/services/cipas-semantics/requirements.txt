@@ -4,6 +4,7 @@
 # Web Framework
 fastapi==0.115.12
 uvicorn[standard]==0.34.2
+numpy==2.4.4
 
 # Pydantic for data validation
 pydantic==2.10.6
