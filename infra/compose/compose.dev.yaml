@@ -120,6 +120,7 @@ services:
     build:
       context: ../../
       dockerfile: apps/web/Dockerfile
+      target: dev
       args:
         - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
         - NEXT_PUBLIC_GATEWAY_URL=${NEXT_PUBLIC_GATEWAY_URL:-http://localhost:8000}
@@ -134,6 +135,7 @@ services:
       - NEXT_PUBLIC_GATEWAY_URL=${NEXT_PUBLIC_GATEWAY_URL:-http://localhost:8000}
     volumes:
       - ../../apps/web:/app/apps/web
+      - ../../packages/ts:/app/packages/ts
       - ../../bun.lock:/app/bun.lock
     ports:
       - 3000:3000
