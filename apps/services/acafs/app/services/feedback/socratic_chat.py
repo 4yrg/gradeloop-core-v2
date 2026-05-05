@@ -1,4 +1,4 @@
-"""Socratic chat service using OpenRouter / Arcee Trinity Large.
+"""Socratic chat service using OpenRouter / MiniMax M2.5.
 
 Session lifecycle
 -----------------
@@ -39,7 +39,7 @@ def _apply_guardrail(content: str) -> str:
 
 
 class SocraticChatService:
-    """Handles Socratic tutoring turns via OpenRouter / Arcee Trinity Large."""
+    """Handles Socratic tutoring turns via OpenRouter / MiniMax M2.5."""
 
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -97,10 +97,9 @@ class SocraticChatService:
         recent = messages[-6:] if len(messages) > 6 else messages
         clean_messages = [{"role": m["role"], "content": m["content"]} for m in recent]
 
-        # Only request extended reasoning for models that advertise it.
-        # Sending it to models that don't support it (e.g. free Arcee Trinity)
-        # can cause 400/422 errors.
-        _reasoning_models = ("claude-3-7", "o1", "o3", "deepseek-r1", "gemini-2.5")
+        # Only request extended reasoning for models that explicitly advertise it.
+        # MiniMax M2.5 does not support the `reasoning` param — do not send it.
+        _reasoning_models = ("claude-3-7", "o1", "o3", "deepseek-r1", "gemini-2.5", "gemma-4")
         supports_reasoning = any(
             tag in self.settings.openrouter_model.lower() for tag in _reasoning_models
         )

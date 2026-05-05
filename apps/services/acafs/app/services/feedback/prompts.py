@@ -27,7 +27,7 @@ Grading-mode routing
 deterministic  Score derived exclusively from evidence.test_results pass/fail counts.
                Formula: round(weight × passed / total, 2).  AUTHORITATIVE.
 
-llm            Gemini reasons over student code + sample answer.
+llm            Qwen3-Coder reasons over student code + sample answer.
 
 llm_ast        Same as llm but the AST blueprint is also injected for structural
                evidence (function signatures, control flow, identifiers).
@@ -149,16 +149,16 @@ CRITICAL OUTPUT RULES:
 3. Process criteria in array order. Complete ALL six fields for each criterion before starting the next.
 
 Output schema (N = number of rubric criteria — every one must appear):
-{{"criteria_scores":[{{"name":"<criterion name exactly as in rubric>","analysis":"<focused observation for THIS criterion only>","band_selected":"<excellent|good|satisfactory|unsatisfactory>","band_justification":"<one sentence: why this band not the adjacent higher one>","score":<number ≤ max_score>,"max_score":<weight from rubric>,"grading_mode":"<deterministic|llm|llm_ast>","reason":"<instructor-technical ≤3 sentences citing evidence, ending with WHY this score>","confidence":<float 0.0–1.0>}}, {{"name":"<second criterion>", "...": "..."}}, "<one entry per criterion — repeat for all N criteria>"],"total_score":<sum of all scores>,"holistic_feedback":"<single flowing paragraph with THREE movements separated by a blank line:\n\nParagraph 1 — What you got right: open with specific positive evidence, name functions/patterns the student got correct, ground in test results or visible code behaviour (2–4 sentences).\n\nParagraph 2 — What to work on: describe the gap quoting the student's own code construct, explain the conceptual reason it matters (2–4 sentences).\n\nParagraph 3 — Think about this: 1–2 Socratic questions guiding toward the missing concept, never give the answer.>"}}\
+{{"criteria_scores":[{{"name":"<criterion name exactly as in rubric>","analysis":"<focused observation for THIS criterion only>","band_selected":"<excellent|good|satisfactory|unsatisfactory>","band_justification":"<one sentence: why this band not the adjacent higher one>","score":<number ≤ max_score>,"max_score":<weight from rubric>,"grading_mode":"<deterministic|llm|llm_ast>","reason":"<instructor-technical ≤3 sentences citing evidence, ending with WHY this score>","confidence":<float 0.0–1.0>}}, {{"name":"<second criterion>", "...": "..."}}, "<one entry per criterion — repeat for all N criteria>"],"total_score":<sum of all scores>,"holistic_feedback":"<single flowing paragraph with THREE movements separated by a blank line:\\n\\nParagraph 1 — What you got right: open with specific positive evidence, name functions/patterns the student got correct, ground in test results or visible code behaviour (2–4 sentences).\\n\\nParagraph 2 — What to work on: describe the gap quoting the student's own code construct, explain the conceptual reason it matters (2–4 sentences).\\n\\nParagraph 3 — Think about this: 1–2 Socratic questions guiding toward the missing concept, never give the answer.>"}}\
 """
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 3 — PASS-1 REASONING PROMPT  (Qwen / free-form)
+# SECTION 3 — PASS-1 REASONING PROMPT  (Gemma 4 / free-form)
 # ─────────────────────────────────────────────────────────────────────────────
-# This prompt is sent to the Qwen reasoner BEFORE Gemini grades.  It asks Qwen
+# This prompt is sent to the Gemma 4 reasoner BEFORE Qwen3-Coder grades.  It asks Gemma
 # to reason freely about each criterion — no JSON, no score, just analysis.
-# Gemini will receive this chain-of-thought as grounding context in Pass 2.
+# Qwen3-Coder will receive this chain-of-thought as grounding context in Pass 2.
 # ─────────────────────────────────────────────────────────────────────────────
 
 REASONING_PROMPT = """\
@@ -212,10 +212,10 @@ def build_reasoning_prompt(
     ast_data: dict,
     assignment_context: str = "N/A",
 ) -> str:
-    """Assemble the Pass-1 reasoning prompt for Qwen.
+    """Assemble the Pass-1 reasoning prompt for Gemma 4.
 
     Intentionally minimal — no output schema, no JSON constraints.
-    Qwen should think freely; its output becomes grounding context for Gemini.
+    Gemma 4 should think freely; its output becomes grounding context for Qwen3-Coder.
     """
     sample = f"\n```\n{sample_answer_code}\n```" if sample_answer_code else " N/A"
     return (
@@ -294,8 +294,8 @@ def build_rubric_evaluation_prompt(
     test_results list.
 
     When ``prior_reasoning`` is supplied (Pass-2 mode) it is injected between
-    the guidelines and the main prompt so Gemini can ground its numeric scores
-    in the Qwen reasoning chain.
+    the guidelines and the main prompt so Qwen3-Coder can ground its numeric scores
+    in the Gemma 4 reasoning chain.
     """
     sample = f"\n```\n{sample_answer_code}\n```" if sample_answer_code else " N/A"
     reasoning_block = ""

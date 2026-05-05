@@ -8,9 +8,9 @@ ACAFS is a Python/FastAPI microservice that:
 1. Consumes `submission.created` events from RabbitMQ
 2. Retrieves student code from MinIO and extracts an AST blueprint (tree-sitter)
 3. Runs deterministic test-case scoring via Judge0
-4. Grades every rubric criterion through a **two-pass LLM pipeline** (Qwen3 reasoning → Gemini structured output)
+4. Grades every rubric criterion through a **two-pass LLM pipeline** (Gemma 4 reasoning → Qwen3-Coder structured output), all via OpenRouter
 5. Persists the grade to PostgreSQL and exposes it via REST
-6. Powers the Socratic chat tutor for live hint generation
+6. Powers the Socratic chat tutor for live hint generation (MiniMax M2.5)
 
 ## Architecture
 
@@ -25,8 +25,8 @@ Submission Service (Go)
 |  Step B  tree-sitter AST extraction                 |
 |  Step C  Judge0 deterministic test-case scoring     |
 |  Step D  Two-pass LLM grading                       |
-|          Pass 1: Qwen3-VL-235B-Thinking (reasoning) |
-|          Pass 2: Gemini 2.5 Flash (structured JSON) |
+|          Pass 1: Gemma 4 26B (reasoning, free)      |
+|          Pass 2: Qwen3-Coder 480B (structured JSON) |
 |  Step E  Persist grade -> PostgreSQL                |
 +-----------------------------------------------------+
         |
@@ -62,19 +62,18 @@ docker compose up --build acafs-service -d
 | `MINIO_ENDPOINT` | — | MinIO server endpoint |
 | `MINIO_ACCESS_KEY` | — | MinIO access key |
 | `MINIO_SECRET_KEY` | — | MinIO secret key |
-| `JUDGE0_BASE_URL` | — | Judge0 API base URL |
+| `JUDGE0_URL` | — | Judge0 API base URL |
 | `JUDGE0_API_KEY` | — | Judge0 Rapid API key (optional) |
 | `AST_MAX_LINES` | `5000` | Max lines to parse before truncation |
 | `AST_TIMEOUT_SECONDS` | `2` | tree-sitter parse timeout |
-| `ACAFS_GEMINI_API_KEY` | — | Gemini API key for Pass 2 grading |
-| `ACAFS_GEMINI_MODEL` | `gemini-2.5-flash` | Gemini model identifier |
-| `OPENROUTER_API_KEY` | — | OpenRouter key (Pass 1 reasoning + Socratic chat) |
-| `OPENROUTER_REASONER_MODEL` | `qwen/qwen3-vl-235b-a22b-thinking` | Pass 1 reasoning model |
-| `OPENROUTER_MODEL` | `arcee-ai/trinity-large-preview:free` | Socratic chat model |
-| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | OpenRouter base URL |
+| `ACAFS_OPENROUTER_API_KEY` | — | **Single OpenRouter secret** (Pass 1 + Pass 2 + Socratic chat) |
+| `ACAFS_CHAT_MODEL` | `minimax/minimax-m2.5:free` | Socratic chat model |
+| `ACAFS_REASONER_MODEL` | `google/gemma-4-26b-a4b-it:free` | Pass 1 reasoning model |
+| `ACAFS_GRADER_MODEL` | `qwen/qwen3-coder-480b-a35b-instruct` | Pass 2 grading model |
 
-> **Key management**: A blank or placeholder value for any `*_API_KEY` causes the
-> service to fall back to mock responses rather than silently using a wrong key.
+> **Key management**: Only `ACAFS_OPENROUTER_API_KEY` is required. A blank or
+> placeholder value causes the service to fall back to mock responses rather
+> than silently using a wrong key.
 
 ## API Endpoints
 

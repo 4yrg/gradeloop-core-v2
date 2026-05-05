@@ -19,7 +19,7 @@ This document describes how ACAFS Service extracts Abstract Syntax Trees (AST) f
 
 Source code is retrieved from either:
 - The `code` field in the RabbitMQ message (if present)
-- MinIO object storage using `storage_path`
+- SeeweedFS object storage using `storage_path`
 
 ### 2. Preprocessing
 

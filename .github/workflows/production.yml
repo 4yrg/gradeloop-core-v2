@@ -512,7 +512,6 @@ jobs:
       GHCR_PACKAGE_PREFIX: ${{ vars.GHCR_PACKAGE_PREFIX || '4yrg' }}
       JUDGE0_URL: ${{ secrets.JUDGE0_URL }}
       ACAFS_OPENROUTER_API_KEY: ${{ secrets.ACAFS_OPENROUTER_API_KEY }}
-      ACAFS_GEMINI_API_KEY: ${{ secrets.ACAFS_GEMINI_API_KEY }}
       IVAS_GEMINI_API_KEY: ${{ secrets.IVAS_GEMINI_API_KEY }}
     steps:
       - name: Wait for infrastructure
