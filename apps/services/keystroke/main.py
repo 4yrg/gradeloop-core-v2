@@ -229,6 +229,21 @@ class MonitoringRequest(BaseModel):  # noqa: N815
     courseId: str | None = None  # noqa: N815
 
 
+def keystroke_session_event_from_payload(event: dict) -> KeystrokeSessionEvent:
+    """Normalize archived/browser keystroke payloads for the behavioral analyzer."""
+    return KeystrokeSessionEvent(
+        timestamp=event.get("timestamp", 0),
+        key=event.get("key", ""),
+        key_code=event.get("key_code", event.get("keyCode", 0)),
+        dwell_time=event.get("dwell_time", event.get("dwellTime", 0)),
+        flight_time=event.get("flight_time", event.get("flightTime", 0)),
+        action=event.get("action", "type"),
+        line_number=event.get("line_number", event.get("lineNumber")),
+        column_number=event.get("column_number", event.get("columnNumber")),
+        code_snapshot=event.get("code_snapshot", event.get("codeSnapshot")),
+    )
+
+
 # ==================== Health Check ====================
 
 
@@ -1076,18 +1091,7 @@ async def analyze_behavioral_session(request: BehavioralAnalysisRequest):
         session_events = []
         for event in request.events:
             try:
-                session_event = KeystrokeSessionEvent(
-                    timestamp=event.get("timestamp", 0),
-                    key=event.get("key", ""),
-                    keyCode=event.get("keyCode", 0),
-                    dwellTime=event.get("dwellTime", 0),
-                    flightTime=event.get("flightTime", 0),
-                    action=event.get("action", "type"),
-                    lineNumber=event.get("lineNumber"),
-                    columnNumber=event.get("columnNumber"),
-                    codeSnapshot=event.get("codeSnapshot"),
-                )
-                session_events.append(session_event)
+                session_events.append(keystroke_session_event_from_payload(event))
             except Exception as e:
                 print(f"⚠️  Skipping invalid event: {e}")
                 continue
@@ -1269,19 +1273,7 @@ async def get_session_analytics(
         session_events = []
         for ev in events_raw:
             try:
-                session_events.append(
-                    KeystrokeSessionEvent(
-                        timestamp=ev.get("timestamp", 0),
-                        key=ev.get("key", ""),
-                        keyCode=ev.get("keyCode", 0),
-                        dwellTime=ev.get("dwellTime", 0),
-                        flightTime=ev.get("flightTime", 0),
-                        action=ev.get("action", "type"),
-                        lineNumber=ev.get("lineNumber"),
-                        columnNumber=ev.get("columnNumber"),
-                        codeSnapshot=ev.get("codeSnapshot"),
-                    )
-                )
+                session_events.append(keystroke_session_event_from_payload(ev))
             except Exception:
                 continue
 
