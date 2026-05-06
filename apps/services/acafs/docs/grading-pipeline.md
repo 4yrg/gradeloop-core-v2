@@ -8,8 +8,7 @@ queryable via REST.
 
 ## Pipeline Overview
 
-```
-add the architecture image here
+![ACAFS Grading Pipeline Architecture](./ACAFS_architecture_diagram.png)
 
 ---
 
