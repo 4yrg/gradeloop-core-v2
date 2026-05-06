@@ -1383,6 +1383,12 @@ async def websocket_monitor(websocket: WebSocket, user_id: str, session_id: str)
 
             if metadata:
                 risk_score = float(metadata.get("risk_score", 0.0))
+                session_start = redis_client.get_session_start_time(user_id, session_id)
+                offset_seconds = (
+                    int((datetime.now() - session_start).total_seconds())
+                    if session_start
+                    else 0
+                )
 
                 # Send status update
                 await websocket.send_json(
@@ -1390,7 +1396,9 @@ async def websocket_monitor(websocket: WebSocket, user_id: str, session_id: str)
                         "type": "status_update",
                         "user_id": user_id,
                         "session_id": session_id,
+                        "offset_seconds": offset_seconds,
                         "risk_score": risk_score,
+                        "similarity_score": float(metadata.get("similarity_score", 0.0)),
                         "events_captured": event_count,
                         "last_verification": metadata.get("last_verification"),
                         "timestamp": datetime.now().isoformat(),
@@ -1421,6 +1429,11 @@ async def websocket_monitor(websocket: WebSocket, user_id: str, session_id: str)
 
     except WebSocketDisconnect:
         print(f"WebSocket disconnected for {user_id}:{session_id}")
+    except RuntimeError as e:
+        # Browser navigation/reconnect can close the socket while a send is in-flight.
+        print(f"WebSocket closed for {user_id}:{session_id}: {e}")
+    except Exception as e:
+        print(f"WebSocket monitor error for {user_id}:{session_id}: {e}")
 
 
 if __name__ == "__main__":

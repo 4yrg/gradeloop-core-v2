@@ -37,16 +37,16 @@ export default function DashboardLayout({
         <MobileSidebar open={mobileMenuOpen} onOpenChange={setMobileMenuOpen} />
 
         {/* Main Content */}
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <Topbar 
             onMenuClick={() => setMobileMenuOpen(true)} 
             sidebarCollapsed={sidebarCollapsed}
             onSidebarCollapsedChange={setSidebarCollapsed}
           />
 
-          <main className="flex-1 overflow-hidden bg-background">
-            <ScrollArea className="h-full">
-              <div className="container mx-auto p-6 lg:p-8">{children}</div>
+          <main className="min-w-0 flex-1 overflow-hidden bg-background">
+            <ScrollArea className="h-full min-w-0">
+              <div className="container mx-auto w-full max-w-full p-6 lg:p-8">{children}</div>
             </ScrollArea>
           </main>
         </div>
@@ -54,4 +54,3 @@ export default function DashboardLayout({
     </AuthGuard>
   );
 }
-

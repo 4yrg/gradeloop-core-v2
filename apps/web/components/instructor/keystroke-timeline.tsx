@@ -4,7 +4,6 @@ import * as React from "react";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
@@ -30,6 +29,20 @@ interface TimelineEvent {
     anomaly_type?: string;
     is_struggling: boolean;
     created_at?: string;
+}
+
+interface TimelinePayload {
+    type?: string;
+    events?: TimelineEvent[];
+    offset_seconds?: number;
+    risk_score?: number;
+    similarity_score?: number;
+    authenticated?: boolean;
+    is_anomaly?: boolean;
+    anomaly_type?: string;
+    is_struggling?: boolean;
+    timestamp?: string;
+    events_captured?: number;
 }
 
 interface TimelineStats {
@@ -87,6 +100,29 @@ function computeStats(events: TimelineEvent[]): TimelineStats {
     };
 }
 
+function normalizeTimelineEvent(payload: TimelinePayload): TimelineEvent {
+    const riskScore = Number(payload.risk_score ?? 0);
+    const similarityScore = Number(payload.similarity_score ?? Math.max(0, 1 - riskScore));
+
+    return {
+        offset_seconds: Number(payload.offset_seconds ?? 0),
+        similarity_score: similarityScore,
+        risk_score: riskScore,
+        authenticated: Boolean(payload.authenticated ?? (payload.type === "status_update" ? false : riskScore < 0.3)),
+        is_anomaly: Boolean(payload.is_anomaly ?? riskScore >= 0.6),
+        anomaly_type: payload.anomaly_type,
+        is_struggling: Boolean(payload.is_struggling ?? false),
+        created_at: payload.timestamp,
+    };
+}
+
+function stripApiV1(url: string): string {
+    return url.replace(/\/api\/v1\/?$/, "");
+}
+
+function toWsUrl(url: string): string {
+    return stripApiV1(url).replace(/^http/, "ws");
+}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -106,9 +142,9 @@ function StatPill({
         success: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
     };
     return (
-        <div className={cn("rounded-lg px-3 py-2 text-center", colors[variant])}>
-            <p className="text-xs font-medium uppercase tracking-wide opacity-70">{label}</p>
-            <p className="text-lg font-black tabular-nums">{value}</p>
+        <div className={cn("min-w-0 rounded-lg px-2 py-2 text-center sm:px-3", colors[variant])}>
+            <p className="truncate text-[10px] font-medium uppercase opacity-70 sm:text-xs">{label}</p>
+            <p className="text-base font-black tabular-nums sm:text-lg">{value}</p>
         </div>
     );
 }
@@ -120,8 +156,8 @@ function EventDot({ event }: { event: TimelineEvent }) {
                 <TooltipTrigger asChild>
                     <div
                         className={cn(
-                            "relative flex-shrink-0 w-3 h-3 rounded-full cursor-pointer",
-                            "ring-2 ring-background hover:scale-150 transition-transform duration-100",
+                            "relative h-3 w-3 rounded-full cursor-pointer",
+                            "ring-2 ring-background hover:scale-125 transition-transform duration-100",
                             getEventColor(event),
                             event.is_anomaly && "animate-pulse"
                         )}
@@ -157,20 +193,21 @@ export function KeystrokeTimeline({
     const [liveRisk, setLiveRisk] = useState<number | null>(null);
 
     const wsRef = useRef<WebSocket | null>(null);
-    const scrollEndRef = useRef<HTMLDivElement | null>(null);
     const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 
-    const resolvedApiBase =
+    const resolvedApiBase = stripApiV1(
         apiUrl ??
+        process.env.NEXT_PUBLIC_GATEWAY_URL ??
         process.env.NEXT_PUBLIC_API_URL ??
         "http://178.105.102.246:8000"
+    );
 
     const resolvedWsBase =
         wsUrl ??
         (process.env.NEXT_PUBLIC_WS_URL
-            ? process.env.NEXT_PUBLIC_WS_URL
-            : resolvedApiBase.replace(/^http/, "ws"));
+            ? stripApiV1(process.env.NEXT_PUBLIC_WS_URL)
+            : toWsUrl(resolvedApiBase));
 
     // ── Load historical timeline ──────────────────────────────────────────────
     const fetchHistory = useCallback(async () => {
@@ -205,24 +242,25 @@ export function KeystrokeTimeline({
 
         ws.onmessage = (msg) => {
             try {
-                const payload = JSON.parse(msg.data as string);
+                const payload = JSON.parse(msg.data as string) as TimelinePayload;
 
-                if (payload.type === "history") {
+                if (payload.type === "history" || payload.type === "timeline_history") {
                     setEvents(payload.events ?? []);
                     return;
                 }
 
-                if (payload.type === "auth_update" || payload.risk_score !== undefined) {
+                if (
+                    payload.type === "auth_update" ||
+                    payload.type === "status_update" ||
+                    payload.risk_score !== undefined
+                ) {
                     setLiveRisk(payload.risk_score ?? null);
 
-                    // If server echoes a full event, append it
-                    if (payload.offset_seconds !== undefined) {
+                    if (payload.offset_seconds !== undefined && (payload.type !== "status_update" || (payload.events_captured ?? 0) > 0)) {
+                        const event = normalizeTimelineEvent(payload);
                         setEvents((prev) => {
-                            // Deduplicate by offset + session
-                            const exists = prev.some(
-                                (e) => e.offset_seconds === payload.offset_seconds
-                            );
-                            return exists ? prev : [...prev, payload as TimelineEvent];
+                            const exists = prev.some((e) => e.offset_seconds === event.offset_seconds);
+                            return exists ? prev : [...prev, event];
                         });
                     }
                 }
@@ -243,11 +281,6 @@ export function KeystrokeTimeline({
         };
     }, [fetchHistory, connectWs]);
 
-    // Auto-scroll timeline to latest event
-    useEffect(() => {
-        scrollEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "end" });
-    }, [events.length]);
-
     // ── Derived state ─────────────────────────────────────────────────────────
     const stats = computeStats(events);
     const lastEvent = events[events.length - 1];
@@ -265,21 +298,21 @@ export function KeystrokeTimeline({
 
     // ── Render ────────────────────────────────────────────────────────────────
     return (
-        <Card className={cn("border-border/60 shadow-sm", className)}>
-            <CardHeader className="pb-3">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                    <CardTitle className="text-base font-bold flex items-center gap-2">
+        <Card className={cn("w-full max-w-full min-w-0 border-border/60 shadow-sm", className)}>
+            <CardHeader className="min-w-0 pb-3">
+                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <CardTitle className="flex min-w-0 items-center gap-2 text-base font-bold">
                         <Activity className="h-4 w-4 text-primary" />
-                        Keystroke Timeline
+                        <span className="truncate">Keystroke Timeline</span>
                     </CardTitle>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
                         {/* Live risk badge */}
                         {liveRisk !== null && (
                             <Badge
                                 variant="outline"
                                 className={cn(
-                                    "text-xs tabular-nums",
+                                    "whitespace-nowrap text-xs tabular-nums",
                                     liveRisk > 0.6
                                         ? "border-red-500 text-red-500"
                                         : liveRisk > 0.3
@@ -295,7 +328,7 @@ export function KeystrokeTimeline({
                         {/* Overall status */}
                         <Badge
                             variant="outline"
-                            className={cn("text-xs", statusMeta.color)}
+                            className={cn("whitespace-nowrap text-xs", statusMeta.color)}
                         >
                             <statusMeta.icon className="h-3 w-3 mr-1" />
                             {statusMeta.label}
@@ -304,7 +337,7 @@ export function KeystrokeTimeline({
                         {/* WebSocket connection indicator */}
                         <span
                             className={cn(
-                                "flex items-center gap-1 text-xs",
+                                "flex items-center gap-1 whitespace-nowrap text-xs",
                                 wsStatus === "connected"
                                     ? "text-emerald-500"
                                     : wsStatus === "connecting"
@@ -325,17 +358,18 @@ export function KeystrokeTimeline({
                 </div>
 
                 {/* Metadata row */}
-                <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                    <span className="flex items-center gap-1">
-                        <User className="h-3 w-3" /> {userId}
+                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <span className="flex min-w-0 items-center gap-1">
+                        <User className="h-3 w-3 shrink-0" />
+                        <span className="max-w-[min(18rem,70vw)] truncate">{userId}</span>
                     </span>
-                    <span className="flex items-center gap-1">
+                    <span className="flex shrink-0 items-center gap-1">
                         <Clock className="h-3 w-3" /> {formatSeconds(sessionDuration)}
                     </span>
                 </div>
             </CardHeader>
 
-            <CardContent className="space-y-4">
+            <CardContent className="min-w-0 space-y-4 px-3 sm:px-6">
                 {/* Stats row */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <StatPill label="Events" value={stats.total_events} />
@@ -357,7 +391,7 @@ export function KeystrokeTimeline({
                 </div>
 
                 {/* Timeline track */}
-                <div className="space-y-1">
+                <div className="min-w-0 space-y-1">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                         Event Timeline
                     </p>
@@ -368,33 +402,27 @@ export function KeystrokeTimeline({
                             Loading history...
                         </div>
                     ) : events.length === 0 ? (
-                        <div className="h-10 flex items-center justify-center text-muted-foreground text-sm">
-                            No events yet — waiting for keystroke data
+                        <div className="flex min-h-10 items-center justify-center px-2 text-center text-sm text-muted-foreground">
+                            No events yet - waiting for keystroke data
                         </div>
                     ) : (
-                        <ScrollArea className="w-full">
-                            <div className="flex items-center gap-1 px-1 py-3 min-w-max">
-                                {/* Start cap */}
-                                <div className="flex-shrink-0 w-2 h-0.5 bg-border rounded-full" />
-
+                        <div className="w-full min-w-0 rounded-md border border-border/50 bg-background px-3 py-3">
+                            <div className="flex w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-3">
                                 {events.map((event, i) => (
-                                    <React.Fragment key={`${event.offset_seconds}-${i}`}>
+                                    <div key={`${event.offset_seconds}-${i}`} className="flex items-center gap-2">
                                         <EventDot event={event} />
-                                        <div className="flex-shrink-0 w-4 h-0.5 bg-border rounded-full" />
-                                    </React.Fragment>
+                                        {i < events.length - 1 && (
+                                            <span className="h-0.5 w-3 rounded-full bg-border" />
+                                        )}
+                                    </div>
                                 ))}
 
                                 {/* Live indicator */}
                                 {wsStatus === "connected" && (
-                                    <div className="flex-shrink-0 w-3 h-3 rounded-full bg-primary animate-pulse" />
+                                    <div className="h-3 w-3 rounded-full bg-primary animate-pulse" />
                                 )}
-
-                                {/* End cap */}
-                                <div className="flex-shrink-0 w-2 h-0.5 bg-border rounded-full" />
-                                <div ref={scrollEndRef} />
                             </div>
-                            <ScrollBar orientation="horizontal" />
-                        </ScrollArea>
+                        </div>
                     )}
                 </div>
 
