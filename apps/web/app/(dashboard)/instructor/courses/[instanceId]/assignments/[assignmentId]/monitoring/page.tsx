@@ -87,7 +87,7 @@ function StatusBadgeCell({ status }: { status: AuthStatus }) {
     const meta = STATUS_META[status] ?? STATUS_META.COLLECTING_DATA;
     const Icon = meta.icon;
     return (
-        <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ring-1", meta.bg, meta.color, meta.ring)}>
+        <span className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ring-1", meta.bg, meta.color, meta.ring)}>
             <Icon className="h-3 w-3" />
             {meta.label}
         </span>
@@ -254,15 +254,15 @@ export default function AssignmentMonitoringPage({
     // ─── Detail view (timeline) ───────────────────────────────────────────────
     if (selectedUserId && selectedSessionId) {
         return (
-            <div className="flex flex-col gap-6 pb-8 animate-in fade-in duration-200">
+            <div className="flex w-full min-w-0 max-w-full flex-col gap-6 pb-8 animate-in fade-in duration-200">
                 {/* Back bar */}
-                <div className="flex items-center gap-3">
+                <div className="flex min-w-0 flex-wrap items-center gap-3">
                     <Button variant="ghost" size="sm" onClick={closeTimeline} className="gap-1.5 -ml-1">
                         <ArrowLeft className="h-4 w-4" />
                         Back to Monitor
                     </Button>
                     <span className="text-muted-foreground">·</span>
-                    <span className="text-sm font-medium">{selectedName ?? selectedUserId}</span>
+                    <span className="min-w-0 truncate text-sm font-medium">{selectedName ?? selectedUserId}</span>
                 </div>
 
                 <KeystrokeTimeline
@@ -286,12 +286,12 @@ export default function AssignmentMonitoringPage({
 
     // ─── List view ────────────────────────────────────────────────────────────
     return (
-        <div className="flex flex-col gap-6 pb-8 animate-in fade-in duration-200">
+        <div className="flex w-full min-w-0 max-w-full flex-col gap-6 pb-8 animate-in fade-in duration-200">
             <SectionHeader
                 title="Auth Monitor"
                 description="Real-time keystroke authentication status for students taking this assignment."
                 action={
-                    <div className="flex items-center gap-2">
+                    <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:justify-end">
                         <span className="text-xs text-muted-foreground">
                             Updated {formatDistanceToNow(lastRefresh, { addSuffix: true })}
                         </span>
@@ -318,11 +318,11 @@ export default function AssignmentMonitoringPage({
                     { label: "High Risk", value: highRiskCount, icon: ShieldAlert, color: "text-red-600" },
                 ].map(({ label, value, icon: Icon, color }) => (
                     <Card key={label} className="border-border/60">
-                        <CardContent className="flex items-center gap-3 p-4">
+                        <CardContent className="flex items-center gap-3 p-3 sm:p-4">
                             <div className={cn("rounded-lg p-2 bg-muted shrink-0", color)}>
                                 <Icon className="h-4 w-4" />
                             </div>
-                            <div>
+                            <div className="min-w-0">
                                 <p className="text-xs text-muted-foreground">{label}</p>
                                 <p className="text-xl font-black tabular-nums">{isLoading ? "—" : value}</p>
                             </div>
@@ -340,7 +340,7 @@ export default function AssignmentMonitoringPage({
             )}
 
             {/* Legend */}
-            <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+            <div className="flex flex-wrap gap-3 sm:gap-4 text-xs text-muted-foreground">
                 {(Object.entries(STATUS_META) as [AuthStatus, typeof STATUS_META[AuthStatus]][]).map(([key, meta]) => {
                     const Icon = meta.icon;
                     return (
@@ -350,7 +350,7 @@ export default function AssignmentMonitoringPage({
                         </span>
                     );
                 })}
-                <span className="flex items-center gap-1.5 ml-auto">
+                <span className="flex w-full items-center gap-1.5 sm:ml-auto sm:w-auto">
                     <span className="inline-block w-2 h-2 rounded-full bg-primary animate-pulse" />
                     Live (active session)
                 </span>
@@ -374,14 +374,14 @@ export default function AssignmentMonitoringPage({
                     {isLoading ? (
                         <div className="divide-y divide-border/40">
                             {Array.from({ length: 5 }).map((_, i) => (
-                                <div key={i} className="flex items-center gap-4 px-5 py-3.5">
+                                <div key={i} className="flex items-center gap-3 px-4 py-4 sm:gap-4 sm:px-5 sm:py-3.5">
                                     <Skeleton className="h-8 w-8 rounded-full" />
                                     <div className="flex-1 space-y-1.5">
                                         <Skeleton className="h-3.5 w-36" />
                                         <Skeleton className="h-3 w-24" />
                                     </div>
-                                    <Skeleton className="h-6 w-24 rounded-full" />
-                                    <Skeleton className="h-4 w-20" />
+                                    <Skeleton className="hidden h-6 w-24 rounded-full sm:block" />
+                                    <Skeleton className="hidden h-4 w-20 sm:block" />
                                     <Skeleton className="h-7 w-7 rounded-full" />
                                 </div>
                             ))}
@@ -402,13 +402,13 @@ export default function AssignmentMonitoringPage({
                                 {pageStudents.map((row) => (
                                     <button
                                         key={`${row.user_id}-${row.session_id}`}
-                                        className="w-full text-left flex items-center gap-4 px-5 py-3.5 hover:bg-muted/50 transition-colors group"
+                                        className="group grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-3 px-4 py-4 text-left transition-colors hover:bg-muted/50 sm:flex sm:items-center sm:gap-4 sm:px-5 sm:py-3.5"
                                         onClick={() => openTimeline(row)}
                                     >
                                         {/* Avatar */}
                                         <div
                                             className={cn(
-                                                "shrink-0 h-9 w-9 rounded-full flex items-center justify-center text-sm font-bold ring-2",
+                                                "shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold ring-2 sm:h-9 sm:w-9",
                                                 STATUS_META[row.status]?.bg,
                                                 STATUS_META[row.status]?.ring,
                                                 STATUS_META[row.status]?.color
@@ -418,8 +418,8 @@ export default function AssignmentMonitoringPage({
                                         </div>
 
                                         {/* Name + ID */}
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2">
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                                                 <span className="font-semibold text-sm truncate">
                                                     {row.display_name}
                                                 </span>
@@ -440,8 +440,30 @@ export default function AssignmentMonitoringPage({
                                             )}
                                         </div>
 
+                                        {/* Mobile status/details */}
+                                        <div className="col-start-2 col-span-2 flex flex-wrap items-center gap-2 sm:hidden">
+                                            <StatusBadgeCell status={row.status} />
+                                            <RiskBar score={row.risk_score} />
+                                            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                                                <Clock className="h-3 w-3" />
+                                                {row.event_count} events
+                                            </span>
+                                            {row.anomaly_count > 0 && (
+                                                <span title={`${row.anomaly_count} anomaly events`} className="flex items-center gap-0.5 text-xs text-red-500">
+                                                    <ShieldAlert className="h-3.5 w-3.5" />
+                                                    {row.anomaly_count}
+                                                </span>
+                                            )}
+                                            {row.struggle_count > 0 && (
+                                                <span title={`${row.struggle_count} struggle events`} className="flex items-center gap-0.5 text-xs text-yellow-500">
+                                                    <AlertTriangle className="h-3.5 w-3.5" />
+                                                    {row.struggle_count}
+                                                </span>
+                                            )}
+                                        </div>
+
                                         {/* Status */}
-                                        <div className="shrink-0">
+                                        <div className="hidden shrink-0 sm:block">
                                             <StatusBadgeCell status={row.status} />
                                         </div>
 
@@ -473,14 +495,14 @@ export default function AssignmentMonitoringPage({
                                         </div>
 
                                         {/* Chevron */}
-                                        <ChevronRight className="shrink-0 h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                                        <ChevronRight className="col-start-3 row-start-1 mt-2 h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground sm:mt-0" />
                                     </button>
                                 ))}
                             </div>
 
                             {/* Pagination */}
                             {totalPages > 1 && (
-                                <div className="flex items-center justify-between px-5 py-3 border-t border-border/40 text-sm text-muted-foreground">
+                                <div className="flex flex-col gap-3 px-4 py-3 border-t border-border/40 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-5">
                                     <span>
                                         Page {page} of {totalPages} · {students.length} students
                                     </span>
@@ -488,6 +510,7 @@ export default function AssignmentMonitoringPage({
                                         <Button
                                             variant="outline"
                                             size="sm"
+                                            className="flex-1 sm:flex-none"
                                             disabled={page === 1}
                                             onClick={() => setPage((p) => p - 1)}
                                         >
@@ -496,6 +519,7 @@ export default function AssignmentMonitoringPage({
                                         <Button
                                             variant="outline"
                                             size="sm"
+                                            className="flex-1 sm:flex-none"
                                             disabled={page === totalPages}
                                             onClick={() => setPage((p) => p + 1)}
                                         >
