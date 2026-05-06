@@ -9,29 +9,7 @@ queryable via REST.
 ## Pipeline Overview
 
 ```
-submission.created (RabbitMQ)
-         |
-         v
-[eval_worker.py]
-    |
-    +-- Step A: Code retrieval (SeeweedFS / inline)
-    |
-    +-- Step B: AST extraction (tree-sitter)
-    |
-    +-- Step C: Judge0 deterministic scoring
-    |           - Runs test cases against student code
-    |           - Each result carries test_case_description
-    |
-    +-- Step D: Two-pass LLM grading
-    |           Pass 1 - Gemma 4 26B reasoning (OpenRouter, free)
-    |           Pass 2 - Qwen3-Coder 480B structured output (OpenRouter)
-    |
-    +-- Step E: Persist to PostgreSQL (acafs_results)
-    |
-    v
-GET /api/v1/acafs/grades/:submissionId   <- instructor / student frontend
-PUT /api/v1/acafs/grades/:submissionId/override  <- instructor override
-```
+add the architecture image here
 
 ---
 

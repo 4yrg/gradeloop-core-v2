@@ -61,6 +61,14 @@ class LLMGrader:
         """True when a valid OpenRouter key is configured for Pass 1."""
         return self.settings.openrouter_api_key not in _MOCK_PLACEHOLDERS
 
+    # ── internal tools ──────────────────────────────────────────────────────
+    async def semantic_analysis(self, student_code: str, sample_answer: str) -> dict[str, Any]:
+        return {
+            "approach_match": "N/A",
+            "logical_equivalence": 0.0,
+            "structural_diff": []
+        }
+
     # ── public API ─────────────────────────────────────────────────────────
 
     async def evaluate(
