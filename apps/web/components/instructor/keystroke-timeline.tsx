@@ -87,6 +87,13 @@ function computeStats(events: TimelineEvent[]): TimelineStats {
     };
 }
 
+function stripApiV1(url: string): string {
+    return url.replace(/\/api\/v1\/?$/, "");
+}
+
+function toWsUrl(url: string): string {
+    return stripApiV1(url).replace(/^http/, "ws");
+}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -161,16 +168,18 @@ export function KeystrokeTimeline({
     const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 
-    const resolvedApiBase =
+    const resolvedApiBase = stripApiV1(
         apiUrl ??
+        process.env.NEXT_PUBLIC_GATEWAY_URL ??
         process.env.NEXT_PUBLIC_API_URL ??
         "http://178.105.102.246:8000"
+    );
 
     const resolvedWsBase =
         wsUrl ??
         (process.env.NEXT_PUBLIC_WS_URL
-            ? process.env.NEXT_PUBLIC_WS_URL
-            : resolvedApiBase.replace(/^http/, "ws"));
+            ? stripApiV1(process.env.NEXT_PUBLIC_WS_URL)
+            : toWsUrl(resolvedApiBase));
 
     // ── Load historical timeline ──────────────────────────────────────────────
     const fetchHistory = useCallback(async () => {

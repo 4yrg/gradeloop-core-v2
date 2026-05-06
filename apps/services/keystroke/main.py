@@ -1421,6 +1421,11 @@ async def websocket_monitor(websocket: WebSocket, user_id: str, session_id: str)
 
     except WebSocketDisconnect:
         print(f"WebSocket disconnected for {user_id}:{session_id}")
+    except RuntimeError as e:
+        # Browser navigation/reconnect can close the socket while a send is in-flight.
+        print(f"WebSocket closed for {user_id}:{session_id}: {e}")
+    except Exception as e:
+        print(f"WebSocket monitor error for {user_id}:{session_id}: {e}")
 
 
 if __name__ == "__main__":
