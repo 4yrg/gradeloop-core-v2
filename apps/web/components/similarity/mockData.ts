@@ -10,6 +10,8 @@ export interface Submission {
   student_name: string;
   similarity_score: number;
   risk_level: 'Low' | 'Medium' | 'High';
+  ai_likelihood?: number;
+  semantic_similarity_score?: number;
   segments: CodeSegment[];
 }
 
@@ -19,6 +21,8 @@ export const mockSubmissions: Submission[] = [
     student_name: "Alex Rivers",
     similarity_score: 92,
     risk_level: "High",
+    ai_likelihood: 0.85,
+    semantic_similarity_score: 94,
     segments: [
       {
         segment_id: "S1_A",
@@ -33,6 +37,8 @@ export const mockSubmissions: Submission[] = [
     student_name: "Jordan Smith",
     similarity_score: 92,
     risk_level: "High",
+    ai_likelihood: 0.12,
+    semantic_similarity_score: 94,
     segments: [
       {
         segment_id: "S2_A",
@@ -47,6 +53,8 @@ export const mockSubmissions: Submission[] = [
     student_name: "Casey Chen",
     similarity_score: 75,
     risk_level: "High",
+    ai_likelihood: 0.78,
+    semantic_similarity_score: 82,
     segments: [
       {
         segment_id: "S3_A",
@@ -61,6 +69,8 @@ export const mockSubmissions: Submission[] = [
     student_name: "Taylor Morgan",
     similarity_score: 75,
     risk_level: "High",
+    ai_likelihood: 0.05,
+    semantic_similarity_score: 82,
     segments: [
       {
         segment_id: "S4_A",
@@ -75,6 +85,8 @@ export const mockSubmissions: Submission[] = [
     student_name: "Riley Davis",
     similarity_score: 88,
     risk_level: "High",
+    ai_likelihood: 0.92,
+    semantic_similarity_score: 90,
     segments: [
       {
         segment_id: "S5_A",
@@ -89,6 +101,8 @@ export const mockSubmissions: Submission[] = [
     student_name: "Sam Wilson",
     similarity_score: 88,
     risk_level: "High",
+    ai_likelihood: 0.15,
+    semantic_similarity_score: 90,
     segments: [
       {
         segment_id: "S6_A",
@@ -103,6 +117,8 @@ export const mockSubmissions: Submission[] = [
     student_name: "Morgan Lee",
     similarity_score: 65,
     risk_level: "Medium",
+    ai_likelihood: 0.08,
+    semantic_similarity_score: 72,
     segments: [
       {
         segment_id: "S7_A",
@@ -117,6 +133,8 @@ export const mockSubmissions: Submission[] = [
     student_name: "Jamie Reed",
     similarity_score: 15,
     risk_level: "Low",
+    ai_likelihood: 0.02,
+    semantic_similarity_score: 18,
     segments: [
       {
         segment_id: "S8_A",
@@ -131,6 +149,8 @@ export const mockSubmissions: Submission[] = [
     student_name: "Dakota Bell",
     similarity_score: 10,
     risk_level: "Low",
+    ai_likelihood: 0.01,
+    semantic_similarity_score: 12,
     segments: [
       {
         segment_id: "S9_A",
@@ -145,6 +165,8 @@ export const mockSubmissions: Submission[] = [
     student_name: "Skyler Gray",
     similarity_score: 5,
     risk_level: "Low",
+    ai_likelihood: 0.04,
+    semantic_similarity_score: 8,
     segments: [
       {
         segment_id: "S10_A",
@@ -166,7 +188,9 @@ export const getCytoscapeElements = (submissions: Submission[]) => {
         id: sub.submission_id, 
         label: sub.student_name,
         type: 'submission',
-        risk: sub.risk_level
+        risk: sub.risk_level,
+        aiLikelihood: sub.ai_likelihood,
+        semanticSimilarityScore: sub.semantic_similarity_score
       }
     });
 

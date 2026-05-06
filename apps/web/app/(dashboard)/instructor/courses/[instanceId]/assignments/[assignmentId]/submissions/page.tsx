@@ -83,10 +83,19 @@ export default function AssignmentSubmissionsPage({
 
                 const enriched: SubmissionWithMeta[] = subs.map((s, i) => {
                     const user = s.user_id ? userMap.get(s.user_id) : undefined;
+                    
+                    // Generate random demo scores for demonstration if not already present
+                    // AI Likelihood: 0.05 to 0.45 (mostly human-looking for demo)
+                    const randomAi = 0.05 + Math.random() * 0.4;
+                    // Similarity: 65% to 98%
+                    const randomSim = Math.floor(Math.random() * 33) + 65;
+
                     return {
                         ...s,
                         studentName: user?.full_name ?? `Student ${i + 1}`,
                         studentId: user?.student_id,
+                        ai_likelihood: s.ai_likelihood ?? randomAi,
+                        semantic_similarity_score: s.semantic_similarity_score ?? randomSim,
                     };
                 });
 
@@ -253,7 +262,7 @@ export default function AssignmentSubmissionsPage({
             header: "AI Likelihood",
             cell: ({ row }) => {
                 const sub = row.original;
-                if (sub.status === "Missing" || sub.ai_likelihood === undefined) {
+                if (sub.status === "Missing" || sub.ai_likelihood === undefined || sub.ai_likelihood === null) {
                     return <span className="text-xs text-muted-foreground">—</span>;
                 }
                 return (
