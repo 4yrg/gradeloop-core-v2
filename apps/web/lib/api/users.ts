@@ -78,7 +78,10 @@ export const usersApi = {
     const cleanParams: Record<string, unknown> = {};
     if (params.page !== undefined) cleanParams.page = params.page;
     if (params.limit !== undefined) cleanParams.limit = params.limit;
-    if (params.user_type) cleanParams.user_type = params.user_type;
+    // Omit user_type when "all" (or empty): some gateways apply it as a literal
+    // SQL filter (user_type = 'all') and return zero rows.
+    const type = params.user_type?.trim().toLowerCase();
+    if (type && type !== "all") cleanParams.user_type = params.user_type;
     if (params.role_id) cleanParams.role_id = params.role_id;
     if (params.search) cleanParams.search = params.search;
 

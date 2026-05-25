@@ -82,17 +82,17 @@ class Settings(BaseSettings):
     # ── OpenRouter Models (hard-coded defaults, overridable via env vars) ────
     # Socratic chat — lightweight conversational model
     openrouter_model: str = Field(
-        default="z-ai/glm-4.5-air:free",
+        default="openrouter/owl-alpha",
         alias="ACAFS_CHAT_MODEL",
     )
     # Pass-1 deep reasoning model (free-form chain-of-thought)
     openrouter_reasoner_model: str = Field(
-        default="google/gemma-4-26b-a4b-it:free",
+        default="nvidia/nemotron-3-super-120b-a12b:free",
         alias="ACAFS_REASONER_MODEL",
     )
     # Pass-2 structured grading model (JSON output)
     openrouter_grader_model: str = Field(
-        default="qwen/qwen3-coder-480b-a35b-instruct",
+        default="z-ai/glm-4.5-air:free",
         alias="ACAFS_GRADER_MODEL",
     )
     # Base URL (standard OpenRouter endpoint)

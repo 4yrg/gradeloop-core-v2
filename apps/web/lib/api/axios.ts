@@ -18,10 +18,10 @@ export const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = useAuthStore.getState().accessToken;
-    const isAuthenticated = useAuthStore.getState().isAuthenticated;
 
-    // Only attach token if user is authenticated
-    if (token && config.headers && isAuthenticated) {
+    // Attach whenever we have a token (do not gate on isAuthenticated — it can
+    // be wrong briefly after persist rehydration from older localStorage).
+    if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 

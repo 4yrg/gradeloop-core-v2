@@ -22,7 +22,7 @@ export interface PaginatedResponse<T> {
 export interface ListUsersParams {
   page?: number;
   limit?: number;
-  /** Filter by user type: "all" | "student" | "instructor" | "admin" */
+  /** Filter by user type. Use "student" | "instructor" | "admin"; "all" is omitted on the wire. */
   user_type?: string;
   /** Filter by role ID */
   role_id?: string;

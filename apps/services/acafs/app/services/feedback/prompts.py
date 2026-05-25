@@ -27,7 +27,7 @@ Grading-mode routing
 deterministic  Score derived exclusively from evidence.test_results pass/fail counts.
                Formula: round(weight × passed / total, 2).  AUTHORITATIVE.
 
-llm            Qwen3-Coder reasons over student code + sample answer.
+llm            Pass-2 LLM grader reasons over student code + sample answer.
 
 llm_ast        Same as llm but the AST blueprint is also injected for structural
                evidence (function signatures, control flow, identifiers).
@@ -154,11 +154,11 @@ Output schema (N = number of rubric criteria — every one must appear):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 3 — PASS-1 REASONING PROMPT  (Gemma 4 / free-form)
+# SECTION 3 — PASS-1 REASONING PROMPT  (reasoner model / free-form)
 # ─────────────────────────────────────────────────────────────────────────────
-# This prompt is sent to the Gemma 4 reasoner BEFORE Qwen3-Coder grades.  It asks Gemma
-# to reason freely about each criterion — no JSON, no score, just analysis.
-# Qwen3-Coder will receive this chain-of-thought as grounding context in Pass 2.
+# This prompt is sent to the Pass-1 reasoner before the Pass-2 grader runs. It asks the
+# model to reason freely about each criterion — no JSON, no score, just analysis.
+# Pass 2 receives this chain-of-thought as grounding context.
 # ─────────────────────────────────────────────────────────────────────────────
 
 REASONING_PROMPT = """\
@@ -212,10 +212,10 @@ def build_reasoning_prompt(
     ast_data: dict,
     assignment_context: str = "N/A",
 ) -> str:
-    """Assemble the Pass-1 reasoning prompt for Gemma 4.
+    """Assemble the Pass-1 reasoning prompt for the configured reasoner model.
 
     Intentionally minimal — no output schema, no JSON constraints.
-    Gemma 4 should think freely; its output becomes grounding context for Qwen3-Coder.
+    Free-form output becomes grounding context for Pass 2.
     """
     sample = f"\n```\n{sample_answer_code}\n```" if sample_answer_code else " N/A"
     return (
@@ -286,7 +286,7 @@ def build_rubric_evaluation_prompt(
     assignment_context: str = "N/A",
     prior_reasoning: str | None = None,
 ) -> str:
-    """Assemble the full prompt string for Gemini rubric evaluation.
+    """Assemble the full prompt string for Pass-2 rubric evaluation.
 
     ``rubric_data`` is expected to be pre-enriched by the evaluation worker so
     that each criterion dict contains an ``evidence`` key with filtered test
@@ -294,8 +294,8 @@ def build_rubric_evaluation_prompt(
     test_results list.
 
     When ``prior_reasoning`` is supplied (Pass-2 mode) it is injected between
-    the guidelines and the main prompt so Qwen3-Coder can ground its numeric scores
-    in the Gemma 4 reasoning chain.
+    the guidelines and the main prompt so the grader can ground numeric scores
+    in the Pass-1 reasoning chain.
     """
     sample = f"\n```\n{sample_answer_code}\n```" if sample_answer_code else " N/A"
     reasoning_block = ""

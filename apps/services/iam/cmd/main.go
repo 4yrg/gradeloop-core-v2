@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -69,6 +70,9 @@ func run() error {
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
+	}
+	if strings.TrimSpace(cfg.JWT.SecretKey) == "" {
+		return fmt.Errorf("JWT_SECRET_KEY must be set to a non-empty value (required to sign access tokens); add it to your environment or .env and pass it to Docker Compose, e.g. docker compose --env-file .env ...")
 	}
 
 	if err := utils.InitLogger(); err != nil {

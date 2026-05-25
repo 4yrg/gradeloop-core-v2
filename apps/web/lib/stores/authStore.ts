@@ -116,9 +116,10 @@ export const useAuthStore = create<AuthState>()(
       hydrateSession: async () => {
         if (get().isLoading) return;
 
-        // If already authenticated with access token, skip refresh
-        if (get().accessToken && get().isAuthenticated) {
-          set({ isLoading: false, isHydrated: true });
+        // If we already have an access token, skip refresh (do not require
+        // isAuthenticated — it can desync from stale persisted localStorage).
+        if (get().accessToken) {
+          set({ isLoading: false, isHydrated: true, isAuthenticated: true });
           return;
         }
 
@@ -213,10 +214,18 @@ export const useAuthStore = create<AuthState>()(
       }),
       // accessToken and refreshToken are intentionally excluded from persistence.
       // The refresh token lives in an HttpOnly cookie managed by the browser.
+      // Never persist isAuthenticated: without accessToken, rehydration left
+      // isAuthenticated=true + accessToken=null so axios skipped Authorization
+      // and academic/IAM returned 401 "Missing authorization header".
       partialize: (state) => ({
         user: state.user,
-        isAuthenticated: state.isAuthenticated,
       }),
+      onRehydrateStorage: () => () => {
+        const { accessToken, isAuthenticated } = useAuthStore.getState();
+        if (!accessToken && isAuthenticated) {
+          useAuthStore.setState({ isAuthenticated: false, user: null });
+        }
+      },
     },
   ),
 );

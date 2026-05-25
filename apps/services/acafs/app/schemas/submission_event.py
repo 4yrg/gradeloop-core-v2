@@ -66,8 +66,8 @@ class RubricCriterion(BaseModel):
 
     grading_mode controls which evaluation path is used:
     - deterministic : scored solely from Judge0 test-case pass/fail counts.
-    - llm           : scored by Qwen3-Coder reasoning over student code and sample answer.
-    - llm_ast       : scored by Qwen3-Coder reasoning enriched with AST structural evidence.
+    - llm           : scored by the Pass-2 LLM grader over student code and sample answer.
+    - llm_ast       : scored by the Pass-2 LLM grader with AST structural evidence.
     """
 
     name: str

@@ -49,6 +49,7 @@ import { RevokeSessionsDialog } from "@/components/admin/revoke-sessions-dialog"
 import { DeleteUserDialog } from "@/components/admin/delete-user-dialog";
 import { usersApi, handleApiError } from "@/lib/api/users";
 import type { UserListItem } from "@/types/auth.types";
+import { USER_TYPES_ARRAY } from "@/types/auth.types";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -140,6 +141,27 @@ function StatCard({
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 const PAGE_LIMIT = 20;
+/** Per-type fetch cap when "All Types" is selected (merged client-side). */
+const ALL_TYPES_FETCH_LIMIT = 5000;
+
+type AllTypesCache = {
+  search: string;
+  merged: UserListItem[];
+  total: number;
+};
+
+function mergeUserLists(lists: UserListItem[][]): UserListItem[] {
+  const byId = new Map<string, UserListItem>();
+  for (const list of lists) {
+    for (const u of list) {
+      byId.set(u.id, u);
+    }
+  }
+  return [...byId.values()].sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+}
 
 export default function UsersPage() {
   // ── Data state ──────────────────────────────────────────────────────────
@@ -148,6 +170,10 @@ export default function UsersPage() {
   const [page, setPage] = React.useState(1);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  /** Populated when type filter is "all": full merged list + server total for stats/pagination. */
+  const [allTypesCache, setAllTypesCache] = React.useState<AllTypesCache | null>(
+    null,
+  );
 
   // ── Filter state ────────────────────────────────────────────────────────
   const [search, setSearch] = React.useState("");
@@ -179,45 +205,108 @@ export default function UsersPage() {
   }, [debouncedSearch, statusFilter, userTypeFilter]);
 
   // ── Fetch users ──────────────────────────────────────────────────────────
-  const fetchUsers = React.useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await usersApi.list({
-        page,
-        limit: PAGE_LIMIT,
-        search: debouncedSearch || undefined,
-        user_type: userTypeFilter === "all" ? "all" : userTypeFilter,
-      });
+  const fetchUsers = React.useCallback(
+    async (forceReload = false) => {
+      const searchKey = debouncedSearch || "";
 
-      // Debug logging
-      console.log('[Users] API response:', result);
-      console.log('[Users] Data:', result.data);
-      console.log('[Users] Total:', result.total);
+      if (userTypeFilter !== "all") {
+        setAllTypesCache(null);
+        setLoading(true);
+        setError(null);
+        try {
+          const result = await usersApi.list({
+            page,
+            limit: PAGE_LIMIT,
+            search: debouncedSearch || undefined,
+            user_type: userTypeFilter,
+          });
 
-      if (!result || !result.data) {
-        console.warn('[Users] Invalid API response structure:', result);
-        setError('Invalid response from server');
-        setUsers([]);
-        setTotal(0);
+          if (!result || !result.data) {
+            setError("Invalid response from server");
+            setUsers([]);
+            setTotal(0);
+            return;
+          }
+
+          setUsers(result.data);
+          setTotal(result.total || 0);
+        } catch (err) {
+          setError(handleApiError(err));
+          setUsers([]);
+          setTotal(0);
+        } finally {
+          setLoading(false);
+        }
         return;
       }
 
-      setUsers(result.data);
-      setTotal(result.total || 0);
-    } catch (err) {
-      console.error('[Users] API error:', err);
-      setError(handleApiError(err));
-      setUsers([]); // Reset to empty array on error
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  }, [page, debouncedSearch, userTypeFilter]);
+      // "All Types": some gateways break unscoped list — merge per-type pages instead.
+      if (
+        !forceReload &&
+        allTypesCache &&
+        allTypesCache.search === searchKey
+      ) {
+        const start = (page - 1) * PAGE_LIMIT;
+        setUsers(
+          allTypesCache.merged.slice(start, start + PAGE_LIMIT),
+        );
+        setTotal(allTypesCache.total);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+      try {
+        const results = await Promise.all(
+          USER_TYPES_ARRAY.map((t) =>
+            usersApi.list({
+              page: 1,
+              limit: ALL_TYPES_FETCH_LIMIT,
+              search: debouncedSearch || undefined,
+              user_type: t,
+            }),
+          ),
+        );
+
+        for (const r of results) {
+          if (!r || !Array.isArray(r.data)) {
+            setError("Invalid response from server");
+            setUsers([]);
+            setTotal(0);
+            setAllTypesCache(null);
+            return;
+          }
+        }
+
+        const merged = mergeUserLists(results.map((r) => r.data!));
+        const sumTotals = results.reduce((sum, r) => sum + (r.total || 0), 0);
+        const likelyIncomplete = results.some(
+          (r) => (r.total || 0) > (r.data?.length ?? 0),
+        );
+        const totalForUi = likelyIncomplete ? merged.length : sumTotals;
+        setAllTypesCache({
+          search: searchKey,
+          merged,
+          total: totalForUi,
+        });
+        setTotal(totalForUi);
+        const start = (page - 1) * PAGE_LIMIT;
+        setUsers(merged.slice(start, start + PAGE_LIMIT));
+      } catch (err) {
+        setError(handleApiError(err));
+        setUsers([]);
+        setTotal(0);
+        setAllTypesCache(null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [page, debouncedSearch, userTypeFilter, allTypesCache],
+  );
 
   React.useEffect(() => {
     queueMicrotask(() => {
-      fetchUsers();
+      void fetchUsers(false);
     });
   }, [fetchUsers]);
 
@@ -233,20 +322,37 @@ export default function UsersPage() {
   }, [users, statusFilter]);
 
   // ── Derived stats ────────────────────────────────────────────────────────────
-  const activeCount = users ? users.filter((u) => u.is_active).length : 0;
-  const inactiveCount = users ? users.filter((u) => !u.is_active).length : 0;
+  const statsSource =
+    userTypeFilter === "all" && allTypesCache
+      ? allTypesCache.merged
+      : users;
+  const activeCount = statsSource.filter((u) => u.is_active).length;
+  const inactiveCount = statsSource.filter((u) => !u.is_active).length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
   function handleUserCreated() {
-    fetchUsers();
+    setAllTypesCache(null);
+    void fetchUsers(true);
   }
   function handleUserUpdated(updated: UserListItem) {
     setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+    setAllTypesCache((c) => {
+      if (!c) return c;
+      return {
+        ...c,
+        merged: c.merged.map((u) => (u.id === updated.id ? updated : u)),
+      };
+    });
   }
   function handleUserDeleted(id: string) {
     setUsers((prev) => prev.filter((u) => u.id !== id));
     setTotal((t) => Math.max(0, t - 1));
+    setAllTypesCache((c) => {
+      if (!c) return c;
+      const merged = c.merged.filter((u) => u.id !== id);
+      return { ...c, merged, total: Math.max(0, c.total - 1) };
+    });
   }
 
   return (
@@ -336,7 +442,7 @@ export default function UsersPage() {
               variant="ghost"
               size="icon"
               className="h-10 w-10 hover:bg-muted"
-              onClick={fetchUsers}
+              onClick={() => void fetchUsers(true)}
               disabled={loading}
               title="Refresh"
             >
@@ -351,7 +457,7 @@ export default function UsersPage() {
         {error && !loading ? (
           <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
             <p className="text-sm text-red-500">{error}</p>
-            <Button variant="outline" size="sm" onClick={fetchUsers}>
+            <Button variant="outline" size="sm" onClick={() => void fetchUsers(true)}>
               Try again
             </Button>
           </div>
@@ -574,7 +680,10 @@ export default function UsersPage() {
       <BulkImportDialog
         open={importOpen}
         onOpenChange={setImportOpen}
-        onSuccess={fetchUsers}
+        onSuccess={() => {
+          setAllTypesCache(null);
+          void fetchUsers(true);
+        }}
       />
       <EditUserDialog
         user={editUser}
@@ -620,7 +729,10 @@ export default function UsersPage() {
         user={revokeUser}
         open={!!revokeUser}
         onOpenChange={(open) => !open && setRevokeUser(null)}
-        onSuccess={fetchUsers}
+        onSuccess={() => {
+          setAllTypesCache(null);
+          void fetchUsers(true);
+        }}
       />
       <DeleteUserDialog
         user={deleteUser}

@@ -1,28 +1,24 @@
 """Two-pass rubric grader for ACAFS.
 
-Pass 1 — Gemma 4 reasoning (OpenRouter, free)
-==============================================
-Gemma 4 26B performs open-ended analysis of the submission against every rubric
-criterion.  It reasons in plain prose — no JSON, no scores.
-For deterministic criteria it interprets test-case evidence (including partial
-runs) and for LLM/AST criteria it reasons about code quality and patterns.
+Pass 1 — deep reasoning (OpenRouter, ``ACAFS_REASONER_MODEL``)
+===============================================================
+Default: ``nvidia/nemotron-3-super-120b-a12b:free``.  Open-ended analysis of the
+submission against every rubric criterion in plain prose — no JSON, no scores.
 
-Pass 2 — Qwen3-Coder 480B grading (OpenRouter)
-================================================
-A second model receives the full grading prompt PLUS the Pass-1 reasoning
-chain as a [PRIOR DEEP ANALYSIS] block.  JSON mode is requested so the response
-conforms directly to the grade schema without needing a separate parser.
+Pass 2 — structured grading (OpenRouter, ``ACAFS_GRADER_MODEL``)
+================================================================
+Default: ``z-ai/glm-4.5-air:free``.  Receives the full grading prompt plus the
+Pass-1 reasoning chain as a [PRIOR DEEP ANALYSIS] block and returns structured JSON.
 
 Fallback
 =========
-If Pass 1 fails (timeout, API error, etc.) the grader logs a warning and
-continues with Pass 2 alone (Qwen3-Coder grader without prior reasoning), preserving
-the pre-existing behaviour.
+If Pass 1 fails (timeout, API error, etc.) the grader logs a warning and continues
+with Pass 2 alone (grader without prior reasoning).
 
 Grading-mode routing:
-  deterministic  → test-case pass/fail counts (authoritative).  Gemma 4 reasons
-                   about evidence quality; Qwen3-Coder grader scores; Judge0 overrides.
-  llm            → Qwen3-Coder grader reasons over student code vs sample answer.
+  deterministic  → test-case pass/fail counts (authoritative); Pass 1/2 interpret
+                   evidence; Judge0 overrides where applicable.
+  llm            → Pass-2 grader reasons over student code vs sample answer.
   llm_ast        → Same as llm but with AST blueprint injected.
 """
 
@@ -47,7 +43,7 @@ _OPENROUTER_TIMEOUT = 120.0  # seconds — reasoning models can be slow
 
 
 class LLMGrader:
-    """Two-pass rubric grader: Gemma 4 reasoning → Qwen3-Coder grader, both via OpenRouter."""
+    """Two-pass rubric grader: Pass-1 reasoner → Pass-2 grader via OpenRouter."""
 
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -82,12 +78,12 @@ class LLMGrader:
     ) -> dict[str, Any]:
         """Evaluate a submission against the rubric using a two-pass pipeline.
 
-        Pass 1 (Gemma 4 via OpenRouter): deep free-form reasoning over all criteria.
+        Pass 1 (``ACAFS_REASONER_MODEL`` via OpenRouter): deep free-form reasoning over all criteria.
           - Deterministic: interprets test-case evidence, handles partial runs.
           - LLM/AST: analyses code quality, patterns, gaps.
           - Skipped (with warning) if ACAFS_OPENROUTER_API_KEY is not configured.
 
-        Pass 2 (Qwen3-Coder via OpenRouter): produces structured JSON grade, optionally
+        Pass 2 (``ACAFS_GRADER_MODEL`` via OpenRouter): produces structured JSON grade, optionally
           grounded in the Pass-1 reasoning chain.
 
         Returns a dict with keys:
@@ -101,7 +97,7 @@ class LLMGrader:
             logger.warning("llm_grading_mock", reason="ACAFS_OPENROUTER_API_KEY not configured")
             return self._mock_response(rubric_data)
 
-        # ── Pass 1: Gemma 4 reasoning ─────────────────────────────────────
+        # ── Pass 1: reasoner model ────────────────────────────────────────
         prior_reasoning: str | None = None
         if self._has_reasoner:
             try:
@@ -154,7 +150,7 @@ class LLMGrader:
         Uses httpx directly (OpenAI-compatible /chat/completions endpoint).
         Raises on non-2xx status or timeout.
 
-        Used for Pass 1 (Gemma 4 reasoning) — no JSON mode, free-form output.
+        Used for Pass 1 (reasoner) — no JSON mode, free-form output.
         """
         headers = {
             "Authorization": f"Bearer {self.settings.openrouter_api_key}",
@@ -179,7 +175,7 @@ class LLMGrader:
     async def _call_openrouter_grader(
         self, prompt: str, rubric_data: list[dict[str, Any]]
     ) -> dict[str, Any]:
-        """Call the Qwen3-Coder grader model via OpenRouter and parse the structured JSON response."""
+        """Call the Pass-2 grader model via OpenRouter and parse the structured JSON response."""
         try:
             headers = {
                 "Authorization": f"Bearer {self.settings.openrouter_api_key}",

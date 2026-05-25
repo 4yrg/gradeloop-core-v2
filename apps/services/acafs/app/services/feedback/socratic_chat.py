@@ -1,4 +1,4 @@
-"""Socratic chat service using OpenRouter / GLM-4.5 Air.
+"""Socratic chat service using OpenRouter (default: openrouter/owl-alpha).
 
 Session lifecycle
 -----------------
@@ -39,7 +39,7 @@ def _apply_guardrail(content: str) -> str:
 
 
 class SocraticChatService:
-    """Handles Socratic tutoring turns via OpenRouter / GLM-4.5 Air."""
+    """Handles Socratic tutoring turns via OpenRouter (see ``ACAFS_CHAT_MODEL``)."""
 
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -98,7 +98,6 @@ class SocraticChatService:
         clean_messages = [{"role": m["role"], "content": m["content"]} for m in recent]
 
         # Only request extended reasoning for models that explicitly advertise it.
-        # GLM-4.5 Air supports the `reasoning` param.
         _reasoning_models = (
             "claude-3-7",
             "o1",
@@ -108,6 +107,8 @@ class SocraticChatService:
             "gemma-4",
             "glm-4",
             "glm-4.5",
+            "owl-alpha",
+            "nemotron",
         )
         supports_reasoning = any(
             tag in self.settings.openrouter_model.lower() for tag in _reasoning_models

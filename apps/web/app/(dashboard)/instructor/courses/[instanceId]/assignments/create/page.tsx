@@ -50,7 +50,7 @@ import {
 } from "lucide-react";
 
 // ─── Allowed Judge0 language IDs for assignment creation ─────────────────────
-// Verified against Judge0 at http://4.224.42.143:2358/languages — only IDs that
+// Verified against Judge0 at http://20.193.152.38:2358/languages — only IDs that
 // actually exist on this instance AND have ACAFS AST support are listed.
 // C (GCC 9.2.0 / Clang 7.0.1), C++ (GCC 9.2.0 / Clang 7.0.1),
 // C# (Mono 6.6.0.161), Python (3.8.1), Java (OpenJDK 13.0.1),
